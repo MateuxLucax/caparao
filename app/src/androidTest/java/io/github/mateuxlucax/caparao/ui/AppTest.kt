@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui
 
+import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasText
@@ -9,10 +10,16 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.data.local.BrewDatabase
+import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
+import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -42,13 +49,22 @@ class AppTest {
 
     private fun text(id: Int) = context.getString(id)
 
+    private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).build()
+    private val brews = BrewRepository(db.brews())
+    private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
+
     private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale, onboardingDone) }
+        initializer { BrewsViewModel(brews) }
+        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings) }
     }
 
     @After
-    fun tearDown() = scope.cancel()
+    fun tearDown() {
+        scope.cancel()
+        db.close()
+    }
 
     @Test
     fun onboardingConnectsToTheScaleAndOpensHome() {
@@ -85,5 +101,20 @@ class AppTest {
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
+    }
+
+    @Test
+    fun espressoOpensTheDoseStepAndBackCloses() {
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.onNodeWithText(text(R.string.dose_title)).assertExists()
+        compose.onNodeWithText(text(R.string.skip)).performClick()
+        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertExists()
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.onNodeWithText(text(R.string.nothing_recorded)).assertExists()
+        compose.onNodeWithText(text(R.string.close)).performClick()
+        compose.onNodeWithText(text(R.string.tab_home)).assertExists()
     }
 }

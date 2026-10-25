@@ -4,11 +4,16 @@ import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.mateuxlucax.caparao.data.local.BrewDatabase
+import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.AndroidBleTransport
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleClient
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
+import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
+import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +28,8 @@ class AppContainer(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     val settings = SettingsStore(SettingsStore.open(appContext))
+
+    val brews = BrewRepository(BrewDatabase.open(appContext).brews())
 
     /** The real Dot over Bluetooth, or a recording after [replay]. */
     var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope)
@@ -42,5 +49,8 @@ class AppContainer(context: Context) {
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
+        initializer { BrewsViewModel(brews) }
+        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings) }
     }
 }

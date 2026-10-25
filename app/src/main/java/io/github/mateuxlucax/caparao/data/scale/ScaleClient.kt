@@ -8,10 +8,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +38,15 @@ class ScaleClient(
 
     private val _reading = MutableStateFlow<ScaleReading?>(null)
     override val reading: StateFlow<ScaleReading?> = _reading.asStateFlow()
+
+    // Readings come at 10 Hz and collectors are quick; the buffer covers a slow frame without blocking the decoder.
+    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
+
+    private fun publish(reading: ScaleReading) {
+        _reading.value = reading
+        _readings.tryEmit(reading)
+    }
 
     private val _log = MutableStateFlow<List<String>>(emptyList())
     override val log: StateFlow<List<String>> = _log.asStateFlow()
@@ -173,7 +186,7 @@ class ScaleClient(
 
     private fun handle(message: ScaleMessage) {
         when (message) {
-            is ScaleMessage.Weight -> _reading.value = message.reading
+            is ScaleMessage.Weight -> publish(message.reading)
             is ScaleMessage.Battery -> _state.update { if (it is ScaleState.Connected) ScaleState.Connected(message.battery) else it }
             is ScaleMessage.Ack, is ScaleMessage.Model, is ScaleMessage.Unknown -> Unit
         }

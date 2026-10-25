@@ -35,7 +35,7 @@ for lang in en pt-BR; do
     "$adb" shell cmd uimode night "$([ "$theme" = dark ] && echo yes || echo no)" >/dev/null
     "$adb" shell am force-stop "$app"
     "$adb" shell am instrument -w -e screenshots "$lang-$theme" \
-      -e class "$app.ui.ScreenshotTest" "$app.test/androidx.test.runner.AndroidJUnitRunner" | grep -q "OK (1 test)" \
+      -e class "$app.ui.ScreenshotTest" "$app.test/androidx.test.runner.AndroidJUnitRunner" | grep -q "OK (2 tests)" \
       || { echo "screenshot run failed for $lang-$theme" >&2; exit 1; }
   done
 done

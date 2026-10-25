@@ -69,4 +69,44 @@
     <string name="connect_scale_live">Put something on the scale. The weight above should change.</string>
     <string name="copy_log">Copy debug log</string>
     <string name="log_copied">Log copied</string>
+
+    <!-- Brew -->
+    <string name="dose_title">Coffee dose</string>
+    <string name="dose_text">Weigh the ground coffee on the scale, or type it.</string>
+    <string name="dose_field">Dose in grams</string>
+    <string name="use_weight">Use weight</string>
+    <string name="next">Next</string>
+    <string name="espresso_place_cup">Put the cup on the scale</string>
+    <string name="espresso_place_cup_text">It tares by itself once the cup is still.</string>
+    <string name="cup_already_tared">Cup already tared</string>
+    <string name="taring">Taring…</string>
+    <string name="espresso_ready">Start the shot</string>
+    <string name="espresso_ready_text">The timer starts with the first drop and stops when the flow does.</string>
+    <string name="filter_ready">Start pouring</string>
+    <string name="filter_ready_text">The timer starts with the first water. Lift the dripper or tap Done to finish.</string>
+    <string name="stop">Stop</string>
+    <string name="done">Done</string>
+    <string name="brew_saved">Saved</string>
+    <string name="brew_interrupted">The scale disconnected. What was recorded is saved.</string>
+    <string name="nothing_recorded">Nothing was recorded.</string>
+    <string name="discard">Discard</string>
+    <string name="close">Close</string>
+    <string name="label_dose">Dose</string>
+    <string name="label_yield">Yield</string>
+    <string name="label_water">Water</string>
+    <string name="label_time">Time</string>
+    <string name="label_ratio">Ratio</string>
+    <string name="label_flow_avg">Avg flow</string>
+    <string name="label_first_drop">First drop</string>
+    <string name="ratio_value">1:%1$s</string>
+    <string name="scale_needed">Connect the scale to start a brew.</string>
+    <string name="local_only">Only on this phone</string>
+    <string name="synced_at">Synced %1$s</string>
+    <string name="delete">Delete</string>
+    <string name="brew_detail_weight">Weight</string>
+    <string name="brew_detail_flow">Flow</string>
+    <string name="delete_brew_title">Delete this brew?</string>
+    <string name="cancel">Cancel</string>
+    <string name="brewing_espresso">Extracting</string>
+    <string name="brewing_filter">Brewing</string>
 </resources>

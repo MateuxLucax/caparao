@@ -10,4 +10,6 @@ hold several frames. No MAC address or device name is recorded.
 | `press-ramp.jsonl` | SM-S916B, Android 17 | Connect and handshake; ~34 s empty; pressing the platform harder by hand up to ~1300 g (flow saturates at 99.9, overload flag on), release back to 0. Battery pushed twice as `01 05`. |
 | `idle-5min.jsonl` | SM-S916B, Android 17 | Connect and handshake; 5 min 42 s with nothing on the scale and no commands sent: no drop, no gap over 237 ms, no battery push. |
 
+| `synthetic-espresso.jsonl` | none | **Synthetic**, written by `scripts/synthetic-session.py`: cup placed at 2 s, a 26 s shot to 36 g from 14 s, cup lifted at 49 s. For replaying a whole espresso on the emulator (screenshots, UI tests); never used to tune the detectors. |
+
 Real brews (espresso, filter) are still to be recorded.

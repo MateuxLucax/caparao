@@ -11,4 +11,6 @@ buildscript {
 
 plugins {
     id("com.android.application") version "9.4.1" apply false
+    // Room's annotation processor (docs/adr/0004-minimal-dependencies.md, 2026-10 amendment).
+    id("com.google.devtools.ksp") version "2.3.12" apply false
 }

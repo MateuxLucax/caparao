@@ -4,9 +4,13 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +38,15 @@ class ReplayScaleSource(
 
     private val _reading = MutableStateFlow<ScaleReading?>(null)
     override val reading: StateFlow<ScaleReading?> = _reading.asStateFlow()
+
+    // Readings come at 10 Hz and collectors are quick; the buffer covers a slow frame without blocking the decoder.
+    private val _readings = MutableSharedFlow<ScaleReading>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val readings: SharedFlow<ScaleReading> = _readings.asSharedFlow()
+
+    private fun publish(reading: ScaleReading) {
+        _reading.value = reading
+        _readings.tryEmit(reading)
+    }
 
     private val _log = MutableStateFlow(listOf("replaying a recorded session"))
     override val log: StateFlow<List<String>> = _log.asStateFlow()
@@ -90,9 +103,11 @@ class ReplayScaleSource(
         when (message) {
             is ScaleMessage.Weight -> {
                 lastRawWeight = message.reading.weightGrams
-                _reading.value = message.reading.copy(
-                    weightGrams = Math.round((lastRawWeight - tareOffset) * 10) / 10.0,
-                    timerSeconds = (timerMs / 1000).toInt(),
+                publish(
+                    message.reading.copy(
+                        weightGrams = Math.round((lastRawWeight - tareOffset) * 10) / 10.0,
+                        timerSeconds = (timerMs / 1000).toInt(),
+                    ),
                 )
             }
             is ScaleMessage.Battery -> _state.value = ScaleState.Connected(message.battery)

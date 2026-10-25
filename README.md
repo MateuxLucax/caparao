@@ -15,23 +15,24 @@ Grafana) is an add-on, built last.
 
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+.
 
-> Status: stage 2 (scale) done in code: onboarding, connection with error help, and a live Home with weight, flow,
-> battery, tare and timer. Recording brews is next. See the [roadmap](docs/roadmap.md).
+> Status: stages 2–4 done in code: onboarding, live scale, automatic espresso and free-pour filter recording, saved
+> brews with their curves. Device runs and sync to a server are next. See the [roadmap](docs/roadmap.md).
 
 ## Screenshots
 
 <table>
-<tr><th>Welcome</th><th>Connect the scale</th><th>Home</th><th>Home, dark</th></tr>
+<tr><th>Welcome</th><th>Home</th><th>Espresso, live</th><th>Saved</th><th>Brew detail</th></tr>
 <tr>
-<td><img src="docs/screenshots/en/onboarding-welcome-light.png" width="180" alt="Onboarding, welcome"></td>
-<td><img src="docs/screenshots/en/onboarding-scale-light.png" width="180" alt="Onboarding, scale connected with live weight"></td>
-<td><img src="docs/screenshots/en/home-light.png" width="180" alt="Home with live weight and flow"></td>
-<td><img src="docs/screenshots/en/home-dark.png" width="180" alt="Home, dark theme"></td>
+<td><img src="docs/screenshots/en/onboarding-welcome-light.png" width="160" alt="Onboarding, welcome"></td>
+<td><img src="docs/screenshots/en/home-light.png" width="160" alt="Home with live weight and flow"></td>
+<td><img src="docs/screenshots/en/brew-live-light.png" width="160" alt="Espresso being recorded"></td>
+<td><img src="docs/screenshots/en/brew-summary-light.png" width="160" alt="Espresso saved with its numbers"></td>
+<td><img src="docs/screenshots/en/brew-detail-dark.png" width="160" alt="Brew detail with weight and flow curves, dark"></td>
 </tr>
 </table>
 
-Taken on an emulator by `scripts/screenshots.sh`, with a session recorded from a real Dot standing in for the scale,
-and refreshed whenever a screen changes. The same set in Portuguese
+Taken on an emulator by `scripts/screenshots.sh`, with a session recorded from a real Dot (and a synthetic espresso)
+standing in for the scale, and refreshed whenever a screen changes. The same set in Portuguese
 and in dark theme is in [docs/screenshots](docs/screenshots/README.md).
 
 ## Architecture

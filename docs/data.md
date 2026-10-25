@@ -39,8 +39,11 @@ Content-Type: application/json
 
 | Store | Contents | Stage |
 |-------|----------|-------|
-| SharedPreferences `settings` | Paired scale address, last dose per mode, server URL and token | 2, 3, 5 |
-| Room `brews` | One row per brew: id, mode, times, dose, yield, summary, `synced_at` | 3 |
-| Room `brew_samples` | Weight and flow curve, ~10 points per second | 3 |
+| SharedPreferences `settings` | `onboarding_done`, `last_dose_espresso` / `last_dose_filter`; later server URL and token | 2, 3, 5 |
+| Room `caparao.db`, table `brews` | One row per brew: `id` (phone UUID), `mode`, `started_at`, `duration_ms`, `dose_grams`, `yield_grams`, `time_to_first_drop_ms`, `flow_avg`, `flow_peak`, `interrupted`, `synced_at` | 3 |
+| Room `caparao.db`, table `brew_samples` | The curve: (`brew_id`, `at_ms`) → `weight_grams`, `flow` (smoothed from the weights), at most 10 per second; deleted with its brew | 3 |
+
+The exported schema is in [`app/schemas/`](../app/schemas); every version change needs a migration and a migration test.
+No scale address is stored: the app scans each time ([hardware.md](hardware.md)).
 
 All of it is excluded from cloud backups and device transfers.

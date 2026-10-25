@@ -67,4 +67,44 @@
     <string name="connect_scale_live">Coloque algo na balança. O peso acima deve mudar.</string>
     <string name="copy_log">Copiar log de debug</string>
     <string name="log_copied">Log copiado</string>
+
+    <!-- Preparo -->
+    <string name="dose_title">Dose de café</string>
+    <string name="dose_text">Pese o café moído na balança ou digite.</string>
+    <string name="dose_field">Dose em gramas</string>
+    <string name="use_weight">Usar peso</string>
+    <string name="next">Continuar</string>
+    <string name="espresso_place_cup">Coloque a xícara na balança</string>
+    <string name="espresso_place_cup_text">Ela tara sozinha quando a xícara parar.</string>
+    <string name="cup_already_tared">Xícara já tarada</string>
+    <string name="taring">Tarando…</string>
+    <string name="espresso_ready">Pode extrair</string>
+    <string name="espresso_ready_text">O timer começa na primeira gota e para quando o fluxo para.</string>
+    <string name="filter_ready">Pode despejar</string>
+    <string name="filter_ready_text">O timer começa com a primeira água. Tire o dripper ou toque em Pronto para terminar.</string>
+    <string name="stop">Parar</string>
+    <string name="done">Pronto</string>
+    <string name="brew_saved">Salvo</string>
+    <string name="brew_interrupted">A balança desconectou. O que foi registrado está salvo.</string>
+    <string name="nothing_recorded">Nada foi registrado.</string>
+    <string name="discard">Descartar</string>
+    <string name="close">Fechar</string>
+    <string name="label_dose">Dose</string>
+    <string name="label_yield">Bebida</string>
+    <string name="label_water">Água</string>
+    <string name="label_time">Tempo</string>
+    <string name="label_ratio">Razão</string>
+    <string name="label_flow_avg">Fluxo médio</string>
+    <string name="label_first_drop">Primeira gota</string>
+    <string name="ratio_value">1:%1$s</string>
+    <string name="scale_needed">Conecte a balança para começar um preparo.</string>
+    <string name="local_only">Só neste celular</string>
+    <string name="synced_at">Sincronizado %1$s</string>
+    <string name="delete">Apagar</string>
+    <string name="brew_detail_weight">Peso</string>
+    <string name="brew_detail_flow">Fluxo</string>
+    <string name="delete_brew_title">Apagar este preparo?</string>
+    <string name="cancel">Cancelar</string>
+    <string name="brewing_espresso">Extraindo</string>
+    <string name="brewing_filter">Passando</string>
 </resources>

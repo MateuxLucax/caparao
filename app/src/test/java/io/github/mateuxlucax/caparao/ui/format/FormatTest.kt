@@ -30,4 +30,10 @@ class FormatTest {
         assertEquals("61:01", Format.timer(3661))
         assertEquals("00:00", Format.timer(-3))
     }
+
+    @Test
+    fun ratioHasOneDecimalInTheLocalesStyle() {
+        assertEquals("2.0", Format.ratio(2.0, Locale.US))
+        assertEquals("15,7", Format.ratio(15.67, Locale.forLanguageTag("pt-BR")))
+    }
 }

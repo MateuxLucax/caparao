@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
@@ -61,6 +62,11 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.generateKotlin", "true")
+}
+
 dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
@@ -68,6 +74,9 @@ dependencies {
     // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (docs/adr/0011-code-structure.md).
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    // Brews and their curves (docs/adr/0003-offline-first.md, docs/adr/0004-minimal-dependencies.md).
+    implementation("androidx.room:room-runtime:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     testImplementation("junit:junit:4.13.2")
     // android.jar only ships a stub of org.json; JVM tests read the recorded sessions with the real one.

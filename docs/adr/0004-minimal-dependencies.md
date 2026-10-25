@@ -1,6 +1,6 @@
 # 4. Minimal dependencies
 
-Status: Accepted (amendment for Room and KSP planned in stage 3)
+Status: Accepted, amended 2026-10-25 (Room and KSP)
 
 ## Context
 
@@ -14,8 +14,11 @@ lifecycle Compose artifacts and WorkManager. HTTP uses `HttpURLConnection`, JSON
 platform API ([ADR 0002](0002-native-ble.md)), charts a Compose Canvas ([ADR 0013](0013-canvas-charts.md)). No DI
 framework, no networking or serialization library, no analytics.
 
-**Planned amendment (stage 3):** brews and their curves need queries (by mode, unsynced, by date), so Room with KSP will
-be added. The amendment will record the exact artifacts.
+**Amendment (2026-10-25, stage 3):** brews and their curves need queries (newest first, unsynced, by id) and atomic
+inserts, so the app uses `androidx.room:room-runtime` with `androidx.room:room-compiler` through KSP
+(`com.google.devtools.ksp`). Hand-written `SQLiteOpenHelper` code was the alternative; Room's compile-time checked
+queries, `Flow` results and exported schemas (the base for migration tests) are worth one library. Nothing else is
+added with it.
 
 ## Consequences
 

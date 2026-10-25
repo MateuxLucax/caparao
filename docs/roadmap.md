@@ -9,8 +9,8 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 0 | Hardware spike | Protocol questions answered with real recordings ([hardware.md](hardware.md)); real brews still to record for detector tuning |
 | 1 | Foundation | Done |
 | 2 | Scale | Done in code: codec, BLE client, replay, onboarding and live Home; device run of [acceptance/scale.md](acceptance/scale.md) pending |
-| 3 | Brews | Planned |
-| 4 | Brew history | Planned |
+| 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
+| 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Contract and stub done (`contract/`, `stub/`); app client and sync later |
 | 6 | Release and end-to-end test | Planned |
 | 7 | Screens waiting for wireframes | Waiting for designs |

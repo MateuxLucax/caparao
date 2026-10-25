@@ -27,10 +27,10 @@ relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked 
 |---------|----------------|
 | (root) | `MainActivity` (permission and Bluetooth intents, debug replay extras), `CaparaoApplication`, `AppContainer` (manual DI) |
 | `model` | Plain entities: `BrewMode`, `ScaleReading`, `ScaleBattery`, `ScaleState`, `ScaleError`; later `Brew`, `BrewSample`, `SyncError` |
-| `data` | `scale/`: `DotProtocol` (UUIDs, commands, CRC-16/MODBUS encoders), `FrameDecoder` (chunks to `ScaleMessage`s), `ScaleSource` (the seam the UI sees), `ScaleClient` (connection, handshake, battery poll, backoff) over `BleTransport` (`AndroidBleTransport`: one GATT operation at a time, bond), `ReplayScaleSource` (recorded sessions for the emulator). `local/`: `SettingsStore`; later Room. Later `exporter/` (`ExporterClient`, `ServerUrl`) |
-| `brew` | *Stage 3*: pure brew logic: `EspressoDetector`, `FilterSession`, `FlowSmoother`, `BrewSummary` |
+| `data` | `scale/`: `DotProtocol` (UUIDs, commands, CRC-16/MODBUS encoders), `FrameDecoder` (chunks to `ScaleMessage`s), `ScaleSource` (the seam the UI sees), `ScaleClient` (connection, handshake, battery poll, backoff) over `BleTransport` (`AndroidBleTransport`: one GATT operation at a time, bond), `ReplayScaleSource` (recorded sessions for the emulator). `local/`: `SettingsStore`, `BrewDatabase` (Room: `brews`, `brew_samples`), `BrewRepository`. Later `exporter/` (`ExporterClient`, `ServerUrl`) |
+| `brew` | Pure brew logic, fed with timed readings: `BrewDetector` with `EspressoDetector` (cup → auto tare → first drop → flow stops) and `FilterDetector` (tare → first water → Done or dripper lifted), `FlowSmoother` (least-squares slope over 1 s), `BrewSummary` (numbers and the ≤ 10 Hz curve) |
 | `sync` | *Stage 5*: `UploadWorker`, `UploadScheduler`, `SyncErrors` |
-| `ui` | `App` (onboarding gate, tabs, scale started and stopped with the app's visibility), `theme`, `format`, `components`, `onboarding`, `home`, `brews`, `settings`; later `brew` (live brew) |
+| `ui` | `App` (onboarding gate, tabs, brew and brew detail on top, scale started and stopped with the app's visibility), `theme`, `format`, `components` (logo, pour animation, scale readout ring), `onboarding`, `home`, `brew` (dose → live → saved), `brews` (list, detail, Canvas chart), `settings` |
 
 Outside the app module: `probe/` (stage 0 throwaway recorder, [spike.md](spike.md)), `stub/` (Go development server)
 and `contract/` (the upload schema and the JSON files both sides test against).
