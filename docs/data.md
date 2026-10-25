@@ -1,6 +1,9 @@
 # Data
 
-## Upload contract (draft, finalized in stage 5)
+## Upload contract
+
+Fixed in stage 5. The schema, the rules and the shared example files live in [`contract/`](../contract/README.md);
+the Android client and the Go stub are both tested against them.
 
 ```
 POST {serverUrl}/api/v1/brews
@@ -19,16 +22,18 @@ Content-Type: application/json
   "time_to_first_drop_s": 6.2,
   "flow_avg_gps": 1.3,
   "flow_peak_gps": 2.1,
+  "interrupted": false,
   "samples": [{ "t_ms": 0, "weight_g": 0.0, "flow_gps": 0.0 }]
 }
 ```
 
-- `id` is generated on the phone; the server upserts on it, so a retry never duplicates a brew
+- All fields are required and unknown ones are rejected. `time_to_first_drop_s` is `null` for filter brews;
+  `dose_g > 0`; `ended_at_ms > started_at_ms`; at most 20000 samples (may be empty); body at most 4 MiB.
+- `id` is a lowercase UUID generated on the phone; the server upserts on it, so a retry never duplicates a brew
   ([ADR 0007](adr/0007-idempotent-upload.md)).
-- `201` for a new brew, `200` when it already existed. `401` for a wrong token; other `4xx` are not retried.
+- `201` for a new brew, `200` when it already existed. `400` invalid body, `401` wrong token, `413` too large; none of
+  the 4xx are retried. `5xx` and timeouts are retried.
 - `samples[].t_ms` is relative to `started_at_ms`.
-
-The exact field list, limits and error bodies are fixed in stage 5, together with the shared files in `contract/`.
 
 ## On-device data
 
