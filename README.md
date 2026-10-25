@@ -15,7 +15,23 @@ Grafana) is an add-on, built last.
 
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+.
 
-> Status: stage 1 of 9 (foundation). See the [roadmap](docs/roadmap.md).
+> Status: stage 1 (foundation) done; the scale protocol, the stage 0 probe and the upload contract with its stub
+> server are in. See the [roadmap](docs/roadmap.md).
+
+## Screenshots
+
+<table>
+<tr><th>Home</th><th>Brews</th><th>Settings</th><th>Dark theme</th></tr>
+<tr>
+<td><img src="docs/screenshots/en/home-light.png" width="180" alt="Home, scale not connected"></td>
+<td><img src="docs/screenshots/en/brews-light.png" width="180" alt="Brews, empty"></td>
+<td><img src="docs/screenshots/en/settings-light.png" width="180" alt="Settings"></td>
+<td><img src="docs/screenshots/en/home-dark.png" width="180" alt="Home, dark theme"></td>
+</tr>
+</table>
+
+Taken on an emulator by `scripts/screenshots.sh` and refreshed whenever a screen changes. The same set in Portuguese
+and in dark theme is in [docs/screenshots](docs/screenshots/README.md).
 
 ## Architecture
 
@@ -40,7 +56,12 @@ scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install 
 scripts/check.sh         # unit tests, lint, debug build, secret scan
 ```
 
-Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`.
+Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. With one attached,
+`scripts/screenshots.sh` refreshes the screenshots.
+
+The stub server (`stub/`, Go) implements the upload [contract](contract/README.md) for development:
+`cd stub && AUTH_TOKEN=dev-token go run .`. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
+[docs/spike.md](docs/spike.md).
 
 Nothing secret lives in the repository: release signing comes from environment variables, and the server token is
 typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](https://github.com/gitleaks/gitleaks).

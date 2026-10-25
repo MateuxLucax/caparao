@@ -26,11 +26,14 @@ relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked 
 | Package | Responsibility |
 |---------|----------------|
 | (root) | `MainActivity`; later `CaparaoApplication` and `AppContainer` (manual DI) |
-| `model` | Plain entities: `BrewMode`; later `ScaleReading`, `ScaleState`, `Brew`, `BrewSample`, `SyncError` |
-| `data` | *Stage 2+*: `scale/` (`DotProtocol`, `FrameDecoder`, `ScaleClient`, `ScaleSource`, `ReplayScaleSource`), `local/` (settings, Room), `exporter/` (`ExporterClient`, `ServerUrl`) |
+| `model` | Plain entities: `BrewMode`, `ScaleReading`, `ScaleBattery`; later `ScaleState`, `Brew`, `BrewSample`, `SyncError` |
+| `data` | `scale/`: `DotProtocol` (UUIDs, commands, CRC-16/MODBUS encoders) and `FrameDecoder` (chunks to `ScaleMessage`s); later `ScaleClient`, `ScaleSource`, `ReplayScaleSource`, `local/` (settings, Room), `exporter/` (`ExporterClient`, `ServerUrl`) |
 | `brew` | *Stage 3*: pure brew logic: `EspressoDetector`, `FilterSession`, `FlowSmoother`, `BrewSummary` |
 | `sync` | *Stage 5*: `UploadWorker`, `UploadScheduler`, `SyncErrors` |
 | `ui` | `App` (tabs), `theme`, `format`, `components`, `home`, `brews`, `settings`; later `onboarding`, `brew` (live brew) |
+
+Outside the app module: `probe/` (stage 0 throwaway recorder, [spike.md](spike.md)), `stub/` (Go development server)
+and `contract/` (the upload schema and the JSON files both sides test against).
 
 Imports go one way: `model <- data <- brew <- sync <- ui <- root`. Only `ui` (and the root) uses `R` and
 `BuildConfig`. `LayerDependencyTest` enforces both.

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Refreshes docs/screenshots from a running emulator or phone: every tab, in English and Portuguese, light and dark.
+# The status bar is put in demo mode (fixed clock, full battery, no notifications) so the images don't change for
+# no reason. Images are scaled to 540 px wide to keep the repository small.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
+app=io.github.mateuxlucax.caparao
+device_dir=/sdcard/Android/data/$app/files/screenshots
+out=docs/screenshots
+
+./gradlew --console=plain -q installDebug installDebugAndroidTest
+
+demo() { "$adb" shell am broadcast -a com.android.systemui.demo -e command "$@" >/dev/null; }
+"$adb" shell settings put global sysui_demo_allowed 1
+demo enter
+demo clock -e hhmm 1000
+demo battery -e level 100 -e plugged false
+demo network -e wifi show -e level 4 -e mobile show -e level 4
+demo notifications -e visible false
+
+"$adb" shell rm -rf "$device_dir"
+for lang in en pt-BR; do
+  for theme in light dark; do
+    "$adb" shell cmd locale set-app-locales "$app" --locales "$lang"
+    "$adb" shell cmd uimode night "$([ "$theme" = dark ] && echo yes || echo no)" >/dev/null
+    "$adb" shell am force-stop "$app"
+    "$adb" shell am instrument -w -e screenshots "$lang-$theme" \
+      -e class "$app.ui.ScreenshotTest" "$app.test/androidx.test.runner.AndroidJUnitRunner" | grep -q "OK (1 test)" \
+      || { echo "screenshot run failed for $lang-$theme" >&2; exit 1; }
+  done
+done
+
+"$adb" shell cmd uimode night no >/dev/null
+demo exit
+
+tmp=$(mktemp -d)
+"$adb" pull -q "$device_dir" "$tmp"
+for lang in en pt-BR; do
+  mkdir -p "$out/$lang"
+  for f in "$tmp"/screenshots/"$lang"-*/*.png; do
+    theme=$(basename "$(dirname "$f")"); theme=${theme#"$lang"-}
+    sips -Z 1210 "$f" --out "$out/$lang/$(basename "$f" .png)-$theme.png" >/dev/null
+  done
+done
+rm -rf "$tmp"
+echo "Screenshots in $out/"

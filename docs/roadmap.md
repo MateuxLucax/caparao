@@ -6,12 +6,12 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 
 | # | Stage | Status |
 |---|-------|--------|
-| 0 | Hardware spike | Planned |
+| 0 | Hardware spike | Probe ready ([spike.md](spike.md)); waiting for recordings with the real Dot |
 | 1 | Foundation | Done |
-| 2 | Scale | Planned |
+| 2 | Scale | Protocol codec and decoder done (`data/scale`); BLE client and screens next |
 | 3 | Brews | Planned |
 | 4 | Brew history | Planned |
-| 5 | Contract, stub and sync | Planned |
+| 5 | Contract, stub and sync | Contract and stub done (`contract/`, `stub/`); app client and sync later |
 | 6 | Release and end-to-end test | Planned |
 | 7 | Screens waiting for wireframes | Waiting for designs |
 | 8 | Prometheus exporter | Planned, last |

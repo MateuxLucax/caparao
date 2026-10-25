@@ -15,6 +15,8 @@ minutes are limited, while the developer's Mac can run builds, tests and an emul
 - CI is one job on pushes to `main` (not on every branch push): the same tasks as `check.sh`, Gradle cache,
   `concurrency` cancelling superseded runs, docs-only changes ignored. Instrumented and end-to-end tests run on the local
   emulator.
+- Screenshots of every screen (English and Portuguese, light and dark) are refreshed with `scripts/screenshots.sh`
+  whenever a screen changes, and shown in the README and [docs/screenshots](../screenshots/README.md).
 - Once the repository is public (free minutes), the emulator job and automatic releases move to CI.
 
 ## Consequences
