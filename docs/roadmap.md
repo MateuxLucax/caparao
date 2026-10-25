@@ -8,7 +8,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 |---|-------|--------|
 | 0 | Hardware spike | Protocol questions answered with real recordings ([hardware.md](hardware.md)); real brews still to record for detector tuning |
 | 1 | Foundation | Done |
-| 2 | Scale | Protocol codec and decoder done (`data/scale`); BLE client and screens next |
+| 2 | Scale | Done in code: codec, BLE client, replay, onboarding and live Home; device run of [acceptance/scale.md](acceptance/scale.md) pending |
 | 3 | Brews | Planned |
 | 4 | Brew history | Planned |
 | 5 | Contract, stub and sync | Contract and stub done (`contract/`, `stub/`); app client and sync later |
@@ -46,7 +46,8 @@ Acceptance:
 
 - `DotProtocol` (pure codec, CRC-16/MODBUS out), `FrameDecoder` (buffering, resync on `A5 5A`, incoming CRC ignored).
 - `ScaleClient` on `BluetoothGatt`: scan by `TIMEMORE_Dot`/`TES017`, 3 connect attempts, MTU 247, bond, notify,
-  init (grams, standard mode), operation queue, battery every 60 s, reconnect with 1–10 s backoff, remembered address.
+  init (grams, standard mode), operation queue, battery every 60 s, reconnect with 1–10 s backoff. No remembered
+  address: the scan finds the Dot in under 100 ms ([hardware.md](hardware.md)), so the app scans on every connect.
 - `ScaleSource` seam with a `ReplayScaleSource` for tests, the emulator and screenshots.
 - Onboarding: welcome (animation), Bluetooth permissions, connect the scale (live data or an explained error with a
   copyable debug log). Home: status, battery, weight, flow, timer, tare and timer controls.
@@ -54,9 +55,11 @@ Acceptance:
 Acceptance:
 - Codec: tare and timer frames byte-for-byte equal to the references; decoder handles several frames per notification,
   a frame split across two, garbage before `A5 5A` and negative weight.
-- `ScaleClient` against a fake GATT: connect → MTU → bond → notify → init order; reconnects after a drop with backoff.
+- `ScaleClient` against a fake transport (`BleTransport`, the seam below `BluetoothGatt`): scan → open → init order
+  and timing, battery poll, open retries, refused pairing, reconnect after a drop with 1–10 s backoff, no address in
+  the debug log (`ScaleClientTest`). `AndroidBleTransport` (connect, MTU, bond, notify) is covered by the device script.
 - Onboarding and Home ViewModels, fed by `ReplayScaleSource`, show connected, no battery yet and each error.
-- Device script ([acceptance/scale.md](acceptance/README.md)): pair from scratch in < 30 s, weight within ±0.1 g of
+- Device script ([acceptance/scale.md](acceptance/scale.md)): pair from scratch in < 30 s, weight within ±0.1 g of
   the scale, tare responds in < 1 s, turning the Dot off and on reconnects by itself, a Dot paired elsewhere shows the
   reset hint.
 

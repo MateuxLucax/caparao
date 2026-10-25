@@ -13,7 +13,6 @@
     <string name="unit_grams">g</string>
     <string name="unit_grams_per_second">g/s</string>
     <string name="tare">Tare</string>
-    <string name="timer">Timer</string>
     <string name="mode_filter">Filter</string>
     <string name="mode_espresso">Espresso</string>
 
@@ -31,4 +30,43 @@
     <string name="section_scale">Scale</string>
     <string name="section_scale_text">Pair a Timemore Dot. If it is paired with another phone, hold its button until the light blinks fast.</string>
     <string name="version">Version %1$s</string>
+
+    <!-- Scale connection -->
+    <string name="scale_searching">Looking for the scale…</string>
+    <string name="scale_connecting">Connecting…</string>
+    <string name="scale_connected">Scale connected</string>
+    <string name="battery_percent">%1$d%%</string>
+    <string name="timer_start">Start</string>
+    <string name="timer_pause">Pause</string>
+    <string name="timer_reset">Reset</string>
+    <string name="error_bluetooth_off">Bluetooth is off</string>
+    <string name="error_permission_missing">Bluetooth not allowed</string>
+    <string name="error_not_found">Scale not found</string>
+    <string name="error_paired_elsewhere">The scale refused to pair</string>
+    <string name="error_connection_lost">Connection lost</string>
+    <string name="hint_bluetooth_off">Turn Bluetooth on to connect to the scale.</string>
+    <string name="hint_permission_missing">Caparaó needs the Nearby devices permission to find the scale. Allow it in the app settings.</string>
+    <string name="hint_not_found">Turn the scale on and keep it close to the phone. If it still does not show up, turn it off and on again.</string>
+    <string name="hint_paired_elsewhere">The Dot pairs with one phone at a time. If it was paired with another phone or the Timemore app, hold its button until the light blinks fast, then try again. Also check that it is close to the phone.</string>
+    <string name="hint_connection_lost">The scale turned off or went out of range. Reconnecting on its own.</string>
+    <string name="turn_on_bluetooth">Turn on Bluetooth</string>
+    <string name="open_app_settings">Open app settings</string>
+    <string name="retrying">Trying again…</string>
+    <string name="retry">Try again</string>
+
+    <!-- Onboarding -->
+    <string name="back">Back</string>
+    <string name="skip">Skip</string>
+    <string name="finish">Finish</string>
+    <string name="get_started">Get started</string>
+    <string name="welcome_title">Welcome to Caparaó</string>
+    <string name="welcome_text">A simple companion for the Timemore Dot. See the weight and flow live, record espresso and filter brews, and keep them on your phone. Sending them to your own server is optional.</string>
+    <string name="permissions_title">Bluetooth</string>
+    <string name="permissions_text">The scale talks to the phone over Bluetooth. Caparaó only uses it to find and connect to the Dot, never for your location.</string>
+    <string name="allow_bluetooth">Allow Bluetooth</string>
+    <string name="connect_scale_title">Connect the scale</string>
+    <string name="connect_scale_text">Turn the Dot on and keep it close to the phone.</string>
+    <string name="connect_scale_live">Put something on the scale: the weight above follows it live.</string>
+    <string name="copy_log">Copy debug log</string>
+    <string name="log_copied">Log copied</string>
 </resources>

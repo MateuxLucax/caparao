@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refreshes docs/screenshots from a running emulator or phone: every tab, in English and Portuguese, light and dark.
+# Refreshes docs/screenshots from a running emulator: the onboarding and every tab, in English and Portuguese, light and dark.
 # The status bar is put in demo mode (fixed clock, full battery, no notifications) so the images don't change for
 # no reason. Images are scaled to 540 px wide to keep the repository small.
 set -euo pipefail
@@ -10,7 +10,12 @@ app=io.github.mateuxlucax.caparao
 device_dir=/sdcard/Android/data/$app/files/screenshots
 out=docs/screenshots
 
-./gradlew --console=plain -q installDebug installDebugAndroidTest
+# The emulator by default, so a connected phone is never touched; set ANDROID_SERIAL to pick another device.
+export ANDROID_SERIAL="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
+[ -n "$ANDROID_SERIAL" ] || { echo "no emulator running (or set ANDROID_SERIAL)" >&2; exit 1; }
+./gradlew --console=plain -q assembleDebug assembleDebugAndroidTest
+"$adb" install -r -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
+"$adb" install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
 
 demo() { "$adb" shell am broadcast -a com.android.systemui.demo -e command "$@" >/dev/null; }
 "$adb" shell settings put global sysui_demo_allowed 1

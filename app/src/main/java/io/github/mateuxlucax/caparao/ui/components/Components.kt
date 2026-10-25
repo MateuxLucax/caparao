@@ -33,9 +33,9 @@ import io.github.mateuxlucax.caparao.model.BrewMode
  * the themed launcher icon does.
  */
 @Composable
-fun Logo(size: Dp) {
+fun Logo(size: Dp, modifier: Modifier = Modifier) {
     Box(
-        Modifier
+        modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.28f))
             .background(MaterialTheme.colorScheme.primaryContainer)

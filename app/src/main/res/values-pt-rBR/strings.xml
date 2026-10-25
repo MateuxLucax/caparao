@@ -11,7 +11,6 @@
     <string name="unit_grams">g</string>
     <string name="unit_grams_per_second">g/s</string>
     <string name="tare">Tara</string>
-    <string name="timer">Timer</string>
     <string name="mode_filter">Filtrado</string>
     <string name="mode_espresso">Espresso</string>
 
@@ -29,4 +28,43 @@
     <string name="section_scale">Balança</string>
     <string name="section_scale_text">Pareie uma Timemore Dot. Se ela estiver pareada com outro celular, segure o botão até a luz piscar rápido.</string>
     <string name="version">Versão %1$s</string>
+
+    <!-- Conexão com a balança -->
+    <string name="scale_searching">Procurando a balança…</string>
+    <string name="scale_connecting">Conectando…</string>
+    <string name="scale_connected">Balança conectada</string>
+    <string name="battery_percent">%1$d%%</string>
+    <string name="timer_start">Iniciar</string>
+    <string name="timer_pause">Pausar</string>
+    <string name="timer_reset">Zerar</string>
+    <string name="error_bluetooth_off">Bluetooth desligado</string>
+    <string name="error_permission_missing">Bluetooth não permitido</string>
+    <string name="error_not_found">Balança não encontrada</string>
+    <string name="error_paired_elsewhere">A balança recusou o pareamento</string>
+    <string name="error_connection_lost">Conexão perdida</string>
+    <string name="hint_bluetooth_off">Ligue o Bluetooth para conectar à balança.</string>
+    <string name="hint_permission_missing">O Caparaó precisa da permissão Dispositivos próximos para encontrar a balança. Permita nas configurações do app.</string>
+    <string name="hint_not_found">Ligue a balança e deixe-a perto do celular. Se ela ainda não aparecer, desligue e ligue de novo.</string>
+    <string name="hint_paired_elsewhere">A Dot pareia com um celular por vez. Se ela estava pareada com outro celular ou com o app da Timemore, segure o botão até a luz piscar rápido e tente de novo. Confira também se ela está perto do celular.</string>
+    <string name="hint_connection_lost">A balança desligou ou ficou fora de alcance. Reconectando sozinho.</string>
+    <string name="turn_on_bluetooth">Ligar Bluetooth</string>
+    <string name="open_app_settings">Abrir configurações do app</string>
+    <string name="retrying">Tentando de novo…</string>
+    <string name="retry">Tentar de novo</string>
+
+    <!-- Onboarding -->
+    <string name="back">Voltar</string>
+    <string name="skip">Pular</string>
+    <string name="finish">Concluir</string>
+    <string name="get_started">Começar</string>
+    <string name="welcome_title">Boas-vindas ao Caparaó</string>
+    <string name="welcome_text">Um companheiro simples para a Timemore Dot. Veja peso e fluxo ao vivo, registre espressos e filtrados e guarde tudo no celular. Enviar para o seu servidor é opcional.</string>
+    <string name="permissions_title">Bluetooth</string>
+    <string name="permissions_text">A balança conversa com o celular por Bluetooth. O Caparaó só usa isso para encontrar e conectar à Dot, nunca para a sua localização.</string>
+    <string name="allow_bluetooth">Permitir Bluetooth</string>
+    <string name="connect_scale_title">Conecte a balança</string>
+    <string name="connect_scale_text">Ligue a Dot e deixe-a perto do celular.</string>
+    <string name="connect_scale_live">Coloque algo na balança: o peso acima acompanha ao vivo.</string>
+    <string name="copy_log">Copiar log de debug</string>
+    <string name="log_copied">Log copiado</string>
 </resources>

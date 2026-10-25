@@ -15,22 +15,23 @@ Grafana) is an add-on, built last.
 
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+.
 
-> Status: stage 1 (foundation) done; the scale protocol, the stage 0 probe and the upload contract with its stub
-> server are in. See the [roadmap](docs/roadmap.md).
+> Status: stage 2 (scale) done in code: onboarding, connection with error help, and a live Home with weight, flow,
+> battery, tare and timer. Recording brews is next. See the [roadmap](docs/roadmap.md).
 
 ## Screenshots
 
 <table>
-<tr><th>Home</th><th>Brews</th><th>Settings</th><th>Dark theme</th></tr>
+<tr><th>Welcome</th><th>Connect the scale</th><th>Home</th><th>Home, dark</th></tr>
 <tr>
-<td><img src="docs/screenshots/en/home-light.png" width="180" alt="Home, scale not connected"></td>
-<td><img src="docs/screenshots/en/brews-light.png" width="180" alt="Brews, empty"></td>
-<td><img src="docs/screenshots/en/settings-light.png" width="180" alt="Settings"></td>
+<td><img src="docs/screenshots/en/onboarding-welcome-light.png" width="180" alt="Onboarding, welcome"></td>
+<td><img src="docs/screenshots/en/onboarding-scale-light.png" width="180" alt="Onboarding, scale connected with live weight"></td>
+<td><img src="docs/screenshots/en/home-light.png" width="180" alt="Home with live weight and flow"></td>
 <td><img src="docs/screenshots/en/home-dark.png" width="180" alt="Home, dark theme"></td>
 </tr>
 </table>
 
-Taken on an emulator by `scripts/screenshots.sh` and refreshed whenever a screen changes. The same set in Portuguese
+Taken on an emulator by `scripts/screenshots.sh`, with a session recorded from a real Dot standing in for the scale,
+and refreshed whenever a screen changes. The same set in Portuguese
 and in dark theme is in [docs/screenshots](docs/screenshots/README.md).
 
 ## Architecture
@@ -56,8 +57,13 @@ scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install 
 scripts/check.sh         # unit tests, lint, debug build, secret scan
 ```
 
-Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. With one attached,
-`scripts/screenshots.sh` refreshes the screenshots.
+Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. With an emulator running,
+`scripts/screenshots.sh` refreshes the screenshots. Debug builds can replay a recorded session instead of the scale
+(the emulator has no Bluetooth):
+
+```bash
+adb shell am start -n io.github.mateuxlucax.caparao/.MainActivity --es replay press-ramp --el replay_at_ms 38300
+```
 
 The stub server (`stub/`, Go) implements the upload [contract](contract/README.md) for development:
 `cd stub && AUTH_TOKEN=dev-token go run .`. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
