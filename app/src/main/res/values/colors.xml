@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Coffee-leaf green; also the background of the in-app logo. -->
+    <color name="ic_launcher_background">#1E3B2C</color>
+</resources>

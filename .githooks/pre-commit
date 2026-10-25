@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Blocks commits that add secrets (tokens, keys, passwords). The repo is meant to become public.
+set -euo pipefail
+if ! command -v gitleaks >/dev/null; then
+  echo "pre-commit: gitleaks not installed (brew install gitleaks); refusing to commit unscanned changes." >&2
+  echo "Skip once with git commit --no-verify if you are sure." >&2
+  exit 1
+fi
+exec gitleaks git --pre-commit --staged --no-banner --redact

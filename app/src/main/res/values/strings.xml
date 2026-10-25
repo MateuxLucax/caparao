@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
+<resources>
+    <string name="app_name" translatable="false">Caparaó</string>
+
+    <!-- Navigation -->
+    <string name="tab_home">Home</string>
+    <string name="tab_brews">Brews</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="scale_disconnected">Scale not connected</string>
+    <string name="unit_grams">g</string>
+    <string name="unit_grams_per_second">g/s</string>
+    <string name="tare">Tare</string>
+    <string name="timer">Timer</string>
+    <string name="mode_filter">Filter</string>
+    <string name="mode_espresso">Espresso</string>
+
+    <!-- Brews -->
+    <string name="last_sync">Last sync</string>
+    <string name="server_not_configured">No server set up. Brews stay on this phone.</string>
+    <string name="brews_empty_title">No brews yet</string>
+    <string name="brews_empty_text">Brews you finish on Home show up here, grouped into filter and espresso.</string>
+
+    <!-- Settings -->
+    <string name="section_server">Server</string>
+    <string name="section_server_text">Optional. When you set up a server, each brew is sent to it after it is saved.</string>
+    <string name="section_permissions">Permissions</string>
+    <string name="section_permissions_text">Bluetooth, to find and connect to the scale.</string>
+    <string name="section_scale">Scale</string>
+    <string name="section_scale_text">Pair a Timemore Dot. If it is paired with another phone, hold its button until the light blinks fast.</string>
+    <string name="version">Version %1$s</string>
+</resources>

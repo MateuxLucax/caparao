@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android / IDE
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
+
+# Secrets and local captures (the repo will be public)
+*.env
+.env*
+secrets/
+spike-captures/

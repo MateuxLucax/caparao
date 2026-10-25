@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Português (Brasil). Every key here must also exist in values/strings.xml (checked by TranslationsTest). -->
+<resources>
+    <!-- Navegação -->
+    <string name="tab_home">Início</string>
+    <string name="tab_brews">Dados</string>
+    <string name="tab_settings">Config</string>
+
+    <!-- Início -->
+    <string name="scale_disconnected">Balança desconectada</string>
+    <string name="unit_grams">g</string>
+    <string name="unit_grams_per_second">g/s</string>
+    <string name="tare">Tara</string>
+    <string name="timer">Timer</string>
+    <string name="mode_filter">Filtrado</string>
+    <string name="mode_espresso">Espresso</string>
+
+    <!-- Dados -->
+    <string name="last_sync">Última sincronização</string>
+    <string name="server_not_configured">Nenhum servidor configurado. Os preparos ficam só neste celular.</string>
+    <string name="brews_empty_title">Nenhum preparo ainda</string>
+    <string name="brews_empty_text">Os preparos que você terminar no Início aparecem aqui, separados em filtrado e espresso.</string>
+
+    <!-- Config -->
+    <string name="section_server">Servidor</string>
+    <string name="section_server_text">Opcional. Com um servidor configurado, cada preparo é enviado para ele depois de salvo.</string>
+    <string name="section_permissions">Permissões</string>
+    <string name="section_permissions_text">Bluetooth, para encontrar e conectar à balança.</string>
+    <string name="section_scale">Balança</string>
+    <string name="section_scale_text">Pareie uma Timemore Dot. Se ela estiver pareada com outro celular, segure o botão até a luz piscar rápido.</string>
+    <string name="version">Versão %1$s</string>
+</resources>
