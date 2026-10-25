@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "caparao"
 include(":app")
+// Stage 0 hardware probe: throwaway, not shipped (docs/spike.md).
+include(":probe")
