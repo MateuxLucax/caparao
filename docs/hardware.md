@@ -11,7 +11,7 @@ Sources: [TIMEMORE open-scale-protocol](https://github.com/TIMEMORE-COFFEE/open-
 ## Device
 
 - Model `TES017`, advertised name `TIMEMORE_Dot`. Match the name or model only, never a bare "dot".
-- No display: one button and an LED. Powers off after about a minute idle when not connected.
+- No display: one button (power, under the scale) and an LED. Powers off after about a minute idle when not connected.
 - Remembers **one** bonded device and drops other connections (HCI 0x3E). To pair another phone, hold the button until
   the LED blinks fast.
 
@@ -64,7 +64,7 @@ Acknowledgements come back as `03 <cmd> 00 01 01`.
 | Question | Why it matters | Answer |
 |----------|----------------|--------|
 | Is a keep-alive needed? (Some apps poll every 10 s.) | Connection stability | Not within 50 s: the stream ran with no command sent (press ramp session). The 5-minute idle session settles it. |
-| Does the physical button send a notification? | Reflecting a tare done on the scale | — |
+| Does the physical button send a notification? | Reflecting a tare done on the scale | Not applicable: the only button (power) is under the scale, so nobody presses it mid-brew. Tare and timer always come from the app; the button is only for power and re-pairing. |
 | Can the scale's flow go negative? | Flow clamping | No: releasing 1300 g to 0 brought flow to 0.0, never below (press ramp session). |
 | Does it power off while connected and idle? | Reconnect behavior | — |
 
