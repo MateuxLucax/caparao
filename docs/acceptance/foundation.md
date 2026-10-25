@@ -5,16 +5,25 @@ Automated: `scripts/check.sh` (unit tests, lint, build, secret scan) and `./grad
 
 Manual, on a phone or emulator:
 
-1. Install the debug APK. The launcher shows the cup-on-scale icon; with themed icons on (Android 13+), the monochrome
-   version.
+1. Install the debug APK. The launcher shows the cup-on-scale icon, centered, with the LED as a hole showing the
+   background; with themed icons on (Android 13+), the monochrome version in the system colors.
 2. Open the app: the Home tab shows "Scale not connected", 0.0 g, 00:00, disabled Tare and Timer, and the Filter and
    Espresso buttons.
 3. Switch to Brews and Settings and back: each tab shows its screen.
-4. Switch the system to dark theme: the colors follow; nothing is unreadable.
+4. Switch the system to dark theme and change the wallpaper colors: the app and its logo follow (Material You);
+   nothing is unreadable.
 5. Switch the app language to Português (Settings > System > Languages > App languages): every text is in Portuguese,
    weights use a comma (0,0 g).
 
 ## Runs
+
+### 2026-10-25 · icon recentered · Pixel 10a emulator, Android 17
+
+| Step | Result |
+|------|--------|
+| In-app logo, orange palette (light) | Pass: follows Material You, cup and scale centered, LED shows the background |
+| In-app logo, blue palette (dark) | Pass |
+| Launcher icon after the change | Not checked: the emulator's launcher stopped responding; same geometry as the in-app logo (`LauncherIconTest`) |
 
 ### 2026-10-25 · 0.0.0-dev · Pixel 10a emulator, Android 17
 

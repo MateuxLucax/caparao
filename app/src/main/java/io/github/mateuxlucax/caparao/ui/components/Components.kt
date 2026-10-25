@@ -2,7 +2,6 @@ package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -30,19 +28,23 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 
-/** The launcher icon: its foreground on the green background. */
+/**
+ * The app icon's shape in the theme's colors, so it follows Material You (wallpaper colors, light and dark), like
+ * the themed launcher icon does.
+ */
 @Composable
 fun Logo(size: Dp) {
     Box(
         Modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.28f))
-            .background(colorResource(R.color.ic_launcher_background))
+            .background(MaterialTheme.colorScheme.primaryContainer)
     ) {
-        Image(
-            painterResource(R.drawable.ic_launcher_foreground),
+        Icon(
+            painterResource(R.drawable.ic_launcher_monochrome),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize().scale(1.5f),
+            modifier = Modifier.fillMaxSize().scale(1.6f),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }
