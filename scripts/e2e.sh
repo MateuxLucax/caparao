@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
-app=io.github.mateuxlucax.caparao
+app=io.github.mateuxlucax.caparao.debug
 port="${E2E_PORT:-8099}"
 export ANDROID_SERIAL="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
 [ -n "$ANDROID_SERIAL" ] || { echo "no emulator running (or set ANDROID_SERIAL)" >&2; exit 1; }
@@ -51,7 +51,7 @@ for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:$port/healthz" >/dev/null &&
 "$adb" shell pm grant "$app" android.permission.ACCESS_LOCAL_NETWORK 2>/dev/null || true
 
 result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
-  -e class "$app.EndToEndTest" "$app.test/androidx.test.runner.AndroidJUnitRunner")
+  -e class io.github.mateuxlucax.caparao.EndToEndTest "$app.test/androidx.test.runner.AndroidJUnitRunner")
 echo "$result" | grep -q "OK (1 test)" || { echo "$result" >&2; echo "--- $server log" >&2; cat "$tmp/server.log" >&2; exit 1; }
 
 brews=$(curl -fs -H "Authorization: Bearer $token" "http://127.0.0.1:$port/api/v1/brews")

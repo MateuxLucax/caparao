@@ -4,7 +4,7 @@ Automated: `scripts/check.sh` (`DotProtocolTest`, `FrameDecoderTest`, `RecordedS
 `ReplayScaleSourceTest`, the Home and Onboarding ViewModel tests) and, on the emulator, `AppTest` (onboarding with a
 replayed session, live Home).
 
-Manual, on a phone with the Timemore Dot. Start from a fresh install (`adb uninstall io.github.mateuxlucax.caparao`),
+Manual, on a phone with the Timemore Dot. Start from a fresh install (`adb uninstall io.github.mateuxlucax.caparao.debug` for a debug build),
 with the Dot on and forgotten in the phone's Bluetooth settings.
 
 1. Open the app: the welcome animation and text show; Get started goes to the Bluetooth step.

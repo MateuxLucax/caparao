@@ -55,6 +55,11 @@ browser or file manager when Android asks). Each release lists the APK signer's 
 installing: `apksigner verify --print-certs caparao-<version>.apk`. Newer versions install over older ones and keep
 your brews.
 
+Debug builds (`./gradlew installDebug`) are a separate app, `io.github.mateuxlucax.caparao.debug`, labeled "Caparaó
+dev", so they install next to a release instead of failing on the different signer. Builds from before that change used
+the release package with the debug key: uninstall that one once (`adb uninstall io.github.mateuxlucax.caparao`) before
+installing a release.
+
 On first launch the app asks for **Nearby devices** (Bluetooth, only to find the scale), connects to the Dot, and
 optionally asks for your server's URL and token.
 
@@ -88,7 +93,7 @@ Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroid
 (the emulator has no Bluetooth):
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao/.MainActivity --es replay press-ramp --el replay_at_ms 38300
+adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --es replay press-ramp --el replay_at_ms 38300
 ```
 
 The stub server (`stub/`, Go) implements the upload [contract](contract/README.md) for development:
@@ -104,22 +109,31 @@ typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](ht
 ### Release signing
 
 Releases come from the **Release** workflow (Actions tab, or push a `v*` tag; automatic once the repository is public)
-and need the four signing secrets below; the workflow fails without them. Create a keystore once and keep it safe:
-losing it means users must uninstall to update.
+and need four signing secrets; the workflow fails without them. Create the key once, on a Mac:
 
 ```bash
-keytool -genkeypair -v -keystore release.jks -alias release -keyalg RSA -keysize 4096 -validity 10000
-base64 -i release.jks | tr -d '\n' > release.jks.base64
+scripts/release-key.sh
+```
+
+It writes `~/.config/caparao/release.jks` (outside the repository, certificate `CN=Caparao` with no personal data),
+keeps a random password in the login Keychain (item `caparao-signing`) and prints the signer's SHA-256. It refuses to
+overwrite an existing key. **Back up the keystore and its password** (a password manager): losing them means every
+user must uninstall to update. Then upload the secrets with the GitHub CLI:
+
+```bash
+scripts/release-key.sh --upload
 ```
 
 | Repository secret | Value |
 |---|---|
-| `SIGNING_KEYSTORE_BASE64` | contents of `release.jks.base64` |
-| `SIGNING_STORE_PASSWORD` | keystore password |
+| `SIGNING_KEYSTORE_BASE64` | the keystore, base64 |
+| `SIGNING_STORE_PASSWORD` | the Keychain password |
 | `SIGNING_KEY_ALIAS` | `release` |
-| `SIGNING_KEY_PASSWORD` | key password |
+| `SIGNING_KEY_PASSWORD` | the Keychain password (PKCS12 uses one password) |
 
-Never commit `release.jks`. Local release builds without the variables are signed with the debug key.
+To build and install a signed release from this Mac without spending Actions minutes:
+`scripts/release-apk.sh --install` (one device connected). Without the signing variables, `assembleRelease` falls back
+to the debug key.
 
 The code is one module with `model`, `data`, `brew`, `sync` and `ui` packages, manual dependency injection and one
 ViewModel per screen, the same structure as

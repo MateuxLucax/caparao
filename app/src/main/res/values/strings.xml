@@ -2,6 +2,8 @@
 <!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
     <string name="app_name" translatable="false">Caparaó</string>
+    <!-- The launcher label; debug builds override it (src/debug/res) to tell the two installs apart. -->
+    <string name="launcher_name" translatable="false">Caparaó</string>
 
     <!-- Navigation -->
     <string name="tab_home">Home</string>
