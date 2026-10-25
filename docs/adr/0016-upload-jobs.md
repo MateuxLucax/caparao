@@ -24,6 +24,10 @@ in airplane mode, the server can be down, and the token can be wrong; the app is
   until that brew goes through or the server is saved again.
 - No periodic job: a failed (not retryable) brew waits for the user to fix the problem, which triggers a resend.
 
+**When the app opens**, every unsynced brew without a pending job gets one (`UploadScheduler.ensurePending`, KEEP
+policy, so jobs waiting in backoff are left alone). This picks up brews whose job failed for good once the cause is
+fixed on the server side, without the user touching anything.
+
 ## Consequences
 
 - Brews upload by themselves when the network returns, with no work enqueued while no server is set.

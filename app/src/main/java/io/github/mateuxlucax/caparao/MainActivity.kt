@@ -11,11 +11,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
 class MainActivity : ComponentActivity() {
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
             openAppSettings = ::openAppSettings,
             requestLocalNetwork = ::requestLocalNetwork,
         )
+        if (savedInstanceState == null) lifecycleScope.launch { container.uploads.ensurePending() }
         setContent {
             AppTheme {
                 App(container.viewModelFactory, container.scale, container.settings.onboardingDone, actions, BuildConfig.VERSION_NAME)

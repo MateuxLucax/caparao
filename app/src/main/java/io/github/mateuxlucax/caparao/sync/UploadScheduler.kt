@@ -23,8 +23,8 @@ interface UploadQueue {
 }
 
 /**
- * Decides when brews are uploaded (docs/adr/0016-upload-jobs.md): after each save, and all unsynced ones again when a
- * server is saved. Nothing is enqueued without a server (docs/adr/0003-offline-first.md).
+ * Decides when brews are uploaded (docs/adr/0016-upload-jobs.md): after each save, all unsynced ones again when a
+ * server is saved, and any unsynced one without a job when the app opens. Nothing is enqueued without a server (docs/adr/0003-offline-first.md).
  */
 class UploadScheduler(
     private val settings: SettingsStore,
@@ -43,6 +43,15 @@ class UploadScheduler(
     suspend fun resendUnsynced() {
         if (!settings.serverConfigured) return
         unsyncedIds().forEach { queue.enqueue(it, replace = true) }
+    }
+
+    /**
+     * The app opened: makes sure every unsynced brew has a job, without restarting the ones waiting in backoff. Picks
+     * up brews whose job failed for good (a wrong token since fixed on the server, say) or was lost.
+     */
+    suspend fun ensurePending() {
+        if (!settings.serverConfigured) return
+        unsyncedIds().forEach { queue.enqueue(it, replace = false) }
     }
 
     fun serverRemoved() = queue.cancelAll()

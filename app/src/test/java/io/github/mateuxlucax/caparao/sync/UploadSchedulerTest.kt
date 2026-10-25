@@ -41,6 +41,15 @@ class UploadSchedulerTest {
     }
 
     @Test
+    fun openingTheAppKeepsJobsAndAddsMissingOnes() = runBlocking {
+        scheduler.ensurePending()
+        assertEquals(emptyList<String>(), queue.calls)
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        scheduler.ensurePending()
+        assertEquals(listOf("keep b1", "keep b2"), queue.calls)
+    }
+
+    @Test
     fun deletingAndRemovingCancel() {
         scheduler.brewDeleted("b1")
         scheduler.serverRemoved()
