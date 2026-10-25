@@ -136,4 +136,6 @@
     <string name="error_invalid_url">Use a URL that starts with http:// or https://</string>
     <string name="error_local_network">Android blocked the local network. Allow it to send brews.</string>
     <string name="error_other">Sending failed. The app tries again later.</string>
+    <string name="permission_granted">Bluetooth allowed</string>
+    <string name="reconnect">Reconnect</string>
 </resources>

@@ -21,6 +21,7 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +70,7 @@ class AppContainer(context: Context) {
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
+        initializer { ScaleStatusViewModel(scale) }
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }

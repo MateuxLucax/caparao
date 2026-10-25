@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
         }
         val actions = AppActions(
             requestBluetoothPermissions = ::requestBluetoothPermissions,
+            bluetoothPermissionGranted = { BLUETOOTH_PERMISSIONS.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } },
             enableBluetooth = ::enableBluetooth,
             openAppSettings = ::openAppSettings,
             requestLocalNetwork = ::requestLocalNetwork,

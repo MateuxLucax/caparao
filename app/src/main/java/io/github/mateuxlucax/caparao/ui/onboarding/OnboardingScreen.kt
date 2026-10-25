@@ -1,15 +1,11 @@
 package io.github.mateuxlucax.caparao.ui.onboarding
 
-import android.content.ClipData
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -27,16 +24,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,14 +42,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
 import io.github.mateuxlucax.caparao.ui.components.PourAnimation
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SearchingLogo
 import io.github.mateuxlucax.caparao.ui.components.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
-import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import kotlinx.coroutines.launch
 
 /** The onboarding steps, in order. */
@@ -218,28 +215,8 @@ private fun ConnectScale(viewModel: OnboardingViewModel, actions: AppActions) {
         }
         is ScaleState.Failed -> {
             ScaleErrorCard(scale.error, scale.retrying, actions, viewModel::retry)
-            DebugLog(state.log)
+            CopyLogButton(state.log)
         }
         else -> Text(stringResource(R.string.connect_scale_text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-    }
-}
-
-/** The connection log, to paste into an issue. It never holds the scale's address (ScaleClient). */
-@Composable
-private fun DebugLog(log: List<String>) {
-    if (log.isEmpty()) return
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
-    var copied by rememberSaveable { mutableStateOf(false) }
-    Spacer(Modifier.height(4.dp))
-    OutlinedButton(onClick = {
-        scope.launch {
-            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Caparaó log", log.joinToString("\n"))))
-            copied = true
-        }
-    }) {
-        Icon(painterResource(if (copied) R.drawable.ic_check_circle else R.drawable.ic_content_copy), null, Modifier.size(18.dp))
-        Spacer(Modifier.size(8.dp))
-        Text(stringResource(if (copied) R.string.log_copied else R.string.copy_log))
     }
 }

@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.components
 
+import android.content.ClipData
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -21,16 +22,23 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -41,6 +49,7 @@ import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.format.hint
 import io.github.mateuxlucax.caparao.ui.format.label
 import io.github.mateuxlucax.caparao.ui.format.title
+import kotlinx.coroutines.launch
 
 /** Connection state with its icon on the left and, when connected, the battery on the right (Home wireframe). */
 @Composable
@@ -102,5 +111,24 @@ fun SearchingLogo(searching: Boolean, modifier: Modifier = Modifier) {
             )
         }
         Logo(96.dp)
+    }
+}
+
+/** The connection log, to paste into an issue. It never holds the scale's address (ScaleClient). */
+@Composable
+fun CopyLogButton(log: List<String>) {
+    if (log.isEmpty()) return
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var copied by rememberSaveable { mutableStateOf(false) }
+    OutlinedButton(onClick = {
+        scope.launch {
+            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Caparaó log", log.joinToString("\n"))))
+            copied = true
+        }
+    }) {
+        Icon(painterResource(if (copied) R.drawable.ic_check_circle else R.drawable.ic_content_copy), null, Modifier.size(18.dp))
+        Spacer(Modifier.size(8.dp))
+        Text(stringResource(if (copied) R.string.log_copied else R.string.copy_log))
     }
 }

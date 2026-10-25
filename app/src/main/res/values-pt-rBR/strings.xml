@@ -134,4 +134,6 @@
     <string name="error_invalid_url">Use um endereço que comece com http:// ou https://</string>
     <string name="error_local_network">O Android bloqueou a rede local. Permita para enviar os preparos.</string>
     <string name="error_other">O envio falhou. O app tenta de novo mais tarde.</string>
+    <string name="permission_granted">Bluetooth permitido</string>
+    <string name="reconnect">Reconectar</string>
 </resources>

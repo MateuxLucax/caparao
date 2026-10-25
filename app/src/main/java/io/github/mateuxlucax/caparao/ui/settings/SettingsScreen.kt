@@ -18,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,10 +26,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.components.BodyText
+import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
+import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
+import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SectionCard
 import io.github.mateuxlucax.caparao.ui.components.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.StatusLine
@@ -37,14 +43,14 @@ import kotlinx.coroutines.launch
 
 /** Server, permissions and scale, in the wireframe's order. */
 @Composable
-fun SettingsScreen(server: ServerViewModel, actions: AppActions, versionName: String, modifier: Modifier = Modifier) {
+fun SettingsScreen(server: ServerViewModel, scale: ScaleStatusViewModel, actions: AppActions, versionName: String, modifier: Modifier = Modifier) {
     Column(
         modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
-        SectionCard(stringResource(R.string.section_permissions)) { BodyText(stringResource(R.string.section_permissions_text)) }
-        SectionCard(stringResource(R.string.section_scale)) { BodyText(stringResource(R.string.section_scale_text)) }
+        SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
+        SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
         Text(
             stringResource(R.string.version, versionName),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -86,5 +92,40 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
             },
             enabled = changed && viewModel.canSave(url, token),
         ) { Text(stringResource(R.string.save)) }
+    }
+}
+
+/** Nearby devices (Bluetooth): granted or not, re-checked when the app comes back from the system settings. */
+@Composable
+private fun PermissionsSection(actions: AppActions) {
+    var granted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
+    LifecycleResumeEffect(Unit) {
+        granted = actions.bluetoothPermissionGranted()
+        onPauseOrDispose {}
+    }
+    val scope = rememberCoroutineScope()
+    BodyText(stringResource(R.string.section_permissions_text))
+    StatusLine(granted, stringResource(if (granted) R.string.permission_granted else R.string.error_permission_missing))
+    if (!granted) {
+        Button(onClick = {
+            scope.launch {
+                // After a "don't ask again", the request returns at once without a dialog: the settings are the way.
+                granted = actions.requestBluetoothPermissions()
+                if (!granted) actions.openAppSettings()
+            }
+        }) { Text(stringResource(R.string.allow_bluetooth)) }
+    }
+}
+
+/** The connection with what went wrong, Reconnect and the debug log. */
+@Composable
+private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    BodyText(stringResource(R.string.section_scale_text))
+    ScaleStatusRow(state.scale)
+    (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::reconnect) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
+        CopyLogButton(state.log)
     }
 }

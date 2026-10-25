@@ -147,7 +147,13 @@ private fun Tabs(
         when (tab) {
             Tab.HOME -> HomeScreen(viewModel(factory = viewModelFactory), actions, onBrew, modifier)
             Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier)
-            Tab.SETTINGS -> SettingsScreen(viewModel(key = "server-settings", factory = viewModelFactory), actions, versionName, modifier)
+            Tab.SETTINGS -> SettingsScreen(
+                viewModel(key = "server-settings", factory = viewModelFactory),
+                viewModel(factory = viewModelFactory),
+                actions,
+                versionName,
+                modifier,
+            )
         }
     }
 }

@@ -24,6 +24,7 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
@@ -41,7 +42,7 @@ class AppTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val scope = MainScope()
-    private val actions = AppActions(requestBluetoothPermissions = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
+    private val actions = AppActions(requestBluetoothPermissions = { true }, bluetoothPermissionGranted = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
 
     /** The press-ramp recording from the moment there is weight on the scale. */
     private val scale = ReplayScaleSource(
@@ -59,6 +60,7 @@ class AppTest {
     private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale, onboardingDone) }
+        initializer { ScaleStatusViewModel(scale) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
         initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
