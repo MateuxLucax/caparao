@@ -1,7 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,7 +31,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -41,7 +38,6 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.format.hint
 import io.github.mateuxlucax.caparao.ui.format.label
 import io.github.mateuxlucax.caparao.ui.format.title
@@ -106,33 +102,5 @@ fun SearchingLogo(searching: Boolean, modifier: Modifier = Modifier) {
             )
         }
         Logo(96.dp)
-    }
-}
-
-/** Welcome animation: a drop falls into the cup on the scale while the weight below counts up. */
-@Composable
-fun BrewAnimation(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "brew")
-    val t by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "t")
-    val drop = MaterialTheme.colorScheme.primary
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(width = 160.dp, height = 180.dp), contentAlignment = Alignment.BottomCenter) {
-            // Falls during the first half of each cycle, then disappears into the cup.
-            val fall = (t * 2f).coerceAtMost(1f)
-            Box(
-                Modifier
-                    .offset(x = (-8).dp, y = (-150 + fall * 90).dp)
-                    .size(12.dp)
-                    .alpha(if (t < 0.5f) 1f else 0f)
-                    .clip(CircleShape)
-                    .drawBehind { drawCircle(drop) },
-            )
-            Logo(120.dp)
-        }
-        Text(
-            "${Format.grams(t * 36.0, LocalConfiguration.current.locales[0])} g",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

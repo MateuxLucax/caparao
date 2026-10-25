@@ -4,6 +4,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.viewmodel.initializer
@@ -71,7 +72,7 @@ class AppTest {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
-        compose.onNodeWithText(text(R.string.tare)).assertIsEnabled()
+        compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
         compose.onNodeWithText(text(R.string.mode_espresso)).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
@@ -82,7 +83,7 @@ class AppTest {
         compose.onNodeWithText("1.0-test", substring = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
-        compose.onNodeWithText(text(R.string.timer_start)).performClick()
-        compose.onNodeWithText(text(R.string.timer_pause)).assertExists()
+        compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
     }
 }

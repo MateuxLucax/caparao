@@ -24,6 +24,9 @@ demo clock -e hhmm 1000
 demo battery -e level 100 -e plugged false
 demo network -e wifi show -e level 4 -e mobile show -e level 4
 demo notifications -e visible false
+# Animations off: the welcome animation then shows its still frame (a full cup) instead of an arbitrary one.
+scale=$("$adb" shell settings get global animator_duration_scale)
+"$adb" shell settings put global animator_duration_scale 0
 
 "$adb" shell rm -rf "$device_dir"
 for lang in en pt-BR; do
@@ -39,6 +42,7 @@ done
 
 "$adb" shell cmd uimode night no >/dev/null
 demo exit
+"$adb" shell settings put global animator_duration_scale "${scale/null/1}"
 
 tmp=$(mktemp -d)
 "$adb" pull -q "$device_dir" "$tmp"

@@ -2,16 +2,12 @@ package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,8 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -29,24 +25,18 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 
 /**
- * The app icon's shape in the theme's colors, so it follows Material You (wallpaper colors, light and dark), like
- * the themed launcher icon does.
+ * The cup on the scale, without the launcher icon's background, in the theme's primary color, so it follows Material
+ * You (wallpaper colors, light and dark) like the themed launcher icon does.
  */
 @Composable
-fun Logo(size: Dp, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .size(size)
-            .clip(RoundedCornerShape(size * 0.28f))
-            .background(MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Icon(
-            painterResource(R.drawable.ic_launcher_monochrome),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize().scale(1.6f),
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-    }
+fun Logo(size: Dp, modifier: Modifier = Modifier, tint: Color = MaterialTheme.colorScheme.primary) {
+    Icon(
+        painterResource(R.drawable.ic_launcher_monochrome),
+        contentDescription = null,
+        // The glyph takes the middle ~45 % of the adaptive icon's 108 dp canvas; scale it up to fill the box.
+        modifier = modifier.size(size).scale(2.2f),
+        tint = tint,
+    )
 }
 
 @Composable

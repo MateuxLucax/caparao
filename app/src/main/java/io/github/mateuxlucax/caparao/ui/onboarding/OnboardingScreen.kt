@@ -1,6 +1,11 @@
 package io.github.mateuxlucax.caparao.ui.onboarding
 
 import android.content.ClipData
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,15 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,7 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.components.BrewAnimation
+import io.github.mateuxlucax.caparao.ui.components.PourAnimation
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SearchingLogo
@@ -62,10 +66,7 @@ fun OnboardingScreen(viewModel: OnboardingViewModel, actions: AppActions, onFini
 private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinished: () -> Unit) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
-        LinearProgressIndicator(
-            progress = { (step.ordinal + 1f) / OnboardingStep.entries.size },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        StepIndicator(step)
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,16 +78,16 @@ private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinishe
                 OnboardingStep.SCALE -> ConnectScale(viewModel, actions)
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            if (step != OnboardingStep.WELCOME) {
-                TextButton(onClick = { step = OnboardingStep.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
-            } else {
-                Spacer(Modifier)
+        if (step == OnboardingStep.WELCOME) {
+            Button(onClick = { step = OnboardingStep.PERMISSIONS }, Modifier.fillMaxWidth().height(52.dp)) {
+                Text(stringResource(R.string.get_started))
             }
-            when (step) {
-                OnboardingStep.WELCOME -> Button(onClick = { step = OnboardingStep.PERMISSIONS }) { Text(stringResource(R.string.get_started)) }
-                OnboardingStep.PERMISSIONS -> TextButton(onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
-                OnboardingStep.SCALE -> {
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { step = OnboardingStep.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
+                if (step == OnboardingStep.PERMISSIONS) {
+                    TextButton(onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
+                } else {
                     val connected = viewModel.uiState.collectAsStateWithLifecycle().value.scale is ScaleState.Connected
                     val finish = {
                         viewModel.finish()
@@ -103,10 +104,24 @@ private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinishe
     }
 }
 
+/** One segment per step; the done and current ones filled. */
+@Composable
+private fun StepIndicator(step: OnboardingStep) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OnboardingStep.entries.forEach { entry ->
+            val color by animateColorAsState(
+                if (entry <= step) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                label = "step",
+            )
+            Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
+        }
+    }
+}
+
 @Composable
 private fun Welcome() {
-    BrewAnimation()
-    Text(stringResource(R.string.welcome_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    PourAnimation()
+    Text(stringResource(R.string.welcome_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
     Text(
         stringResource(R.string.welcome_text),
         style = MaterialTheme.typography.bodyLarge,
