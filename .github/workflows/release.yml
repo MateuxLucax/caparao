@@ -107,6 +107,11 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
+            notes=$(gh release view "$TAG" --json body --jq .body)
+            if [[ "$notes" != *"$SIGNER_NOTE"* ]]; then
+              gh release edit "$TAG" --notes "$(printf '%s\n\n%s' "$notes" "$SIGNER_NOTE")"
+            fi
           else
+            # GitHub puts --notes before the generated notes.
             gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
           fi
