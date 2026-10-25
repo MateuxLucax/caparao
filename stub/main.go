@@ -1,5 +1,5 @@
 // Command stub is a development server for the Caparao upload contract (contract/).
-// In-memory only; the real server is caparao-exporter.
+// In-memory only; the real server is timemore-dot-prometheus-exporter.
 package main
 
 import (

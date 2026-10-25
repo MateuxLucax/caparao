@@ -1,7 +1,7 @@
 # Upload contract
 
 The wire format of `POST /api/v1/brews`, shared by the Android client and every server (the stub in `../stub`, later
-`caparao-exporter`). The same files are checked on both sides, so they cannot drift apart.
+`timemore-dot-prometheus-exporter`). The same files are checked on both sides, so they cannot drift apart.
 
 | Path | What it is |
 |------|------------|

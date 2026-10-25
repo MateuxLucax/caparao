@@ -11,7 +11,7 @@ stage. The app needs a real HTTP server to develop and test against before then.
 
 `stub/` in this repository: a minimal Go server (standard library only) implementing the contract
 ([data.md](../data.md)): validation, in-memory upsert by `id`, logging, `GET /api/v1/brews` and `GET /healthz`. It is
-for development and the end-to-end test only. The real server, `caparao-exporter`, is a separate repository built in
+for development and the end-to-end test only. The real server, `timemore-dot-prometheus-exporter`, is a separate repository built in
 stage 8 (SQLite as source of truth, a separate sync to Prometheus every 15 minutes), mirroring health-connect-bridge and
 its exporter.
 

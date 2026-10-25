@@ -12,7 +12,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
-| 6 | Release and end-to-end test | Planned |
+| 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (manual), R8; first release waits for the signing key |
 | 7 | Screens waiting for wireframes | Waiting for designs |
 | 8 | Prometheus exporter | Planned, last |
 
@@ -128,7 +128,7 @@ metadata. Acceptance criteria are written together with the wireframes.
 
 ## 8. Prometheus exporter (last)
 
-Separate repository `caparao-exporter` (Go):
+Separate repository `timemore-dot-prometheus-exporter` (Go):
 
 - **SQLite is the source of truth.** The API writes the brew and its curve there first (upsert by `id`) and answers 2xx
   only after the commit, so Prometheus never blocks the app.

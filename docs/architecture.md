@@ -7,7 +7,7 @@ flowchart LR
     dot["Timemore Dot<br/>(BLE, no display)"] -->|"notify FFF1<br/>weight · flow · timer"| app["Caparaó<br/>(this repo)"]
     app -->|"write FFF2<br/>tare · timer · battery query"| dot
     app --> room[("Room<br/>source of truth")]
-    room -->|"POST /api/v1/brews<br/>optional"| srv["stub/ (stages 5–7)<br/>caparao-exporter (stage 8)"]
+    room -->|"POST /api/v1/brews<br/>optional"| srv["stub/ (stages 5–7)<br/>timemore-dot-prometheus-exporter (stage 8)"]
     srv --> db[("SQLite")]
     db --> push["sync every 15 min"] -->|remote write| prom[("Prometheus")] --> graf["Grafana"]
 ```
