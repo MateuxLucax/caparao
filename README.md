@@ -42,7 +42,7 @@ flowchart LR
     dot["Timemore Dot<br/>BLE"] -->|"weight, flow, timer"| app["Caparaó<br/>(this app)"]
     app -->|"tare, timer, battery"| dot
     app --> room[("Room<br/>brews + curves")]
-    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(stub, later timemore-dot-prometheus-exporter)"]
+    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(stub or timemore-dot-prometheus-exporter)"]
 ```
 
 Details in [docs/](docs/README.md): architecture, the Dot's BLE protocol, the upload contract and the
@@ -93,7 +93,9 @@ adb shell am start -n io.github.mateuxlucax.caparao/.MainActivity --es replay pr
 
 The stub server (`stub/`, Go) implements the upload [contract](contract/README.md) for development:
 `cd stub && AUTH_TOKEN=dev-token go run .`. `scripts/e2e.sh` runs the whole chain on the emulator: a replayed
-espresso is recorded, saved and uploaded to the stub, and the script checks what the stub received. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
+espresso is recorded, saved and uploaded to the stub, and the script checks what the stub received.
+`E2E_SERVER=exporter scripts/e2e.sh` does the same against the real exporter (a sibling checkout) and Prometheus in
+Docker. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
 [docs/spike.md](docs/spike.md).
 
 Nothing secret lives in the repository: release signing comes from environment variables, and the server token is
