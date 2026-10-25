@@ -37,3 +37,4 @@ Manual, on a phone or emulator:
 | 4. Dark theme | Pass |
 | 5. Portuguese | Pass: "Balança desconectada", "0,0 g", tabs Início / Dados / Config |
 | Themed (monochrome) icon | Not checked |
+| First CI run on `main` | Pass in 5 min 22 s |

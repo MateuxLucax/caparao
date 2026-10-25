@@ -7,7 +7,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | # | Stage | Status |
 |---|-------|--------|
 | 0 | Hardware spike | Planned |
-| 1 | Foundation | Done, pending first CI run |
+| 1 | Foundation | Done |
 | 2 | Scale | Planned |
 | 3 | Brews | Planned |
 | 4 | Brew history | Planned |
