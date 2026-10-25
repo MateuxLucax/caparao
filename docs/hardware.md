@@ -41,8 +41,9 @@ A5 5A <type> <cmd> <len_hi> <len_lo> <payload…> <crc_hi> <crc_lo>
 
 | Frame | Direction | Meaning |
 |-------|-----------|---------|
-| `01 01`, 9 bytes | notify, ~10 Hz | weight int32 BE ÷10 g, flow int16 BE ÷10 g/s, timer uint16 s, overload flag |
-| `02 05` | read | battery: `[bars, percent]`; not pushed on its own, so poll every 60 s |
+| `01 01`, 9 bytes | notify, ~8.4 Hz (median 119 ms, measured) | weight int32 BE ÷10 g, flow int16 BE ÷10 g/s, timer uint16 s, overload flag |
+| `02 05` | read | battery: `[bars, percent]` (measured: `03 64` = 3 bars, 100 %) |
+| `01 05` | notify | the same battery payload, pushed by the Dot about every 30 s (measured) |
 | `03 0D`, no payload | write | tare: `A5 5A 03 0D 00 00 64 D1` |
 | `03 02 [01\|02\|03]` | write | timer start / pause / reset |
 | `03 06 [00]` | write | unit grams |
@@ -53,7 +54,8 @@ Acknowledgements come back as `03 <cmd> 00 01 01`.
 
 ## Known quirks
 
-- The scale's flow value saturates on sudden loads (99.9 seen): clamp to 0–25 g/s and smooth.
+- The scale's flow value saturates on sudden loads (99.9 measured): clamp to 0–25 g/s and smooth.
+- The overload flag (payload byte 8) turned on around 1300 g (measured).
 - Weight on the platform at power-on reads negative once removed (the Dot zeroes itself at boot).
 - No stability flag: stability is computed in the app.
 
@@ -61,7 +63,13 @@ Acknowledgements come back as `03 <cmd> 00 01 01`.
 
 | Question | Why it matters | Answer |
 |----------|----------------|--------|
-| Is a keep-alive needed? (Some apps poll every 10 s.) | Connection stability | — |
+| Is a keep-alive needed? (Some apps poll every 10 s.) | Connection stability | Not within 50 s: the stream ran with no command sent (press ramp session). The 5-minute idle session settles it. |
 | Does the physical button send a notification? | Reflecting a tare done on the scale | — |
-| Can the scale's flow go negative? | Flow clamping | — |
+| Can the scale's flow go negative? | Flow clamping | No: releasing 1300 g to 0 brought flow to 0.0, never below (press ramp session). |
 | Does it power off while connected and idle? | Reconnect behavior | — |
+
+### Confirmed on the device (SM-S916B, Android 17, 2026-10-25)
+
+- Connection sequence above works as written: connected in ~0.5 s, MTU 247 accepted, services found, notifications on.
+- Acknowledgements are `03 <cmd> 00 01 01` (unit and mode writes).
+- The battery is both a read reply (`02 05`) and an unsolicited push (`01 05`), so polling is a fallback, not a need.

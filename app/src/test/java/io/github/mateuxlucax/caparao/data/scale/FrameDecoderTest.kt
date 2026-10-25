@@ -98,6 +98,14 @@ class FrameDecoderTest {
     }
 
     @Test
+    fun decodesTheBatteryReplyAndTheUnsolicitedBatteryPush() {
+        // Both recorded from a real Dot (spike, 2026-10-25): the reply to `02 05`, and the `01 05` it pushes every ~30 s.
+        val expected = ScaleMessage.Battery(ScaleBattery(percent = 100, bars = 3))
+        assertEquals(listOf(expected), FrameDecoder().feed(bytes("a5 5a 02 05 00 02 03 64 00 00")))
+        assertEquals(listOf(expected), FrameDecoder().feed(bytes("a5 5a 01 05 00 02 03 64 00 00")))
+    }
+
+    @Test
     fun decodesAnAck() {
         assertEquals(listOf(ScaleMessage.Ack(0x0D)), FrameDecoder().feed(bytes("a5 5a 03 0d 00 01 01 00 00")))
     }

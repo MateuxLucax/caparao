@@ -99,7 +99,8 @@ class FrameDecoder {
                     overload = p.size > 8 && p[8].toInt() != 0,
                 ),
             )
-        type == DotProtocol.TYPE_READ && cmd == DotProtocol.CMD_BATTERY && p.size >= 2 ->
+        // The reply to a battery read, and the push the Dot sends on its own about every 30 s (docs/hardware.md).
+        (type == DotProtocol.TYPE_READ || type == DotProtocol.TYPE_NOTIFY) && cmd == DotProtocol.CMD_BATTERY && p.size >= 2 ->
             ScaleMessage.Battery(ScaleBattery(percent = p[1].toInt() and 0xFF, bars = p[0].toInt() and 0xFF))
         type == DotProtocol.TYPE_READ && cmd == DotProtocol.CMD_MODEL ->
             ScaleMessage.Model(String(p, Charsets.US_ASCII).trimEnd('\u0000'))
