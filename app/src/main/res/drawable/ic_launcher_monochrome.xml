@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Themed icon (Android 13+) and the in-app logo: only the shape counts, tinted by the system or the theme.
      Cup: Material Symbols "coffee" fill (Apache License 2.0) on a rounded bar standing for the Timemore Dot, whose
-     LED is a hole showing the background. The cup-and-scale bounding box is centered on (54, 54), and its corners
+     LED is a hole showing the background. Optical centering: the bowl's axis (x=442 in the glyph) sits over the LED at x=54, so the handle hangs to the right; the corners
      stay inside the 66dp safe zone. Foreground and monochrome share the same paths (LauncherIconTest). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,7 +11,7 @@
     <group
         android:scaleX="0.0464"
         android:scaleY="0.0464"
-        android:translateX="29.87"
+        android:translateX="33.49"
         android:translateY="71.53">
         <path
             android:fillColor="#FF000000"
