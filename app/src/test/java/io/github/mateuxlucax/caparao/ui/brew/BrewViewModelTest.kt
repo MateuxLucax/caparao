@@ -28,8 +28,14 @@ class BrewViewModelTest {
     private val settings = SettingsStore(FakePreferences())
     private var now = 0L
 
-    private fun viewModel(mode: BrewMode) =
-        BrewViewModel(mode, scale, BrewRepository(dao), settings, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" })
+    /** Upload scheduling calls, each with whether the brew was in the database at that moment. */
+    private val uploads = mutableListOf<String>()
+
+    private fun viewModel(mode: BrewMode) = BrewViewModel(
+        mode, scale, BrewRepository(dao), settings, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
+        onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
+        onDiscarded = { id -> uploads += "discarded $id" },
+    )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
     private fun pour(from: Double, to: Double, seconds: Double) {
@@ -66,8 +72,8 @@ class BrewViewModelTest {
         val brew = state.saved!!
         assertEquals(36.0, brew.yieldGrams, 0.3)
         assertEquals(25.0, brew.durationMs / 1000.0, 1.0)
-        assertEquals(18.0, brew.doseGrams!!, 0.0)
-        assertEquals(2.0, brew.ratio!!, 0.05)
+        assertEquals(18.0, brew.doseGrams, 0.0)
+        assertEquals(2.0, brew.ratio, 0.05)
         assertFalse(brew.interrupted)
         assertEquals(listOf("brew-1"), dao.brews.value.map { it.id })
         assertTrue("the curve is saved", dao.samples.getValue("brew-1").size > 200)
@@ -79,7 +85,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
-        vm.setDose(null)
+        vm.setDose(15.0)
         hold(320.0, 0.1)
         assertEquals(listOf("tare"), scale.commands)
         hold(0.0, 1.0)
@@ -89,7 +95,6 @@ class BrewViewModelTest {
 
         val brew = vm.uiState.value.saved!!
         assertEquals(250.0, brew.yieldGrams, 0.5)
-        assertNull(brew.doseGrams)
         assertNull(brew.timeToFirstDropMs)
         assertEquals(1, dao.brews.value.size)
     }
@@ -124,7 +129,7 @@ class BrewViewModelTest {
     fun discardDeletesTheSavedBrew() {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
-        vm.setDose(null)
+        vm.setDose(15.0)
         vm.armNow()
         hold(0.0, 1.0)
         pour(0.0, 30.0, 20.0)
@@ -132,6 +137,7 @@ class BrewViewModelTest {
         assertEquals(1, dao.brews.value.size)
         vm.discard()
         assertTrue(dao.brews.value.isEmpty())
+        assertEquals(listOf("saved brew-1, stored true", "discarded brew-1"), uploads)
     }
 
     @Test

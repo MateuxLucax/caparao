@@ -17,7 +17,7 @@
     <string name="mode_espresso">Espresso</string>
 
     <!-- Brews -->
-    <string name="last_sync">Last sync</string>
+    <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
     <string name="brews_empty_title">No brews yet</string>
     <string name="brews_empty_text">Brews you record show up here, split into filter and espresso.</string>
@@ -109,4 +109,31 @@
     <string name="cancel">Cancel</string>
     <string name="brewing_espresso">Extracting</string>
     <string name="brewing_filter">Brewing</string>
+    <!-- Server and uploads -->
+    <string name="nothing_synced_yet">Server set. Nothing sent yet.</string>
+    <string name="server_title">Your server</string>
+    <string name="server_text">Optional. Each brew you save is sent to your server. Without one, brews stay on this phone.</string>
+    <string name="server_url">Server URL</string>
+    <string name="server_token">Access token</string>
+    <string name="show_token">Show</string>
+    <string name="hide_token">Hide</string>
+    <string name="test_connection">Test connection</string>
+    <string name="test_running">Testing…</string>
+    <string name="test_ok">Connected. The server accepted the token.</string>
+    <string name="save">Save</string>
+    <string name="server_saved">Saved. Brews not sent yet go now.</string>
+    <string name="remove_server">Remove server</string>
+    <string name="server_settings">Server settings</string>
+    <string name="url_cleartext_warning">Without https the token travels unencrypted. Use http only on your own network.</string>
+    <string name="local_network_needed">This server is on your local network. Android asks before the app can reach it.</string>
+    <string name="local_network_allow">Allow local network</string>
+    <string name="local_network_denied">Local network not allowed. Allow it in the app settings.</string>
+    <string name="error_unauthorized">The server refused the token.</string>
+    <string name="error_rejected">The server refused the request.</string>
+    <string name="error_redirected">The server sent a redirect. Check the URL; it may need https.</string>
+    <string name="error_server">The server had an error. The app tries again later.</string>
+    <string name="error_network">Couldn\'t reach the server. The app tries again later.</string>
+    <string name="error_invalid_url">Use a URL that starts with http:// or https://</string>
+    <string name="error_local_network">Android blocked the local network. Allow it to send brews.</string>
+    <string name="error_other">Sending failed. The app tries again later.</string>
 </resources>

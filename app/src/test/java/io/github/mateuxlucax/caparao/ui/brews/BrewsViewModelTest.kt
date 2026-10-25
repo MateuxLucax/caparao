@@ -1,11 +1,47 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.SyncError
+import io.github.mateuxlucax.caparao.ui.FakeBrewDao
+import io.github.mateuxlucax.caparao.ui.FakePreferences
+import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class BrewsViewModelTest {
+    @get:Rule
+    val main = MainDispatcherRule()
+
+    private val settings = SettingsStore(FakePreferences())
+    private var resent = 0
+    private val viewModel by lazy { BrewsViewModel(BrewRepository(FakeBrewDao()), settings.syncStatus) { resent++ } }
+
+    @Test
+    fun showsTheServerTheLastSyncAndTheLastError() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        assertFalse(viewModel.uiState.value.sync.serverConfigured)
+
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        settings.lastSyncMs = 1_000
+        settings.setLastSyncError(SyncError(SyncError.Kind.UNAUTHORIZED), "b1")
+        val sync = viewModel.uiState.value.sync
+        assertTrue(sync.serverConfigured)
+        assertEquals(1_000L, sync.lastSyncMs)
+        assertEquals(SyncError.Kind.UNAUTHORIZED, sync.lastError?.kind)
+
+        viewModel.retry()
+        assertEquals(1, resent)
+    }
+
     private fun brew(id: String, mode: BrewMode, startedAt: Long) =
         Brew(id, mode, startedAt, 28_000, 18.0, 36.0, 4_000, 1.3, 2.4, interrupted = false)
 

@@ -18,7 +18,7 @@ data class BrewSummary(
     val curve: List<BrewSample>,
 ) {
     /** The [Brew] to save; [startedAtEpochMs] is the wall-clock time of [BrewResult.startedAtMs]. */
-    fun toBrew(id: String, mode: BrewMode, startedAtEpochMs: Long, doseGrams: Double?, interrupted: Boolean) = Brew(
+    fun toBrew(id: String, mode: BrewMode, startedAtEpochMs: Long, doseGrams: Double, interrupted: Boolean) = Brew(
         id = id,
         mode = mode,
         startedAt = startedAtEpochMs,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -49,23 +50,34 @@ import io.github.mateuxlucax.caparao.ui.components.PourAnimation
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SearchingLogo
+import io.github.mateuxlucax.caparao.ui.components.ServerForm
+import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
+import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** The onboarding steps, in order. The server step joins in stage 5. */
-enum class OnboardingStep { WELCOME, PERMISSIONS, SCALE }
+/** The onboarding steps, in order. */
+enum class OnboardingStep { WELCOME, PERMISSIONS, SCALE, SERVER }
 
-/** First launch: welcome, Bluetooth permission, and connecting to the scale (Onboarding wireframe). */
+/** First launch: welcome, Bluetooth permission, connecting to the scale and an optional server (Onboarding wireframe). */
 @Composable
-fun OnboardingScreen(viewModel: OnboardingViewModel, actions: AppActions, onFinished: () -> Unit) {
+fun OnboardingScreen(viewModel: OnboardingViewModel, server: ServerViewModel, actions: AppActions, onFinished: () -> Unit) {
     // Outside the Scaffold, so the surface supplies the background and the text colors.
-    Surface(Modifier.fillMaxSize()) { Steps(viewModel, actions, onFinished) }
+    Surface(Modifier.fillMaxSize()) { Steps(viewModel, server, actions, onFinished) }
 }
 
 @Composable
-private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinished: () -> Unit) {
+private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actions: AppActions, onFinished: () -> Unit) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+    var url by rememberSaveable { mutableStateOf(server.savedUrl) }
+    var token by rememberSaveable { mutableStateOf(server.savedToken) }
+    val scope = rememberCoroutineScope()
+    val localNetworkAccess = rememberLocalNetworkAccess(server::isLocalNetworkBlocked, actions)
+    val finish = {
+        viewModel.finish()
+        onFinished()
+    }
+    Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(24.dp)) {
         StepIndicator(step)
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
@@ -76,6 +88,7 @@ private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinishe
                 OnboardingStep.WELCOME -> Welcome()
                 OnboardingStep.PERMISSIONS -> Permissions(actions) { step = OnboardingStep.SCALE }
                 OnboardingStep.SCALE -> ConnectScale(viewModel, actions)
+                OnboardingStep.SERVER -> ServerStep(server, url, { url = it }, token, { token = it }, actions)
             }
         }
         if (step == OnboardingStep.WELCOME) {
@@ -85,18 +98,30 @@ private fun Steps(viewModel: OnboardingViewModel, actions: AppActions, onFinishe
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { step = OnboardingStep.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
-                if (step == OnboardingStep.PERMISSIONS) {
-                    TextButton(onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
-                } else {
-                    val connected = viewModel.uiState.collectAsStateWithLifecycle().value.scale is ScaleState.Connected
-                    val finish = {
-                        viewModel.finish()
-                        onFinished()
+                when (step) {
+                    OnboardingStep.PERMISSIONS -> TextButton(onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
+                    OnboardingStep.SCALE -> {
+                        val connected = viewModel.uiState.collectAsStateWithLifecycle().value.scale is ScaleState.Connected
+                        val next = { step = OnboardingStep.SERVER }
+                        if (connected) {
+                            Button(onClick = next) { Text(stringResource(R.string.next)) }
+                        } else {
+                            TextButton(onClick = next) { Text(stringResource(R.string.skip)) }
+                        }
                     }
-                    if (connected) {
-                        Button(onClick = finish) { Text(stringResource(R.string.finish)) }
-                    } else {
+                    else -> if (url.isBlank() && token.isBlank()) {
                         TextButton(onClick = finish) { Text(stringResource(R.string.skip)) }
+                    } else {
+                        Button(
+                            onClick = {
+                                // Ask for local network access now, while the user is here; the upload job can't ask.
+                                scope.launch {
+                                    localNetworkAccess(url.trim())
+                                    if (server.save(url, token)) finish()
+                                }
+                            },
+                            enabled = server.canSave(url, token),
+                        ) { Text(stringResource(R.string.finish)) }
                     }
                 }
             }
@@ -151,6 +176,26 @@ private fun Permissions(actions: AppActions, onGranted: () -> Unit) {
         Text(stringResource(R.string.hint_permission_missing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         OutlinedButton(onClick = actions.openAppSettings) { Text(stringResource(R.string.open_app_settings)) }
     }
+}
+
+@Composable
+private fun ServerStep(
+    server: ServerViewModel,
+    url: String,
+    onUrlChange: (String) -> Unit,
+    token: String,
+    onTokenChange: (String) -> Unit,
+    actions: AppActions,
+) {
+    Icon(painterResource(R.drawable.ic_cloud_upload), null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+    Text(stringResource(R.string.server_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Text(
+        stringResource(R.string.server_text),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+    ServerForm(server, url, onUrlChange, token, onTokenChange, actions)
 }
 
 @Composable

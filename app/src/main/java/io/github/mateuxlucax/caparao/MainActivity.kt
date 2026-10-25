@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -28,6 +29,18 @@ class MainActivity : ComponentActivity() {
         permissionResult = null
     }
 
+    /** Waiting for the answer to the local network permission request. */
+    private var localNetworkResult: CompletableDeferred<Boolean>? = null
+
+    /** Denied with "don't ask again": the system no longer shows the prompt, only the app's settings can grant it. */
+    private var localNetworkDeniedForGood = false
+
+    private val localNetworkRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) localNetworkDeniedForGood = !shouldShowRequestPermissionRationale(LocalNetwork.PERMISSION)
+        localNetworkResult?.complete(granted)
+        localNetworkResult = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -38,6 +51,7 @@ class MainActivity : ComponentActivity() {
             requestBluetoothPermissions = ::requestBluetoothPermissions,
             enableBluetooth = ::enableBluetooth,
             openAppSettings = ::openAppSettings,
+            requestLocalNetwork = ::requestLocalNetwork,
         )
         setContent {
             AppTheme {
@@ -63,6 +77,19 @@ class MainActivity : ComponentActivity() {
         permissionResult?.complete(false)
         val result = CompletableDeferred<Boolean>().also { permissionResult = it }
         permissionRequest.launch(BLUETOOTH_PERMISSIONS)
+        return result.await()
+    }
+
+    /** Android 17+ local network access for a server on the LAN (docs/adr/0017-local-network-permission.md). */
+    private suspend fun requestLocalNetwork(): Boolean {
+        if (LocalNetwork.isGranted(this)) return true
+        if (localNetworkDeniedForGood) {
+            openAppSettings()
+            return false
+        }
+        localNetworkResult?.complete(false)
+        val result = CompletableDeferred<Boolean>().also { localNetworkResult = it }
+        localNetworkRequest.launch(LocalNetwork.PERMISSION)
         return result.await()
     }
 

@@ -10,8 +10,8 @@ data class Brew(
     /** The first drop (espresso) or the first water (filter). */
     val startedAt: Long,
     val durationMs: Long,
-    /** Coffee dose; null when the user skipped it. */
-    val doseGrams: Double?,
+    /** Coffee dose, weighed or typed before the brew; always set (contract/README.md). */
+    val doseGrams: Double,
     /** Espresso: the beverage in the cup. Filter: the water poured. */
     val yieldGrams: Double,
     /** Espresso only: from the tare with the cup on the scale to the first drop. */
@@ -23,8 +23,8 @@ data class Brew(
     /** When the server confirmed it; null while only on the phone. */
     val syncedAt: Long? = null,
 ) {
-    /** 1:X, or null without a dose. */
-    val ratio: Double? get() = doseGrams?.takeIf { it > 0 }?.let { yieldGrams / it }
+    /** The X of 1:X. */
+    val ratio: Double get() = yieldGrams / doseGrams
 }
 
 /** One point of a brew's curve, [atMs] after the brew started. */

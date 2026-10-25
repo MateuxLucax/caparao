@@ -48,7 +48,7 @@ class ReplayedEspressoTest {
         // detector sees it (first 0.3 g to the last real rise) is about 24.5 s.
         assertEquals(36.0, brew.yieldGrams, 0.5)
         assertEquals(24.5, brew.durationMs / 1000.0, 1.0)
-        assertEquals(2.0, brew.ratio!!, 0.05)
+        assertEquals(2.0, brew.ratio, 0.05)
         assertEquals(1, dao.brews.value.size)
         vm.end()
     }

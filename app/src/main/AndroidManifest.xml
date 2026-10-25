@@ -8,11 +8,17 @@
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- Optional upload of brews to the user's server (docs/data.md). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17+: needed to reach a server on the local network, asked at runtime (docs/adr/0017-local-network-permission.md). -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
 
-    <!-- No backups (allowBackup); dataExtractionRules keeps data out of cloud backups and device transfers. -->
+    <!-- No backups (allowBackup); dataExtractionRules keeps data out of cloud backups and device transfers.
+         Cleartext HTTP is allowed for servers on the local network; Settings warns when it goes to a public host. -->
     <application
         android:name=".CaparaoApplication"
         android:allowBackup="false"
@@ -22,10 +28,12 @@
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33"
         android:supportsRtl="true"
-        android:theme="@style/Theme.App">
+        android:theme="@style/Theme.App"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -92,7 +92,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun DoseStep(state: BrewUiState, onDose: (Double?) -> Unit) {
+private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     var text by rememberSaveable(state.dose) { mutableStateOf(state.dose?.let { Format.grams(it, locale) } ?: "") }
     val typed = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1000 }
@@ -120,9 +120,8 @@ private fun DoseStep(state: BrewUiState, onDose: (Double?) -> Unit) {
             textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
         )
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { onDose(null) }) { Text(stringResource(R.string.skip)) }
-            Button(onClick = { onDose(typed) }, enabled = typed != null) { Text(stringResource(R.string.next)) }
+        Button(onClick = { typed?.let(onDose) }, Modifier.fillMaxWidth().height(52.dp), enabled = typed != null) {
+            Text(stringResource(R.string.next))
         }
     }
 }
@@ -216,8 +215,8 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
                 Metric(stringResource(R.string.label_time), Format.timer((brew.durationMs / 1000).toInt()), Modifier.weight(1f), large = true)
             }
             Row(Modifier.fillMaxWidth()) {
-                Metric(stringResource(R.string.label_dose), brew.doseGrams?.let { "${Format.grams(it, locale)} $g" } ?: "–", Modifier.weight(1f))
-                Metric(stringResource(R.string.label_ratio), brew.ratio?.let { stringResource(R.string.ratio_value, Format.ratio(it, locale)) } ?: "–", Modifier.weight(1f))
+                Metric(stringResource(R.string.label_dose), "${Format.grams(brew.doseGrams, locale)} $g", Modifier.weight(1f))
+                Metric(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, Format.ratio(brew.ratio, locale)), Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth()) {
                 Metric(

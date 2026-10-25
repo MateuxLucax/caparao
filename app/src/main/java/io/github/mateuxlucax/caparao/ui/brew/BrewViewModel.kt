@@ -40,6 +40,10 @@ class BrewViewModel(
     /** Epoch, for the saved start time. */
     private val wallClock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    /** Called once a brew is in the database (UploadScheduler.brewSaved). */
+    private val onSaved: (String) -> Unit = {},
+    /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
+    private val onDiscarded: (String) -> Unit = {},
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -67,10 +71,10 @@ class BrewViewModel(
         reset()
     }
 
-    /** The dose was weighed, typed or skipped (null): start watching for the brew. */
-    fun setDose(grams: Double?) {
+    /** The dose was weighed or typed: start watching for the brew. */
+    fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE) return
-        grams?.let { settings.setLastDose(mode, it) }
+        settings.setLastDose(mode, grams)
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()
             BrewMode.FILTER -> FilterDetector()
@@ -99,7 +103,10 @@ class BrewViewModel(
     /** Deletes the brew just saved. */
     fun discard() {
         val brew = _uiState.value.saved ?: return
-        viewModelScope.launch { repository.delete(brew.id) }
+        viewModelScope.launch {
+            repository.delete(brew.id)
+            onDiscarded(brew.id)
+        }
         _uiState.update { it.copy(saved = null) }
     }
 
@@ -151,8 +158,12 @@ class BrewViewModel(
         }
         val summary = BrewSummary.of(mode, readings, result)
         val startedAt = wallClock() - (clock() - result.startedAtMs)
-        val brew = summary.toBrew(newId(), mode, startedAt, _uiState.value.dose, result.interrupted)
-        viewModelScope.launch { repository.save(brew, summary.curve) }
+        val brew = summary.toBrew(newId(), mode, startedAt, requireNotNull(_uiState.value.dose), result.interrupted)
+        viewModelScope.launch {
+            repository.save(brew, summary.curve)
+            // After the insert, so the upload job always finds the brew.
+            onSaved(brew.id)
+        }
         _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
     }
 

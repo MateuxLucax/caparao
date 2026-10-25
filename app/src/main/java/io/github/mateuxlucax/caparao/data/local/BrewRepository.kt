@@ -19,6 +19,12 @@ class BrewRepository(private val dao: BrewDao) {
 
     suspend fun delete(id: String) = dao.delete(id)
 
+    /** The server confirmed [id] at [at] (epoch ms). */
+    suspend fun markSynced(id: String, at: Long) = dao.markSynced(id, at)
+
+    /** Ids of the brews the server hasn't confirmed, oldest first. */
+    suspend fun unsyncedIds(): List<String> = dao.unsynced().map { it.id }
+
     private fun BrewEntity.toModel() = Brew(
         id = id,
         mode = BrewMode.valueOf(mode),

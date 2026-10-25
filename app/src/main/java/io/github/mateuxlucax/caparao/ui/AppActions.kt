@@ -6,4 +6,6 @@ class AppActions(
     val requestBluetoothPermissions: suspend () -> Boolean,
     val enableBluetooth: () -> Unit,
     val openAppSettings: () -> Unit,
+    /** Asks for the local network permission (or opens the app's settings once it was denied for good); returns whether it is granted. */
+    val requestLocalNetwork: suspend () -> Boolean,
 )

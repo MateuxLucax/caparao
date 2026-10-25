@@ -19,3 +19,5 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0013](0013-canvas-charts.md) | Charts drawn on a Compose Canvas | Accepted |
 | [0014](0014-stub-in-repo-exporter-separate.md) | Stub server in this repository, exporter in its own | Accepted |
 | [0015](0015-acceptance-and-lean-ci.md) | Acceptance criteria per stage, local test runs and lean CI | Accepted |
+| [0016](0016-upload-jobs.md) | One WorkManager job per brew, enqueued only with a server | Accepted |
+| [0017](0017-local-network-permission.md) | Ask for the local network permission when the server is local | Accepted |

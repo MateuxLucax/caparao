@@ -77,6 +77,8 @@ dependencies {
     // Brews and their curves (docs/adr/0003-offline-first.md, docs/adr/0004-minimal-dependencies.md).
     implementation("androidx.room:room-runtime:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
+    // One upload job per brew, with a network constraint and backoff (docs/adr/0016-upload-jobs.md).
+    implementation("androidx.work:work-runtime:2.12.0")
 
     testImplementation("junit:junit:4.13.2")
     // android.jar only ships a stub of org.json; JVM tests read the recorded sessions with the real one.

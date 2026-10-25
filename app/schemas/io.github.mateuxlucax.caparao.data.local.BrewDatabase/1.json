@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "773b141ea62499feab2410d00e0df4dc",
+    "identityHash": "1151d1cc76e6803e8b6bd2ebabb3d270",
     "entities": [
       {
         "tableName": "brews",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mode` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `duration_ms` INTEGER NOT NULL, `dose_grams` REAL, `yield_grams` REAL NOT NULL, `time_to_first_drop_ms` INTEGER, `flow_avg` REAL NOT NULL, `flow_peak` REAL NOT NULL, `interrupted` INTEGER NOT NULL, `synced_at` INTEGER, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mode` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `duration_ms` INTEGER NOT NULL, `dose_grams` REAL NOT NULL, `yield_grams` REAL NOT NULL, `time_to_first_drop_ms` INTEGER, `flow_avg` REAL NOT NULL, `flow_peak` REAL NOT NULL, `interrupted` INTEGER NOT NULL, `synced_at` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -35,7 +35,8 @@
           {
             "fieldPath": "doseGrams",
             "columnName": "dose_grams",
-            "affinity": "REAL"
+            "affinity": "REAL",
+            "notNull": true
           },
           {
             "fieldPath": "yieldGrams",
@@ -143,7 +144,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '773b141ea62499feab2410d00e0df4dc')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1151d1cc76e6803e8b6bd2ebabb3d270')"
     ]
   }
 }

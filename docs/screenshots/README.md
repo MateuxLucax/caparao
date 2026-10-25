@@ -7,10 +7,10 @@ status bar in demo mode and the `press-ramp` recording and the synthetic espress
 
 ### Onboarding
 
-| | Welcome | Permissions | Scale |
-|---|---|---|---|
-| Light | <img src="en/onboarding-welcome-light.png" width="140" alt="Welcome"> | <img src="en/onboarding-permissions-light.png" width="140" alt="Permissions"> | <img src="en/onboarding-scale-light.png" width="140" alt="Connect the scale"> |
-| Dark | <img src="en/onboarding-welcome-dark.png" width="140" alt="Welcome"> | <img src="en/onboarding-permissions-dark.png" width="140" alt="Permissions"> | <img src="en/onboarding-scale-dark.png" width="140" alt="Connect the scale"> |
+| | Welcome | Permissions | Scale | Server |
+|---|---|---|---|---|
+| Light | <img src="en/onboarding-welcome-light.png" width="140" alt="Welcome"> | <img src="en/onboarding-permissions-light.png" width="140" alt="Permissions"> | <img src="en/onboarding-scale-light.png" width="140" alt="Connect the scale"> | <img src="en/onboarding-server-light.png" width="140" alt="Server (optional)"> |
+| Dark | <img src="en/onboarding-welcome-dark.png" width="140" alt="Welcome"> | <img src="en/onboarding-permissions-dark.png" width="140" alt="Permissions"> | <img src="en/onboarding-scale-dark.png" width="140" alt="Connect the scale"> | <img src="en/onboarding-server-dark.png" width="140" alt="Server (optional)"> |
 
 ### Tabs
 
@@ -30,10 +30,10 @@ status bar in demo mode and the `press-ramp` recording and the synthetic espress
 
 ### Onboarding
 
-| | Boas-vindas | Permissões | Balança |
-|---|---|---|---|
-| Claro | <img src="pt-BR/onboarding-welcome-light.png" width="140" alt="Boas-vindas"> | <img src="pt-BR/onboarding-permissions-light.png" width="140" alt="Permissões"> | <img src="pt-BR/onboarding-scale-light.png" width="140" alt="Conectar a balança"> |
-| Escuro | <img src="pt-BR/onboarding-welcome-dark.png" width="140" alt="Boas-vindas"> | <img src="pt-BR/onboarding-permissions-dark.png" width="140" alt="Permissões"> | <img src="pt-BR/onboarding-scale-dark.png" width="140" alt="Conectar a balança"> |
+| | Boas-vindas | Permissões | Balança | Servidor |
+|---|---|---|---|---|
+| Claro | <img src="pt-BR/onboarding-welcome-light.png" width="140" alt="Boas-vindas"> | <img src="pt-BR/onboarding-permissions-light.png" width="140" alt="Permissões"> | <img src="pt-BR/onboarding-scale-light.png" width="140" alt="Conectar a balança"> | <img src="pt-BR/onboarding-server-light.png" width="140" alt="Servidor (opcional)"> |
+| Escuro | <img src="pt-BR/onboarding-welcome-dark.png" width="140" alt="Boas-vindas"> | <img src="pt-BR/onboarding-permissions-dark.png" width="140" alt="Permissões"> | <img src="pt-BR/onboarding-scale-dark.png" width="140" alt="Conectar a balança"> | <img src="pt-BR/onboarding-server-dark.png" width="140" alt="Servidor (opcional)"> |
 
 ### Abas
 

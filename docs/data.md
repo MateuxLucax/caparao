@@ -34,12 +34,14 @@ Content-Type: application/json
 - `201` for a new brew, `200` when it already existed. `400` invalid body, `401` wrong token, `413` too large; none of
   the 4xx are retried. `5xx` and timeouts are retried.
 - `samples[].t_ms` is relative to `started_at_ms`.
+- "Test connection" sends `GET /healthz` and an authenticated `GET /api/v1/brews`; neither creates data.
+- One WorkManager job per brew (`upload-<id>`, tag `upload`), only while a server is set ([ADR 0016](adr/0016-upload-jobs.md)).
 
 ## On-device data
 
 | Store | Contents | Stage |
 |-------|----------|-------|
-| SharedPreferences `settings` | `onboarding_done`, `last_dose_espresso` / `last_dose_filter`; later server URL and token | 2, 3, 5 |
+| SharedPreferences `settings` | `onboarding_done`, `last_dose_espresso` / `last_dose_filter`; `server_url`, `server_token` (both empty: no uploads); `last_sync_ms`; `last_sync_error`, `last_sync_error_detail`, `last_sync_error_brew` (the last upload error, its `SyncError` kind name) | 2, 3, 5 |
 | Room `caparao.db`, table `brews` | One row per brew: `id` (phone UUID), `mode`, `started_at`, `duration_ms`, `dose_grams`, `yield_grams`, `time_to_first_drop_ms`, `flow_avg`, `flow_peak`, `interrupted`, `synced_at` | 3 |
 | Room `caparao.db`, table `brew_samples` | The curve: (`brew_id`, `at_ms`) → `weight_grams`, `flow` (smoothed from the weights), at most 10 per second; deleted with its brew | 3 |
 

@@ -73,7 +73,9 @@ fun App(
     }
     var onboarded by rememberSaveable { mutableStateOf(onboardingDone) }
     if (!onboarded) {
-        OnboardingScreen(viewModel(factory = viewModelFactory), actions) { onboarded = true }
+        OnboardingScreen(viewModel(factory = viewModelFactory), viewModel(key = "server-onboarding", factory = viewModelFactory), actions) {
+            onboarded = true
+        }
     } else {
         Main(viewModelFactory, actions, versionName)
     }
@@ -144,8 +146,8 @@ private fun Tabs(
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding)
         when (tab) {
             Tab.HOME -> HomeScreen(viewModel(factory = viewModelFactory), actions, onBrew, modifier)
-            Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), onOpen = { onOpen(it.id) }, modifier)
-            Tab.SETTINGS -> SettingsScreen(versionName, modifier)
+            Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier)
+            Tab.SETTINGS -> SettingsScreen(viewModel(key = "server-settings", factory = viewModelFactory), actions, versionName, modifier)
         }
     }
 }

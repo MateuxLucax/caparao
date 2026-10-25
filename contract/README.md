@@ -43,4 +43,15 @@ Tests iterate over both directories, so adding a file adds a test case. Use exam
 | `413` | Body over 4 MiB | do not retry |
 | `5xx`, timeouts | Server trouble | retry with backoff |
 
-Authentication is `Authorization: Bearer <token>`. Error bodies are always `{"error": "<message>"}`.
+Authentication is `Authorization: Bearer <token>`. Error bodies are always `{"error": "<message>"}`. Every other
+status is treated like its class: other `4xx` (also `404`, `408`, `429`) are not retried, `3xx` is shown as an error and
+never followed, so the token is not sent to another location.
+
+## Connection test
+
+The app's "Test connection" sends two requests that create nothing, so every server must answer them:
+
+| Request | Expected |
+|---------|----------|
+| `GET /healthz` | `2xx`, no token needed |
+| `GET /api/v1/brews` with the Bearer token | `2xx`; `401` for a wrong token |

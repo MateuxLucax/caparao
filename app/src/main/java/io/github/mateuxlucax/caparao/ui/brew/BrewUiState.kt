@@ -10,7 +10,7 @@ enum class BrewStep { DOSE, LIVE, SUMMARY }
 data class BrewUiState(
     val mode: BrewMode,
     val step: BrewStep = BrewStep.DOSE,
-    /** As typed or weighed; null when skipped. */
+    /** As typed or weighed; null until set (the last one is suggested).*/
     val dose: Double? = null,
     val phase: BrewPhase = BrewPhase.WAITING_FOR_CUP,
     val connected: Boolean = false,

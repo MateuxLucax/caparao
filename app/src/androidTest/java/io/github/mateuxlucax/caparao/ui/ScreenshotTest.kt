@@ -15,6 +15,7 @@ import io.github.mateuxlucax.caparao.CaparaoApplication
 import io.github.mateuxlucax.caparao.MainActivity
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
+import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.format.Format
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -48,9 +49,11 @@ class ScreenshotTest {
 
     private fun waitFor(id: Int, timeoutMs: Long) = compose.waitUntilAtLeastOneExists(hasText(context.getString(id)), timeoutMs)
 
-    /** A fresh start: no brews, onboarding as given. Runs before the container opens the database. */
+    /** A fresh start: no brews, no settings, onboarding as given. Runs before the container opens the database. */
     private fun freshApp(onboardingDone: Boolean) {
         context.deleteDatabase(BrewDatabase.NAME)
+        // No server, no remembered dose: whatever an earlier run or a manual test left behind.
+        SettingsStore.open(context).edit().clear().commit()
         (context.applicationContext as CaparaoApplication).container.settings.onboardingDone = onboardingDone
     }
 
@@ -71,7 +74,9 @@ class ScreenshotTest {
             click(R.string.skip)
             waitFor(R.string.scale_connected, 5_000)
             capture("onboarding-scale")
-            click(R.string.finish)
+            click(R.string.next)
+            capture("onboarding-server")
+            click(R.string.skip)
             Tab.entries.forEach { tab ->
                 click(tab.label)
                 capture(tab.name.lowercase())

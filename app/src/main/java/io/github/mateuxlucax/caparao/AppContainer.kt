@@ -4,18 +4,24 @@ import android.content.Context
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.scale.AndroidBleTransport
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleClient
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
+import io.github.mateuxlucax.caparao.sync.UploadRunner
+import io.github.mateuxlucax.caparao.sync.UploadScheduler
+import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +36,20 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(SettingsStore.open(appContext))
 
     val brews = BrewRepository(BrewDatabase.open(appContext).brews())
+
+    private val exporter = ExporterClient()
+
+    /**
+     * Whether Android 17 local network protection would block connecting to a URL; used by [uploadRunner] and the
+     * server form. Bound to the application context, so ViewModels can hold it.
+     */
+    private val localNetworkBlocked: suspend (String) -> Boolean = { url -> LocalNetwork.isBlocked(appContext, url) }
+
+    /** Upload jobs, one per brew, only with a server (docs/adr/0016-upload-jobs.md). */
+    val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
+
+    /** Used by [UploadWorker]. */
+    val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked)
 
     /** The real Dot over Bluetooth, or a recording after [replay]. */
     var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope)
@@ -49,8 +69,14 @@ class AppContainer(context: Context) {
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
-        initializer { BrewsViewModel(brews) }
+        initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
+        initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
-        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings) }
+        initializer {
+            BrewViewModel(
+                requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,
+                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted,
+            )
+        }
     }
 }

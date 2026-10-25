@@ -23,7 +23,7 @@ data class BrewEntity(
     val mode: String,
     @ColumnInfo(name = "started_at") val startedAt: Long,
     @ColumnInfo(name = "duration_ms") val durationMs: Long,
-    @ColumnInfo(name = "dose_grams") val doseGrams: Double?,
+    @ColumnInfo(name = "dose_grams") val doseGrams: Double,
     @ColumnInfo(name = "yield_grams") val yieldGrams: Double,
     @ColumnInfo(name = "time_to_first_drop_ms") val timeToFirstDropMs: Long?,
     @ColumnInfo(name = "flow_avg") val flowAvg: Double,

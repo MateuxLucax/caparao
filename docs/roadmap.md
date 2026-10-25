@@ -11,7 +11,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 2 | Scale | Done in code: codec, BLE client, replay, onboarding and live Home; device run of [acceptance/scale.md](acceptance/scale.md) pending |
 | 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
-| 5 | Contract, stub and sync | Contract and stub done (`contract/`, `stub/`); app client and sync later |
+| 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
 | 6 | Release and end-to-end test | Planned |
 | 7 | Screens waiting for wireframes | Waiting for designs |
 | 8 | Prometheus exporter | Planned, last |
@@ -93,9 +93,11 @@ Acceptance:
 
 - [data.md](data.md): `POST /api/v1/brews`, Bearer token, upsert by the phone-generated `id` ([ADR 0007](adr/0007-idempotent-upload.md)).
 - `stub/`: Go standard library only; validates, upserts in memory, logs, `GET /api/v1/brews`, `GET /healthz`, Dockerfile.
-- `ExporterClient` (`HttpURLConnection` + `org.json`), one `UploadWorker` per brew (network constraint, backoff).
+- `ExporterClient` (`HttpURLConnection` + `org.json`), one `UploadWorker` per brew (network constraint, backoff,
+  [ADR 0016](adr/0016-upload-jobs.md)); saving a server resends every unsynced brew.
 - Optional server step in onboarding (with Skip) and in Settings, with a connection test; local network permission only
-  for a local server.
+  for a local server ([ADR 0017](adr/0017-local-network-permission.md)). The Brews tab shows the last sync and the
+  last error with its fix.
 
 Acceptance:
 - Contract tests: the same JSON files in `contract/` are checked by the app and by the stub (`go test`).
@@ -139,7 +141,8 @@ Separate repository `caparao-exporter` (Go):
 - Docker Compose with Prometheus and Grafana and a dashboard; the app's end-to-end test switches from the stub to it.
 
 Acceptance:
-- The `contract/` files pass against the exporter exactly as against the stub.
+- The `contract/` files pass against the exporter exactly as against the stub, and it answers the connection test
+  (`GET /healthz`, authenticated `GET /api/v1/brews`; [contract/README.md](../contract/README.md)).
 - Upsert on a real SQLite: re-sending an `id` duplicates neither the brew nor its samples.
 - With Prometheus down the API keeps accepting brews; when it is back, the next sync sends everything, nothing lost or duplicated.
 - Integration test with a real Prometheus: summaries at the brew's end time, curve at each sample's time.

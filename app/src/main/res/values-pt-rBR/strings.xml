@@ -15,7 +15,7 @@
     <string name="mode_espresso">Espresso</string>
 
     <!-- Dados -->
-    <string name="last_sync">Última sincronização</string>
+    <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
     <string name="brews_empty_title">Nenhum preparo ainda</string>
     <string name="brews_empty_text">Os preparos que você registrar aparecem aqui, separados em filtrado e espresso.</string>
@@ -107,4 +107,31 @@
     <string name="cancel">Cancelar</string>
     <string name="brewing_espresso">Extraindo</string>
     <string name="brewing_filter">Passando</string>
+    <!-- Servidor e envios -->
+    <string name="nothing_synced_yet">Servidor configurado. Nada enviado ainda.</string>
+    <string name="server_title">Seu servidor</string>
+    <string name="server_text">Opcional. Cada preparo salvo é enviado para o seu servidor. Sem ele, os preparos ficam só neste celular.</string>
+    <string name="server_url">Endereço do servidor</string>
+    <string name="server_token">Token de acesso</string>
+    <string name="show_token">Mostrar</string>
+    <string name="hide_token">Ocultar</string>
+    <string name="test_connection">Testar conexão</string>
+    <string name="test_running">Testando…</string>
+    <string name="test_ok">Conectado. O servidor aceitou o token.</string>
+    <string name="save">Salvar</string>
+    <string name="server_saved">Salvo. Os preparos ainda não enviados vão agora.</string>
+    <string name="remove_server">Remover servidor</string>
+    <string name="server_settings">Configurar servidor</string>
+    <string name="url_cleartext_warning">Sem https o token trafega sem criptografia. Use http só na sua própria rede.</string>
+    <string name="local_network_needed">Este servidor está na sua rede local. O Android pede permissão antes de o app acessá-lo.</string>
+    <string name="local_network_allow">Permitir rede local</string>
+    <string name="local_network_denied">Rede local não permitida. Permita nas configurações do app.</string>
+    <string name="error_unauthorized">O servidor recusou o token.</string>
+    <string name="error_rejected">O servidor recusou o pedido.</string>
+    <string name="error_redirected">O servidor respondeu com um redirecionamento. Confira o endereço; talvez precise de https.</string>
+    <string name="error_server">O servidor teve um erro. O app tenta de novo mais tarde.</string>
+    <string name="error_network">Não foi possível acessar o servidor. O app tenta de novo mais tarde.</string>
+    <string name="error_invalid_url">Use um endereço que comece com http:// ou https://</string>
+    <string name="error_local_network">O Android bloqueou a rede local. Permita para enviar os preparos.</string>
+    <string name="error_other">O envio falhou. O app tenta de novo mais tarde.</string>
 </resources>
