@@ -6,7 +6,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 
 | # | Stage | Status |
 |---|-------|--------|
-| 0 | Hardware spike | Probe ready ([spike.md](spike.md)); waiting for recordings with the real Dot |
+| 0 | Hardware spike | Protocol questions answered with real recordings ([hardware.md](hardware.md)); real brews still to record for detector tuning |
 | 1 | Foundation | Done |
 | 2 | Scale | Protocol codec and decoder done (`data/scale`); BLE client and screens next |
 | 3 | Brews | Planned |

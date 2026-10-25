@@ -41,9 +41,9 @@ A5 5A <type> <cmd> <len_hi> <len_lo> <payload…> <crc_hi> <crc_lo>
 
 | Frame | Direction | Meaning |
 |-------|-----------|---------|
-| `01 01`, 9 bytes | notify, ~8.4 Hz (median 119 ms, measured) | weight int32 BE ÷10 g, flow int16 BE ÷10 g/s, timer uint16 s, overload flag |
-| `02 05` | read | battery: `[bars, percent]` (measured: `03 64` = 3 bars, 100 %) |
-| `01 05` | notify | the same battery payload, pushed by the Dot about every 30 s (measured) |
+| `01 01`, 9 bytes | notify, 10 Hz (measured over 5 min; 2–3 frames sometimes share one notification) | weight int32 BE ÷10 g, flow int16 BE ÷10 g/s, timer uint16 s, overload flag |
+| `02 05` | read | battery: `[bars, percent]` (measured: `03 64` = 3 bars, 100 %); poll every 60 s |
+| `01 05` | notify | the same battery payload, sometimes pushed by the Dot (twice in one session, never in a 5-minute idle one) |
 | `03 0D`, no payload | write | tare: `A5 5A 03 0D 00 00 64 D1` |
 | `03 02 [01\|02\|03]` | write | timer start / pause / reset |
 | `03 06 [00]` | write | unit grams |
@@ -63,13 +63,17 @@ Acknowledgements come back as `03 <cmd> 00 01 01`.
 
 | Question | Why it matters | Answer |
 |----------|----------------|--------|
-| Is a keep-alive needed? (Some apps poll every 10 s.) | Connection stability | Not within 50 s: the stream ran with no command sent (press ramp session). The 5-minute idle session settles it. |
+| Is a keep-alive needed? (Some apps poll every 10 s.) | Connection stability | **No.** 5 min 42 s connected with no command sent: no drop, no gap over 237 ms (`idle-5min`). |
 | Does the physical button send a notification? | Reflecting a tare done on the scale | Not applicable: the only button (power) is under the scale, so nobody presses it mid-brew. Tare and timer always come from the app; the button is only for power and re-pairing. |
-| Can the scale's flow go negative? | Flow clamping | No: releasing 1300 g to 0 brought flow to 0.0, never below (press ramp session). |
-| Does it power off while connected and idle? | Reconnect behavior | — |
+| Can the scale's flow go negative? | Flow clamping | **No:** releasing 1300 g to 0 brought flow to 0.0, never below (`press-ramp`). |
+| Does it power off while connected and idle? | Reconnect behavior | **No**, not in 5 min 42 s connected and idle (`idle-5min`). |
 
 ### Confirmed on the device (SM-S916B, Android 17, 2026-10-25)
 
 - Connection sequence above works as written: connected in ~0.5 s, MTU 247 accepted, services found, notifications on.
 - Acknowledgements are `03 <cmd> 00 01 01` (unit and mode writes).
-- The battery is both a read reply (`02 05`) and an unsolicited push (`01 05`), so polling is a fallback, not a need.
+- The battery comes as a read reply (`02 05`) and, sometimes, as a push (`01 05`). The push is not reliable, so the app polls
+  every 60 s and takes the push when it comes.
+- Notifications really do carry several frames (`ack + weight`, `ack + battery + weight`).
+
+The recordings are in `app/src/test/resources/sessions/` and `RecordedSessionTest` replays them through the decoder.

@@ -64,6 +64,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
 
     testImplementation("junit:junit:4.13.2")
+    // android.jar only ships a stub of org.json; JVM tests read the recorded sessions with the real one.
+    testImplementation("org.json:json:20250517")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
