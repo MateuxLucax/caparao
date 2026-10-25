@@ -137,18 +137,21 @@ func TestInvalidFilesAreRejected(t *testing.T) {
 	}
 }
 
-func TestMaxSamplesAccepted(t *testing.T) {
+// The sample limit is generated here rather than kept as a contract file: 20001 samples is ~800 KB of JSON.
+func TestSampleLimit(t *testing.T) {
 	ts, _ := newTestServer(t)
 	var d map[string]any
 	_ = json.Unmarshal(contractFiles(t, "valid")["espresso.json"], &d)
-	samples := make([]map[string]any, 20000)
-	for i := range samples {
-		samples[i] = map[string]any{"t_ms": i, "weight_g": 0, "flow_gps": 0}
-	}
-	d["samples"] = samples
-	body, _ := json.Marshal(d)
-	if resp, b := do(t, "POST", ts.URL+"/api/v1/brews", testToken, body); resp.StatusCode != 201 {
-		t.Fatalf("20000 samples = %d (%s), want 201", resp.StatusCode, b)
+	for count, want := range map[int]int{20000: 201, 20001: 400} {
+		samples := make([]map[string]any, count)
+		for i := range samples {
+			samples[i] = map[string]any{"t_ms": i, "weight_g": 0, "flow_gps": 0}
+		}
+		d["samples"] = samples
+		body, _ := json.Marshal(d)
+		if resp, b := do(t, "POST", ts.URL+"/api/v1/brews", testToken, body); resp.StatusCode != want {
+			t.Errorf("%d samples = %d (%s), want %d", count, resp.StatusCode, b, want)
+		}
 	}
 }
 

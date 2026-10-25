@@ -1,7 +1,7 @@
 name: Build
 
-# One lean job while the repository is private (GitHub Free minutes): unit tests, lint and the debug build, the
-# same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (docs/adr/0015-acceptance-and-lean-ci.md).
+# One lean job while the repository is private (GitHub Free minutes): unit tests, lint, the debug build and the
+# stub's contract tests, the same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (docs/adr/0015-acceptance-and-lean-ci.md).
 on:
   push:
     branches: [main]
@@ -34,6 +34,14 @@ jobs:
 
       - name: Unit tests, lint and build
         run: ./gradlew --console=plain testDebugUnitTest lintDebug assembleDebug compileDebugAndroidTestKotlin
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: stub/go.mod
+
+      - name: Stub tests against contract/
+        working-directory: stub
+        run: go vet ./... && go test ./...
 
       - name: Upload test and lint reports
         if: failure()
