@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,11 +37,10 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
-import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.components.label
 
-/** Live scale readout and the two brew modes (Home wireframe); a mode opens once the scale is connected. */
+/** The brew modes on top, then the live scale readout and its controls (Home wireframe); a mode opens once the scale is connected. */
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode) -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -49,16 +50,13 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScaleStatusRow(state.scale)
+        ModeSelector(connected, onBrew)
         (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::retry) }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Readout(state, Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f).alpha(if (connected) 1f else 0.45f))
         }
         Controls(state, connected, viewModel)
         Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            BrewMode.entries.forEach { mode -> ModeButton(mode, connected, Modifier.weight(1f)) { onBrew(mode) } }
-        }
     }
 }
 
@@ -110,13 +108,22 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
     }
 }
 
+/**
+ * Scale (this screen, no mode) or a brew mode. Home always shows Scale selected: picking a mode opens its brew on top,
+ * and closing the brew comes back here. The modes wait for the scale.
+ */
 @Composable
-private fun ModeButton(mode: BrewMode, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    ElevatedCard(onClick = onClick, enabled = enabled, modifier = modifier.height(96.dp)) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(painterResource(mode.icon), contentDescription = null, Modifier.size(28.dp))
-            Spacer(Modifier.height(6.dp))
-            Text(stringResource(mode.label), style = MaterialTheme.typography.titleMedium)
+private fun ModeSelector(connected: Boolean, onBrew: (BrewMode) -> Unit) {
+    val options = listOf<BrewMode?>(null) + BrewMode.entries
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = mode == null,
+                onClick = { if (mode != null) onBrew(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                enabled = mode == null || connected,
+                label = { Text(stringResource(mode?.label ?: R.string.mode_scale)) },
+            )
         }
     }
 }

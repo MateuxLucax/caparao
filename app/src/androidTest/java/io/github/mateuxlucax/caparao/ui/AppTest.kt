@@ -3,7 +3,9 @@ package io.github.mateuxlucax.caparao.ui
 import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -96,9 +98,10 @@ class AppTest {
     fun tabsSwitchScreensAndHomeIsLive() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
-        compose.onNodeWithText(text(R.string.mode_espresso)).assertExists()
+        compose.onNodeWithText(text(R.string.mode_scale)).assertIsSelected()
+        compose.onNodeWithText(text(R.string.mode_espresso)).assertIsEnabled()
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.onNodeWithText(text(R.string.brews_empty_title)).assertExists()
@@ -116,7 +119,7 @@ class AppTest {
     @Test
     fun espressoOpensTheDoseStepAndBackCloses() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.onNodeWithText(text(R.string.dose_title)).assertExists()

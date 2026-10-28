@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -26,6 +25,7 @@ import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -38,8 +38,9 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailScreen
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsScreen
-import io.github.mateuxlucax.caparao.ui.components.Logo
+import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
+import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
 
@@ -51,7 +52,7 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 }
 
 /**
- * Onboarding on first launch, then the three tabs under a top bar with the logo on the left and the name on the right.
+ * Onboarding on first launch, then the three tabs under a top bar with the name and the scale connection.
  * The scale is connected only while the app is visible (docs/adr/0008).
  */
 @Composable
@@ -116,18 +117,13 @@ private fun Tabs(
     onOpen: (String) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    // The Home one, so the bar and the screen share a connection state.
+    val scale: HomeViewModel = viewModel(factory = viewModelFactory)
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {},
-                navigationIcon = { Logo(36.dp, Modifier.padding(start = 12.dp)) },
-                actions = {
-                    Text(
-                        stringResource(R.string.app_name),
-                        Modifier.padding(end = 16.dp),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                },
+                title = { Text(stringResource(R.string.app_name)) },
+                actions = { ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp)) },
             )
         },
         bottomBar = {
@@ -145,7 +141,7 @@ private fun Tabs(
     ) { padding ->
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding)
         when (tab) {
-            Tab.HOME -> HomeScreen(viewModel(factory = viewModelFactory), actions, onBrew, modifier)
+            Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
             Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier)
             Tab.SETTINGS -> SettingsScreen(
                 viewModel(key = "server-settings", factory = viewModelFactory),

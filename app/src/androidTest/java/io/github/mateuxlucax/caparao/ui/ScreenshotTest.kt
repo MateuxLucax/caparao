@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -60,6 +61,9 @@ class ScreenshotTest {
 
     private fun waitFor(id: Int, timeoutMs: Long) = compose.waitUntilAtLeastOneExists(hasText(context.getString(id)), timeoutMs)
 
+    private fun waitForConnected() =
+        compose.waitUntilAtLeastOneExists(hasContentDescription(context.getString(R.string.scale_connected)), 5_000)
+
     /** A fresh start: no brews, no settings, onboarding as given. Runs before the container opens the database. */
     private fun freshApp(onboardingDone: Boolean) {
         context.deleteDatabase(BrewDatabase.NAME)
@@ -101,7 +105,7 @@ class ScreenshotTest {
         assumeTrue("screenshots run only from scripts/screenshots.sh", variant != null)
         freshApp(onboardingDone = true)
         launch("synthetic-espresso", 3_000).use {
-            waitFor(R.string.scale_connected, 5_000)
+            waitForConnected()
             click(R.string.mode_espresso)
             // Before typing: a focused field brings up the emulator's keyboard bar.
             capture("brew-dose")
@@ -126,7 +130,7 @@ class ScreenshotTest {
         assumeTrue("screenshots run only from scripts/screenshots.sh", variant != null)
         freshApp(onboardingDone = true)
         launch("synthetic-espresso-guide", 0).use {
-            waitFor(R.string.scale_connected, 5_000)
+            waitForConnected()
             click(R.string.mode_espresso)
             compose.onNode(hasSetTextAction()).performTextReplacement("18")
             click(R.string.next)
@@ -146,7 +150,7 @@ class ScreenshotTest {
         freshApp(onboardingDone = true)
         launch("synthetic-filter-lift", 0).use {
             val start = SystemClock.elapsedRealtime()
-            waitFor(R.string.scale_connected, 5_000)
+            waitForConnected()
             click(R.string.mode_filter)
             compose.onNode(hasSetTextAction()).performTextReplacement("15")
             click(R.string.next)
