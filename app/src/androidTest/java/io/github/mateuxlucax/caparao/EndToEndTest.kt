@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao
 import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -47,7 +48,7 @@ class EndToEndTest {
             .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-espresso")
             .putExtra(MainActivity.EXTRA_REPLAY_AT_MS, 3_000L)
         ActivityScenario.launch<MainActivity>(intent).use {
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 10_000)
+            compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 10_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
             compose.onNode(hasSetTextAction()).performTextReplacement("18")
             compose.onNodeWithText(text(R.string.next)).performClick()

@@ -76,6 +76,18 @@ fun ScaleStatusRow(state: ScaleState, modifier: Modifier = Modifier) {
     }
 }
 
+/** The connection as one top-bar icon (primary once connected, error on failure, muted otherwise), named for screen readers. */
+@Composable
+fun ScaleStatusIcon(state: ScaleState, modifier: Modifier = Modifier) {
+    val (icon, tint) = when (state) {
+        is ScaleState.Connected -> R.drawable.ic_bluetooth_connected to MaterialTheme.colorScheme.primary
+        ScaleState.Searching, ScaleState.Connecting -> R.drawable.ic_bluetooth_searching to MaterialTheme.colorScheme.onSurfaceVariant
+        is ScaleState.Failed -> R.drawable.ic_error to MaterialTheme.colorScheme.error
+        ScaleState.Idle -> R.drawable.ic_bluetooth_disabled to MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    Icon(painterResource(icon), stringResource(state.label), modifier, tint = tint)
+}
+
 /** What went wrong, what to do, and the button that does it. [onRetry] restarts the connection. */
 @Composable
 fun ScaleErrorCard(error: ScaleError, retrying: Boolean, actions: AppActions, onRetry: () -> Unit, modifier: Modifier = Modifier) {

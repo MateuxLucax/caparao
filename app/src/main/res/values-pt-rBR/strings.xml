@@ -12,6 +12,7 @@
     <string name="unit_grams_per_second">g/s</string>
     <string name="tare">Tara</string>
     <string name="mode_filter">Filtrado</string>
+    <string name="mode_scale">Balança</string>
     <string name="mode_espresso">Espresso</string>
 
     <!-- Preparos -->
