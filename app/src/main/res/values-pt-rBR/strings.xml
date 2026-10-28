@@ -3,7 +3,7 @@
 <resources>
     <!-- Navegação -->
     <string name="tab_home">Início</string>
-    <string name="tab_brews">Dados</string>
+    <string name="tab_brews">Preparos</string>
     <string name="tab_settings">Config</string>
 
     <!-- Início -->
@@ -14,7 +14,7 @@
     <string name="mode_filter">Filtrado</string>
     <string name="mode_espresso">Espresso</string>
 
-    <!-- Dados -->
+    <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
     <string name="brews_empty_title">Nenhum preparo ainda</string>
