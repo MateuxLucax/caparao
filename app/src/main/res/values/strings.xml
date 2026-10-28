@@ -97,6 +97,10 @@
     <string name="brew_interrupted">The scale disconnected. What was recorded is saved.</string>
     <string name="nothing_recorded">Nothing was recorded.</string>
     <string name="discard">Discard</string>
+    <string name="stop_brew_title">Stop the shot?</string>
+    <string name="finish_brew_title">Finish the brew?</string>
+    <string name="keep_brewing">Keep going</string>
+    <string name="discard_brew_title">Discard this brew?</string>
     <string name="close">Close</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Yield</string>

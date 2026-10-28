@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -65,16 +68,29 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
-    // Back during a brew stops it (and saves what was recorded); otherwise it just closes.
-    BackHandler {
-        if (state.step == BrewStep.LIVE) viewModel.stop() else onClose()
+    // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
+    // closes, as nothing is recorded yet.
+    var confirmStop by rememberSaveable { mutableStateOf(false) }
+    val back = { if (state.step == BrewStep.LIVE && state.phase == BrewPhase.BREWING) confirmStop = true else onClose() }
+    BackHandler(onBack = back)
+    if (confirmStop) {
+        AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop_brew_title else R.string.finish_brew_title)) },
+            confirmButton = {
+                TextButton(onClick = { confirmStop = false; viewModel.stop() }) {
+                    Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done))
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
+        )
     }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(state.mode.label)) },
                 navigationIcon = {
-                    IconButton(onClick = { if (state.step == BrewStep.LIVE) viewModel.stop() else onClose() }) {
+                    IconButton(onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
                     }
                 },
@@ -110,7 +126,8 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
             color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        FilledTonalButton(onClick = { text = Format.grams(state.weightGrams, locale) }, Modifier.fillMaxWidth().height(56.dp), enabled = state.connected && state.weightGrams > 0) {
+        // The weighed dose is the common case: one tap takes it and moves on.
+        FilledTonalButton(onClick = { onDose(state.weightGrams) }, Modifier.fillMaxWidth().height(56.dp), enabled = state.connected && state.weightGrams > 0) {
             Text(stringResource(R.string.use_weight))
         }
         OutlinedTextField(
@@ -118,7 +135,8 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
             onValueChange = { text = it.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(6) },
             label = { Text(stringResource(R.string.dose_field)) },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { typed?.let(onDose) }),
             textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
         )
         Spacer(Modifier.height(8.dp))
@@ -172,6 +190,15 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
 @Composable
 private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -> Unit) {
     val brew = state.saved
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text(stringResource(R.string.discard_brew_title)) },
+            confirmButton = { TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -189,7 +216,7 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
         BrewNumbers(brew)
         Spacer(Modifier.height(8.dp))
         Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
-        TextButton(onClick = onDiscard, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
+        TextButton(onClick = { confirmDiscard = true }, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
     }
 }
 

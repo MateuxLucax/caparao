@@ -51,6 +51,10 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ModeSelector(connected, onBrew)
+        // Say why the modes are off; a failure already explains itself in the card below.
+        if (!connected && state.scale !is ScaleState.Failed) {
+            Text(stringResource(R.string.scale_needed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::retry) }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Readout(state, Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f).alpha(if (connected) 1f else 0.45f))
