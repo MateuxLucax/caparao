@@ -73,6 +73,20 @@ class FilterDetectorTest {
     }
 
     @Test
+    fun stopRightAfterLiftingTheServerKeepsTheWaterPoured() {
+        openAndTare()
+        pourWithBloom()
+        val liftAt = session.nowMs - SyntheticSession.STEP_MS
+        // Everything off the scale: below the tare, and done tapped before the lift hold ran out.
+        session.ramp(250.0, -280.0, 0.3).hold(-280.0, 2.0)
+        detector.feed(session)
+        detector.stop(session.nowMs)
+        val result = detector.result!!
+        assertEquals(liftAt.toDouble(), result.endedAtMs.toDouble(), 100.0)
+        assertEquals(250.0, result.yieldGrams, 0.3)
+    }
+
+    @Test
     fun smallBrewLiftedByFractionEnds() {
         openAndTare()
         session.ramp(0.0, 100.0, 20.0).hold(100.0, 2.0).hold(85.0, 6.0) // 15 %, below 30 g

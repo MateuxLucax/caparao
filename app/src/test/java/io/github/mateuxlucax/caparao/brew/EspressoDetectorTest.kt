@@ -188,6 +188,28 @@ class EspressoDetectorTest {
     }
 
     @Test
+    fun stopDuringASlowLiftEndsBeforeItWithTheMaxWeight() {
+        placeCupAndTare()
+        session.ramp(0.0, 30.0, 15.0)
+        val riseEnd = session.nowMs
+        session.ramp(30.0, 10.0, 2.5)
+        detector.feed(session)
+        detector.stop(session.nowMs)
+        val result = detector.result!!
+        assertEquals(30.0, result.yieldGrams, 0.3)
+        assertEquals(riseEnd.toDouble(), result.endedAtMs.toDouble(), 1_000.0)
+    }
+
+    @Test
+    fun slowLiftBelowZeroEndsByItselfWithTheMaxWeight() {
+        placeCupAndTare()
+        session.ramp(0.0, 30.0, 15.0).ramp(30.0, -2.0, 4.0).hold(-2.0, 1.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(30.0, detector.result!!.yieldGrams, 0.3)
+    }
+
+    @Test
     fun overloadAndSaturatedFlowDoNotConfuseIt() {
         session.hold(0.0, 1.0).ramp(0.0, 150.0, 0.2, flow = 99.9, overload = true)
             .hold(150.0, 1.5, flow = 99.9, overload = true).hold(0.0, 2.0, flow = 99.9)
