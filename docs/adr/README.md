@@ -21,3 +21,8 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0015](0015-acceptance-and-lean-ci.md) | Acceptance criteria per stage, local test runs and lean CI | Accepted |
 | [0016](0016-upload-jobs.md) | One WorkManager job per brew, enqueued only with a server | Accepted |
 | [0017](0017-local-network-permission.md) | Ask for the local network permission when the server is local | Accepted |
+| [0018](0018-recipes.md) | Recipes stored in Room, one model for espresso and filter | Proposed |
+| [0019](0019-guided-brew.md) | Guided brew: a pure step tracker driven by the readings | Proposed |
+| [0020](0020-data-export.md) | Export brews as CSV and JSON through the share sheet | Proposed |
+| [0021](0021-brew-notes.md) | Brew metadata: coffee, grind, temperature, notes and rating | Proposed |
+| [0022](0022-compare-and-trends.md) | Compare brews and show trends on the Canvas charts | Proposed |
