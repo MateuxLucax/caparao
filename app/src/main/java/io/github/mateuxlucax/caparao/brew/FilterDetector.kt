@@ -48,9 +48,15 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         }
     }
 
-    override fun stop(atMs: Long) = finish(atMs, lastGrams, interrupted = false)
+    override fun stop(atMs: Long) = end(atMs, interrupted = false)
 
-    override fun interrupt(atMs: Long) = finish(atMs, lastGrams, interrupted = true)
+    override fun interrupt(atMs: Long) = end(atMs, interrupted = true)
+
+    /** Stopped while the weight is down (server or dripper off before the lift hold ran out): it ended at the drop. */
+    private fun end(atMs: Long, interrupted: Boolean) {
+        val began = dropBeganAtMs
+        if (began != null) finish(began, maxGrams, interrupted) else finish(atMs, lastGrams, interrupted)
+    }
 
     private fun finish(atMs: Long, yieldGrams: Double, interrupted: Boolean) {
         if (phase == BrewPhase.DONE) return

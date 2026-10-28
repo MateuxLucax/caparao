@@ -75,9 +75,12 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         }
     }
 
-    override fun stop(atMs: Long) = finish(atMs, lastGrams, interrupted = false)
+    override fun stop(atMs: Long) = finish(atMs, endingGrams(), interrupted = false)
 
-    override fun interrupt(atMs: Long) = finish(atMs, lastGrams, interrupted = true)
+    override fun interrupt(atMs: Long) = finish(atMs, endingGrams(), interrupted = true)
+
+    /** The cup taken off too slowly to count as a lift still leaves the weight far below what was poured. */
+    private fun endingGrams() = if (maxGrams - lastGrams >= config.liftDropGrams) maxGrams else lastGrams
 
     private fun finish(atMs: Long, yieldGrams: Double, interrupted: Boolean) {
         if (phase == BrewPhase.DONE) return
