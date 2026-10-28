@@ -49,9 +49,6 @@ Use these and only these. Adding a term means adding it here.
 | Remote copy | send / sync | enviar / sincronizar | "send" for actions, "sync" for timestamps |
 | Optional server | server | servidor | Always "Optional" when introduced |
 
-Known gap: the brews tab is `Brews` in EN and `Dados` in pt-BR. Pick one meaning (list of brews) and align both
-(`Preparos`) when the tab is next touched.
-
 ## Patterns
 
 ### Buttons
