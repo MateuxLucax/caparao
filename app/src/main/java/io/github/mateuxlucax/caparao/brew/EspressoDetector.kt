@@ -55,6 +55,7 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
     private var startedAtMs = 0L
     private var maxGrams = 0.0
     private var lastGrams = 0.0
+    private var lastNearMaxAtMs = 0L
 
     /** The cup is already on the scale and tared, or the user wants to skip waiting: tare now and get ready. */
     fun armNow(atMs: Long): ScaleCommand {
@@ -75,12 +76,18 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         }
     }
 
-    override fun stop(atMs: Long) = finish(atMs, endingGrams(), interrupted = false)
+    override fun stop(atMs: Long) = end(atMs, interrupted = false)
 
-    override fun interrupt(atMs: Long) = finish(atMs, endingGrams(), interrupted = true)
+    override fun interrupt(atMs: Long) = end(atMs, interrupted = true)
 
-    /** The cup taken off too slowly to count as a lift still leaves the weight far below what was poured. */
-    private fun endingGrams() = if (maxGrams - lastGrams >= config.liftDropGrams) maxGrams else lastGrams
+    /** The cup taken off too slowly to count as a lift: the brew ended at the last reading near the max. */
+    private fun end(atMs: Long, interrupted: Boolean) {
+        if (phase == BrewPhase.BREWING && maxGrams - lastGrams >= config.liftDropGrams) {
+            finish(lastNearMaxAtMs, maxGrams, interrupted)
+        } else {
+            finish(atMs, lastGrams, interrupted)
+        }
+    }
 
     private fun finish(atMs: Long, yieldGrams: Double, interrupted: Boolean) {
         if (phase == BrewPhase.DONE) return
@@ -158,6 +165,7 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         phase = BrewPhase.BREWING
         startedAtMs = first.atMs
         maxGrams = first.reading.weightGrams
+        lastNearMaxAtMs = first.atMs
     }
 
     private fun followBrew(reading: TimedReading) {
@@ -172,6 +180,7 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
             return
         }
         maxGrams = maxOf(maxGrams, grams)
+        if (maxGrams - grams < config.liftDropGrams) lastNearMaxAtMs = now
 
         if (now - startedAtMs < config.minBrewMs) return
         // The flat window starts at the latest reading at or before now − flatWindowMs; that reading is taken as
@@ -180,7 +189,8 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         if (windowStart.atMs < startedAtMs) return
         val windowMax = recent.filter { it.atMs >= windowStart.atMs }.maxOf { it.reading.weightGrams }
         if (windowMax - windowStart.reading.weightGrams <= config.flatRiseGrams + EPSILON) {
-            finish(windowStart.atMs, grams, interrupted = false)
+            // A slow lift also reads as flat: the window max is the weight before it, not the lowered one.
+            finish(windowStart.atMs, windowMax, interrupted = false)
         }
     }
 }
