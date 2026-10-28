@@ -13,10 +13,12 @@ vibration) and whether the user is ahead or behind the target. The filter mode t
 - A pure `StepTracker` in `brew/`, next to the detectors: input is the recipe's steps ([ADR 0018](0018-recipes.md))
   and each `ScaleReading` after the brew started; output is the current step, progress in the step, the next target and
   a pace value. No Android types, tested with the replay sessions and synthetic curves like the detectors.
-- A step is done when its target weight is reached (within 2 g) or, for `WAIT`/`SWIRL`, when its time has passed; the
+- A step is done when its target weight is reached (within 3 g) or, for `WAIT`/`SWIRL`, when its time has passed; the
   tracker then moves to the next one. Pouring past a target never blocks: the tracker follows the scale.
-- Pace is the difference between the weight on the scale and the weight the recipe expects at this moment
-  (linear between targets), shown as "ahead / on time / behind" with the grams. A ±5 g band counts as on time.
+- Pace is measured in time, not grams: when a pour starts (flow above 1 g/s) it is compared with the step's
+  `targetAtMs` and shown as "ahead / on time / behind" with the seconds; ±5 s counts as on time. Between pours the
+  screen counts down to the next one. Recorded filter brews pour at 3–7 g/s and rest on flat plateaus between pours,
+  so a weight-based pace would swing from "behind" to "ahead" within a single pour.
 - Alerts on step changes and on "next pour in 5 s": a short vibration (`VIBRATE` permission, `VibratorManager`) and an
   optional tone (`ToneGenerator`, no audio files). Both are toggles in Settings, vibration on by default, sound off.
   The visual cue (current step card, progress ring) is always on.
@@ -29,7 +31,8 @@ vibration) and whether the user is ahead or behind the target. The filter mode t
 
 - The guide is a function of the readings, so it works the same with `ReplayScaleSource` on the emulator and in
   screenshots.
-- Thresholds (2 g, ±5 g, 5 s) are first guesses to be tuned with real brews, like the detector thresholds.
+- Thresholds (3 g, 1 g/s, ±5 s) come from two recorded filter brews (pours landing 1–4 g past round targets, pour
+  rates of 3–7 g/s, plateaus of 15–35 s); they are tuned with more brews, like the detector thresholds.
 - `VIBRATE` is a normal permission, granted at install; no new prompt.
 - Saving the per-step actual times is left out for now; the curve already holds them and the detail chart can mark the
   steps later.

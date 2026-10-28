@@ -23,8 +23,11 @@ fixes the data model so the screens can be drawn against it.
   nullable `recipe_id` (no foreign key: deleting a recipe keeps the brews) and a copy of the recipe name, so history
   still reads well after a recipe is renamed or deleted.
 - The brew screen starts from a recipe or from "free brew"; the last used recipe per mode is preselected, replacing the
-  remembered dose. A few built-in recipes (one espresso, one V60, one AeroPress) are inserted on first run and are
-  ordinary, editable rows.
+  remembered dose. Two built-in recipes are inserted on first run as ordinary, editable rows, taken from the first
+  brews recorded on the exporter (2026-10, 2 espresso and 2 filter):
+  - Espresso: 18 g, 1:2.4 (43 g), 28–34 s.
+  - V60: 18 g, 1:16.7; bloom to 50 g at 0:00, pours to 100 g at 0:45, 150 g at 1:25 and 300 g at 2:00, then drawdown
+    (about 3:30 total).
 - Recipes stay on the phone. The upload carries only `recipe_name` (see [ADR 0021](0021-brew-notes.md)).
 
 ## Consequences
