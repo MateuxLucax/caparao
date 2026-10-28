@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -44,6 +45,16 @@ class ScreenshotTest {
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
+
+    /** For a step that lasts under a second (taring): no settle time, just past the slide-in. */
+    private fun captureNow(name: String) {
+        Thread.sleep(350)
+        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+        File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    /** Sleeps until [atMs] after [startMs] (the replay's start), so taps land at a set point of the session. */
+    private fun sleepUntil(startMs: Long, atMs: Long) = Thread.sleep((startMs + atMs - SystemClock.elapsedRealtime()).coerceAtLeast(0))
 
     private fun click(id: Int) = compose.onNodeWithText(context.getString(id)).performClick()
 
@@ -92,8 +103,9 @@ class ScreenshotTest {
         launch("synthetic-espresso", 3_000).use {
             waitFor(R.string.scale_connected, 5_000)
             click(R.string.mode_espresso)
-            compose.onNode(hasSetTextAction()).performTextReplacement("18")
+            // Before typing: a focused field brings up the emulator's keyboard bar.
             capture("brew-dose")
+            compose.onNode(hasSetTextAction()).performTextReplacement("18")
             click(R.string.next)
             // The shot starts 14 s into the session (11 s after this replay's start) and pours for about 25 s.
             Thread.sleep(18_000)
@@ -105,6 +117,55 @@ class ScreenshotTest {
             capture("brews-list")
             compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.0, context.resources.configuration.locales[0])), substring = true).performClick()
             capture("brew-detail")
+        }
+    }
+
+    /** The espresso guide's steps before the shot: cup, taring, waiting for the first drop. */
+    @Test
+    fun espressoGuide() {
+        assumeTrue("screenshots run only from scripts/screenshots.sh", variant != null)
+        freshApp(onboardingDone = true)
+        launch("synthetic-espresso-guide", 0).use {
+            waitFor(R.string.scale_connected, 5_000)
+            click(R.string.mode_espresso)
+            compose.onNode(hasSetTextAction()).performTextReplacement("18")
+            click(R.string.next)
+            capture("brew-step-cup")
+            // The cup lands at 8 s and is tared as soon as it is still.
+            waitFor(R.string.taring, 15_000)
+            captureNow("brew-step-taring")
+            waitFor(R.string.espresso_ready, 5_000)
+            capture("brew-step-first-drop")
+        }
+    }
+
+    /** A filter brew: taring, pouring, brewing, then the server lifted and done tapped 2 s later; its summary and chart. */
+    @Test
+    fun filter() {
+        assumeTrue("screenshots run only from scripts/screenshots.sh", variant != null)
+        freshApp(onboardingDone = true)
+        launch("synthetic-filter-lift", 0).use {
+            val start = SystemClock.elapsedRealtime()
+            waitFor(R.string.scale_connected, 5_000)
+            click(R.string.mode_filter)
+            compose.onNode(hasSetTextAction()).performTextReplacement("15")
+            click(R.string.next)
+            waitFor(R.string.taring, 2_000)
+            captureNow("brew-filter-taring")
+            waitFor(R.string.filter_ready, 5_000)
+            capture("brew-filter-pour")
+            // Pours from 20 s, the last one ends at 88 s and everything leaves the scale at 90 s.
+            sleepUntil(start, 60_000)
+            capture("brew-filter-live")
+            sleepUntil(start, 93_000)
+            click(R.string.done)
+            waitFor(R.string.brew_saved, 5_000)
+            capture("brew-filter-summary")
+            click(R.string.close)
+            click(R.string.tab_brews)
+            val locale = context.resources.configuration.locales[0]
+            compose.onNodeWithText("${Format.grams(15.0, locale)} ${context.getString(R.string.unit_grams)} →", substring = true).performClick()
+            capture("brew-filter-detail")
         }
     }
 }
