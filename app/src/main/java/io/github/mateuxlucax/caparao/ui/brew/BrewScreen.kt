@@ -81,11 +81,14 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             )
         },
     ) { padding ->
-        AnimatedContent(state.step, Modifier.padding(padding).fillMaxSize(), transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "step") { step ->
-            when (step) {
-                BrewStep.DOSE -> DoseStep(state, viewModel::setDose)
-                BrewStep.LIVE -> LiveStep(state, viewModel)
-                BrewStep.SUMMARY -> SummaryStep(state, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            AnimatedContent(state.step, Modifier.weight(1f).fillMaxWidth(), transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "step") { step ->
+                when (step) {
+                    BrewStep.DOSE -> DoseStep(state, viewModel::setDose)
+                    BrewStep.LIVE -> LiveStep(state, viewModel)
+                    BrewStep.SUMMARY -> SummaryStep(state, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
+                }
             }
         }
     }
@@ -101,14 +104,13 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(stringResource(R.string.dose_title), style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.dose_text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        GuideHeader(GuideStage.DOSE)
         Text(
             "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
             color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        FilledTonalButton(onClick = { text = Format.grams(state.weightGrams, locale) }, enabled = state.connected && state.weightGrams > 0) {
+        FilledTonalButton(onClick = { text = Format.grams(state.weightGrams, locale) }, Modifier.fillMaxWidth().height(56.dp), enabled = state.connected && state.weightGrams > 0) {
             Text(stringResource(R.string.use_weight))
         }
         OutlinedTextField(
@@ -120,8 +122,8 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
             textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { typed?.let(onDose) }, Modifier.fillMaxWidth().height(52.dp), enabled = typed != null) {
-            Text(stringResource(R.string.next))
+        Button(onClick = { typed?.let(onDose) }, Modifier.fillMaxWidth().height(64.dp), enabled = typed != null) {
+            Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -135,14 +137,7 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            stringResource(phaseTitle(state.mode, state.phase)),
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-        )
-        phaseText(state.mode, state.phase)?.let {
-            Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        }
+        GuideHeader(guideStage(state.mode, state.step, state.phase))
         if (!state.connected) {
             Text(stringResource(R.string.scale_needed), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
@@ -163,11 +158,13 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
             )
         }
         when (state.phase) {
-            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, enabled = state.connected) { Text(stringResource(R.string.cup_already_tared)) }
-            BrewPhase.BREWING -> Button(onClick = viewModel::stop, Modifier.fillMaxWidth().height(56.dp)) {
-                Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done))
+            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, Modifier.fillMaxWidth().height(64.dp), enabled = state.connected) {
+                Text(stringResource(R.string.cup_already_tared), style = MaterialTheme.typography.titleMedium)
             }
-            else -> Spacer(Modifier.height(56.dp))
+            BrewPhase.BREWING -> Button(onClick = viewModel::stop, Modifier.fillMaxWidth().height(64.dp)) {
+                Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done), style = MaterialTheme.typography.titleMedium)
+            }
+            else -> Spacer(Modifier.height(64.dp))
         }
     }
 }
@@ -182,7 +179,7 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
     ) {
         if (brew == null) {
             Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.headlineSmall)
-            Button(onClick = onClose) { Text(stringResource(R.string.close)) }
+            Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
             return@Column
         }
         Text(stringResource(R.string.brew_saved), style = MaterialTheme.typography.headlineMedium)
@@ -191,10 +188,8 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
         }
         BrewNumbers(brew)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onDiscard) { Text(stringResource(R.string.discard)) }
-            Button(onClick = onClose) { Text(stringResource(R.string.close)) }
-        }
+        Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
+        TextButton(onClick = onDiscard, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
     }
 }
 
@@ -239,17 +234,3 @@ private fun Metric(label: String, value: String, modifier: Modifier = Modifier, 
         Text(value, style = (if (large) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge).merge(Tabular))
     }
 }
-
-private fun phaseTitle(mode: BrewMode, phase: BrewPhase) = when (phase) {
-    BrewPhase.WAITING_FOR_CUP -> R.string.espresso_place_cup
-    BrewPhase.TARING -> R.string.taring
-    BrewPhase.READY -> if (mode == BrewMode.ESPRESSO) R.string.espresso_ready else R.string.filter_ready
-    BrewPhase.BREWING, BrewPhase.DONE -> if (mode == BrewMode.ESPRESSO) R.string.brewing_espresso else R.string.brewing_filter
-}
-
-private fun phaseText(mode: BrewMode, phase: BrewPhase) = when (phase) {
-    BrewPhase.WAITING_FOR_CUP -> R.string.espresso_place_cup_text
-    BrewPhase.READY -> if (mode == BrewMode.ESPRESSO) R.string.espresso_ready_text else R.string.filter_ready_text
-    else -> null
-}
-

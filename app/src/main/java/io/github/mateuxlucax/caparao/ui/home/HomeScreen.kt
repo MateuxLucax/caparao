@@ -112,11 +112,11 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
 
 @Composable
 private fun ModeButton(mode: BrewMode, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    ElevatedCard(onClick = onClick, enabled = enabled, modifier = modifier.height(96.dp)) {
+    ElevatedCard(onClick = onClick, enabled = enabled, modifier = modifier.height(112.dp)) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(painterResource(mode.icon), contentDescription = null, Modifier.size(28.dp))
+            Icon(painterResource(mode.icon), contentDescription = null, Modifier.size(36.dp))
             Spacer(Modifier.height(6.dp))
-            Text(stringResource(mode.label), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(mode.label), style = MaterialTheme.typography.titleLarge)
         }
     }
 }
