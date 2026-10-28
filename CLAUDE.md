@@ -1,7 +1,7 @@
 # Caparaó
 
 Android app for the Timemore Dot scale (Kotlin, Compose). Start from `docs/roadmap.md` for what is done and pending,
-`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol and `docs/adr/` before changing a decision.
+`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings and `docs/adr/` before changing a decision.
 The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
 
 ## Public repository
