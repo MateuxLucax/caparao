@@ -49,14 +49,14 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import kotlin.math.PI
 import kotlin.math.sin
 
-/** The steps the brew screen walks through, one at a time like the onboarding. */
+/** The steps the brew screen walks through, one at a time like the onboarding. A step has text only when it says something the title and the screen don't. */
 enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?) {
-    DOSE(R.string.dose_title, R.string.dose_text),
+    DOSE(R.string.dose_title, null),
     CUP(R.string.espresso_place_cup, R.string.espresso_place_cup_text),
-    TARE(R.string.taring, R.string.taring_text),
+    TARE(R.string.taring, null),
     FIRST_DROP(R.string.espresso_ready, R.string.espresso_ready_text),
     POUR(R.string.filter_ready, R.string.filter_ready_text),
-    BREWING_ESPRESSO(R.string.brewing_espresso, R.string.brewing_espresso_text),
+    BREWING_ESPRESSO(R.string.brewing_espresso, null),
     BREWING_FILTER(R.string.brewing_filter, R.string.brewing_filter_text),
     DONE(R.string.brew_saved, null),
 }

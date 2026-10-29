@@ -71,22 +71,19 @@
 
     <!-- Preparo -->
     <string name="dose_title">Dose de café</string>
-    <string name="dose_text">Pese o café moído na balança ou digite.</string>
     <string name="dose_field">Dose em gramas</string>
     <string name="use_weight">Usar peso</string>
     <string name="next">Continuar</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Ela tara sozinha quando a xícara parar.</string>
-    <string name="cup_already_tared">Xícara já tarada</string>
+    <string name="cup_on">Coloquei a xícara</string>
     <string name="taring">Tarando…</string>
-    <string name="taring_text">Deixe tudo parado por um instante.</string>
-    <string name="brewing_espresso_text">Para sozinho quando o fluxo parar.</string>
     <string name="brewing_filter_text">Despeje no seu ritmo. Tire o dripper ou toque em Pronto para terminar.</string>
     <string name="step_of">Etapa %1$d de %2$d</string>
     <string name="espresso_ready">Pode extrair</string>
     <string name="espresso_ready_text">O timer começa na primeira gota e para quando o fluxo para.</string>
     <string name="filter_ready">Pode despejar</string>
-    <string name="filter_ready_text">O timer começa com a primeira água. Tire o dripper ou toque em Pronto para terminar.</string>
+    <string name="filter_ready_text">O timer começa com a primeira água.</string>
     <string name="stop">Parar</string>
     <string name="done">Pronto</string>
     <string name="brew_saved">Salvo</string>
