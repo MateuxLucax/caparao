@@ -1,6 +1,8 @@
 package io.github.mateuxlucax.caparao.wear
 
+import android.Manifest
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
@@ -33,8 +35,10 @@ class WatchActivity : ComponentActivity() {
         if (event.path != WatchPaths.SNAPSHOT) return@OnMessageReceivedListener
         val received = WatchSnapshot.decode(event.data) ?: return@OnMessageReceivedListener
         receivedAtMs = SystemClock.elapsedRealtime()
+        val brewing = BrewOngoingService.isBrewing(received.state)
+        if (brewing && snapshot.value?.state?.let(BrewOngoingService::isBrewing) != true) BrewOngoingService.start(this)
         snapshot.value = received
-        keepScreenOn(received.state == WatchState.READY || received.state == WatchState.BREWING)
+        keepScreenOn(brewing)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +47,10 @@ class WatchActivity : ComponentActivity() {
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val demo = if (debuggable) intent.getStringExtra(EXTRA_DEMO)?.let { name -> WatchState.entries.find { it.name == name } } else null
         if (demo != null) snapshot.value = DEMOS.getValue(demo)
+        // The Ongoing Activity's notification (Wear OS 4+ asks for it).
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+        }
         setContent {
             WatchScreen(
                 snapshot.value,

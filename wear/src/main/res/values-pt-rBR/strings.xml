@@ -9,4 +9,6 @@
     <string name="timer_reset">Zerar timer</string>
     <string name="state_ready">Aguardando</string>
     <string name="state_done">Pronto</string>
+    <string name="brew_channel">Preparo</string>
+    <string name="brew_ongoing">Preparo em andamento</string>
 </resources>

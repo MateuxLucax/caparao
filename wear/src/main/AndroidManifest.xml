@@ -3,6 +3,11 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
+    <!-- The Ongoing Activity during a brew (BrewOngoingService). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -32,5 +37,14 @@
                 <data android:scheme="caparao" android:host="watch" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".BrewOngoingService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mirrors a coffee brew running on the paired phone as a Wear OS Ongoing Activity" />
+        </service>
     </application>
 </manifest>
