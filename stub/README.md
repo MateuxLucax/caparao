@@ -22,6 +22,7 @@ AUTH_TOKEN=dev-token go run .
 |---------|----------|
 | `POST /api/v1/brews` | `201` new, `200` existing id (replaced), `400` `{"error": "..."}`, `401`, `413` over 4 MiB |
 | `GET /api/v1/brews` | Stored brews, newest first, without samples but with `sample_count` |
+| `GET /api/v1/brews/{id}` | One brew with its samples, in the upload format; `404` for an unknown id |
 | `GET /healthz` | `200 ok`, no auth |
 
 ```bash
