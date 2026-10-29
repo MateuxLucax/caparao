@@ -67,6 +67,9 @@ class AppContainer(context: Context) {
         scale = ReplayScaleSource(scope, lines, startAtMs)
     }
 
+    /** The paired watch, if any (docs/adr/0023-watch-companion.md); reads [scale] when it starts. */
+    val watch = WatchLink(appContext, scope) { scale }
+
     /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
         initializer { HomeViewModel(scale) }
@@ -79,7 +82,7 @@ class AppContainer(context: Context) {
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,
-                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted,
+                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
             )
         }
     }

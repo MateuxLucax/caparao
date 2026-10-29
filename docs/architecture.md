@@ -32,7 +32,9 @@ relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked 
 | `sync` | `UploadScheduler` (when to enqueue: after a save, all unsynced when a server is saved; never without one) over `UploadQueue` (`WorkManagerUploadQueue`: unique work per brew), `UploadRunner` (one upload: marks synced, records the error, retry or not), `SyncErrors` (exceptions to `SyncError`) |
 | `ui` | `App` (onboarding gate, tabs, brew and brew detail on top, scale started and stopped with the app's visibility), `theme`, `format`, `components` (logo, pour animation, scale readout ring), `onboarding`, `home`, `brew` (dose → live → saved), `brews` (list, detail, Canvas chart, sync status), `settings` (`ServerViewModel`, shared with the onboarding server step) |
 
-Outside the app module: `probe/` (stage 0 throwaway recorder, [spike.md](spike.md)), `stub/` (Go development server)
+Outside the app module: `wear/` (the Wear OS companion: one screen mirroring the phone, tare and timer buttons sent
+back, [ADR 0023](adr/0023-watch-companion.md)), `wearlink/` (pure Kotlin both share: `WatchSnapshot` and the Data Layer
+paths; the phone side is `WatchLink` over `ui/watch/WatchMirror`), `probe/` (stage 0 throwaway recorder, [spike.md](spike.md)), `stub/` (Go development server)
 and `contract/` (the upload schema and the JSON files both sides test against).
 
 Imports go one way: `model <- data <- brew <- sync <- ui <- root`. Only `ui` (and the root) uses `R` and

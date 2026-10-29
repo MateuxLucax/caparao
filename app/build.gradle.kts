@@ -107,6 +107,14 @@ dependencies {
     // One upload job per brew, with a network constraint and backoff (docs/adr/0016-upload-jobs.md).
     implementation("androidx.work:work-runtime:2.12.0")
 
+    // The watch companion (docs/adr/0023-watch-companion.md): Data Layer messages and opening the watch app.
+    implementation(project(":wearlink"))
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
+    implementation("androidx.wear:wear-remote-interactions:1.2.0")
+    // play-services-wearable pulls Fragment 1.0, whose activity results lint rejects for MainActivity.
+    implementation("androidx.fragment:fragment:1.9.1")
+
     testImplementation("junit:junit:4.13.2")
     // android.jar only ships a stub of org.json; JVM tests read the recorded sessions with the real one.
     testImplementation("org.json:json:20250517")
