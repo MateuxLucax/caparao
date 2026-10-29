@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 start=$(date +%s)
-./gradlew --console=plain testDebugUnitTest lintDebug assembleDebug compileDebugAndroidTestKotlin
+./gradlew --console=plain createDebugUnitTestCoverageReport lintDebug assembleDebug compileDebugAndroidTestKotlin
 (cd stub && go vet ./... && go test ./...)
 
 if command -v gitleaks >/dev/null; then
