@@ -129,6 +129,14 @@ Recipes ([ADR 0018](adr/0018-recipes.md)), guided brew with full-screen steps ([
 more brew metadata ([ADR 0021](adr/0021-brew-notes.md)), compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)).
 Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Acceptance criteria are written per PR.
 
+7.1 Recipe data:
+- `Recipe` and `RecipeStep` in `model/`; Room tables `recipes` and `recipe_steps` (cascade delete) and every brew
+  metadata column of ADR 0021 on `brews`, in one migration 1 → 2, so later PRs add no schema change.
+- `MigrationTest` (instrumented): a version 1 database with a brew upgrades, keeps the brew and its curve, passes
+  Room's schema check and gets the two built-in recipes; a fresh install gets them too.
+- `RecipeDaoTest` (instrumented): save and read back with steps in order, saving again replaces the steps, list by mode
+  then name, deleting a recipe deletes its steps and keeps the brews that used it.
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):

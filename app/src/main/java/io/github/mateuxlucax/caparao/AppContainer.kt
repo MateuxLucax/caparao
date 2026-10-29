@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.scale.AndroidBleTransport
@@ -38,7 +39,11 @@ class AppContainer(context: Context) {
 
     val settings = SettingsStore(SettingsStore.open(appContext))
 
-    val brews = BrewRepository(BrewDatabase.open(appContext).brews())
+    private val database = BrewDatabase.open(appContext)
+
+    val brews = BrewRepository(database.brews())
+
+    val recipes = RecipeRepository(database.recipes())
 
     private val exporter = ExporterClient()
 
