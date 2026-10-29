@@ -150,6 +150,15 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   `BrewViewModelTest`: preselection, the remembered choice (free brew too), a brew carrying the recipe's fields.
   `AppScreensTest`: a recipe created in the tab is preselected on the next brew.
 
+7.3 Step tracker:
+- `StepTracker` in `brew/`, pure: steps and timed readings in; current step, progress, time until the step is due,
+  pace (ahead / on time / behind, ±5 s, measured when a pour begins) and overshoot out, plus one-shot events for the
+  alerts (step started, −5 g, target reached within 3 g, the last 5 s before a step, all done).
+- `StepTrackerTest`: the built-in V60 poured on time reaches every target and starts every step; the countdown ticks
+  5 to 1 before a pour; near-target then reached for each pour; a late and an early pour; a continuous pour; overshoot
+  is a hint and never blocks; waits and swirls end when the next step is due; the synthetic filter replay session,
+  decoded frame by frame, runs ahead of the V60. No real filter brew is recorded yet: the curves are synthetic.
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):
