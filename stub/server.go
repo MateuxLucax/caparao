@@ -61,7 +61,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/v1/brews":
 		s.brewsRoute(sw, r)
 	default:
-		writeError(sw, http.StatusNotFound, "not found")
+		if id, ok := strings.CutPrefix(r.URL.Path, "/api/v1/brews/"); ok {
+			s.brewRoute(sw, r, id)
+		} else {
+			writeError(sw, http.StatusNotFound, "not found")
+		}
 	}
 
 	id := info.id
@@ -97,6 +101,35 @@ func (s *Server) brewsRoute(w http.ResponseWriter, r *http.Request) {
 	} else {
 		s.listBrews(w)
 	}
+}
+
+// brewRoute serves GET /api/v1/brews/{id}: the brew in the upload format, samples included.
+func (s *Server) brewRoute(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !s.authorized(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		writeError(w, http.StatusUnauthorized, "missing or invalid token")
+		return
+	}
+	if !uuidRe.MatchString(id) {
+		writeError(w, http.StatusNotFound, "brew not found")
+		return
+	}
+	if info, ok := r.Context().Value(ctxKey{}).(*reqInfo); ok {
+		info.id = id // validated UUID, safe to log
+	}
+	s.mu.RLock()
+	b, ok := s.brews[id]
+	s.mu.RUnlock()
+	if !ok {
+		writeError(w, http.StatusNotFound, "brew not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, b)
 }
 
 func (s *Server) authorized(r *http.Request) bool {
