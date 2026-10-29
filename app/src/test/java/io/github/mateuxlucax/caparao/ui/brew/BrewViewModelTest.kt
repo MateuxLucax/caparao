@@ -151,4 +151,13 @@ class BrewViewModelTest {
         assertEquals(18.5, vm.uiState.value.dose!!, 0.0)
         assertEquals(emptyList<String>(), scale.commands)
     }
+
+    @Test
+    fun theTargetRatioComesFromSettings() {
+        settings.setTargetRatio(BrewMode.ESPRESSO, 2.5)
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        assertEquals(2.5, vm.uiState.value.targetRatio, 0.001)
+        assertEquals(16.0, viewModel(BrewMode.FILTER).apply { begin() }.uiState.value.targetRatio, 0.001)
+    }
 }

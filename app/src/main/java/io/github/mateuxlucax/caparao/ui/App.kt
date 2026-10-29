@@ -149,6 +149,7 @@ private fun Tabs(
             Tab.SETTINGS -> SettingsScreen(
                 viewModel(key = "server-settings", factory = viewModelFactory),
                 viewModel(factory = viewModelFactory),
+                viewModel(factory = viewModelFactory),
                 actions,
                 versionName,
                 modifier,

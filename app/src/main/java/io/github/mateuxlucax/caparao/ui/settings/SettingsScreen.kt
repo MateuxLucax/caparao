@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,11 +26,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.components.BodyText
@@ -38,12 +43,20 @@ import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SectionCard
 import io.github.mateuxlucax.caparao.ui.components.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.StatusLine
+import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
+import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order. */
+/** Server, permissions and scale, in the wireframe's order, then the target ratios. */
 @Composable
-fun SettingsScreen(server: ServerViewModel, scale: ScaleStatusViewModel, actions: AppActions, versionName: String, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    server: ServerViewModel,
+    scale: ScaleStatusViewModel,
+    targets: TargetRatioViewModel,
+    actions: AppActions, versionName: String,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -51,6 +64,7 @@ fun SettingsScreen(server: ServerViewModel, scale: ScaleStatusViewModel, actions
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
+        SectionCard(stringResource(R.string.section_target_ratio)) { TargetRatioSection(targets) }
         Text(
             stringResource(R.string.version, versionName),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -127,5 +141,31 @@ private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
         CopyLogButton(state.log)
+    }
+}
+
+/** One 1:X field per mode, saved as soon as it holds a valid ratio. */
+@Composable
+private fun TargetRatioSection(viewModel: TargetRatioViewModel) {
+    val locale = LocalConfiguration.current.locales[0]
+    BodyText(stringResource(R.string.section_target_ratio_text))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        BrewMode.entries.forEach { mode ->
+            var text by rememberSaveable { mutableStateOf(Format.ratio(viewModel.ratio(mode), locale)) }
+            val valid = TargetRatioViewModel.parse(text) != null
+            OutlinedTextField(
+                value = text,
+                onValueChange = {
+                    text = it.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(4)
+                    viewModel.save(mode, text)
+                },
+                modifier = Modifier.weight(1f),
+                label = { Text(stringResource(mode.label)) },
+                prefix = { Text("1:") },
+                isError = !valid,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
+        }
     }
 }

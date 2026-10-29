@@ -175,6 +175,7 @@ class BrewViewModel(
         _uiState.value = BrewUiState(
             mode,
             dose = settings.lastDose(mode),
+            targetRatio = settings.targetRatio(mode),
             connected = scale.state.value is ScaleState.Connected,
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
