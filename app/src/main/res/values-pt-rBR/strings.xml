@@ -93,6 +93,10 @@
     <string name="brew_interrupted">A balança desconectou. O que foi registrado está salvo.</string>
     <string name="nothing_recorded">Nada foi registrado.</string>
     <string name="discard">Descartar</string>
+    <string name="stop_brew_title">Parar a extração?</string>
+    <string name="finish_brew_title">Terminar o preparo?</string>
+    <string name="keep_brewing">Continuar</string>
+    <string name="discard_brew_title">Descartar este preparo?</string>
     <string name="close">Fechar</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Bebida</string>
