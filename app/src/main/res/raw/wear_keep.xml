@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking drops android_wear_capabilities: nothing references it from code, the Wearable
+     service reads it from the installed APK. tools:keep only works from a raw keep file, not values/. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@array/android_wear_capabilities" />
