@@ -25,8 +25,9 @@ data class BrewUiState(
     /** The X of the 1:X to stop at (Settings). */
     val targetRatio: Double = SettingsStore.defaultTargetRatio(mode),
 ) {
-    /** Live 1:X while brewing, when there is a dose. */
-    val ratio: Double? get() = dose?.takeIf { it > 0 && weightGrams > 0 }?.let { weightGrams / it }
+    /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
+    val ratio: Double?
+        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.DONE) }?.let { weightGrams / it }
 
     /** How far [ratio] is toward [targetRatio], 0 to 1. */
     val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()

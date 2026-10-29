@@ -1,14 +1,16 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
+import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BrewUiStateTest {
     private fun espresso(weight: Double, dose: Double? = 18.0) =
-        BrewUiState(BrewMode.ESPRESSO, dose = dose, weightGrams = weight, targetRatio = 2.0)
+        BrewUiState(BrewMode.ESPRESSO, dose = dose, phase = BrewPhase.BREWING, weightGrams = weight, targetRatio = 2.0)
 
     @Test
     fun progressGoesFromNothingToTheTargetAndStops() {
@@ -24,5 +26,12 @@ class BrewUiStateTest {
         assertTrue(espresso(35.2).onTarget) // 1:1.96 reads 1:2.0
         assertTrue(espresso(45.0).onTarget) // past it
         assertFalse(espresso(40.0, dose = null).onTarget)
+    }
+
+    @Test
+    fun noRatioBeforeTheBrewStarts() {
+        val cupOnTheScale = espresso(150.0).copy(phase = BrewPhase.WAITING_FOR_CUP)
+        assertNull(cupOnTheScale.ratio)
+        assertFalse(cupOnTheScale.onTarget)
     }
 }
