@@ -13,9 +13,11 @@ import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import kotlinx.coroutines.Job
@@ -35,6 +37,7 @@ class BrewViewModel(
     private val scale: ScaleSource,
     private val repository: BrewRepository,
     private val settings: SettingsStore,
+    private val recipes: RecipeRepository,
     /** Monotonic, for the detector. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     /** Epoch, for the saved start time. */
@@ -56,6 +59,9 @@ class BrewViewModel(
     private val smoother = FlowSmoother()
     private var brewingSinceMs: Long? = null
 
+    /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
+    private var recipeChosen = false
+
     /** The brew screen opened: start from the dose, listening to the scale. Does nothing while a brew is open. */
     fun begin() {
         if (job?.isActive == true) return
@@ -63,6 +69,7 @@ class BrewViewModel(
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
             launch { _uiState.collect(onLive) }
+            launch { recipes.recipes.collect { all -> onRecipes(all.filter { it.mode == mode }) } }
             scale.state.collect(::onScaleState)
         }
     }
@@ -75,10 +82,18 @@ class BrewViewModel(
         onLive(null)
     }
 
+    /** On the dose step: follow [recipe], or none for a free brew. Its dose fills the dose field. */
+    fun selectRecipe(recipe: Recipe?) {
+        if (_uiState.value.step != BrewStep.DOSE) return
+        recipeChosen = true
+        settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
+        apply(recipe)
+    }
+
     /** The dose was weighed or typed: start watching for the brew. */
     fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE) return
-        settings.setLastDose(mode, grams)
+        if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()
             BrewMode.FILTER -> FilterDetector()
@@ -140,6 +155,26 @@ class BrewViewModel(
         if (current.phase == BrewPhase.DONE) finish(current)
     }
 
+    private fun onRecipes(list: List<Recipe>) {
+        val state = _uiState.value
+        // An edit elsewhere updates the one being followed; a deleted one leaves this brew as it was.
+        val current = state.recipe?.let { chosen -> list.find { it.id == chosen.id } ?: chosen }
+        _uiState.update { it.copy(recipes = list, recipe = current) }
+        if (recipeChosen || state.step != BrewStep.DOSE) return
+        recipeChosen = true
+        // Never chosen in this mode: the first recipe; free brew only when it was the last choice.
+        val last = settings.lastRecipeId(mode)
+        apply(if (last == null) list.firstOrNull() else list.find { it.id == last })
+    }
+
+    private fun apply(recipe: Recipe?) = _uiState.update {
+        it.copy(
+            recipe = recipe,
+            dose = recipe?.doseGrams ?: settings.lastDose(mode),
+            targetRatio = recipe?.targetRatio ?: settings.targetRatio(mode),
+        )
+    }
+
     private fun onScaleState(state: ScaleState) {
         _uiState.update { it.copy(connected = state is ScaleState.Connected) }
         val current = detector ?: return
@@ -162,7 +197,13 @@ class BrewViewModel(
         }
         val summary = BrewSummary.of(mode, readings, result)
         val startedAt = wallClock() - (clock() - result.startedAtMs)
-        val brew = summary.toBrew(newId(), mode, startedAt, requireNotNull(_uiState.value.dose), result.interrupted)
+        val recipe = _uiState.value.recipe
+        val brew = summary.toBrew(newId(), mode, startedAt, requireNotNull(_uiState.value.dose), result.interrupted).copy(
+            recipeId = recipe?.id,
+            recipeName = recipe?.name,
+            grind = recipe?.grind,
+            waterTempCelsius = recipe?.waterTempCelsius,
+        )
         viewModelScope.launch {
             repository.save(brew, summary.curve)
             // After the insert, so the upload job always finds the brew.
@@ -176,6 +217,7 @@ class BrewViewModel(
         readings.clear()
         smoother.reset()
         brewingSinceMs = null
+        recipeChosen = false
         _uiState.value = BrewUiState(
             mode,
             dose = settings.lastDose(mode),

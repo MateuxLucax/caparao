@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -18,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,10 +53,12 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
@@ -107,7 +112,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { step ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::setDose)
+                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setDose)
                     BrewStep.LIVE -> LiveStep(state, viewModel)
                     BrewStep.SUMMARY -> SummaryStep(state, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
@@ -117,7 +122,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
+private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (Double) -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     var text by rememberSaveable(state.dose) { mutableStateOf(state.dose?.let { Format.grams(it, locale) } ?: "") }
     val typed = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1000 }
@@ -127,6 +132,7 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         GuideHeader(GuideStage.DOSE)
+        if (state.recipes.isNotEmpty()) RecipePicker(state, onRecipe)
         Text(
             "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
@@ -149,6 +155,21 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
         Button(onClick = { typed?.let(onDose) }, Modifier.fillMaxWidth().height(64.dp), enabled = typed != null) {
             Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+/** The recipes of this mode and a free brew; the chosen one sets the dose and the target. */
+@Composable
+private fun RecipePicker(state: BrewUiState, onRecipe: (Recipe?) -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.recipe_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.recipes.forEach { recipe ->
+                FilterChip(selected = state.recipe?.id == recipe.id, onClick = { onRecipe(recipe) }, label = { Text(recipe.name) })
+            }
+            FilterChip(selected = state.recipe == null, onClick = { onRecipe(null) }, label = { Text(stringResource(R.string.free_brew)) })
+        }
+        state.recipe?.let { Text(recipeSummary(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 

@@ -9,6 +9,8 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
@@ -16,7 +18,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.CaparaoApplication
 import io.github.mateuxlucax.caparao.MainActivity
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.data.local.BrewDatabase
+import io.github.mateuxlucax.caparao.data.local.BuiltInRecipes
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.format.Format
 import org.junit.Assume.assumeTrue
@@ -64,12 +66,17 @@ class ScreenshotTest {
     private fun waitForConnected() =
         compose.waitUntilAtLeastOneExists(hasContentDescription(context.getString(R.string.scale_connected)), 5_000)
 
-    /** A fresh start: no brews, no settings, onboarding as given. Runs before the container opens the database. */
+    /**
+     * A fresh start: no brews, only the built-in recipes, no settings, onboarding as given. The database is emptied in
+     * place: deleting the file under a Room instance an earlier test opened leaves it without tables.
+     */
     private fun freshApp(onboardingDone: Boolean) {
-        context.deleteDatabase(BrewDatabase.NAME)
+        val container = (context.applicationContext as CaparaoApplication).container
+        container.database.clearAllTables()
+        BuiltInRecipes.insert(container.database.openHelper.writableDatabase, System.currentTimeMillis())
         // No server, no remembered dose: whatever an earlier run or a manual test left behind.
         SettingsStore.open(context).edit().clear().commit()
-        (context.applicationContext as CaparaoApplication).container.settings.onboardingDone = onboardingDone
+        container.settings.onboardingDone = onboardingDone
     }
 
     private fun launch(session: String, atMs: Long) = ActivityScenario.launch<MainActivity>(
@@ -96,6 +103,10 @@ class ScreenshotTest {
                 click(tab.label)
                 capture(tab.name.lowercase())
             }
+            // The built-in V60 recipe in the editor: its name, then its method on the card.
+            click(R.string.tab_recipes)
+            compose.onAllNodesWithText("V60").onFirst().performClick()
+            capture("recipe-editor")
         }
     }
 

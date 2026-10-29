@@ -4,6 +4,7 @@ import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, LIVE, SUMMARY }
@@ -22,8 +23,12 @@ data class BrewUiState(
     val elapsedMs: Long = 0,
     /** The saved brew, on the summary; null there when nothing was recorded. */
     val saved: Brew? = null,
-    /** The X of the 1:X to stop at (Settings). */
+    /** The X of the 1:X to stop at: the recipe's, or the free brew one from Settings. */
     val targetRatio: Double = SettingsStore.defaultTargetRatio(mode),
+    /** The recipes of [mode], to choose from on the dose step. */
+    val recipes: List<Recipe> = emptyList(),
+    /** The one being followed; null for a free brew. */
+    val recipe: Recipe? = null,
 ) {
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
     val ratio: Double?
