@@ -2,7 +2,6 @@ package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,12 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
-
-/** Material 3 standard and emphasized decelerate easing (m3.material.io motion tokens). */
-private val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
 /** The rings are open at the bottom, a gauge like the scale's own. */
 private const val ARC_START = 135f
@@ -122,7 +118,7 @@ fun ScaleReadout(
         label = "flow",
     )
     val colors = MaterialTheme.colorScheme
-    val colorSpec = tween<Color>(500, easing = Standard)
+    val colorSpec = tween<Color>(500, easing = Motion.Standard)
     val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, colorSpec, label = "outer")
     val outerTrack by animateColorAsState(if (ratio.onTarget) colors.tertiaryContainer else colors.primaryContainer, colorSpec, label = "track")
     val ratioColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.onSurface, colorSpec, label = "ratio")
@@ -133,7 +129,7 @@ fun ScaleReadout(
     LaunchedEffect(ratio.onTarget) {
         if (ratio.onTarget) {
             glow.snapTo(1f)
-            glow.animateTo(0f, tween(900, easing = EmphasizedDecelerate))
+            glow.animateTo(0f, tween(900, easing = Motion.EmphasizedDecelerate))
         } else {
             glow.snapTo(0f)
         }
