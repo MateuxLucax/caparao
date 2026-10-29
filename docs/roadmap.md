@@ -12,7 +12,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
-| 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (manual), R8; first release waits for the signing key |
+| 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (automatic on main), R8; first release waits for the signing key |
 | 7 | Screens waiting for wireframes | Waiting for designs |
 | 8 | Prometheus exporter | Built in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server pending |
 
@@ -109,8 +109,8 @@ Acceptance:
 
 ## 6. Release and end-to-end test
 
-- Signed APK on GitHub Releases. Manual release (`workflow_dispatch` or tag) while the repository is private; automatic
-  on every green push once it is public.
+- Signed APK on GitHub Releases. Automatic on every green push to `main` (after Build passes); also
+  `workflow_dispatch` or a `v*` tag.
 - `EndToEndTest` on the local emulator (`scripts/e2e.sh`): a recorded espresso is replayed, saved, uploaded and checked
   in the stub. Moves to CI when the repository is public.
 - EN and pt-BR screenshots, README troubleshooting.
