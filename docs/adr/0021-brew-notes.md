@@ -1,6 +1,6 @@
 # 21. Brew metadata: coffee, grind, temperature, notes and rating
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
