@@ -40,7 +40,9 @@ changed.
   both, emphasized decelerate in and accelerate out, so moving forward through the guide feels like one direction.
 - The stage indicator's segments animate color with the default spring. Use the standard easing at a short duration
   (~200ms).
-- The ratio was a plain label. Rings with the target make "when to stop" visible at a glance.
+- The ring around the weight showed the flow, which the text already says, and the ratio was a plain label. Two rings
+  around the weight show "when to stop" instead: the outer one fills toward the target ratio, the inner one changes
+  color once the ratio reads the target.
 - The live weight glides with a 100ms linear tween between 10 Hz readings. Keep it linear: it tracks a signal, it is
   not a UI transition, and an eased curve would lag the scale.
 
