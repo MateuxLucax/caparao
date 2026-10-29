@@ -177,7 +177,7 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
         }
         when (state.phase) {
             BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, Modifier.fillMaxWidth().height(64.dp), enabled = state.connected) {
-                Text(stringResource(R.string.cup_already_tared), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
             }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, Modifier.fillMaxWidth().height(64.dp)) {
                 Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done), style = MaterialTheme.typography.titleMedium)
