@@ -87,6 +87,8 @@ fun App(
 private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppActions, versionName: String) {
     var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
+    // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val mode = brewing
     val openedId = opened
     if (openedId != null) {
@@ -103,7 +105,7 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
             brewing = null
         }
     } else {
-        Tabs(viewModelFactory, actions, versionName, onBrew = { brewing = it }, onOpen = { opened = it })
+        Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it })
     }
 }
 
@@ -113,10 +115,11 @@ private fun Tabs(
     viewModelFactory: ViewModelProvider.Factory,
     actions: AppActions,
     versionName: String,
+    tab: Tab,
+    onTab: (Tab) -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
 ) {
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
     Scaffold(
@@ -131,7 +134,7 @@ private fun Tabs(
                 Tab.entries.forEach { entry ->
                     NavigationBarItem(
                         selected = tab == entry,
-                        onClick = { tab = entry },
+                        onClick = { onTab(entry) },
                         icon = { Icon(painterResource(entry.icon), contentDescription = null) },
                         label = { Text(stringResource(entry.label)) },
                     )
@@ -142,7 +145,7 @@ private fun Tabs(
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding)
         when (tab) {
             Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
-            Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier)
+            Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier)
             Tab.SETTINGS -> SettingsScreen(
                 viewModel(key = "server-settings", factory = viewModelFactory),
                 viewModel(factory = viewModelFactory),

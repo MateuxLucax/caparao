@@ -2,6 +2,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    // Gradle's own, for the test tasks' JaCoCo settings below; AGP still writes the report.
+    jacoco
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
@@ -65,9 +67,25 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Robolectric reads the merged resources and assets (the recorded sessions) from the debug build.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Robolectric's SDK 37 sandbox reaches into the JDK's FileDescriptor internals.
+        unitTests.all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED") }
+    }
+
     lint {
         warningsAsErrors = false
         abortOnError = true
+    }
+}
+
+// Robolectric loads the app's classes through its own class loader: without this JaCoCo misses everything the screen
+// tests run.
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
     }
 }
 
@@ -94,6 +112,11 @@ dependencies {
     testImplementation("org.json:json:20250517")
     // runTest with virtual time for the connection logic, Dispatchers.setMain for ViewModel tests.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    // Compose screens on the JVM (docs/adr/0004-minimal-dependencies.md, 2026-10-29 amendment): test-only, nothing ships.
+    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.espresso:espresso-core:3.7.0")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
