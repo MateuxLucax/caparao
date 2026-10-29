@@ -5,7 +5,7 @@ Status: Proposed
 ## Context
 
 The user wants to see the brew on their wrist: weight, timer and maybe a few more values, without looking at the
-phone on the counter. The phone is a Galaxy S23, so the likely watch is a Galaxy Watch on Wear OS. The scale talks to
+phone on the counter. The phone is a Galaxy S23, and the watch is a Galaxy Watch Ultra (Wear OS 5, API 34, round 480×480 display). The scale talks to
 one central at a time over BLE ([ADR 0002](0002-native-ble.md)), and the app connects only while it is open
 ([ADR 0008](0008-connect-while-open.md)). What exactly the watch shows is still open and will be refined.
 
