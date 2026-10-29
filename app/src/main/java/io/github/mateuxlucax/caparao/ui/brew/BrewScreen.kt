@@ -52,6 +52,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -148,7 +149,6 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
 
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
-    val locale = LocalConfiguration.current.locales[0]
     val brewing = state.phase == BrewPhase.BREWING
     Column(
         Modifier.fillMaxSize().padding(24.dp),
@@ -166,13 +166,7 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
                 timerSeconds = (state.elapsedMs / 1000).toInt(),
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
-            )
-            Spacer(Modifier.height(12.dp))
-            Metric(
-                stringResource(R.string.label_ratio),
-                state.ratio?.let { stringResource(R.string.ratio_value, Format.ratio(it, locale)) } ?: "–",
-                large = true,
-                centered = true,
+                ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
             )
         }
         when (state.phase) {
@@ -255,8 +249,8 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Metric(label: String, value: String, modifier: Modifier = Modifier, large: Boolean = false, centered: Boolean = false) {
-    Column(modifier, horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
+private fun Metric(label: String, value: String, modifier: Modifier = Modifier, large: Boolean = false) {
+    Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = (if (large) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge).merge(Tabular))
     }

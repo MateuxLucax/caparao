@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 
@@ -21,7 +22,16 @@ data class BrewUiState(
     val elapsedMs: Long = 0,
     /** The saved brew, on the summary; null there when nothing was recorded. */
     val saved: Brew? = null,
+    /** The X of the 1:X to stop at (Settings). */
+    val targetRatio: Double = SettingsStore.defaultTargetRatio(mode),
 ) {
-    /** Live 1:X while brewing, when there is a dose. */
-    val ratio: Double? get() = dose?.takeIf { it > 0 && weightGrams > 0 }?.let { weightGrams / it }
+    /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
+    val ratio: Double?
+        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.DONE) }?.let { weightGrams / it }
+
+    /** How far [ratio] is toward [targetRatio], 0 to 1. */
+    val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()
+
+    /** At or past the target as shown: the ratio reads to one decimal, so 1:1.96 already reads 1:2.0. */
+    val onTarget: Boolean get() = ratio?.let { Math.round(it * 10) >= Math.round(targetRatio * 10) } ?: false
 }

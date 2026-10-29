@@ -32,6 +32,8 @@
     <string name="section_permissions_text">Bluetooth, only to find the scale.</string>
     <string name="section_scale">Scale</string>
     <string name="section_scale_text">Pair a Timemore Dot. If it is paired to another phone, hold its button until the light blinks fast.</string>
+    <string name="section_target_ratio">Target ratio</string>
+    <string name="section_target_ratio_text">The live brew shows how close you are, so you know when to stop.</string>
     <string name="version">Version %1$s</string>
 
     <!-- Scale connection -->
@@ -104,9 +106,11 @@
     <string name="label_water">Water</string>
     <string name="label_time">Time</string>
     <string name="label_ratio">Ratio</string>
+    <string name="label_flow">Flow</string>
     <string name="label_flow_avg">Avg flow</string>
     <string name="label_first_drop">First drop</string>
     <string name="ratio_value">1:%1$s</string>
+    <string name="target_ratio_value">Target 1:%1$s</string>
     <string name="scale_needed">Connect the scale to start a brew.</string>
     <string name="local_only">Only on this phone</string>
     <string name="synced_at">Synced %1$s</string>

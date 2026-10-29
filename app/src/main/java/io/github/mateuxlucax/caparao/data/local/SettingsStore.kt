@@ -32,6 +32,16 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun setLastDose(mode: BrewMode, grams: Double) =
         prefs.edit().putFloat(KEY_LAST_DOSE + mode.name.lowercase(), grams.toFloat()).apply()
 
+    /**
+     * The X of the 1:X ratio to stop at in [mode]: the per-mode default until recipes carry their own
+     * (docs/adr/0018-recipes.md).
+     */
+    fun targetRatio(mode: BrewMode): Double =
+        prefs.getFloat(KEY_TARGET_RATIO + mode.name.lowercase(), -1f).takeIf { it > 0 }?.toDouble() ?: defaultTargetRatio(mode)
+
+    fun setTargetRatio(mode: BrewMode, ratio: Double) =
+        prefs.edit().putFloat(KEY_TARGET_RATIO + mode.name.lowercase(), ratio.toFloat()).apply()
+
     /** The upload server's base URL, empty when none is set. */
     val serverUrl: String get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
 
@@ -82,6 +92,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val FILE = "settings"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
         private const val KEY_LAST_DOSE = "last_dose_"
+        private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"
         private const val KEY_LAST_SYNC = "last_sync_ms"
@@ -90,6 +101,12 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_LAST_ERROR_BREW = "last_sync_error_brew"
 
         private val SYNC_KEYS = setOf(KEY_SERVER_URL, KEY_TOKEN, KEY_LAST_SYNC, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL)
+
+        /** 1:2 for espresso, 1:16 for filter: common starting points at the bar. */
+        fun defaultTargetRatio(mode: BrewMode): Double = when (mode) {
+            BrewMode.ESPRESSO -> 2.0
+            BrewMode.FILTER -> 16.0
+        }
 
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
     }
