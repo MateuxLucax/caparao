@@ -1,6 +1,6 @@
 # 22. Compare brews and show trends on the Canvas charts
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

@@ -1,6 +1,6 @@
 # 18. Recipes stored in Room, one model for espresso and filter
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

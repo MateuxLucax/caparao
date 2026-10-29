@@ -13,7 +13,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
 | 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (automatic on main), R8; first release waits for the signing key |
-| 7 | Screens waiting for wireframes | Waiting for designs |
+| 7 | Recipes, guided brew, metadata and comparison | Designed, to build |
 | 8 | Prometheus exporter | Built in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server pending |
 | 9 | Watch companion | First cut shipped in v0.1.9 (scale mode, brew screen, tare and timer, ongoing activity); step vibration and finish alerts pending |
 | 10 | French press mode | Not started; ADR pending |
@@ -123,10 +123,11 @@ Acceptance:
 - Installing from Releases works, and the next version installs over it without losing data.
 - `gitleaks git` is clean over the whole history.
 
-## 7. Screens waiting for wireframes
+## 7. Recipes, guided brew, metadata and comparison
 
-Refined filter and espresso modes (recipes, bloom, pour targets, pace hints), detailed charts and trends, more brew
-metadata. Acceptance criteria are written together with the wireframes.
+Recipes ([ADR 0018](adr/0018-recipes.md)), guided brew with full-screen steps ([ADR 0019](adr/0019-guided-brew.md)),
+more brew metadata ([ADR 0021](adr/0021-brew-notes.md)), compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)).
+Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Acceptance criteria are written per PR.
 
 ## 8. Prometheus exporter (last)
 

@@ -1,6 +1,6 @@
 # 19. Guided brew: a pure step tracker driven by the readings
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -36,3 +36,11 @@ vibration) and whether the user is ahead or behind the target. The filter mode t
 - `VIBRATE` is a normal permission, granted at install; no new prompt.
 - Saving the per-step actual times is left out for now; the curve already holds them and the detail chart can mark the
   steps later.
+
+## Wireframes
+
+[`docs/wireframes/stage-7.excalidraw`](../wireframes/stage-7.excalidraw) (open at excalidraw.com). The guided brew is
+one full-screen step at a time, like the current brew screen: each step kind has its own colour and animation (the cup
+filling to the target line for bloom and pours, a countdown ring for waits, a check when the target is reached), with
+haptic and sound feedback on step start, near the target (−5 g pulse), on the target (double vibration and beep) and in
+the last 5 s of a wait (one tick per second). Overshooting only shows a quiet hint and never blocks.
