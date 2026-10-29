@@ -17,7 +17,9 @@ import io.github.mateuxlucax.caparao.watch.WatchPaths
 import io.github.mateuxlucax.caparao.watch.WatchState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -35,8 +37,13 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
     /** The open brew screen's state, null without one (BrewViewModel.onLive). */
     val brew = MutableStateFlow<BrewUiState?>(null)
 
-    private var watchNodes: List<String> = emptyList()
+    @Volatile private var watchNodes: List<String> = emptyList()
     private var job: Job? = null
+
+    // The watch can be paired, woken or reached after the phone app opened, so the node list follows its changes.
+    private val capabilityListener = CapabilityClient.OnCapabilityChangedListener { info ->
+        watchNodes = info.nodes.filter { it.isNearby }.map { it.id }.ifEmpty { info.nodes.map { it.id } }
+    }
 
     private val listener = MessageClient.OnMessageReceivedListener { event ->
         when (event.path) {
@@ -49,13 +56,22 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
     fun start() {
         if (job != null) return
         messages.addListener(listener)
+        capabilities.addListener(capabilityListener, WatchPaths.WATCH_CAPABILITY)
         val throttle = SnapshotThrottle()
         job = scope.launch {
             watchNodes = reachableWatches()
+            launch {
+                // Belt and braces for a missed capability event: look again while no watch is known.
+                while (true) {
+                    delay(NODE_RETRY_MS)
+                    if (watchNodes.isEmpty()) watchNodes = reachableWatches()
+                }
+            }
             val source = scale()
             var lastState: WatchState? = null
-            // Readings arrive about 10 times a second even when equal; state and brew changes cover the gaps.
-            merge(source.readings, source.state, brew, timer.running).collect {
+            // Readings arrive about 10 times a second, but not while the scale is off or connecting: the heartbeat
+            // keeps the watch from showing "open the app on the phone" after its 3 s staleness timeout.
+            merge(source.readings, source.state, brew, timer.running, heartbeat()).collect {
                 val snapshot = WatchMirror.snapshot(source.state.value, source.reading.value, brew.value, timer.running.value)
                 if (snapshot.state == WatchState.READY && lastState != WatchState.READY) openOnWatch()
                 lastState = snapshot.state
@@ -68,6 +84,14 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
         job?.cancel()
         job = null
         messages.removeListener(listener)
+        capabilities.removeListener(capabilityListener, WatchPaths.WATCH_CAPABILITY)
+    }
+
+    private fun heartbeat() = flow {
+        while (true) {
+            emit(Unit)
+            delay(HEARTBEAT_MS)
+        }
     }
 
     private suspend fun reachableWatches(): List<String> = runCatching {
@@ -85,5 +109,10 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
         val intent = Intent(Intent.ACTION_VIEW, WatchPaths.OPEN_URI.toUri()).addCategory(Intent.CATEGORY_BROWSABLE)
         val helper = RemoteActivityHelper(appContext)
         watchNodes.forEach { node -> runCatching { helper.startRemoteActivity(intent, node) } }
+    }
+
+    private companion object {
+        const val NODE_RETRY_MS = 3_000L
+        const val HEARTBEAT_MS = 1_000L
     }
 }
