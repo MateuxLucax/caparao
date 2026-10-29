@@ -33,6 +33,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -123,8 +124,8 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
 private const val LOOP_MS = 2_400
 
 /**
- * A small looping picture of what to do: the cup coming down onto the scale, the LED pulsing while it tares, drops or
- * a stream falling into the cup. Nothing for the brewing stages, where the live readout is the picture. With animations
+ * A small looping picture of what to do: the cup coming down onto the scale, the LED pulsing while it tares, drops, or
+ * a stream filling the cup. Nothing for the brewing stages, where the live readout is the picture. With animations
  * off, a still frame.
  */
 @Composable
@@ -143,6 +144,9 @@ private fun StageAnimation(stage: GuideStage) {
         // Drawn in a 120-unit square.
         scale(size.width / 120f, pivot = Offset.Zero) {
             val cupDrop = if (stage == GuideStage.CUP) (1f - (t / 0.5f).coerceIn(0f, 1f)).let { it * it } * 40f else 0f
+            // The cup fills while the stream falls, then empties as the loop starts over.
+            val fillTop = if (stage == GuideStage.POUR) 93f - 30f * Motion.Standard.transform(t) else 93f
+            if (fillTop < 92f) clipPath(cupBowl(0f)) { drawRect(colors.primary.copy(alpha = 0.35f), Offset(30f, fillTop), Size(60f, 93f - fillTop)) }
             drawCup(colors.onSurface, cupDrop)
             drawRoundRect(colors.surfaceContainerHighest, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f))
             drawRoundRect(colors.outlineVariant, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f), style = Stroke(1f))
@@ -159,7 +163,7 @@ private fun StageAnimation(stage: GuideStage) {
                 }
                 GuideStage.POUR -> {
                     val wobble = 0.6f * sin(t * 2 * PI.toFloat() * 6)
-                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, 86f), strokeWidth = 2f)
+                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, fillTop), strokeWidth = 2f)
                 }
                 else -> Unit
             }
@@ -167,15 +171,15 @@ private fun StageAnimation(stage: GuideStage) {
     }
 }
 
-private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) {
-    val bowl = Path().apply {
-        moveTo(39f, 55f - lift)
-        lineTo(81f, 55f - lift)
-        lineTo(77f, 82f - lift)
-        quadraticTo(75f, 93f - lift, 64f, 93f - lift)
-        lineTo(56f, 93f - lift)
-        quadraticTo(45f, 93f - lift, 43f, 82f - lift)
-        close()
-    }
-    drawPath(bowl, color, style = Stroke(width = 2f))
+private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) =
+    drawPath(cupBowl(lift), color, style = Stroke(width = 2f))
+
+private fun cupBowl(lift: Float) = Path().apply {
+    moveTo(39f, 55f - lift)
+    lineTo(81f, 55f - lift)
+    lineTo(77f, 82f - lift)
+    quadraticTo(75f, 93f - lift, 64f, 93f - lift)
+    lineTo(56f, 93f - lift)
+    quadraticTo(45f, 93f - lift, 43f, 82f - lift)
+    close()
 }
