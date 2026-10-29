@@ -7,12 +7,16 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
+import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -57,9 +61,28 @@ class MainActivity : ComponentActivity() {
             requestLocalNetwork = ::requestLocalNetwork,
         )
         if (savedInstanceState == null) lifecycleScope.launch { container.uploads.ensurePending() }
+        keepScreenOnWhileConnected()
         setContent {
             AppTheme {
                 App(container.viewModelFactory, container.scale, container.settings.onboardingDone, actions, BuildConfig.VERSION_NAME)
+            }
+        }
+    }
+
+    /**
+     * Keeps the screen on while the scale is connected: hands are busy with the coffee, and a sleeping phone drops the
+     * connection, which lets the scale go to sleep too.
+     */
+    private fun keepScreenOnWhileConnected() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                container.scale.state.collect { state ->
+                    if (state is ScaleState.Connected) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
             }
         }
     }
