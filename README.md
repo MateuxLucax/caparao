@@ -108,7 +108,7 @@ typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](ht
 
 ### Release signing
 
-Releases come from the **Release** workflow (Actions tab, or push a `v*` tag; automatic once the repository is public)
+Releases come from the **Release** workflow (Actions tab, or push a `v*` tag; automatic on every green push to `main`)
 and need four signing secrets; the workflow fails without them. Create the key once, on a Mac:
 
 ```bash

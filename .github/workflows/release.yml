@@ -1,12 +1,15 @@
 name: Release
 
-# A signed APK on GitHub Releases. Manual while the repository is private (GitHub Free minutes): run it from the
-# Actions tab, or push a v* tag. Once the repository is public, releases become automatic on every green push to main
-# (docs/adr/0012-sideloaded-apk-releases.md, docs/roadmap.md stage 6).
+# A signed APK on GitHub Releases, automatic on every green push to main (after the Build workflow passes). It can
+# also be run from the Actions tab or by pushing a v* tag (docs/adr/0012-sideloaded-apk-releases.md).
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+  workflow_run:
+    workflows: [Build]
+    branches: [main]
+    types: [completed]
 
 # Actions are pinned to commit SHAs (tag in the comment). The signing secrets are only in the build job, which can't
 # write to the repository; the release job can write and never sees them.
@@ -15,6 +18,7 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -23,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -96,6 +101,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       TAG: v${{ needs.build.outputs.version }}
       APK: caparao-${{ needs.build.outputs.version }}.apk
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       SIGNER_NOTE: "APK signer certificate SHA-256: `${{ needs.build.outputs.signer }}`"
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -113,5 +119,5 @@ jobs:
             fi
           else
             # GitHub puts --notes before the generated notes.
-            gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
+            gh release create "$TAG" "$APK" --target "$TARGET_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
           fi

@@ -10,9 +10,9 @@ be made public.
 ## Decision
 
 Distribute a signed release APK through GitHub Releases. The keystore and its passwords exist only as repository
-secrets and on the developer's machine, passed to Gradle through environment variables. While the repository is
-private, releases are manual (`workflow_dispatch` or a tag); once it is public, every green push to `main` is released
-automatically, as in health-connect-bridge.
+secrets and on the developer's machine, passed to Gradle through environment variables. Every green push
+to `main` is released automatically, as in health-connect-bridge (manual while the repository was private); a manual
+run or a `v*` tag still works.
 
 ## Consequences
 
