@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.onboarding
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +53,7 @@ import io.github.mateuxlucax.caparao.ui.components.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.launch
 
 /** The onboarding steps, in order. */
@@ -76,16 +79,24 @@ private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actio
     }
     Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(24.dp)) {
         StepIndicator(step)
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        ) {
-            when (step) {
-                OnboardingStep.WELCOME -> Welcome()
-                OnboardingStep.PERMISSIONS -> Permissions(actions) { step = OnboardingStep.SCALE }
-                OnboardingStep.SCALE -> ConnectScale(viewModel, actions)
-                OnboardingStep.SERVER -> ServerStep(server, url, { url = it }, token, { token = it }, actions)
+        val density = LocalDensity.current
+        AnimatedContent(
+            step,
+            Modifier.weight(1f).fillMaxWidth(),
+            transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
+            label = "step",
+        ) { shown ->
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            ) {
+                when (shown) {
+                    OnboardingStep.WELCOME -> Welcome()
+                    OnboardingStep.PERMISSIONS -> Permissions(actions) { step = OnboardingStep.SCALE }
+                    OnboardingStep.SCALE -> ConnectScale(viewModel, actions)
+                    OnboardingStep.SERVER -> ServerStep(server, url, { url = it }, token, { token = it }, actions)
+                }
             }
         }
         if (step == OnboardingStep.WELCOME) {
@@ -133,6 +144,7 @@ private fun StepIndicator(step: OnboardingStep) {
         OnboardingStep.entries.forEach { entry ->
             val color by animateColorAsState(
                 if (entry <= step) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                Motion.standard(),
                 label = "step",
             )
             Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))

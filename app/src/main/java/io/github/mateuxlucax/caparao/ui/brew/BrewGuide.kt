@@ -9,11 +9,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,14 +33,17 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -89,6 +87,7 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
             stages.forEachIndexed { i, _ ->
                 val color by animateColorAsState(
                     if (i <= index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    Motion.standard(),
                     label = "stage",
                 )
                 Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
@@ -102,17 +101,14 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
     }
 }
 
-/** The current stage's animation, title and instruction, sliding in from the side when the stage changes. */
+/** The current stage's animation, title and instruction, moving along the shared X axis when the stage changes. */
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
+    val density = LocalDensity.current
     AnimatedContent(
         stage,
         modifier.fillMaxWidth(),
-        transitionSpec = {
-            val forward = targetState.ordinal > initialState.ordinal
-            (slideInHorizontally { if (forward) it / 3 else -it / 3 } + fadeIn()) togetherWith
-                (slideOutHorizontally { if (forward) -it / 3 else it / 3 } + fadeOut())
-        },
+        transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
         label = "stage",
     ) { shown ->
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -128,8 +124,8 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
 private const val LOOP_MS = 2_400
 
 /**
- * A small looping picture of what to do: the cup coming down onto the scale, the LED pulsing while it tares, drops or
- * a stream falling into the cup. Nothing for the brewing stages, where the live readout is the picture. With animations
+ * A small looping picture of what to do: the cup coming down onto the scale, the LED pulsing while it tares, drops, or
+ * a stream filling the cup. Nothing for the brewing stages, where the live readout is the picture. With animations
  * off, a still frame.
  */
 @Composable
@@ -148,6 +144,9 @@ private fun StageAnimation(stage: GuideStage) {
         // Drawn in a 120-unit square.
         scale(size.width / 120f, pivot = Offset.Zero) {
             val cupDrop = if (stage == GuideStage.CUP) (1f - (t / 0.5f).coerceIn(0f, 1f)).let { it * it } * 40f else 0f
+            // The cup fills while the stream falls, then empties as the loop starts over.
+            val fillTop = if (stage == GuideStage.POUR) 93f - 30f * Motion.Standard.transform(t) else 93f
+            if (fillTop < 92f) clipPath(cupBowl(0f)) { drawRect(colors.primary.copy(alpha = 0.35f), Offset(30f, fillTop), Size(60f, 93f - fillTop)) }
             drawCup(colors.onSurface, cupDrop)
             drawRoundRect(colors.surfaceContainerHighest, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f))
             drawRoundRect(colors.outlineVariant, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f), style = Stroke(1f))
@@ -164,7 +163,7 @@ private fun StageAnimation(stage: GuideStage) {
                 }
                 GuideStage.POUR -> {
                     val wobble = 0.6f * sin(t * 2 * PI.toFloat() * 6)
-                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, 86f), strokeWidth = 2f)
+                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, fillTop), strokeWidth = 2f)
                 }
                 else -> Unit
             }
@@ -172,15 +171,15 @@ private fun StageAnimation(stage: GuideStage) {
     }
 }
 
-private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) {
-    val bowl = Path().apply {
-        moveTo(39f, 55f - lift)
-        lineTo(81f, 55f - lift)
-        lineTo(77f, 82f - lift)
-        quadraticTo(75f, 93f - lift, 64f, 93f - lift)
-        lineTo(56f, 93f - lift)
-        quadraticTo(45f, 93f - lift, 43f, 82f - lift)
-        close()
-    }
-    drawPath(bowl, color, style = Stroke(width = 2f))
+private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) =
+    drawPath(cupBowl(lift), color, style = Stroke(width = 2f))
+
+private fun cupBowl(lift: Float) = Path().apply {
+    moveTo(39f, 55f - lift)
+    lineTo(81f, 55f - lift)
+    lineTo(77f, 82f - lift)
+    quadraticTo(75f, 93f - lift, 64f, 93f - lift)
+    lineTo(56f, 93f - lift)
+    quadraticTo(45f, 93f - lift, 43f, 82f - lift)
+    close()
 }
