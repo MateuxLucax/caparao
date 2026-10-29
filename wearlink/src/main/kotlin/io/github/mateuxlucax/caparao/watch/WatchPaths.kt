@@ -8,11 +8,11 @@ object WatchPaths {
     /** Watch to phone: tare the scale. */
     const val TARE = "/caparao/tare"
 
-    /** Watch to phone: reset the scale's timer and start it. */
-    const val TIMER_START = "/caparao/timer/start"
+    /** Watch to phone: start or pause the scale's timer, as Home's button does. */
+    const val TIMER_TOGGLE = "/caparao/timer/toggle"
 
-    /** Watch to phone: pause the scale's timer, keeping its time. */
-    const val TIMER_STOP = "/caparao/timer/stop"
+    /** Watch to phone: reset the scale's timer. */
+    const val TIMER_RESET = "/caparao/timer/reset"
 
     /** Declared by the watch app (res/values/wear.xml): where the phone sends snapshots. */
     const val WATCH_CAPABILITY = "caparao_watch"

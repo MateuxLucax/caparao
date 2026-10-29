@@ -7,7 +7,7 @@ enum class WatchState {
     /** The phone app is open but not connected to the scale. */
     DISCONNECTED,
 
-    /** Connected, no brew open: the weight while grinding or weighing. */
+    /** Connected, no brew open: the phone's Scale mode (weight, flow, timer, tare). */
     SCALE,
 
     /** A brew is open and waiting for the cup, the tare or the first drop. */
@@ -22,7 +22,7 @@ enum class WatchState {
 
 /**
  * What the phone sends the watch about 5 times a second. [elapsedMs] is the brew time while a brew runs and the
- * scale's own timer otherwise; [timerRunning] says which way the watch's timer button goes.
+ * scale's own timer otherwise; [timerRunning] is Scale mode's timer button, the same as on the phone.
  */
 data class WatchSnapshot(
     val state: WatchState,

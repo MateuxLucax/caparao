@@ -9,8 +9,8 @@ import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.Wearable
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
-import io.github.mateuxlucax.caparao.data.scale.TimerAction
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.watch.SnapshotThrottle
 import io.github.mateuxlucax.caparao.ui.watch.WatchMirror
 import io.github.mateuxlucax.caparao.watch.WatchPaths
@@ -27,7 +27,7 @@ import kotlinx.coroutines.tasks.await
  * (docs/adr/0023-watch-companion.md). Runs while the app is visible, like the scale connection; with no watch it
  * finds no node and sends nothing.
  */
-class WatchLink(context: Context, private val scope: CoroutineScope, private val scale: () -> ScaleSource) {
+class WatchLink(context: Context, private val scope: CoroutineScope, private val timer: ScaleTimer, private val scale: () -> ScaleSource) {
     private val appContext = context.applicationContext
     private val messages = Wearable.getMessageClient(appContext)
     private val capabilities = Wearable.getCapabilityClient(appContext)
@@ -35,24 +35,14 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
     /** The open brew screen's state, null without one (BrewViewModel.onLive). */
     val brew = MutableStateFlow<BrewUiState?>(null)
 
-    /** The scale's timer as last asked from the watch; the Dot does not report it. */
-    private var timerRunning = false
     private var watchNodes: List<String> = emptyList()
     private var job: Job? = null
 
     private val listener = MessageClient.OnMessageReceivedListener { event ->
-        val source = scale()
         when (event.path) {
-            WatchPaths.TARE -> source.tare()
-            WatchPaths.TIMER_START -> {
-                source.timer(TimerAction.RESET)
-                source.timer(TimerAction.START)
-                timerRunning = true
-            }
-            WatchPaths.TIMER_STOP -> {
-                source.timer(TimerAction.PAUSE)
-                timerRunning = false
-            }
+            WatchPaths.TARE -> scale().tare()
+            WatchPaths.TIMER_TOGGLE -> timer.toggle()
+            WatchPaths.TIMER_RESET -> timer.reset()
         }
     }
 
@@ -65,9 +55,8 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
             val source = scale()
             var lastState: WatchState? = null
             // Readings arrive about 10 times a second even when equal; state and brew changes cover the gaps.
-            merge(source.readings, source.state, brew).collect {
-                val snapshot = WatchMirror.snapshot(source.state.value, source.reading.value, brew.value, timerRunning)
-                if (snapshot.state == WatchState.DISCONNECTED) timerRunning = false
+            merge(source.readings, source.state, brew, timer.running).collect {
+                val snapshot = WatchMirror.snapshot(source.state.value, source.reading.value, brew.value, timer.running.value)
                 if (snapshot.state == WatchState.READY && lastState != WatchState.READY) openOnWatch()
                 lastState = snapshot.state
                 if (throttle.offer(SystemClock.elapsedRealtime(), snapshot)) send(snapshot.encode())

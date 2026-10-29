@@ -47,7 +47,8 @@ class WatchActivity : ComponentActivity() {
             WatchScreen(
                 snapshot.value,
                 onTare = { send(WatchPaths.TARE) },
-                onTimer = { running -> send(if (running) WatchPaths.TIMER_STOP else WatchPaths.TIMER_START) },
+                onTimer = { send(WatchPaths.TIMER_TOGGLE) },
+                onReset = { send(WatchPaths.TIMER_RESET) },
             )
         }
         // The phone closed or went out of range: back to "open the app" instead of a frozen weight.
@@ -93,7 +94,7 @@ class WatchActivity : ComponentActivity() {
 
         private val DEMOS = mapOf(
             WatchState.DISCONNECTED to WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, false),
-            WatchState.SCALE to WatchSnapshot(WatchState.SCALE, 17.8f, 0f, 0, false),
+            WatchState.SCALE to WatchSnapshot(WatchState.SCALE, 17.8f, 0f, 42_000, true),
             WatchState.READY to WatchSnapshot(WatchState.READY, 0f, 0f, 0, false),
             WatchState.BREWING to WatchSnapshot(WatchState.BREWING, 32.4f, 1.9f, 24_000, false),
             WatchState.DONE to WatchSnapshot(WatchState.DONE, 36.1f, 0f, 28_400, false),

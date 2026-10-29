@@ -20,6 +20,7 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
+import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
@@ -67,12 +68,15 @@ class AppContainer(context: Context) {
         scale = ReplayScaleSource(scope, lines, startAtMs)
     }
 
+    /** Scale mode's timer, driven from Home and the watch. */
+    private val scaleTimer = ScaleTimer { scale }
+
     /** The paired watch, if any (docs/adr/0023-watch-companion.md); reads [scale] when it starts. */
-    val watch = WatchLink(appContext, scope) { scale }
+    val watch = WatchLink(appContext, scope, scaleTimer) { scale }
 
     /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { HomeViewModel(scale) }
+        initializer { HomeViewModel(scale, scaleTimer) }
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }

@@ -3,8 +3,10 @@
     <string name="open_on_phone">Abra o Caparaó no celular.</string>
     <string name="scale_disconnected">Balança desconectada</string>
     <string name="tare">Tarar</string>
+    <string name="mode_scale">Balança</string>
     <string name="timer_start">Iniciar timer</string>
-    <string name="timer_stop">Parar timer</string>
+    <string name="timer_pause">Pausar timer</string>
+    <string name="timer_reset">Zerar timer</string>
     <string name="state_ready">Aguardando</string>
     <string name="state_done">Pronto</string>
 </resources>

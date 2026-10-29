@@ -26,16 +26,19 @@ import androidx.wear.compose.material3.Text
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
 
-/** Flow on top, the weight large in the middle, the timer under it, tare and timer buttons at the bottom. */
+/**
+ * The mode or the flow on top, the weight large in the middle, the timer under it; tare, and in Scale mode the timer's
+ * start or pause and reset, at the bottom.
+ */
 @Composable
-fun WatchScreen(snapshot: WatchSnapshot?, onTare: () -> Unit, onTimer: (running: Boolean) -> Unit) {
+fun WatchScreen(snapshot: WatchSnapshot?, onTare: () -> Unit, onTimer: () -> Unit, onReset: () -> Unit) {
     MaterialTheme {
         ScreenScaffold {
             Box(Modifier.fillMaxSize().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
                 when {
                     snapshot == null -> Message(stringResource(R.string.open_on_phone))
                     snapshot.state == WatchState.DISCONNECTED -> Message(stringResource(R.string.scale_disconnected))
-                    else -> Readout(snapshot, onTare, onTimer)
+                    else -> Readout(snapshot, onTare, onTimer, onReset)
                 }
             }
         }
@@ -48,11 +51,10 @@ private fun Message(text: String) {
 }
 
 @Composable
-private fun Readout(snapshot: WatchSnapshot, onTare: () -> Unit, onTimer: (running: Boolean) -> Unit) {
-    // A brew runs its own clock; outside one the buttons drive the scale's timer.
-    val running = snapshot.state == WatchState.BREWING || snapshot.timerRunning
+private fun Readout(snapshot: WatchSnapshot, onTare: () -> Unit, onTimer: () -> Unit, onReset: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val label = when (snapshot.state) {
+            WatchState.SCALE -> stringResource(R.string.mode_scale)
             WatchState.READY -> stringResource(R.string.state_ready)
             WatchState.DONE -> stringResource(R.string.state_done)
             else -> WatchFormat.flow(snapshot.flowGramsPerSecond)
@@ -61,15 +63,21 @@ private fun Readout(snapshot: WatchSnapshot, onTare: () -> Unit, onTimer: (runni
         Text(WatchFormat.grams(snapshot.weightGrams), fontSize = 44.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(WatchFormat.time(snapshot.elapsedMs), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             FilledTonalIconButton(onClick = onTare) {
                 Icon(painterResource(R.drawable.ic_tare), contentDescription = stringResource(R.string.tare))
             }
-            FilledIconButton(onClick = { onTimer(snapshot.timerRunning) }, enabled = snapshot.state == WatchState.SCALE) {
-                Icon(
-                    painterResource(if (running) R.drawable.ic_pause else R.drawable.ic_play_arrow),
-                    contentDescription = stringResource(if (running) R.string.timer_stop else R.string.timer_start),
-                )
+            // Scale mode's timer, the same three buttons as the phone's Home; a brew runs its own clock.
+            if (snapshot.state == WatchState.SCALE) {
+                FilledIconButton(onClick = onTimer) {
+                    Icon(
+                        painterResource(if (snapshot.timerRunning) R.drawable.ic_pause else R.drawable.ic_play_arrow),
+                        contentDescription = stringResource(if (snapshot.timerRunning) R.string.timer_pause else R.string.timer_start),
+                    )
+                }
+                FilledTonalIconButton(onClick = onReset) {
+                    Icon(painterResource(R.drawable.ic_replay), contentDescription = stringResource(R.string.timer_reset))
+                }
             }
         }
     }
