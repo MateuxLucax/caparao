@@ -87,6 +87,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // The watch mirrors the phone only while the app is visible, like the scale connection (docs/adr/0008).
+    override fun onStart() {
+        super.onStart()
+        container.watch.start()
+    }
+
+    override fun onStop() {
+        container.watch.stop()
+        super.onStop()
+    }
+
     /** The system's "turn on Bluetooth?" dialog. It needs BLUETOOTH_CONNECT; without it, the settings are the way. */
     private fun enableBluetooth() {
         if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {

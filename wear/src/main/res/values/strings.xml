@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_name" translatable="false">Caparaó</string>
+    <string name="open_on_phone">Open Caparaó on your phone.</string>
+    <string name="scale_disconnected">Scale not connected</string>
+    <string name="tare">Tare</string>
+    <string name="mode_scale">Scale</string>
+    <string name="timer_start">Start timer</string>
+    <string name="timer_pause">Pause timer</string>
+    <string name="timer_reset">Reset timer</string>
+    <string name="state_ready">Waiting</string>
+    <string name="state_done">Done</string>
+</resources>

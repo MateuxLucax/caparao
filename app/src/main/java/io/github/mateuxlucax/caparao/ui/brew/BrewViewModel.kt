@@ -44,6 +44,8 @@ class BrewViewModel(
     private val onSaved: (String) -> Unit = {},
     /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
     private val onDiscarded: (String) -> Unit = {},
+    /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
+    private val onLive: (BrewUiState?) -> Unit = {},
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -60,6 +62,7 @@ class BrewViewModel(
         reset()
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
+            launch { _uiState.collect(onLive) }
             scale.state.collect(::onScaleState)
         }
     }
@@ -69,6 +72,7 @@ class BrewViewModel(
         job?.cancel()
         job = null
         reset()
+        onLive(null)
     }
 
     /** The dose was weighed or typed: start watching for the brew. */
