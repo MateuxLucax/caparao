@@ -41,8 +41,8 @@ class WatchActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Debug builds: a fixed brew for screenshots on an emulator with no phone paired.
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        val demo = debuggable && intent.getBooleanExtra(EXTRA_DEMO, false)
-        if (demo) snapshot.value = WatchSnapshot(WatchState.BREWING, 32.4f, 1.9f, 24_000, timerRunning = false)
+        val demo = if (debuggable) intent.getStringExtra(EXTRA_DEMO)?.let { name -> WatchState.entries.find { it.name == name } } else null
+        if (demo != null) snapshot.value = DEMOS.getValue(demo)
         setContent {
             WatchScreen(
                 snapshot.value,
@@ -54,7 +54,7 @@ class WatchActivity : ComponentActivity() {
         lifecycleScope.launch {
             while (true) {
                 delay(STALE_AFTER_MS)
-                if (!demo && snapshot.value != null && SystemClock.elapsedRealtime() - receivedAtMs > STALE_AFTER_MS) {
+                if (demo == null && snapshot.value != null && SystemClock.elapsedRealtime() - receivedAtMs > STALE_AFTER_MS) {
                     snapshot.value = null
                     keepScreenOn(false)
                 }
@@ -87,8 +87,16 @@ class WatchActivity : ComponentActivity() {
     }
 
     companion object {
-        /** Debug builds: show a sample brew instead of waiting for the phone (scripts/screenshots.sh style). */
+        /** Debug builds: a [WatchState] name; shows a sample of it instead of waiting for the phone. */
         const val EXTRA_DEMO = "demo"
         private const val STALE_AFTER_MS = 3_000L
+
+        private val DEMOS = mapOf(
+            WatchState.DISCONNECTED to WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, false),
+            WatchState.SCALE to WatchSnapshot(WatchState.SCALE, 17.8f, 0f, 0, false),
+            WatchState.READY to WatchSnapshot(WatchState.READY, 0f, 0f, 0, false),
+            WatchState.BREWING to WatchSnapshot(WatchState.BREWING, 32.4f, 1.9f, 24_000, false),
+            WatchState.DONE to WatchSnapshot(WatchState.DONE, 36.1f, 0f, 28_400, false),
+        )
     }
 }
