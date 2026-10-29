@@ -16,6 +16,8 @@ only exists on a device. Instrumented tests are slow and, while the repository i
   `app/src/test/resources/sessions/` and drive the decoder and detector tests, and a `ReplayScaleSource` that plays
   them on the emulator.
 - **Contract tests**: shared JSON files in `contract/` checked by the app and by the server side.
+- **Screen tests on the JVM** (`app/src/test/.../ui/screens`, Robolectric, added 2026-10-29): the main flows through the
+  Compose UI with an in-memory Room database, in every CI run.
 - **Instrumented tests** (`app/src/androidTest`): Compose UI, Room DAO and migrations, run on a local emulator.
 - **End-to-end** (`scripts/e2e.sh`, stage 6): replayed brew → app → Room → stub.
 - **Device scripts** in `docs/acceptance/` for what needs the real scale, with each run recorded.

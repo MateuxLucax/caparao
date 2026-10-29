@@ -1,6 +1,6 @@
 # 4. Minimal dependencies
 
-Status: Accepted, amended 2026-10-25 (Room and KSP)
+Status: Accepted, amended 2026-10-25 (Room and KSP) and 2026-10-29 (Robolectric, test only)
 
 ## Context
 
@@ -19,6 +19,11 @@ inserts, so the app uses `androidx.room:room-runtime` with `androidx.room:room-c
 (`com.google.devtools.ksp`). Hand-written `SQLiteOpenHelper` code was the alternative; Room's compile-time checked
 queries, `Flow` results and exported schemas (the base for migration tests) are worth one library. Nothing else is
 added with it.
+
+**Amendment (2026-10-29):** the Compose screens had no coverage outside the emulator, so the JVM tests use
+`org.robolectric:robolectric` with Compose `ui-test-junit4` (and Espresso 3.7, the same fix as the instrumented tests).
+Test-only: nothing ships in the APK, and the screens run in the CI job that already exists
+([ADR 0010](0010-testing-strategy.md)).
 
 ## Consequences
 
