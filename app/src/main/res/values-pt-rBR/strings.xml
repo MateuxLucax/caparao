@@ -102,6 +102,7 @@
     <string name="label_water">Água</string>
     <string name="label_time">Tempo</string>
     <string name="label_ratio">Razão</string>
+    <string name="label_flow">Fluxo</string>
     <string name="label_flow_avg">Fluxo médio</string>
     <string name="label_first_drop">Primeira gota</string>
     <string name="ratio_value">1:%1$s</string>

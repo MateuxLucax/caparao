@@ -1,6 +1,8 @@
 package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,15 +14,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
@@ -34,6 +40,14 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
+/** Material 3 standard and emphasized decelerate easing (m3.material.io motion tokens). */
+private val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+/** The rings are open at the bottom, a gauge like the scale's own. */
+private const val ARC_START = 135f
+private const val ARC_SWEEP = 270f
+
 /** Flow that fills the inner ring; a fast espresso or a steady pour stays well under it. */
 private const val RING_FULL_FLOW = 10.0
 
@@ -41,10 +55,11 @@ private const val RING_FULL_FLOW = 10.0
 data class RatioTarget(val ratio: Double?, val target: Double, val progress: Float, val onTarget: Boolean)
 
 /**
- * Weight with the timer and the flow under it. Shared by Home and the live brew.
+ * Weight with the timer under it. Shared by Home and the live brew.
  *
- * With a [ratio], two rings go around it: the outer one fills on the way to the target ratio, the inner one fills with
- * the flow. Both turn tertiary once the ratio reads the target, so the user knows when to stop. Home has none.
+ * Home shows the flow under the timer, nothing around it. With a [ratio] (the brew), two open rings go around the weight:
+ * the outer one fills on the way to the target ratio and turns tertiary with a glow once the ratio reads it, the inner
+ * one fills with the flow. Flow and ratio then sit under the rings as two labeled numbers.
  */
 @Composable
 fun ScaleReadout(
@@ -59,11 +74,12 @@ fun ScaleReadout(
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
     val weight by animateFloatAsState(weightGrams.toFloat(), tween(100, easing = LinearEasing), label = "weight")
     val flow = flowGramsPerSecond.coerceIn(0.0, 99.9)
+    val flowText = "${Format.flow(flow, locale)} ${stringResource(R.string.unit_grams_per_second)}"
     val timerColor by animateColorAsState(
         if (timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "timer",
     )
-    val numbers = @Composable {
+    val weightAndTimer = @Composable {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -81,17 +97,18 @@ fun ScaleReadout(
                 )
             }
             Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = timerColor)
+        }
+    }
+    if (ratio == null) {
+        Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+            weightAndTimer()
             Text(
-                "${Format.flow(flow, locale)} ${stringResource(R.string.unit_grams_per_second)}",
+                flowText,
                 Modifier.padding(top = 4.dp),
                 style = MaterialTheme.typography.titleMedium.merge(Tabular),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (ratio != null) RatioText(ratio)
         }
-    }
-    if (ratio == null) {
-        Box(modifier, contentAlignment = Alignment.Center) { numbers() }
         return
     }
     val progress by animateFloatAsState(
@@ -105,46 +122,63 @@ fun ScaleReadout(
         label = "flow",
     )
     val colors = MaterialTheme.colorScheme
-    val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, label = "outer")
-    val innerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.secondary, label = "inner")
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val outer = 14.dp.toPx()
-            val o = outer / 2
-            val outerSize = Size(size.width - outer, size.height - outer)
-            val outerStyle = Stroke(outer, cap = StrokeCap.Round)
-            drawArc(colors.surfaceContainerHighest, 0f, 360f, false, Offset(o, o), outerSize, style = outerStyle)
-            if (progress > 0.005f) drawArc(outerColor, -90f, 360f * progress, false, Offset(o, o), outerSize, style = outerStyle)
-            val stroke = 6.dp.toPx()
-            val i = outer + 8.dp.toPx() + stroke / 2
-            val innerSize = Size(size.width - 2 * i, size.height - 2 * i)
-            val innerStyle = Stroke(stroke, cap = StrokeCap.Round)
-            drawArc(colors.surfaceContainerHigh, 0f, 360f, false, Offset(i, i), innerSize, style = innerStyle)
-            if (flowFill > 0.005f) drawArc(innerColor, -90f, 360f * flowFill, false, Offset(i, i), innerSize, style = innerStyle)
+    val colorSpec = tween<Color>(500, easing = Standard)
+    val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, colorSpec, label = "outer")
+    val outerTrack by animateColorAsState(if (ratio.onTarget) colors.tertiaryContainer else colors.primaryContainer, colorSpec, label = "track")
+    val ratioColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.onSurface, colorSpec, label = "ratio")
+    // Rolls like the weight instead of jumping a tenth at a time.
+    val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
+    // One glow out of the outer ring the moment the target is reached.
+    val glow = remember { Animatable(0f) }
+    LaunchedEffect(ratio.onTarget) {
+        if (ratio.onTarget) {
+            glow.snapTo(1f)
+            glow.animateTo(0f, tween(900, easing = EmphasizedDecelerate))
+        } else {
+            glow.snapTo(0f)
         }
-        numbers()
+    }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val outer = 14.dp.toPx()
+                val o = outer / 2
+                val outerSize = Size(size.width - outer, size.height - outer)
+                val outerStyle = Stroke(outer, cap = StrokeCap.Round)
+                if (glow.value > 0f) {
+                    val wide = outer * (1f + 1.5f * (1f - glow.value))
+                    drawArc(outerColor.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide))
+                }
+                drawArc(outerTrack, ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = outerStyle)
+                if (progress > 0.005f) drawArc(outerColor, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
+                val stroke = 8.dp.toPx()
+                val i = outer + 14.dp.toPx() + stroke / 2
+                val innerSize = Size(size.width - 2 * i, size.height - 2 * i)
+                val innerStyle = Stroke(stroke, cap = StrokeCap.Round)
+                drawArc(colors.secondaryContainer, ARC_START, ARC_SWEEP, false, Offset(i, i), innerSize, style = innerStyle)
+                if (flowFill > 0.005f) drawArc(colors.secondary, ARC_START, ARC_SWEEP * flowFill, false, Offset(i, i), innerSize, style = innerStyle)
+            }
+            weightAndTimer()
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp)) {
+            Stat(stringResource(R.string.label_flow), flowText, colors.secondary, null, Modifier.weight(1f))
+            Stat(
+                stringResource(R.string.label_ratio),
+                ratio.ratio?.let { stringResource(R.string.ratio_value, Format.ratio(shownRatio.toDouble(), locale)) } ?: "–",
+                ratioColor,
+                stringResource(R.string.target_ratio_value, Format.ratio(ratio.target, locale)),
+                Modifier.weight(1f),
+            )
+        }
     }
 }
 
-/** "1:1.8 · Target 1:2.0", the ratio in tertiary once it reaches the target. */
+/** A label over a number, and an optional note under it; centered under the rings. */
 @Composable
-private fun RatioText(ratio: RatioTarget) {
-    val locale = LocalConfiguration.current.locales[0]
-    val color by animateColorAsState(
-        if (ratio.onTarget) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
-        label = "ratio",
-    )
-    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            ratio.ratio?.let { stringResource(R.string.ratio_value, Format.ratio(it, locale)) } ?: "–",
-            style = MaterialTheme.typography.titleLarge.merge(Tabular),
-            color = color,
-        )
-        Text(
-            stringResource(R.string.target_ratio_value, Format.ratio(ratio.target, locale)),
-            Modifier.padding(start = 8.dp),
-            style = MaterialTheme.typography.labelLarge.merge(Tabular),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun Stat(label: String, value: String, color: Color, note: String?, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = color)
+        if (note != null) Text(note, style = MaterialTheme.typography.labelMedium.merge(Tabular), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
