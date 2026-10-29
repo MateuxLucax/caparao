@@ -9,11 +9,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,12 +35,14 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -89,6 +86,7 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
             stages.forEachIndexed { i, _ ->
                 val color by animateColorAsState(
                     if (i <= index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    Motion.standard(),
                     label = "stage",
                 )
                 Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
@@ -102,17 +100,14 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
     }
 }
 
-/** The current stage's animation, title and instruction, sliding in from the side when the stage changes. */
+/** The current stage's animation, title and instruction, moving along the shared X axis when the stage changes. */
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
+    val density = LocalDensity.current
     AnimatedContent(
         stage,
         modifier.fillMaxWidth(),
-        transitionSpec = {
-            val forward = targetState.ordinal > initialState.ordinal
-            (slideInHorizontally { if (forward) it / 3 else -it / 3 } + fadeIn()) togetherWith
-                (slideOutHorizontally { if (forward) -it / 3 else it / 3 } + fadeOut())
-        },
+        transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
         label = "stage",
     ) { shown ->
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {

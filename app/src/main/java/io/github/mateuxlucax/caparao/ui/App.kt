@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -43,6 +45,7 @@ import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 /** The bottom-bar tabs, in order. */
 enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int) {
@@ -89,24 +92,36 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    val mode = brewing
-    val openedId = opened
-    if (openedId != null) {
-        val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, openedId) }
-        BrewDetailScreen(viewModel(key = "detail-$openedId", factory = viewModelFactory, extras = extras)) { opened = null }
-    } else if (mode != null) {
-        val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, mode) }
-        // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
-        // listening to the scale; a rotation keeps the brew going.
-        val brew: BrewViewModel = viewModel(key = "brew-${mode.name}", factory = viewModelFactory, extras = extras)
-        LaunchedEffect(brew) { brew.begin() }
-        BrewScreen(brew) {
-            brew.end()
-            brewing = null
+    val destination = opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
+    val density = LocalDensity.current
+    // A brew or a saved brew comes in from the right over the tabs and goes back out the same way.
+    AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState != Destination.Tabs, density) }, label = "screen") { shown ->
+        when (shown) {
+            is Destination.Detail -> {
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
+                BrewDetailScreen(viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras)) { opened = null }
+            }
+            is Destination.Brew -> {
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
+                // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
+                // listening to the scale; a rotation keeps the brew going.
+                val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
+                LaunchedEffect(brew) { brew.begin() }
+                BrewScreen(brew) {
+                    brew.end()
+                    brewing = null
+                }
+            }
+            Destination.Tabs -> Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it })
         }
-    } else {
-        Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it })
     }
+}
+
+/** What fills the screen under [Main]. */
+private sealed interface Destination {
+    data object Tabs : Destination
+    data class Brew(val mode: BrewMode) : Destination
+    data class Detail(val id: String) : Destination
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,17 +158,19 @@ private fun Tabs(
         },
     ) { padding ->
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding)
-        when (tab) {
-            Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
-            Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier)
-            Tab.SETTINGS -> SettingsScreen(
-                viewModel(key = "server-settings", factory = viewModelFactory),
-                viewModel(factory = viewModelFactory),
-                viewModel(factory = viewModelFactory),
-                actions,
-                versionName,
-                modifier,
-            )
+        AnimatedContent(tab, transitionSpec = { Motion.fadeThrough() }, label = "tab") { shown ->
+            when (shown) {
+                Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier)
+                Tab.SETTINGS -> SettingsScreen(
+                    viewModel(key = "server-settings", factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
+                    actions,
+                    versionName,
+                    modifier,
+                )
+            }
         }
     }
 }
