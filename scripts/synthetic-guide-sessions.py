@@ -56,7 +56,7 @@ def write(name, label, weight_at, seconds, noisy):
     for i in range(seconds * 10):
         g = weight_at(i / 10)
         if noisy(i / 10, g):
-            g += random.choice([-0.1, 0, 0, 0.1])
+            g += random.choice([-0.1, 0, 0, 0.1])  # NOSONAR: seeded noise for made-up screenshots, not security
         lines.append(json.dumps({"t_ms": i * 100, "dir": "rx", "hex": frame(g, (g - prev) * 10)}, separators=(",", ":")))
         prev = g
     (sessions / name).write_text("\n".join(lines) + "\n")

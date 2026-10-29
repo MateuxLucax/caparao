@@ -40,6 +40,8 @@ android {
         // A separate package so a debug build installs next to the release one instead of over it (their signers differ).
         debug {
             applicationIdSuffix = ".debug"
+            // JaCoCo XML for SonarQube: createDebugUnitTestCoverageReport (runs testDebugUnitTest first).
+            enableUnitTestCoverage = true
         }
         release {
             // R8: Compose without shrinking is ~25 MB. Room and WorkManager ship their own keep rules.
