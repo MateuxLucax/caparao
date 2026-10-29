@@ -69,6 +69,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    // The Ongoing Activity during a brew.
+    implementation("androidx.wear:wear-ongoing:1.1.0")
+    implementation("androidx.core:core:1.19.1")
 
     testImplementation("junit:junit:4.13.2")
 }

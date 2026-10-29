@@ -10,4 +10,6 @@
     <string name="timer_reset">Reset timer</string>
     <string name="state_ready">Waiting</string>
     <string name="state_done">Done</string>
+    <string name="brew_channel">Brew</string>
+    <string name="brew_ongoing">Brew in progress</string>
 </resources>

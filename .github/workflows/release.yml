@@ -74,6 +74,8 @@ jobs:
         run: |
           ./gradlew --console=plain assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER"
           cp app/build/outputs/apk/release/app-release.apk "caparao-$VERSION_NAME.apk"
+          # The watch companion, same key (docs/adr/0023-watch-companion.md).
+          cp wear/build/outputs/apk/release/wear-release.apk "caparao-wear-$VERSION_NAME.apk"
           rm -f "$RUNNER_TEMP/release.jks"
 
       # Lets users check the APK's signer before installing (apksigner from the runner's Android SDK).
@@ -89,7 +91,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: caparao-${{ env.VERSION_NAME }}
-          path: caparao-${{ env.VERSION_NAME }}.apk
+          path: |
+            caparao-${{ env.VERSION_NAME }}.apk
+            caparao-wear-${{ env.VERSION_NAME }}.apk
 
   release:
     needs: build
@@ -101,6 +105,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       TAG: v${{ needs.build.outputs.version }}
       APK: caparao-${{ needs.build.outputs.version }}.apk
+      WEAR_APK: caparao-wear-${{ needs.build.outputs.version }}.apk
       TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       SIGNER_NOTE: "APK signer certificate SHA-256: `${{ needs.build.outputs.signer }}`"
     steps:
@@ -112,12 +117,12 @@ jobs:
       - name: Publish GitHub Release
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
+            gh release upload "$TAG" "$APK" "$WEAR_APK" --clobber
             notes=$(gh release view "$TAG" --json body --jq .body)
             if [[ "$notes" != *"$SIGNER_NOTE"* ]]; then
               gh release edit "$TAG" --notes "$(printf '%s\n\n%s' "$notes" "$SIGNER_NOTE")"
             fi
           else
             # GitHub puts --notes before the generated notes.
-            gh release create "$TAG" "$APK" --target "$TARGET_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
+            gh release create "$TAG" "$APK" "$WEAR_APK" --target "$TARGET_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
           fi
