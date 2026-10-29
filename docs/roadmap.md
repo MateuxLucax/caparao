@@ -15,6 +15,8 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (automatic on main), R8; first release waits for the signing key |
 | 7 | Screens waiting for wireframes | Waiting for designs |
 | 8 | Prometheus exporter | Built in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server pending |
+| 9 | Watch companion | First cut shipped in v0.1.9 (scale mode, brew screen, tare and timer, ongoing activity); step vibration and finish alerts pending |
+| 10 | French press mode | Not started; ADR pending |
 
 ## 0. Hardware spike
 
@@ -147,3 +149,18 @@ Acceptance:
 - With Prometheus down the API keeps accepting brews; when it is back, the next sync sends everything, nothing lost or duplicated.
 - Integration test with a real Prometheus: summaries at the brew's end time, curve at each sample's time.
 - `scripts/e2e.sh` passes against the exporter, and the brew shows in Grafana at the right time.
+
+## 9. Watch companion
+
+Wear OS app for the Galaxy Watch Ultra ([ADR 0023](adr/0023-watch-companion.md)). Done: one screen mirroring the phone
+(weight, timer, flow, tare and timer buttons), opens by itself when a brew is ready, ongoing activity during a brew,
+watch APK in each release. Pending:
+
+- Vibration on guided step changes ([ADR 0019](adr/0019-guided-brew.md)), with a phone / watch / both toggle.
+- A "time to finish" alert on the watch for filter and French press brews.
+- The guided step and pace on the watch screen.
+
+## 10. French press mode
+
+A recipe with steps: add the coffee, pour 100 g, wait until 1:00, pour the rest, wait until 4:00. The ratio is shown
+as water for coffee, for example 300 g of water for 20 g of coffee (1:15). Needs its own ADR before the code.
