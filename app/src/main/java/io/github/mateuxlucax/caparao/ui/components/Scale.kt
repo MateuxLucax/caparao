@@ -19,8 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -57,7 +57,7 @@ fun ScaleStatusRow(state: ScaleState, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         when (state) {
             is ScaleState.Connected -> Icon(painterResource(R.drawable.ic_bluetooth_connected), null, tint = MaterialTheme.colorScheme.primary)
-            ScaleState.Searching, ScaleState.Connecting -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            ScaleState.Searching, ScaleState.Connecting -> LoadingIndicator(Modifier.size(20.dp))
             is ScaleState.Failed -> Icon(painterResource(R.drawable.ic_error), null, tint = MaterialTheme.colorScheme.error)
             ScaleState.Idle -> Icon(painterResource(R.drawable.ic_bluetooth_disabled), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,13 +31,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.material3.CircularWavyProgressIndicator
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
@@ -70,7 +73,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepDots(steps.size, guide.index)
+        StepProgress(steps.size, guide.index)
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -85,7 +88,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
                 if (step == null) Drawdown(state) else Step(step, index, steps.size, live, state, previous)
             }
         }
-        Button(onClick = onDone, Modifier.fillMaxWidth().height(64.dp)) {
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
             Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -115,7 +118,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val target = step.targetWeightGrams
     if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
-        CupToTarget(fill, ((previousTarget ?: 0.0) / target).toFloat(), color)
+        CupToTarget(fill, color)
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
             style = MaterialTheme.typography.headlineSmall,
@@ -177,17 +180,9 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
 /** ● ● ○ ○: done and current steps filled. */
 @Composable
-private fun StepDots(count: Int, current: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-        repeat(count) { i ->
-            val color by animateColorAsState(
-                if (i <= current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                Motion.standard(),
-                label = "dot",
-            )
-            Box(Modifier.size(10.dp).clip(CircleShape).background(color))
-        }
-    }
+private fun StepProgress(count: Int, current: Int) {
+    val progress by animateFloatAsState((current + 1f) / count, Motion.standard(), label = "steps")
+    LinearWavyProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().padding(bottom = 8.dp))
 }
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */
@@ -214,42 +209,31 @@ private fun ReachedCheck(label: String?) {
 
 /** The cup filling toward a dashed target line; the last target as a faint line below it. */
 @Composable
-private fun CupToTarget(fill: Float, previous: Float, color: Color) {
-    val colors = MaterialTheme.colorScheme
+private fun CupToTarget(fill: Float, color: Color) {
+    val body = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(Modifier.size(160.dp)) {
         scale(size.width / 120f, pivot = Offset.Zero) {
-            // The bowl spans y 20..100; the target line sits at y 32.
-            val bowl = Path().apply {
-                moveTo(26f, 20f)
-                lineTo(94f, 20f)
-                lineTo(88f, 84f)
-                quadraticTo(86f, 100f, 70f, 100f)
-                lineTo(50f, 100f)
-                quadraticTo(34f, 100f, 32f, 84f)
-                close()
-            }
-            fun levelY(f: Float) = 100f - 68f * f
-            clipPath(bowl) { drawRect(color.copy(alpha = 0.35f), Offset(20f, levelY(fill)), Size(80f, 100f - levelY(fill))) }
-            drawPath(bowl, colors.onSurface, style = Stroke(width = 2f))
-            if (previous > 0f) drawLine(colors.outlineVariant, Offset(28f, levelY(previous)), Offset(92f, levelY(previous)), strokeWidth = 1f)
-            drawLine(color, Offset(22f, levelY(1f)), Offset(98f, levelY(1f)), strokeWidth = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)))
-            drawRoundRect(colors.surfaceContainerHighest, Offset(14f, 104f), Size(92f, 10f), CornerRadius(5f))
+            // A solid cup filling in the step's colour, the target a short tick on its side below the rim.
+            val cup = Rect(26f, 20f, 94f, 100f)
+            drawCup(cup, body, color, fill * 60f / 80f)
+            val target = cup.bottom - 60f
+            drawLine(color, Offset(94f, target), Offset(104f, target), strokeWidth = 5f, cap = StrokeCap.Round)
         }
     }
 }
 
-/** A ring that empties as the wait runs out. */
+/** A wavy ring that empties as the wait runs out. */
 @Composable
 private fun CountdownRing(progress: Float, color: Color) {
     val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(Modifier.size(160.dp)) {
-        val stroke = 12.dp.toPx()
-        val inset = stroke / 2
-        val arcSize = Size(size.width - stroke, size.height - stroke)
-        drawArc(track, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-        drawArc(color, -90f, 360f * (1f - shown), false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-    }
+    CircularWavyProgressIndicator(
+        progress = { 1f - shown },
+        modifier = Modifier.size(160.dp),
+        color = color,
+        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+        trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+    )
 }
 
 @Composable

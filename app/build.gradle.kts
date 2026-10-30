@@ -102,7 +102,8 @@ ksp {
 dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    implementation("androidx.compose.material3:material3")
+    // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (ADR 0025).
+    implementation("androidx.compose.material3:material3:1.5.0-beta01")
     // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (docs/adr/0011-code-structure.md).
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
@@ -140,4 +141,11 @@ dependencies {
     // ui-test-junit4 pulls Espresso 3.5, which calls InputManager.getInstance (removed in recent Android).
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Material 3 Expressive components (docs/adr/0025-material-3-expressive.md) are still marked experimental.
+kotlin {
+    compilerOptions {
+        optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
+    }
 }

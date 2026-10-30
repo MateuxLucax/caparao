@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.onboarding
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -45,6 +46,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
+import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PourAnimation
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
@@ -83,7 +85,7 @@ private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actio
         AnimatedContent(
             step,
             Modifier.weight(1f).fillMaxWidth(),
-            transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
+            transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
             label = "step",
         ) { shown ->
             Column(
@@ -152,6 +154,14 @@ private fun StepIndicator(step: OnboardingStep) {
     }
 }
 
+/** The step's icon on its own Material shape, which springs in from a circle. */
+@Composable
+private fun StepPicture(step: OnboardingStep, @DrawableRes icon: Int) {
+    MorphingShape(step.ordinal, Modifier.size(120.dp), MaterialTheme.colorScheme.primaryContainer) {
+        Icon(painterResource(icon), null, Modifier.size(52.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+    }
+}
+
 @Composable
 private fun Welcome() {
     PourAnimation()
@@ -168,7 +178,7 @@ private fun Welcome() {
 private fun Permissions(actions: AppActions, onGranted: () -> Unit) {
     val scope = rememberCoroutineScope()
     var denied by rememberSaveable { mutableStateOf(false) }
-    Icon(painterResource(R.drawable.ic_bluetooth_searching), null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+    StepPicture(OnboardingStep.PERMISSIONS, R.drawable.ic_bluetooth_searching)
     Text(stringResource(R.string.permissions_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(
         stringResource(R.string.permissions_text),
@@ -196,7 +206,7 @@ private fun ServerStep(
     onTokenChange: (String) -> Unit,
     actions: AppActions,
 ) {
-    Icon(painterResource(R.drawable.ic_cloud_upload), null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+    StepPicture(OnboardingStep.SERVER, R.drawable.ic_cloud_upload)
     Text(stringResource(R.string.server_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(
         stringResource(R.string.server_text),
