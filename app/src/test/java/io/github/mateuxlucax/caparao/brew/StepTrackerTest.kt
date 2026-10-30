@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.brew
 
-import io.github.mateuxlucax.caparao.data.local.BuiltInRecipes
 import io.github.mateuxlucax.caparao.data.scale.FrameDecoder
 import io.github.mateuxlucax.caparao.data.scale.ScaleMessage
 import io.github.mateuxlucax.caparao.model.RecipeStep
@@ -17,7 +16,13 @@ import java.io.File
  * on the exporter, docs/adr/0019-guided-brew.md) and the synthetic filter replay session.
  */
 class StepTrackerTest {
-    private val v60 = BuiltInRecipes.all(0).single { it.id == BuiltInRecipes.V60_ID }.steps
+    /** A V60 in four pours, fixed here so the guide's tests don't move with the built-in recipes. */
+    private val v60 = listOf(
+        RecipeStep(StepKind.BLOOM, 50.0, 0),
+        RecipeStep(StepKind.POUR, 100.0, 45_000),
+        RecipeStep(StepKind.POUR, 150.0, 85_000),
+        RecipeStep(StepKind.POUR, 300.0, 120_000),
+    )
 
     /** Feeds a pour-over built from [session], from the first water, and keeps every event with its time. */
     private fun run(steps: List<RecipeStep>, session: SyntheticSession): Pair<StepTracker, List<Pair<Long, StepEvent>>> {
@@ -145,7 +150,7 @@ class StepTrackerTest {
 
     /**
      * The synthetic filter replay session decoded frame by frame: dripper and server (400 g, tared away), pours from 20 s
-     * to 50, 100, 150 and 255 g ending at 28, 63, 78 and 88 s. Followed with the built-in V60, whose second and third
+     * to 50, 100, 150 and 255 g ending at 28, 63, 78 and 88 s. Followed with that V60, whose second and third
      * pours are due at 0:45 and 1:25, the replay begins them at 0:35 and 0:50: ahead.
      */
     @Test
