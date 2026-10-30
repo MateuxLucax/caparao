@@ -1,23 +1,22 @@
 name: Screenshots
 
-# docs/screenshots rendered on the JVM (scripts/screenshots.sh), for a branch, as an artifact: for sessions without the
-# Android SDK. Run from the Actions tab or `gh workflow run screenshots.yml --ref <branch>`.
+# docs/screenshots rendered on the JVM (scripts/screenshots.sh) and committed to the branch it runs on, for sessions
+# without the Android SDK. Run from the Actions tab or `gh workflow run screenshots.yml --ref <branch>`; never on main.
 on:
   workflow_dispatch:
   push:
     branches: [claude/project-thread-72q2ic] # TEMP: until this PR is ready
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   screenshots:
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -28,11 +27,19 @@ jobs:
 
       - run: scripts/screenshots.sh
 
+      - name: Commit the images
+        run: |
+          git status --short docs/screenshots
+          git diff --quiet docs/screenshots && git diff --cached --quiet docs/screenshots && [ -z "$(git ls-files -o docs/screenshots)" ] && { echo "no image changed"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          git commit -m "Refresh docs/screenshots"
+          git push
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: screenshots
-          path: |
-            docs/screenshots
-            app/build/reports/tests
+          name: test-reports
+          path: app/build/reports/tests
           retention-days: 7
