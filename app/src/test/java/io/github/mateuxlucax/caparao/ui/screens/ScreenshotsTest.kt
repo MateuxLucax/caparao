@@ -55,6 +55,10 @@ import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
+import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -110,7 +114,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
 
-    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true): SessionScale {
+    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true, brand: () -> BrandColor? = { null }): SessionScale {
         val scale = SessionScale(context.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() })
         val factory = viewModelFactory {
             initializer { HomeViewModel(scale) }
@@ -131,7 +135,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
             initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         }
-        compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        compose.setContent { AppTheme(brand()) { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
         play(scale, atMs)
         return scale
     }
@@ -169,6 +173,17 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
         capture("recipe-editor")
+    }
+
+    /** The home tab in each brand color (docs/adr/0024-brand-color-option.md). */
+    @Test
+    fun brandColors() {
+        var brand by mutableStateOf<BrandColor?>(null)
+        open("press-ramp", 38_300, brand = { brand })
+        BrandColor.entries.forEach {
+            brand = it
+            capture("brand-${it.name.lowercase()}")
+        }
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */

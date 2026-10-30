@@ -7,10 +7,18 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-/** Material You colors; minSdk 31 always has them, so there is no fallback scheme (docs/adr/0005-compose-material3-dynamic-color.md). */
+/**
+ * Material You colors, or a [brand] color's scheme when the user picks one; minSdk 31 always has dynamic color, so there
+ * is no fallback scheme (docs/adr/0005-compose-material3-dynamic-color.md, docs/adr/0024-brand-color-option.md).
+ */
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
+fun AppTheme(brand: BrandColor? = null, content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val dark = isSystemInDarkTheme()
+    val colors = when {
+        brand != null -> if (dark) brand.dark else brand.light
+        dark -> dynamicDarkColorScheme(context)
+        else -> dynamicLightColorScheme(context)
+    }
     MaterialTheme(colorScheme = colors, content = content)
 }
