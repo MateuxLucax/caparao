@@ -67,6 +67,7 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
             form.coffee, { onChange(form.copy(coffee = it.take(80))) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.brew_coffee)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            shape = MaterialTheme.shapes.medium,
         )
         val others = coffees.filter { it != form.coffee }
         if (others.isNotEmpty()) {
@@ -78,18 +79,21 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
             OutlinedTextField(
                 form.grind, { onChange(form.copy(grind = it.take(40))) }, Modifier.weight(1f),
                 label = { Text(stringResource(R.string.recipe_grind)) }, singleLine = true,
+                shape = MaterialTheme.shapes.medium,
             )
             OutlinedTextField(
                 form.temp, { onChange(form.copy(temp = it.filter(Char::isDigit).take(3))) }, Modifier.weight(1f),
                 label = { Text(stringResource(R.string.recipe_temp), maxLines = 1) }, singleLine = true,
                 suffix = { Text(stringResource(R.string.unit_celsius)) }, isError = !form.valid,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = MaterialTheme.shapes.medium,
             )
         }
         OutlinedTextField(
             form.notes, { onChange(form.copy(notes = it.take(1000))) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.recipe_notes)) },
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            shape = MaterialTheme.shapes.medium,
         )
     }
 }

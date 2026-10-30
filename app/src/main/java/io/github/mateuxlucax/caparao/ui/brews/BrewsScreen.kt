@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -47,6 +49,7 @@ import io.github.mateuxlucax.caparao.ui.components.SyncErrorLine
 import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.components.label
+import io.github.mateuxlucax.caparao.ui.components.segmentedShape
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
@@ -77,7 +80,7 @@ fun BrewsScreen(
         }
         return
     }
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         item {
             if (selected.isEmpty()) {
                 SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
@@ -87,11 +90,12 @@ fun BrewsScreen(
         }
         state.sections.forEach { (mode, brews) ->
             item(key = mode.name) {
-                Text(stringResource(mode.label), Modifier.padding(top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(mode.label), Modifier.padding(top = 18.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
-            items(brews, key = { it.id }) { brew ->
+            itemsIndexed(brews, key = { _, brew -> brew.id }) { index, brew ->
                 BrewRow(
                     brew,
+                    shape = segmentedShape(index, brews.size),
                     selected = brew.id in selected,
                     onClick = { if (selected.isEmpty()) onOpen(brew) else toggle(brew) },
                     onLongClick = { toggle(brew) },
@@ -155,11 +159,12 @@ private fun CompareBar(count: Int, onCancel: () -> Unit, onCompare: () -> Unit) 
 
 /** Mode icon, dose → yield and ratio, time, date and sync state; outlined while picked for a comparison. */
 @Composable
-private fun BrewRow(brew: Brew, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun BrewRow(brew: Brew, shape: Shape, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     Card(
-        modifier = Modifier.fillMaxWidth().clip(CardDefaults.shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = shape,
         border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

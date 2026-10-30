@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -221,7 +222,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Morning shot"), 5_000)
-        compose.onNodeWithText("Morning shot").assertIsSelected()
+        compose.onNode(hasText("Morning shot") and isSelectable()).assertIsSelected()
         compose.onNode(hasSetTextAction()).assert(hasText("18.0"))
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -41,7 +43,7 @@ fun Logo(size: Dp, modifier: Modifier = Modifier, tint: Color = MaterialTheme.co
 
 @Composable
 fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             content()
@@ -86,3 +88,19 @@ val BrewMode.icon: Int
         BrewMode.FILTER -> R.drawable.ic_coffee_maker
         BrewMode.ESPRESSO -> R.drawable.ic_coffee
     }
+
+/**
+ * One row of a grouped list: large outer corners on the first and last rows, small ones between them, so the rows read
+ * as one segmented surface (docs/adr/0025-material-3-expressive.md).
+ */
+@Composable
+fun segmentedShape(index: Int, count: Int): Shape {
+    val outer = MaterialTheme.shapes.large.topStart
+    val inner = MaterialTheme.shapes.extraSmall.topStart
+    return RoundedCornerShape(
+        topStart = if (index == 0) outer else inner,
+        topEnd = if (index == 0) outer else inner,
+        bottomStart = if (index == count - 1) outer else inner,
+        bottomEnd = if (index == count - 1) outer else inner,
+    )
+}

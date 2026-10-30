@@ -97,6 +97,7 @@ private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: Stri
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
     )
     OutlinedTextField(
         value = token,
@@ -111,6 +112,7 @@ private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: Stri
             }
         },
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
