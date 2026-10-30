@@ -32,15 +32,15 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 
-private val Tabular = TextStyle(fontFeatureSettings = "tnum")
+private val Tabular = TabularFlex
 
 /** The ring is open at the bottom, a gauge like the scale's own. */
 private const val ARC_START = 135f
