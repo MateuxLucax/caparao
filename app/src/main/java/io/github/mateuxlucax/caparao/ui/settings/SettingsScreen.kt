@@ -74,7 +74,6 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
-        SectionCard(stringResource(R.string.section_target_ratio)) { TargetRatioSection(targets) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
         SectionCard(stringResource(R.string.section_colors)) { ColorsSection(targets) }
         Text(
@@ -213,32 +212,5 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
                 null
             },
         )
-    }
-}
-
-/** One 1:X field per mode, saved as soon as it holds a valid ratio. */
-@Composable
-private fun TargetRatioSection(viewModel: TargetRatioViewModel) {
-    val locale = LocalConfiguration.current.locales[0]
-    BodyText(stringResource(R.string.section_target_ratio_text))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BrewMode.entries.forEach { mode ->
-            var text by rememberSaveable { mutableStateOf(Format.ratio(viewModel.ratio(mode), locale)) }
-            val valid = TargetRatioViewModel.parse(text) != null
-            OutlinedTextField(
-                value = text,
-                onValueChange = {
-                    text = it.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(4)
-                    viewModel.save(mode, text)
-                },
-                modifier = Modifier.weight(1f),
-                label = { Text(stringResource(mode.label)) },
-                prefix = { Text("1:") },
-                isError = !valid,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = MaterialTheme.shapes.medium,
-            )
-        }
     }
 }

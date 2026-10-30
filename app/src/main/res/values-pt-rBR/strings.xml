@@ -28,8 +28,6 @@
     <string name="section_permissions_text">Bluetooth, só para achar a balança.</string>
     <string name="section_scale">Balança</string>
     <string name="section_scale_text">Pareie uma Timemore Dot. Se ela estiver pareada em outro celular, segure o botão até a luz piscar rápido.</string>
-    <string name="section_target_ratio">Razão alvo</string>
-    <string name="section_target_ratio_text">Para o preparo livre; cada receita tem a sua. O preparo mostra o quanto falta, para você saber quando parar.</string>
     <string name="version">Versão %1$s</string>
 
     <!-- Conexão com a balança -->
