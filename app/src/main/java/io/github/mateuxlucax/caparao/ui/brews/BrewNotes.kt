@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
@@ -99,7 +100,7 @@ private fun Rating(rating: Int?, onRate: (Int?) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.brew_rating), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         (1..5).forEach { star ->
-            IconButton(onClick = { onRate(if (rating == star) null else star) }) {
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onRate(if (rating == star) null else star) }) {
                 Icon(
                     painterResource(if (rating != null && star <= rating) R.drawable.ic_star else R.drawable.ic_star_outline),
                     contentDescription = stringResource(R.string.rating_stars, star),

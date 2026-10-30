@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -102,27 +103,28 @@ private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actio
             }
         }
         if (step == OnboardingStep.WELCOME) {
-            Button(onClick = { step = OnboardingStep.PERMISSIONS }, Modifier.fillMaxWidth().height(52.dp)) {
+            Button(shapes = ButtonDefaults.shapes(), onClick = { step = OnboardingStep.PERMISSIONS }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) {
                 Text(stringResource(R.string.get_started))
             }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = { step = OnboardingStep.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { step = OnboardingStep.entries[step.ordinal - 1] }) { Text(stringResource(R.string.back)) }
                 when (step) {
-                    OnboardingStep.PERMISSIONS -> TextButton(onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
+                    OnboardingStep.PERMISSIONS -> TextButton(shapes = ButtonDefaults.shapes(), onClick = { step = OnboardingStep.SCALE }) { Text(stringResource(R.string.skip)) }
                     OnboardingStep.SCALE -> {
                         val connected = viewModel.uiState.collectAsStateWithLifecycle().value.scale is ScaleState.Connected
                         val next = { step = OnboardingStep.SERVER }
                         if (connected) {
-                            Button(onClick = next) { Text(stringResource(R.string.next)) }
+                            Button(shapes = ButtonDefaults.shapes(), onClick = next) { Text(stringResource(R.string.next)) }
                         } else {
-                            TextButton(onClick = next) { Text(stringResource(R.string.skip)) }
+                            TextButton(shapes = ButtonDefaults.shapes(), onClick = next) { Text(stringResource(R.string.skip)) }
                         }
                     }
                     else -> if (url.isBlank() && token.isBlank()) {
-                        TextButton(onClick = finish) { Text(stringResource(R.string.skip)) }
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = finish) { Text(stringResource(R.string.skip)) }
                     } else {
                         Button(
+                            shapes = ButtonDefaults.shapes(),
                             onClick = {
                                 // Ask for local network access now, while the user is here; the upload job can't ask.
                                 scope.launch {
@@ -186,14 +188,14 @@ private fun Permissions(actions: AppActions, onGranted: () -> Unit) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
-    Button(onClick = {
+    Button(shapes = ButtonDefaults.shapes(), onClick = {
         scope.launch {
             if (actions.requestBluetoothPermissions()) onGranted() else denied = true
         }
     }) { Text(stringResource(R.string.allow_bluetooth)) }
     if (denied) {
         Text(stringResource(R.string.hint_permission_missing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-        OutlinedButton(onClick = actions.openAppSettings) { Text(stringResource(R.string.open_app_settings)) }
+        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = actions.openAppSettings) { Text(stringResource(R.string.open_app_settings)) }
     }
 }
 

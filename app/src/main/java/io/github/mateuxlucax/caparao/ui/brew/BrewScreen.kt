@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -107,11 +108,11 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             onDismissRequest = { confirmStop = false },
             title = { Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop_brew_title else R.string.finish_brew_title)) },
             confirmButton = {
-                TextButton(onClick = { confirmStop = false; viewModel.stop() }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false; viewModel.stop() }) {
                     Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done))
                 }
             },
-            dismissButton = { TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
         )
     }
     Scaffold(
@@ -119,7 +120,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             TopAppBar(
                 title = { Text(stringResource(state.mode.label)) },
                 navigationIcon = {
-                    IconButton(onClick = back) {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
                     }
                 },
@@ -164,7 +165,7 @@ private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (D
             color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         // The weighed dose is the common case: one tap takes it and moves on.
-        FilledTonalButton(onClick = { onDose(state.weightGrams) }, Modifier.fillMaxWidth().height(56.dp), enabled = state.connected && state.weightGrams > 0) {
+        FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { onDose(state.weightGrams) }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), enabled = state.connected && state.weightGrams > 0) {
             Text(stringResource(R.string.use_weight))
         }
         OutlinedTextField(
@@ -274,8 +275,8 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
             title = { Text(stringResource(R.string.discard_brew_title)) },
-            confirmButton = { TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text(stringResource(R.string.discard)) } },
-            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; onDiscard() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     Column(
@@ -307,7 +308,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
-        TextButton(onClick = { confirmDiscard = true }, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
+        TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }
     }
 }
 

@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -55,10 +57,10 @@ fun BrewDetailScreen(
             TopAppBar(
                 title = { state.brew?.let { Text(stringResource(it.mode.label)) } },
                 navigationIcon = {
-                    IconButton(onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
                 },
                 actions = {
-                    if (state.brew != null) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                    if (state.brew != null) TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                 },
             )
         },
@@ -84,9 +86,9 @@ fun BrewDetailScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.previousId?.let { previous ->
-                    OutlinedButton(onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }
+                    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }
                 }
-                OutlinedButton(onClick = { onTrends(TrendKey.of(brew)) }) { Text(stringResource(R.string.trends)) }
+                OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onTrends(TrendKey.of(brew)) }) { Text(stringResource(R.string.trends)) }
             }
         }
     }
@@ -94,8 +96,8 @@ fun BrewDetailScreen(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.delete_brew_title)) },
-            confirmButton = { TextButton(onClick = { viewModel.delete(onClose) }) { Text(stringResource(R.string.delete)) } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { viewModel.delete(onClose) }) { Text(stringResource(R.string.delete)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -111,8 +113,8 @@ private fun NotesCard(state: BrewDetailUiState, viewModel: BrewDetailViewModel) 
             if (form != null) {
                 BrewNotesFields(form, state.coffees, viewModel::changeNotes)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = viewModel::cancelNotes) { Text(stringResource(R.string.cancel)) }
-                    TextButton(onClick = viewModel::saveNotes, enabled = form.valid) { Text(stringResource(R.string.save)) }
+                    TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::cancelNotes) { Text(stringResource(R.string.cancel)) }
+                    TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::saveNotes, enabled = form.valid) { Text(stringResource(R.string.save)) }
                 }
                 return@Column
             }
@@ -129,7 +131,7 @@ private fun NotesCard(state: BrewDetailUiState, viewModel: BrewDetailViewModel) 
             } else {
                 lines.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
             }
-            TextButton(onClick = viewModel::editNotes) { Text(stringResource(R.string.edit_notes)) }
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::editNotes) { Text(stringResource(R.string.edit_notes)) }
         }
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -95,7 +96,7 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
     if (state.justSaved) StatusLine(true, stringResource(R.string.server_saved))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         if (state.configured) {
-            TextButton(onClick = {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                 viewModel.remove()
                 url = ""
                 token = ""
@@ -104,6 +105,7 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
             Spacer(Modifier.width(1.dp))
         }
         Button(
+            shapes = ButtonDefaults.shapes(),
             onClick = {
                 // Ask for local network access now, while the user is here; the worker can't ask.
                 scope.launch {
@@ -128,7 +130,7 @@ private fun PermissionsSection(actions: AppActions) {
     BodyText(stringResource(R.string.section_permissions_text))
     StatusLine(granted, stringResource(if (granted) R.string.permission_granted else R.string.error_permission_missing))
     if (!granted) {
-        Button(onClick = {
+        Button(shapes = ButtonDefaults.shapes(), onClick = {
             scope.launch {
                 // After a "don't ask again", the request returns at once without a dialog: the settings are the way.
                 granted = actions.requestBluetoothPermissions()
@@ -146,7 +148,7 @@ private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
     ScaleStatusRow(state.scale)
     (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::reconnect) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
+        TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
         CopyLogButton(state.log)
     }
 }

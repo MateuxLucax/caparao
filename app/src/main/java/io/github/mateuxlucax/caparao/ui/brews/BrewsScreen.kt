@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -120,15 +121,15 @@ private fun SyncStatusLine(sync: SyncStatus, actions: AppActions, onRetry: () ->
             SyncErrorLine(error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (error.kind) {
-                    SyncError.Kind.LOCAL_NETWORK_PERMISSION -> OutlinedButton(onClick = {
+                    SyncError.Kind.LOCAL_NETWORK_PERMISSION -> OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = {
                         scope.launch { if (actions.requestLocalNetwork()) onRetry() }
                     }) { Text(stringResource(R.string.local_network_allow)) }
                     SyncError.Kind.UNAUTHORIZED, SyncError.Kind.REDIRECTED, SyncError.Kind.INVALID_URL ->
-                        OutlinedButton(onClick = onOpenSettings) { Text(stringResource(R.string.server_settings)) }
+                        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onOpenSettings) { Text(stringResource(R.string.server_settings)) }
                     else -> {
-                        OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onRetry) { Text(stringResource(R.string.retry)) }
                         if (error.kind == SyncError.Kind.REJECTED) {
-                            TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.server_settings)) }
+                            TextButton(shapes = ButtonDefaults.shapes(), onClick = onOpenSettings) { Text(stringResource(R.string.server_settings)) }
                         }
                     }
                 }
@@ -147,8 +148,8 @@ private fun CompareBar(count: Int, onCancel: () -> Unit, onCompare: () -> Unit) 
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
-        Button(onClick = onCompare, enabled = count >= Comparison.MIN) { Text(stringResource(R.string.compare)) }
+        TextButton(shapes = ButtonDefaults.shapes(), onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+        Button(shapes = ButtonDefaults.shapes(), onClick = onCompare, enabled = count >= Comparison.MIN) { Text(stringResource(R.string.compare)) }
     }
 }
 
