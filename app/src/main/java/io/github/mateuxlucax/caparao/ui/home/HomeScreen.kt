@@ -57,7 +57,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
         }
         (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::retry) }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Readout(state, Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f).alpha(if (connected) 1f else 0.45f))
+            Readout(state, Modifier.widthIn(max = 400.dp).fillMaxWidth().alpha(if (connected) 1f else 0.45f))
         }
         Controls(state, connected, viewModel)
         Spacer(Modifier.height(4.dp))
@@ -73,6 +73,7 @@ private fun Readout(state: HomeUiState, modifier: Modifier) {
         timerSeconds = reading?.timerSeconds ?: 0,
         timerRunning = state.timerRunning,
         modifier = modifier,
+        spacious = true,
     )
 }
 
@@ -108,7 +109,7 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
         }
         Spacer(Modifier.height(6.dp))
         // The button already carries the label for screen readers.
-        Text(label, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
