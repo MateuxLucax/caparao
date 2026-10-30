@@ -22,4 +22,7 @@
     <string name="pace_ahead">%d s adiantado</string>
     <string name="pace_behind">%d s atrasado</string>
     <string name="pace_on_time">No tempo</string>
+    <string name="finish_title">Hora de finalizar</string>
+    <string name="finish_channel">Avisos do preparo</string>
+    <string name="finish_text">Última etapa feita. Hora de finalizar o preparo.</string>
 </resources>
