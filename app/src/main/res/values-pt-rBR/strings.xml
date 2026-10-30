@@ -208,6 +208,9 @@
     <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
     <string name="guide_vibration">Vibrar</string>
     <string name="guide_sound">Som</string>
+    <string name="vibrate_on_phone">Celular</string>
+    <string name="vibrate_on_watch">Relógio</string>
+    <string name="vibrate_on_both">Ambos</string>
 
     <!-- Brew notes -->
     <string name="brew_coffee">Café</string>

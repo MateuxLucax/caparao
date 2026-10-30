@@ -1,23 +1,24 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
-import io.github.mateuxlucax.caparao.model.StepKind
-import io.github.mateuxlucax.caparao.brew.StepEvent
-import kotlinx.coroutines.launch
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
 import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -39,10 +40,14 @@ class BrewViewModelTest {
     /** Upload scheduling calls, each with whether the brew was in the database at that moment. */
     private val uploads = mutableListOf<String>()
 
+    /** What the watch was asked to vibrate for. */
+    private val watchAlerts = mutableListOf<StepEvent>()
+
     private fun viewModel(mode: BrewMode) = BrewViewModel(
         mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
         onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
         onDiscarded = { id -> uploads += "discarded $id" },
+        onWatchAlert = { watchAlerts += it },
     )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
@@ -272,6 +277,24 @@ class BrewViewModelTest {
         val (vm, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
         assertEquals(1, vm.uiState.value.guide!!.index)
         assertTrue(alerts.isEmpty())
+    }
+
+    @Test
+    fun theWatchVibratesTooUnlessOnlyThePhoneIsChosen() {
+        val (_, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        assertEquals(alerts.map { it.event }, watchAlerts)
+        watchAlerts.clear()
+        settings.guideVibrationOn = VibrationTarget.PHONE
+        guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        assertTrue(watchAlerts.isEmpty())
+    }
+
+    @Test
+    fun onlyTheWatchVibratesWhenChosen() {
+        settings.guideVibrationOn = VibrationTarget.WATCH
+        val (_, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        assertTrue(alerts.none { it.vibrate })
+        assertTrue(watchAlerts.isNotEmpty())
     }
 
     @Test

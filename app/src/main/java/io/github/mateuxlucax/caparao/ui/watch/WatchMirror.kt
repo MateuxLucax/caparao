@@ -1,10 +1,12 @@
 package io.github.mateuxlucax.caparao.ui.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.watch.WatchAlert
 import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
@@ -36,6 +38,15 @@ object WatchMirror {
         return WatchSnapshot(
             watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs, timerRunning, guide(live),
         )
+    }
+
+    /** The watch's vibration for a guide [event], the same pattern the phone plays. */
+    fun alert(event: StepEvent): WatchAlert = when (event) {
+        is StepEvent.Started -> WatchAlert.STEP_STARTED
+        is StepEvent.NearTarget -> WatchAlert.NEAR_TARGET
+        is StepEvent.Reached -> WatchAlert.TARGET_REACHED
+        is StepEvent.Countdown -> WatchAlert.COUNTDOWN
+        StepEvent.AllDone -> WatchAlert.ALL_DONE
     }
 
     /** The guide's current step, for a filter brew following a recipe; null otherwise. */

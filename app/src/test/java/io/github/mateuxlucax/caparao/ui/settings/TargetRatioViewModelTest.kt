@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.settings
 
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.FakePreferences
 import org.junit.Assert.assertEquals
@@ -9,7 +10,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TargetRatioViewModelTest {
-    private val settings = SettingsStore(FakePreferences())
+    private val settingsPrefs = FakePreferences()
+    private val settings = SettingsStore(settingsPrefs)
     private val vm = TargetRatioViewModel(settings)
 
     @Test
@@ -32,5 +34,12 @@ class TargetRatioViewModelTest {
         assertFalse(vm.save(BrewMode.FILTER, "0"))
         assertFalse(vm.save(BrewMode.FILTER, "99"))
         assertEquals(16.0, settings.targetRatio(BrewMode.FILTER), 0.001)
+    }
+
+    @Test
+    fun guideVibratesOnBothByDefaultAndRemembersTheChoice() {
+        assertEquals(VibrationTarget.BOTH, vm.guideVibrationOn)
+        vm.guideVibrationOn = VibrationTarget.WATCH
+        assertEquals(VibrationTarget.WATCH, SettingsStore(settingsPrefs).guideVibrationOn)
     }
 }

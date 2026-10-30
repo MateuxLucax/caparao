@@ -101,6 +101,7 @@ class AppContainer(context: Context) {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
+                onWatchAlert = watch::alert,
             )
         }
     }

@@ -214,6 +214,9 @@
     <string name="guide_alerts_text">On each step, near the target and in the last 5 seconds before the next one. The screen always shows them.</string>
     <string name="guide_vibration">Vibrate</string>
     <string name="guide_sound">Sound</string>
+    <string name="vibrate_on_phone">Phone</string>
+    <string name="vibrate_on_watch">Watch</string>
+    <string name="vibrate_on_both">Both</string>
 
     <!-- Brew notes -->
     <string name="brew_coffee">Coffee</string>

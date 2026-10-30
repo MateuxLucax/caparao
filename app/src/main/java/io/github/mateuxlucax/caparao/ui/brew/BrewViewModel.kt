@@ -53,6 +53,8 @@ class BrewViewModel(
     private val onSaved: (String) -> Unit = {},
     /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
     private val onDiscarded: (String) -> Unit = {},
+    /** Called for a guide moment the watch should vibrate for (WatchLink.alert). */
+    private val onWatchAlert: (StepEvent) -> Unit = {},
     /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
     private val onLive: (BrewUiState?) -> Unit = {},
 ) : ViewModel() {
@@ -229,8 +231,10 @@ class BrewViewModel(
     }
 
     private fun alert(event: StepEvent) {
-        val vibrate = settings.guideVibration
+        val target = settings.guideVibrationOn
+        val vibrate = settings.guideVibration && target.phone
         val sound = settings.guideSound
+        if (settings.guideVibration && target.watch) onWatchAlert(event)
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
 

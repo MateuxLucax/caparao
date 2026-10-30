@@ -52,6 +52,12 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_GUIDE_VIBRATION, true)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_VIBRATION, value).apply()
 
+    /** Where the guide vibrates when [guideVibration] is on: the phone, a paired watch, or both (the default). */
+    var guideVibrationOn: VibrationTarget
+        get() = prefs.getString(KEY_GUIDE_VIBRATION_ON, null)?.let { name -> VibrationTarget.entries.find { it.name == name } }
+            ?: VibrationTarget.BOTH
+        set(value) = prefs.edit().putString(KEY_GUIDE_VIBRATION_ON, value.name).apply()
+
     var guideSound: Boolean
         get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
@@ -108,6 +114,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_LAST_DOSE = "last_dose_"
         private const val KEY_LAST_RECIPE = "last_recipe_"
         private const val KEY_GUIDE_VIBRATION = "guide_vibration"
+        private const val KEY_GUIDE_VIBRATION_ON = "guide_vibration_on"
         private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_SERVER_URL = "server_url"
@@ -130,4 +137,11 @@ class SettingsStore(private val prefs: SharedPreferences) {
 
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
     }
+}
+
+/** Where the guided brew vibrates (docs/adr/0023-watch-companion.md). */
+enum class VibrationTarget(val phone: Boolean, val watch: Boolean) {
+    PHONE(phone = true, watch = false),
+    WATCH(phone = false, watch = true),
+    BOTH(phone = true, watch = true),
 }
