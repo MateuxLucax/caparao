@@ -59,7 +59,7 @@ class RecipeEditorViewModelTest {
         vm.save()
         val saved = repository.get(BuiltInRecipes.V60_ID)!!
         assertEquals("V60 short", saved.name)
-        assertEquals(3, saved.steps.size)
+        assertEquals(4, saved.steps.size)
         assertEquals(1L, saved.createdAt)
         assertEquals(100L, saved.updatedAt)
     }
