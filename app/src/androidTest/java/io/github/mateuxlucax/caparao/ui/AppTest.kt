@@ -19,6 +19,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
@@ -26,6 +27,8 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
@@ -58,6 +61,7 @@ class AppTest {
 
     private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).build()
     private val brews = BrewRepository(db.brews())
+    private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
 
     private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
@@ -65,10 +69,12 @@ class AppTest {
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
+        initializer { RecipesViewModel(recipes) }
+        initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
         initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
-        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings) }
+        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes) }
     }
 
     @After

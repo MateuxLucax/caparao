@@ -9,6 +9,7 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -16,12 +17,20 @@ data class BrewDetailUiState(
     val brew: Brew? = null,
     val samples: List<BrewSample> = emptyList(),
     val loading: Boolean = true,
+    /** Set while the notes are being edited. */
+    val notes: NotesForm? = null,
+    val coffees: List<String> = emptyList(),
     /** The brew of the same recipe right before this one, for "Compare with last" (docs/adr/0022-compare-and-trends.md). */
     val previousId: String? = null,
 )
 
 /** One saved brew with its curve. */
-class BrewDetailViewModel(private val id: String, private val repository: BrewRepository) : ViewModel() {
+class BrewDetailViewModel(
+    private val id: String,
+    private val repository: BrewRepository,
+    /** Called after the notes were saved, to send the brew again (UploadScheduler.brewSaved). */
+    private val onEdited: (String) -> Unit = {},
+) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewDetailUiState())
     val uiState: StateFlow<BrewDetailUiState> = _uiState.asStateFlow()
 
@@ -30,6 +39,33 @@ class BrewDetailViewModel(private val id: String, private val repository: BrewRe
             val brew = repository.get(id)
             val previous = brew?.let { Comparison.previous(it, repository.brews.first()) }
             _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false, previousId = previous?.id)
+        }
+    }
+
+    fun editNotes() {
+        val brew = _uiState.value.brew ?: return
+        viewModelScope.launch {
+            val coffees = repository.recentCoffees()
+            _uiState.update { it.copy(notes = NotesForm.of(brew, coffees.firstOrNull()), coffees = coffees) }
+        }
+    }
+
+    fun changeNotes(form: NotesForm) = _uiState.update { if (it.notes == null) it else it.copy(notes = form) }
+
+    fun cancelNotes() = _uiState.update { it.copy(notes = null) }
+
+    /** Saves the notes; the brew is unsynced until the server has them (docs/adr/0021-brew-notes.md). */
+    fun saveNotes() {
+        val state = _uiState.value
+        val brew = state.brew ?: return
+        val form = state.notes?.takeIf { it.valid } ?: return
+        val updated = form.applyTo(brew)
+        viewModelScope.launch {
+            if (updated != brew) {
+                repository.updateNotes(updated)
+                onEdited(id)
+            }
+            _uiState.update { it.copy(brew = repository.get(id), notes = null) }
         }
     }
 

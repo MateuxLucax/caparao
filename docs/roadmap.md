@@ -137,9 +137,53 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
 - `RecipeDaoTest` (instrumented): save and read back with steps in order, saving again replaces the steps, list by mode
   then name, deleting a recipe deletes its steps and keeps the brews that used it.
 
+7.2 Recipe screens:
+- A Recipes tab (wireframe 1): Espresso and Filter, one card per recipe (dose, ratio, water or yield, shot window), New
+  recipe. The editor (wireframe 2): name, method with suggestions, dose, ratio and the water or yield it gives, grind,
+  temperature, notes; filter steps (kind, cumulative weight, start as m:ss), the espresso time window; delete with
+  confirmation.
+- The brew's dose step picks a recipe or a free brew; the last choice per mode is preselected (the first recipe when
+  none was ever chosen). The recipe sets the dose and target ratio; the saved brew keeps its id, name, grind and
+  temperature. A free brew keeps the last dose and the Settings target ratio.
+- `RecipeFormTest`: required fields and ranges, steps moving forward in time and weight, the espresso window, every
+  built-in recipe round-trips through the form. `RecipeEditorViewModelTest`: create, edit, delete, a missing recipe.
+  `BrewViewModelTest`: preselection, the remembered choice (free brew too), a brew carrying the recipe's fields.
+  `AppScreensTest`: a recipe created in the tab is preselected on the next brew.
+
+7.3 Step tracker:
+- `StepTracker` in `brew/`, pure: steps and timed readings in; current step, progress, time until the step is due,
+  pace (ahead / on time / behind, ±5 s, measured when a pour begins) and overshoot out, plus one-shot events for the
+  alerts (step started, −5 g, target reached within 3 g, the last 5 s before a step, all done).
+- `StepTrackerTest`: the built-in V60 poured on time reaches every target and starts every step; the countdown ticks
+  5 to 1 before a pour; near-target then reached for each pour; a late and an early pour; a continuous pour; overshoot
+  is a hint and never blocks; waits and swirls end when the next step is due; the synthetic filter replay session,
+  decoded frame by frame, runs ahead of the V60. No real filter brew is recorded yet: the curves are synthetic.
+
+7.4 Guided brew:
+- A filter brew from a recipe with steps shows one full-screen step at a time (wireframes 3a–3e): the step's colour,
+  the cup filling to the dashed target line, "x / y g", the countdown before a pour, the pace once it begins (late turns
+  the error colour), an overshoot hint, a countdown ring for waits and swirls, a check on each reached target, then
+  "Let it drain" with Done. An espresso from a recipe colours the shot time inside and past its window.
+- Alerts: vibration (`VIBRATE`, on by default) and a tone (`ToneGenerator`, off by default), toggles in Settings.
+- The guide's state is `BrewUiState.guide` and `steps` in the `BrewViewModel` state flow, which `WatchLink` already
+  receives, so the watch can show it later (stage 9).
+- `BrewViewModelTest`: a guided filter advances and raises alerts (vibration only by default), none with both off, a
+  free brew has no guide. `BrewUiStateTest`: the espresso window. Screenshots of each guided step.
+
+7.5 Brew notes:
+- The save screen asks for coffee (the last one suggested, past ones to pick), grind and temperature (from the recipe),
+  a 1–5 rating and notes; Save keeps them, leaving keeps the brew without them. The brew detail shows them and edits
+  them. An edit clears `synced_at` and enqueues the upload again.
+- Contract: optional `recipe_name`, `coffee`, `grind`, `water_temp_c`, `rating` and `notes`, left out when unset, so a
+  brew without notes is the same body as before; the stub validates and stores them. The exporter must accept them
+  before brews with notes can sync to it.
+- `ContractTest` (a body without notes has only the required keys; with them, every schema key; `valid/with-notes.json`
+  round-trips), stub `go test` (new valid and invalid files), `NotesFormTest`, `BrewViewModelTest` (suggested coffee,
+  saved notes sent again, invalid temperature), `BrewDetailViewModelTest` (edit unsyncs and sends; unchanged or invalid
+  sends nothing), `BrewDaoTest` (notes clear `synced_at`, coffees newest first).
 7.6 Compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)):
 - Brews: a long press picks two to four brews of one mode, then Compare overlays their weight curves on one chart with
-  a table of dose, yield, ratio, time and average flow (the rating column comes with 7.5).
+  a table of dose, yield, ratio, time, average flow and rating.
 - Brew detail: "Compare with last" opens the brew next to the previous one of the same recipe, and Trends shows ratio
   and total time over the recipe's last 10 brews.
 - `ComparisonTest`: picking keeps one mode and at most four, previous brew of the same recipe, last 10 oldest first.

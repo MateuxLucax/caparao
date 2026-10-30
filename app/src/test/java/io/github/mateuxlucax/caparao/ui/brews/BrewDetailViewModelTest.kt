@@ -48,4 +48,35 @@ class BrewDetailViewModelTest {
         assertNull(repository.get("b1"))
         assertTrue(repository.samples("b1").isEmpty())
     }
+
+    @Test
+    fun editingNotesSavesThemUnsyncsAndSendsAgain() = runTest {
+        repository.save(brew.copy(syncedAt = 5, coffee = "Caparaó"), curve)
+        val sent = mutableListOf<String>()
+        val vm = BrewDetailViewModel("b1", repository) { sent += it }
+        vm.editNotes()
+        assertEquals("Caparaó", vm.uiState.value.notes!!.coffee)
+        vm.changeNotes(vm.uiState.value.notes!!.copy(rating = 4, notes = " Sweet "))
+        vm.saveNotes()
+        val saved = vm.uiState.value.brew!!
+        assertEquals(4, saved.rating)
+        assertEquals("Sweet", saved.notes)
+        assertNull(saved.syncedAt)
+        assertNull(vm.uiState.value.notes)
+        assertEquals(listOf("b1"), sent)
+    }
+
+    @Test
+    fun unchangedOrInvalidNotesSendNothing() = runTest {
+        repository.save(brew, curve)
+        val sent = mutableListOf<String>()
+        val vm = BrewDetailViewModel("b1", repository) { sent += it }
+        vm.editNotes()
+        vm.saveNotes()
+        vm.editNotes()
+        vm.changeNotes(NotesForm(temp = "150"))
+        vm.saveNotes()
+        assertTrue(sent.isEmpty())
+        assertEquals("150", vm.uiState.value.notes!!.temp)
+    }
 }

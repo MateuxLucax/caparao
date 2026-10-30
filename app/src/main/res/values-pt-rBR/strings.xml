@@ -29,7 +29,7 @@
     <string name="section_scale">Balança</string>
     <string name="section_scale_text">Pareie uma Timemore Dot. Se ela estiver pareada em outro celular, segure o botão até a luz piscar rápido.</string>
     <string name="section_target_ratio">Razão alvo</string>
-    <string name="section_target_ratio_text">O preparo mostra o quanto falta, para você saber quando parar.</string>
+    <string name="section_target_ratio_text">Para o preparo livre; cada receita tem a sua. O preparo mostra o quanto falta, para você saber quando parar.</string>
     <string name="version">Versão %1$s</string>
 
     <!-- Conexão com a balança -->
@@ -146,6 +146,76 @@
     <string name="error_other">O envio falhou. O app tenta de novo mais tarde.</string>
     <string name="permission_granted">Bluetooth permitido</string>
     <string name="reconnect">Reconectar</string>
+
+    <!-- Recipes -->
+    <string name="tab_recipes">Receitas</string>
+    <string name="new_recipe">Nova receita</string>
+    <string name="edit_recipe">Editar receita</string>
+    <string name="no_recipes_title">Nenhuma receita ainda</string>
+    <string name="no_recipes_text">As receitas que você criar aparecem aqui. Comece um preparo por uma delas para seguir a dose e a razão.</string>
+    <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g de água</string>
+    <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
+    <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
+    <string name="recipe_name">Nome</string>
+    <string name="recipe_method">Método</string>
+    <string name="recipe_dose">Dose</string>
+    <string name="recipe_ratio">Razão</string>
+    <string name="recipe_target_water">%1$s g de água</string>
+    <string name="recipe_target_yield">%1$s g de bebida</string>
+    <string name="recipe_grind">Moagem</string>
+    <string name="recipe_temp">Temperatura da água</string>
+    <string name="recipe_window">Tempo desde a primeira gota</string>
+    <string name="recipe_window_min">De</string>
+    <string name="recipe_window_max">Até</string>
+    <string name="recipe_notes">Notas</string>
+    <string name="recipe_steps">Etapas</string>
+    <string name="recipe_steps_text">O peso é o que a balança mostra, contado a partir da tara. O início conta da primeira água.</string>
+    <string name="step_bloom">Bloom</string>
+    <string name="step_pour">Despejo</string>
+    <string name="step_wait">Espera</string>
+    <string name="step_swirl">Agitar</string>
+    <string name="step_weight">Até</string>
+    <string name="step_start">Início</string>
+    <string name="add_step">Adicionar etapa</string>
+    <string name="remove_step">Remover etapa</string>
+    <string name="required">Obrigatório</string>
+    <string name="recipe_error_dose">De 1 a 100 g</string>
+    <string name="recipe_error_ratio">De 1:0,5 a 1:30</string>
+    <string name="recipe_error_temp">De 1 a 100 °C</string>
+    <string name="recipe_error_window">Segundos inteiros, o primeiro não maior que o segundo.</string>
+    <string name="recipe_error_steps">Cada etapa começa no mesmo tempo ou depois da anterior, como m:ss. Cada despejo vai além do anterior.</string>
+    <string name="recipe_error_no_steps">Adicione pelo menos uma etapa.</string>
+    <string name="delete_recipe_title">Excluir esta receita?</string>
+    <string name="delete_recipe_text">Os preparos que a seguiram mantêm o nome dela.</string>
+    <string name="free_brew">Preparo livre</string>
+    <string name="recipe_label">Receita</string>
+
+    <!-- Guided brew -->
+    <string name="guide_bloom">Bloom até %1$s g</string>
+    <string name="guide_pour">Despeje até %1$s g</string>
+    <string name="guide_wait">Aguarde</string>
+    <string name="guide_swirl">Agite o coador</string>
+    <string name="guide_starts_in">Começa em %1$s</string>
+    <string name="guide_next_pour">Próximo despejo até %1$s g</string>
+    <string name="guide_on_time">No tempo</string>
+    <string name="guide_ahead">%1$d s adiantado</string>
+    <string name="guide_behind">%1$d s atrasado</string>
+    <string name="guide_over">%1$s g acima do alvo</string>
+    <string name="guide_drawdown">Deixe drenar</string>
+    <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
+    <string name="guide_window">Alvo %1$s–%2$s s</string>
+    <string name="section_guide_alerts">Alertas do guia</string>
+    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
+    <string name="guide_vibration">Vibrar</string>
+    <string name="guide_sound">Som</string>
+
+    <!-- Brew notes -->
+    <string name="brew_coffee">Café</string>
+    <string name="brew_rating">Nota</string>
+    <string name="rating_stars">%1$d de 5</string>
+    <string name="edit_notes">Editar anotações</string>
+    <string name="brew_notes">Anotações</string>
+    <string name="no_notes">Sem anotações ainda.</string>
     <!-- Compare and trends (docs/adr/0022-compare-and-trends.md). -->
     <string name="compare">Comparar</string>
     <string name="compare_title">Comparar extrações</string>

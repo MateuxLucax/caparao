@@ -100,7 +100,7 @@ fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
     }
 }
 
-/** One column per brew, headed by its colour and date: dose, yield, ratio, time and average flow. */
+/** One column per brew, headed by its colour and date: dose, yield, ratio, time, average flow and rating. */
 @Composable
 private fun CompareTable(brews: List<ComparedBrew>) {
     val locale = LocalConfiguration.current.locales[0]
@@ -114,6 +114,7 @@ private fun CompareTable(brews: List<ComparedBrew>) {
         stringResource(R.string.label_ratio) to { Format.ratio(it.brew.ratio, locale).let { r -> "1:$r" } },
         stringResource(R.string.label_time) to { Format.timer((it.brew.durationMs / 1000).toInt()) },
         stringResource(R.string.label_flow_avg) to { Format.flow(it.brew.flowAvgGramsPerSecond, locale) },
+        stringResource(R.string.brew_rating) to { it.brew.rating?.toString() ?: "–" },
     )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth()) {

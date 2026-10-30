@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -18,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +34,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -50,10 +58,14 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
+import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
@@ -68,6 +80,10 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
+    val context = LocalContext.current
+    val feedback = remember { GuideFeedback(context) }
+    DisposableEffect(feedback) { onDispose { feedback.release() } }
+    LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
     // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
     // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
@@ -98,7 +114,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            // A guided filter brew counts its recipe's steps instead.
+            if (state.guide == null) GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             val density = LocalDensity.current
             AnimatedContent(
                 state.step,
@@ -107,9 +124,9 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { step ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::setDose)
+                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setDose)
                     BrewStep.LIVE -> LiveStep(state, viewModel)
-                    BrewStep.SUMMARY -> SummaryStep(state, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
+                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
         }
@@ -117,7 +134,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
+private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (Double) -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     var text by rememberSaveable(state.dose) { mutableStateOf(state.dose?.let { Format.grams(it, locale) } ?: "") }
     val typed = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1000 }
@@ -127,6 +144,7 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         GuideHeader(GuideStage.DOSE)
+        if (state.recipes.isNotEmpty()) RecipePicker(state, onRecipe)
         Text(
             "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
@@ -152,8 +170,27 @@ private fun DoseStep(state: BrewUiState, onDose: (Double) -> Unit) {
     }
 }
 
+/** The recipes of this mode and a free brew; the chosen one sets the dose and the target. */
+@Composable
+private fun RecipePicker(state: BrewUiState, onRecipe: (Recipe?) -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.recipe_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.recipes.forEach { recipe ->
+                FilterChip(selected = state.recipe?.id == recipe.id, onClick = { onRecipe(recipe) }, label = { Text(recipe.name) })
+            }
+            FilterChip(selected = state.recipe == null, onClick = { onRecipe(null) }, label = { Text(stringResource(R.string.free_brew)) })
+        }
+        state.recipe?.let { Text(recipeSummary(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
+    if (state.guide != null) {
+        GuidedStep(state, viewModel::stop)
+        return
+    }
     val brewing = state.phase == BrewPhase.BREWING
     Column(
         Modifier.fillMaxSize().padding(24.dp),
@@ -172,7 +209,24 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                timerColor = when (state.window) {
+                    BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
+                    BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
+                    else -> null
+                },
             )
+            state.recipe?.let { recipe ->
+                val min = recipe.targetMinMs
+                val max = recipe.targetMaxMs
+                if (state.mode == BrewMode.ESPRESSO && min != null && max != null) {
+                    Text(
+                        stringResource(R.string.guide_window, (min / 1000).toString(), (max / 1000).toString()),
+                        Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         when (state.phase) {
             BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, Modifier.fillMaxWidth().height(64.dp), enabled = state.connected) {
@@ -187,7 +241,7 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -> Unit) {
+private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit, onClose: () -> Unit) {
     val brew = state.saved
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
@@ -199,7 +253,7 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
         )
     }
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
@@ -213,8 +267,10 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
             Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
         BrewNumbers(brew)
+        // Asked after the brew, never before, so the main flow stays a few taps (docs/adr/0021-brew-notes.md).
+        state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
+        Button(onClick = onSave, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
         TextButton(onClick = { confirmDiscard = true }, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
     }
 }

@@ -25,6 +25,8 @@ import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
@@ -41,7 +43,8 @@ class AppContainer(context: Context) {
 
     val settings = SettingsStore(SettingsStore.open(appContext))
 
-    private val database = BrewDatabase.open(appContext)
+    /** Public for the screenshot test, which empties it between runs. */
+    val database = BrewDatabase.open(appContext)
 
     val brews = BrewRepository(database.brews())
 
@@ -87,14 +90,16 @@ class AppContainer(context: Context) {
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
+        initializer { RecipesViewModel(recipes) }
+        initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved) }
         initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
         initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         initializer {
             BrewViewModel(
-                requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,
+                requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
             )
         }

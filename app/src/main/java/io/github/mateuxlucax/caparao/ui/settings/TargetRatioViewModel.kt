@@ -4,8 +4,23 @@ import androidx.lifecycle.ViewModel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.BrewMode
 
-/** The Settings tab's target ratios: the 1:X each mode aims for, which the live brew shows as progress. */
+/**
+ * The Settings tab's brew preferences: the 1:X a free brew aims for in each mode, which the live brew shows as progress,
+ * and the guide's alerts.
+ */
 class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
+    var guideVibration: Boolean
+        get() = settings.guideVibration
+        set(value) {
+            settings.guideVibration = value
+        }
+
+    var guideSound: Boolean
+        get() = settings.guideSound
+        set(value) {
+            settings.guideSound = value
+        }
+
     fun ratio(mode: BrewMode): Double = settings.targetRatio(mode)
 
     /** Saves [text] (a comma or a dot) when it is a ratio a brew could aim for; false otherwise. */

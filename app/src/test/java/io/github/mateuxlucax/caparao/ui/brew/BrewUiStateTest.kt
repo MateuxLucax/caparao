@@ -34,4 +34,19 @@ class BrewUiStateTest {
         assertNull(cupOnTheScale.ratio)
         assertFalse(cupOnTheScale.onTarget)
     }
+
+    @Test
+    fun theEspressoWindowFollowsTheShotTime() {
+        val recipe = io.github.mateuxlucax.caparao.model.Recipe(
+            id = "e", name = "E", mode = BrewMode.ESPRESSO, method = "Espresso", doseGrams = 18.0, targetRatio = 2.4,
+            targetMinMs = 28_000, targetMaxMs = 34_000, createdAt = 0, updatedAt = 0,
+        )
+        fun at(ms: Long, phase: BrewPhase = BrewPhase.BREWING) = BrewUiState(BrewMode.ESPRESSO, phase = phase, recipe = recipe, elapsedMs = ms).window
+        assertEquals(null, at(0, BrewPhase.READY))
+        assertEquals(BrewUiState.Window.BEFORE, at(27_900))
+        assertEquals(BrewUiState.Window.INSIDE, at(28_000))
+        assertEquals(BrewUiState.Window.INSIDE, at(34_000, BrewPhase.DONE))
+        assertEquals(BrewUiState.Window.PAST, at(34_100))
+        assertEquals(null, BrewUiState(BrewMode.ESPRESSO, phase = BrewPhase.BREWING, elapsedMs = 30_000).window)
+    }
 }
