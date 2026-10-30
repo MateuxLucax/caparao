@@ -217,4 +217,12 @@
     <string name="vibrate_on_phone">Phone</string>
     <string name="vibrate_on_watch">Watch</string>
     <string name="vibrate_on_both">Both</string>
+
+    <!-- Brew notes -->
+    <string name="brew_coffee">Coffee</string>
+    <string name="brew_rating">Rating</string>
+    <string name="rating_stars">%1$d of 5</string>
+    <string name="edit_notes">Edit notes</string>
+    <string name="brew_notes">Notes</string>
+    <string name="no_notes">No notes yet.</string>
 </resources>

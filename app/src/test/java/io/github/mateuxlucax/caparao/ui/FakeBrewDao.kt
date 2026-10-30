@@ -33,4 +33,13 @@ class FakeBrewDao : BrewDao {
         brews.value = brews.value.filterNot { it.id == id }
         samples.remove(id)
     }
+
+    override suspend fun updateNotes(id: String, coffee: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?) {
+        brews.value = brews.value.map {
+            if (it.id == id) it.copy(coffee = coffee, grind = grind, waterTempCelsius = waterTempCelsius, rating = rating, notes = notes, syncedAt = null) else it
+        }
+    }
+
+    override suspend fun recentCoffees(limit: Int) =
+        brews.value.filter { it.coffee != null }.sortedByDescending { it.startedAt }.mapNotNull { it.coffee }.distinct().take(limit)
 }

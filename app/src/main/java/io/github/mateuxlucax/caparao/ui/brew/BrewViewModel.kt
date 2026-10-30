@@ -22,6 +22,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -134,6 +135,28 @@ class BrewViewModel(
         finish(current)
     }
 
+    /** The notes on the summary changed. */
+    fun editNotes(form: NotesForm) = _uiState.update { if (it.saved == null) it else it.copy(notes = form) }
+
+    /**
+     * Saves the notes typed on the summary into the brew just saved; it is sent again with them
+     * (docs/adr/0021-brew-notes.md). Returns false when a field is invalid.
+     */
+    fun saveNotes(): Boolean {
+        val state = _uiState.value
+        val brew = state.saved ?: return true
+        val form = state.notes ?: return true
+        if (!form.valid) return false
+        val updated = form.applyTo(brew)
+        if (updated == brew) return true
+        _uiState.update { it.copy(saved = updated) }
+        viewModelScope.launch {
+            repository.updateNotes(updated)
+            onSaved(updated.id)
+        }
+        return true
+    }
+
     /** Deletes the brew just saved. */
     fun discard() {
         val brew = _uiState.value.saved ?: return
@@ -234,12 +257,16 @@ class BrewViewModel(
             grind = recipe?.grind,
             waterTempCelsius = recipe?.waterTempCelsius,
         )
+        // First, so the notes filled in below land on this brew's summary.
+        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
         viewModelScope.launch {
+            // Past coffees before this brew is in: it has none yet.
+            val coffees = repository.recentCoffees()
             repository.save(brew, summary.curve)
             // After the insert, so the upload job always finds the brew.
             onSaved(brew.id)
+            _uiState.update { if (it.saved?.id == brew.id) it.copy(notes = NotesForm.of(brew, coffees.firstOrNull()), coffees = coffees) else it }
         }
-        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
     }
 
     private fun reset() {
