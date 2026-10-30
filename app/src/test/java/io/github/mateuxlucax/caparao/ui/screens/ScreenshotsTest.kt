@@ -245,7 +245,11 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
+        // The recipe loads off the main thread: Next only takes the dose once its chip is selected.
+        compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.waitForIdle()
         click(R.string.next)
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.dose_title))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
         capture("guide-bloom")
         play(scale, 45_000)
