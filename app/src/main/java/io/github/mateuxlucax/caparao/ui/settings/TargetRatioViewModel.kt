@@ -3,11 +3,10 @@ package io.github.mateuxlucax.caparao.ui.settings
 import androidx.lifecycle.ViewModel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
-import io.github.mateuxlucax.caparao.model.BrewMode
 
 /**
- * The Settings tab's brew preferences: the 1:X a free brew aims for in each mode, which the live brew shows as progress,
- * the guide's alerts and the app's colors.
+ * The Settings tab's brew preferences: the guide's alerts and the app's colors. Ratios live in the recipes and, for a
+ * free brew, on the dose step.
  */
 class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
     var guideVibration: Boolean
@@ -33,20 +32,4 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
         set(value) {
             settings.brandColors = value
         }
-
-    fun ratio(mode: BrewMode): Double = settings.targetRatio(mode)
-
-    /** Saves [text] (a comma or a dot) when it is a ratio a brew could aim for; false otherwise. */
-    fun save(mode: BrewMode, text: String): Boolean {
-        val ratio = parse(text) ?: return false
-        settings.setTargetRatio(mode, ratio)
-        return true
-    }
-
-    companion object {
-        /** From a ristretto to a very long filter. */
-        val RANGE = 0.5..30.0
-
-        fun parse(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it in RANGE }
-    }
 }
