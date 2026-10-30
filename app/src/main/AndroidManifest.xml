@@ -10,6 +10,8 @@
 
     <!-- Optional upload of brews to the user's server (docs/data.md). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Guided brew alerts (docs/adr/0019-guided-brew.md); a normal permission, granted at install. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Android 17+: needed to reach a server on the local network, asked at runtime (docs/adr/0017-local-network-permission.md). -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 

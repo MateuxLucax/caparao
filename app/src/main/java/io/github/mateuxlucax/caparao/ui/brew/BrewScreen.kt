@@ -32,6 +32,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -73,6 +76,10 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
+    val context = LocalContext.current
+    val feedback = remember { GuideFeedback(context) }
+    DisposableEffect(feedback) { onDispose { feedback.release() } }
+    LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
     // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
     // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
@@ -103,7 +110,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            // A guided filter brew counts its recipe's steps instead.
+            if (state.guide == null) GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             val density = LocalDensity.current
             AnimatedContent(
                 state.step,
@@ -175,6 +183,10 @@ private fun RecipePicker(state: BrewUiState, onRecipe: (Recipe?) -> Unit) {
 
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
+    if (state.guide != null) {
+        GuidedStep(state, viewModel::stop)
+        return
+    }
     val brewing = state.phase == BrewPhase.BREWING
     Column(
         Modifier.fillMaxSize().padding(24.dp),
@@ -193,7 +205,24 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                timerColor = when (state.window) {
+                    BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
+                    BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
+                    else -> null
+                },
             )
+            state.recipe?.let { recipe ->
+                val min = recipe.targetMinMs
+                val max = recipe.targetMaxMs
+                if (state.mode == BrewMode.ESPRESSO && min != null && max != null) {
+                    Text(
+                        stringResource(R.string.guide_window, (min / 1000).toString(), (max / 1000).toString()),
+                        Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         when (state.phase) {
             BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, Modifier.fillMaxWidth().height(64.dp), enabled = state.connected) {

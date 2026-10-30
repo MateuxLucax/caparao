@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +27,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,7 +51,7 @@ import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order, then the target ratios. */
+/** Server, permissions and scale, in the wireframe's order, then the target ratios and the guide's alerts. */
 @Composable
 fun SettingsScreen(
     server: ServerViewModel,
@@ -65,6 +68,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
         SectionCard(stringResource(R.string.section_target_ratio)) { TargetRatioSection(targets) }
+        SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
         Text(
             stringResource(R.string.version, versionName),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -141,6 +145,27 @@ private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
         CopyLogButton(state.log)
+    }
+}
+
+/** Vibration and sound for the guided brew; the visual cue is always on. */
+@Composable
+private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
+    BodyText(stringResource(R.string.guide_alerts_text))
+    var vibrate by rememberSaveable { mutableStateOf(viewModel.guideVibration) }
+    var sound by rememberSaveable { mutableStateOf(viewModel.guideSound) }
+    SwitchRow(stringResource(R.string.guide_vibration), vibrate) { vibrate = it; viewModel.guideVibration = it }
+    SwitchRow(stringResource(R.string.guide_sound), sound) { sound = it; viewModel.guideSound = it }
+}
+
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().toggleable(checked, onValueChange = onChange, role = Role.Switch),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

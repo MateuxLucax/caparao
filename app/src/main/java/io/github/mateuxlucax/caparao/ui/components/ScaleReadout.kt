@@ -65,14 +65,16 @@ fun ScaleReadout(
     timerRunning: Boolean,
     modifier: Modifier = Modifier,
     ratio: RatioTarget? = null,
+    /** Overrides the timer's colour, for the espresso time window. */
+    timerColor: Color? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
     val weight by animateFloatAsState(weightGrams.toFloat(), tween(100, easing = LinearEasing), label = "weight")
     val flow = flowGramsPerSecond.coerceIn(0.0, 99.9)
     val flowText = "${Format.flow(flow, locale)} ${stringResource(R.string.unit_grams_per_second)}"
-    val timerColor by animateColorAsState(
-        if (timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+    val shownTimerColor by animateColorAsState(
+        timerColor ?: if (timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "timer",
     )
     val weightAndTimer = @Composable {
@@ -92,7 +94,7 @@ fun ScaleReadout(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = timerColor)
+            Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = shownTimerColor)
         }
     }
     if (ratio == null) {
