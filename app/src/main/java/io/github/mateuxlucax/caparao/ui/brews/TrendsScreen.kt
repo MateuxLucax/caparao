@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -31,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.theme.flex
 
 /** Ratio and total time over the last brews of a recipe, oldest on the left (docs/adr/0022-compare-and-trends.md). */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,13 +72,15 @@ fun TrendsScreen(viewModel: TrendsViewModel, onClose: () -> Unit) {
 private fun TrendCard(title: String, values: List<Double>, minimum: Double, format: (Double) -> String) {
     val axis = ChartScale.axis(values.maxOrNull() ?: 0.0, minimum)
     val color = MaterialTheme.colorScheme.primary
-    val grid = MaterialTheme.colorScheme.outlineVariant
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val grid = chartGridColor()
+    val labelStyle = chartLabelStyle()
     val measurer = rememberTextMeasurer()
+    val drawIn = rememberDrawIn(values)
+    val surface = MaterialTheme.colorScheme.surfaceContainerHighest
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            values.lastOrNull()?.let { Text(format(it), style = MaterialTheme.typography.headlineSmall) }
+            values.lastOrNull()?.let { Text(format(it), style = MaterialTheme.typography.headlineSmall.merge(flex(weight = 600))) }
             Canvas(Modifier.fillMaxWidth().height(96.dp)) {
                 val left = 36.dp.toPx()
                 val right = size.width - 8.dp.toPx()
@@ -85,12 +89,16 @@ private fun TrendCard(title: String, values: List<Double>, minimum: Double, form
                 fun x(i: Int) = if (values.size < 2) (left + right) / 2 else left + (right - left) * i / (values.size - 1)
                 fun y(v: Double) = bottom - (bottom - top) * axis.fraction(v).toFloat()
                 listOf(0.0, axis.max).forEach { tick ->
-                    drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1f)
+                    drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
                     label(measurer, format(tick), Offset(0f, y(tick)), labelStyle)
                 }
                 val points = values.mapIndexed { i, v -> Offset(x(i), y(v)) }
-                if (points.size >= 2) drawCurve(points, color, 2.dp.toPx())
-                points.forEach { drawCircle(color, 3.dp.toPx(), it) }
+                if (points.size >= 2) drawCurve(points, color, 3.5.dp.toPx(), drawIn.value)
+                // Only the newest brew gets a dot: a ring in the card's colour around a solid centre.
+                points.lastOrNull()?.takeIf { drawIn.value >= 1f || points.size < 2 }?.let {
+                    drawCircle(surface, 6.dp.toPx(), it)
+                    drawCircle(color, 4.dp.toPx(), it)
+                }
             }
         }
     }

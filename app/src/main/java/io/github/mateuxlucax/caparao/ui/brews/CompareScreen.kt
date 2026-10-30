@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -75,9 +76,10 @@ fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
     val weightAxis = ChartScale.axis(brews.flatMap { it.samples }.maxOfOrNull { it.weightGrams } ?: 0.0, minimum = 10.0)
     val timeAxis = ChartScale.timeAxis(brews.maxOfOrNull { it.brew.durationMs } ?: 0)
     val colors = curveColors()
-    val grid = MaterialTheme.colorScheme.outlineVariant
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val grid = chartGridColor()
+    val labelStyle = chartLabelStyle()
     val measurer = rememberTextMeasurer()
+    val drawIn = rememberDrawIn(brews.map { it.brew.id })
     Canvas(modifier.fillMaxWidth().height(220.dp)) {
         val left = 36.dp.toPx()
         val right = size.width - 12.dp.toPx()
@@ -86,7 +88,7 @@ fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
         fun x(ms: Long) = left + (right - left) * timeAxis.fraction(ms / 1000.0).toFloat()
         fun y(g: Double) = bottom - (bottom - top) * weightAxis.fraction(g).toFloat()
         weightAxis.ticks.forEach { tick ->
-            drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1f)
+            drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
             label(measurer, tick.toInt().toString(), Offset(0f, y(tick)), labelStyle)
         }
         timeAxis.ticks.forEach { tick ->
@@ -94,7 +96,7 @@ fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
         }
         brews.forEachIndexed { i, compared ->
             if (compared.samples.size >= 2) {
-                drawCurve(compared.samples.map { Offset(x(it.atMs), y(it.weightGrams)) }, colors[i % colors.size], 2.5.dp.toPx())
+                drawCurve(compared.samples.map { Offset(x(it.atMs), y(it.weightGrams)) }, colors[i % colors.size], 3.5.dp.toPx(), drawIn.value)
             }
         }
     }
