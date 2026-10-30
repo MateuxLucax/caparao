@@ -199,7 +199,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */
     @Test
     fun espresso() {
-        val scale = open("synthetic-espresso", 3_000)
+        val scale = open("synthetic-espresso", 0)
         click(R.string.mode_espresso)
         capture("brew-dose")
         click(R.string.next)
