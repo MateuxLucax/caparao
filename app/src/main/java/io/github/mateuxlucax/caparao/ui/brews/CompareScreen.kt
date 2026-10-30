@@ -53,7 +53,7 @@ fun CompareScreen(viewModel: CompareViewModel, onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.compare_title)) },
+                title = { Text(stringResource(R.string.compare_title), style = MaterialTheme.typography.titleLargeEmphasized) },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
                 },

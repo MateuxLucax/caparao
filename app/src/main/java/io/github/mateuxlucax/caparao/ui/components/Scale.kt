@@ -92,7 +92,7 @@ fun ScaleStatusIcon(state: ScaleState, modifier: Modifier = Modifier) {
 /** What went wrong, what to do, and the button that does it. [onRetry] restarts the connection. */
 @Composable
 fun ScaleErrorCard(error: ScaleError, retrying: Boolean, actions: AppActions, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+    Card(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(error.title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
             Text(stringResource(error.hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)

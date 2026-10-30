@@ -45,7 +45,9 @@ fun TrendsScreen(viewModel: TrendsViewModel, onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.title ?: stringResource(state.key.mode.label)) },
+                title = { Text(state.title ?: stringResource(state.key.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) },
+                // A recipe's trends keep the mode in view under its name.
+                subtitle = { if (state.title != null) Text(stringResource(state.key.mode.label)) },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
                 },
@@ -78,7 +80,7 @@ private fun TrendCard(title: String, values: List<Double>, minimum: Double, form
     val measurer = rememberTextMeasurer()
     val drawIn = rememberDrawIn(values)
     val surface = MaterialTheme.colorScheme.surfaceContainerHighest
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             values.lastOrNull()?.let { Text(format(it), style = MaterialTheme.typography.headlineSmall.merge(flex(weight = 600))) }

@@ -118,7 +118,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(state.mode.label)) },
+                title = { Text(stringResource(state.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) },
+                subtitle = { state.recipe?.let { Text(it.name) } },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
@@ -176,6 +177,7 @@ private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (D
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { typed?.let(onDose) }),
             textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
+            shape = MaterialTheme.shapes.medium,
         )
         Spacer(Modifier.height(8.dp))
         Button(onClick = { typed?.let(onDose) }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = typed != null) {
@@ -274,6 +276,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
             title = { Text(stringResource(R.string.discard_brew_title)) },
             confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; onDiscard() }) { Text(stringResource(R.string.discard)) } },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
@@ -317,7 +320,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
 fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
-    Card(modifier.fillMaxWidth()) {
+    Card(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
                 Metric(

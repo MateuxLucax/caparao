@@ -66,6 +66,7 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
             title = { Text(stringResource(R.string.delete_recipe_title)) },
             text = { Text(stringResource(R.string.delete_recipe_text)) },
             confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false; viewModel.delete() }) { Text(stringResource(R.string.delete)) } },
@@ -75,7 +76,7 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (state.isNew) R.string.new_recipe else R.string.edit_recipe)) },
+                title = { Text(stringResource(if (state.isNew) R.string.new_recipe else R.string.edit_recipe), style = MaterialTheme.typography.titleLargeEmphasized) },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
                 },
@@ -170,7 +171,7 @@ private fun KindPicker(kind: StepKind, modifier: Modifier, onPick: (StepKind) ->
     var open by rememberSaveable { mutableStateOf(false) }
     Box(modifier) {
         OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(kind.label), maxLines = 1) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
             StepKind.entries.forEach { entry ->
                 DropdownMenuItem(text = { Text(stringResource(entry.label)) }, onClick = { open = false; onPick(entry) })
             }
@@ -215,6 +216,7 @@ private fun TextField(
             clock -> KeyboardOptions(keyboardType = KeyboardType.Number)
             else -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
         },
+        shape = MaterialTheme.shapes.medium,
     )
 }
 

@@ -55,7 +55,7 @@ fun BrewDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { state.brew?.let { Text(stringResource(it.mode.label)) } },
+                title = { state.brew?.let { Text(stringResource(it.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) } },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
                 },
@@ -95,6 +95,7 @@ fun BrewDetailScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
             title = { Text(stringResource(R.string.delete_brew_title)) },
             confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { viewModel.delete(onClose) }) { Text(stringResource(R.string.delete)) } },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
@@ -106,7 +107,7 @@ fun BrewDetailScreen(
 @Composable
 private fun NotesCard(state: BrewDetailUiState, viewModel: BrewDetailViewModel) {
     val brew = state.brew ?: return
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.brew_notes), style = MaterialTheme.typography.titleMedium)
             val form = state.notes
