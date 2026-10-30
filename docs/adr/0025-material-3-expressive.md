@@ -21,7 +21,11 @@ Adopt Expressive in small stacked PRs, each with screenshots rendered on the JVM
    shapes.
 3. **Phone theme.** `MaterialExpressiveTheme` with the expressive motion scheme inside `AppTheme`, keeping the color
    choice of [ADR 0024](0024-brand-color-option.md).
-4. **Roboto Flex** for the weight, the timer and titles, bundled so it works offline ([ADR 0003](0003-offline-first.md)).
+4. **Showcase moments**: onboarding and the espresso and filter brews get the most expression. Onboarding pages use
+   morphing shapes (`MaterialShapes`) and spring transitions between steps; the brew flow morphs the current step's shape
+   from taring to cup to first drop, the guided steps use the wavy progress, and the summary opens with a spring and
+   a large Roboto Flex result.
+5. **Roboto Flex** for the weight, the timer and titles, bundled so it works offline ([ADR 0003](0003-offline-first.md)).
 
 ## Consequences
 
