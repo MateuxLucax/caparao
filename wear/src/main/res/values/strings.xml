@@ -4,7 +4,6 @@
     <string name="open_on_phone">Open Caparaó on your phone.</string>
     <string name="scale_disconnected">Scale not connected</string>
     <string name="tare">Tare</string>
-    <string name="mode_scale">Scale</string>
     <string name="timer_start">Start timer</string>
     <string name="timer_pause">Pause timer</string>
     <string name="timer_reset">Reset timer</string>
@@ -16,7 +15,6 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
-    <string name="step_to_target">%1$s to %2$s</string>
     <string name="step_of">%1$d/%2$d · %3$s</string>
     <string name="guide_all_done">Last pour done</string>
     <string name="guide_due_in">Next in %d s</string>
