@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,7 +72,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepDots(steps.size, guide.index)
+        StepProgress(steps.size, guide.index)
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -85,7 +87,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
                 if (step == null) Drawdown(state) else Step(step, index, steps.size, live, state, previous)
             }
         }
-        Button(onClick = onDone, Modifier.fillMaxWidth().height(64.dp)) {
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
             Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -177,17 +179,9 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
 /** ● ● ○ ○: done and current steps filled. */
 @Composable
-private fun StepDots(count: Int, current: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-        repeat(count) { i ->
-            val color by animateColorAsState(
-                if (i <= current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                Motion.standard(),
-                label = "dot",
-            )
-            Box(Modifier.size(10.dp).clip(CircleShape).background(color))
-        }
-    }
+private fun StepProgress(count: Int, current: Int) {
+    val progress by animateFloatAsState((current + 1f) / count, Motion.standard(), label = "steps")
+    LinearWavyProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().padding(bottom = 8.dp))
 }
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */

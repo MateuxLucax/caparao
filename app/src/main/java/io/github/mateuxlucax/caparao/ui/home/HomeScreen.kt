@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -103,9 +104,9 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val content: @Composable () -> Unit = { Icon(painterResource(icon), contentDescription = label, Modifier.size(size * 0.4f)) }
         if (primary) {
-            FilledIconButton(onClick, Modifier.size(size), enabled = enabled, content = content)
+            FilledIconButton(onClick, modifier = Modifier.size(size), enabled = enabled, shapes = IconButtonDefaults.shapes(), content = content)
         } else {
-            FilledTonalIconButton(onClick, Modifier.size(size), enabled = enabled, content = content)
+            FilledTonalIconButton(onClick, modifier = Modifier.size(size), enabled = enabled, shapes = IconButtonDefaults.shapes(), content = content)
         }
         Spacer(Modifier.height(6.dp))
         // The button already carries the label for screen readers.

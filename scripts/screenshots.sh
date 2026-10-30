@@ -9,5 +9,5 @@ cd "$(dirname "$0")/.."
 
 filter="io.github.mateuxlucax.caparao.ui.screens.Screenshots${VARIANTS:-*}Test${ONLY:+.$ONLY}"
 ./gradlew --console=plain -q :app:testDebugUnitTest -Pscreenshots --rerun --tests "$filter"
-[ -n "${ONLY:-}" ] || ./gradlew --console=plain -q :wear:testDebugUnitTest -Pscreenshots --rerun --tests "*WatchScreenshotsTest"
+[ -n "${ONLY:-}" ] || ./gradlew --console=plain -q :wear:testDebugUnitTest -Pscreenshots --rerun --tests "*WatchScreenshots*"
 echo "Screenshots in docs/screenshots/"

@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.brew
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,16 +10,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -35,17 +36,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -59,13 +60,13 @@ import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
-import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
-import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
@@ -164,7 +165,7 @@ private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (D
             textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { typed?.let(onDose) }, Modifier.fillMaxWidth().height(64.dp), enabled = typed != null) {
+        Button(onClick = { typed?.let(onDose) }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = typed != null) {
             Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -229,13 +230,13 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
             }
         }
         when (state.phase) {
-            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, Modifier.fillMaxWidth().height(64.dp), enabled = state.connected) {
+            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.connected) {
                 Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
             }
-            BrewPhase.BREWING -> Button(onClick = viewModel::stop, Modifier.fillMaxWidth().height(64.dp)) {
+            BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done), style = MaterialTheme.typography.titleMedium)
             }
-            else -> Spacer(Modifier.height(64.dp))
+            else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
         }
     }
 }
@@ -259,7 +260,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
     ) {
         if (brew == null) {
             Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.headlineSmall)
-            Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
+            Button(onClick = onClose, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
             return@Column
         }
         Text(stringResource(R.string.brew_saved), style = MaterialTheme.typography.headlineMedium)
@@ -270,7 +271,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
         // Asked after the brew, never before, so the main flow stays a few taps (docs/adr/0021-brew-notes.md).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onSave, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
+        Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
         TextButton(onClick = { confirmDiscard = true }, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
     }
 }
