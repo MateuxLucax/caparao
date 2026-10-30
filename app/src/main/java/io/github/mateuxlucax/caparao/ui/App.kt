@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -195,9 +195,9 @@ private fun Tabs(
             )
         },
         bottomBar = {
-            NavigationBar {
+            ShortNavigationBar {
                 Tab.entries.forEach { entry ->
-                    NavigationBarItem(
+                    ShortNavigationBarItem(
                         selected = tab == entry,
                         onClick = { onTab(entry) },
                         icon = { Icon(painterResource(entry.icon), contentDescription = null) },

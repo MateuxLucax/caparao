@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -59,7 +59,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
                 }
             }
         }
-        ExtendedFloatingActionButton(
+        MediumExtendedFloatingActionButton(
             onClick = { onNew(mode) },
             icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
             text = { Text(stringResource(R.string.new_recipe)) },
