@@ -16,9 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +41,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.components.BodyText
+import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
@@ -162,25 +160,20 @@ private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
     SwitchRow(stringResource(R.string.guide_vibration), vibrate) { vibrate = it; viewModel.guideVibration = it }
     if (vibrate) {
         var on by rememberSaveable { mutableStateOf(viewModel.guideVibrationOn) }
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            VibrationTarget.entries.forEachIndexed { index, target ->
-                SegmentedButton(
-                    selected = on == target,
-                    onClick = { on = target; viewModel.guideVibrationOn = target },
-                    shape = SegmentedButtonDefaults.itemShape(index, VibrationTarget.entries.size),
-                ) {
-                    Text(
-                        stringResource(
-                            when (target) {
-                                VibrationTarget.PHONE -> R.string.vibrate_on_phone
-                                VibrationTarget.WATCH -> R.string.vibrate_on_watch
-                                VibrationTarget.BOTH -> R.string.vibrate_on_both
-                            },
-                        ),
-                    )
-                }
-            }
-        }
+        ChoiceGroup(
+            VibrationTarget.entries,
+            selected = on,
+            onSelect = { on = it; viewModel.guideVibrationOn = it },
+            label = {
+                stringResource(
+                    when (it) {
+                        VibrationTarget.PHONE -> R.string.vibrate_on_phone
+                        VibrationTarget.WATCH -> R.string.vibrate_on_watch
+                        VibrationTarget.BOTH -> R.string.vibrate_on_both
+                    },
+                )
+            },
+        )
     }
     SwitchRow(stringResource(R.string.guide_sound), sound) { sound = it; viewModel.guideSound = it }
 }
@@ -190,15 +183,12 @@ private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
 private fun ColorsSection(viewModel: TargetRatioViewModel) {
     var brand by rememberSaveable { mutableStateOf(viewModel.brandColors) }
     val options = listOf(false to R.string.colors_system, true to R.string.colors_brand)
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, (value, label) ->
-            SegmentedButton(
-                selected = brand == value,
-                onClick = { brand = value; viewModel.brandColors = value },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) { Text(stringResource(label)) }
-        }
-    }
+    ChoiceGroup(
+        options.map { it.first },
+        selected = brand,
+        onSelect = { brand = it; viewModel.brandColors = it },
+        label = { value -> stringResource(options.first { it.first == value }.second) },
+    )
 }
 
 @Composable
