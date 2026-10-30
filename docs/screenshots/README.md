@@ -1,6 +1,6 @@
 # Screenshots
 
-Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](../adr/0015-acceptance-and-lean-ci.md)).
+Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](../adr/0015-acceptance-and-lean-ci.md)). Every image lives in `en/` or `pt-BR/`; screenshots made only for a PR description go in the PR, not here.
 
 ## English
 
@@ -25,6 +25,12 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 | Light | <img src="en/brew-dose-light.png" width="140" alt="Dose"> | <img src="en/brew-live-light.png" width="140" alt="Live"> | <img src="en/brew-summary-light.png" width="140" alt="Saved"> | <img src="en/brews-list-light.png" width="140" alt="Brews"> | <img src="en/brew-detail-light.png" width="140" alt="Detail"> |
 | Dark | <img src="en/brew-dose-dark.png" width="140" alt="Dose"> | <img src="en/brew-live-dark.png" width="140" alt="Live"> | <img src="en/brew-summary-dark.png" width="140" alt="Saved"> | <img src="en/brews-list-dark.png" width="140" alt="Brews"> | <img src="en/brew-detail-dark.png" width="140" alt="Detail"> |
 
+### Watch
+
+| | Waiting | Brewing | Scale | Ready | Done | Disconnected |
+|---|---|---|---|---|---|---|
+| | <img src="en/watch-waiting.png" width="120" alt="Waiting"> | <img src="en/watch-brewing.png" width="120" alt="Brewing"> | <img src="en/watch-scale.png" width="120" alt="Scale"> | <img src="en/watch-ready.png" width="120" alt="Ready"> | <img src="en/watch-done.png" width="120" alt="Done"> | <img src="en/watch-disconnected.png" width="120" alt="Disconnected"> |
+
 ## Português
 
 ### Onboarding
@@ -47,3 +53,9 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 |---|---|---|---|---|---|
 | Claro | <img src="pt-BR/brew-dose-light.png" width="140" alt="Dose"> | <img src="pt-BR/brew-live-light.png" width="140" alt="Ao vivo"> | <img src="pt-BR/brew-summary-light.png" width="140" alt="Salvo"> | <img src="pt-BR/brews-list-light.png" width="140" alt="Dados"> | <img src="pt-BR/brew-detail-light.png" width="140" alt="Detalhe"> |
 | Escuro | <img src="pt-BR/brew-dose-dark.png" width="140" alt="Dose"> | <img src="pt-BR/brew-live-dark.png" width="140" alt="Ao vivo"> | <img src="pt-BR/brew-summary-dark.png" width="140" alt="Salvo"> | <img src="pt-BR/brews-list-dark.png" width="140" alt="Dados"> | <img src="pt-BR/brew-detail-dark.png" width="140" alt="Detalhe"> |
+
+### Relógio
+
+| | Aguardando | Extraindo | Balança | Pronto | Concluído |
+|---|---|---|---|---|---|
+| | <img src="pt-BR/watch-waiting.png" width="120" alt="Aguardando"> | <img src="pt-BR/watch-brewing.png" width="120" alt="Extraindo"> | <img src="pt-BR/watch-scale.png" width="120" alt="Balança"> | <img src="pt-BR/watch-ready.png" width="120" alt="Pronto"> | <img src="pt-BR/watch-done.png" width="120" alt="Concluído"> |
