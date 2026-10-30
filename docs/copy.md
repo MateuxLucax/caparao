@@ -56,6 +56,9 @@ Use these and only these. Adding a term means adding it here.
 | Pause between pours | wait | espera | |
 | Stirring the slurry by moving the dripper | swirl | agitar | |
 | Grinder setting | grind | moagem | Free text: grinders have no common scale |
+| The beans used | coffee | café | Free text, the last one suggested |
+| How it tasted, 1 to 5 | rating | nota | Stars |
+| Free text about a brew | notes | anotações | "notas" for a recipe's notes |
 
 ## Patterns
 

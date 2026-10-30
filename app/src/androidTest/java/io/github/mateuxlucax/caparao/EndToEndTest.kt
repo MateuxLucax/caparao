@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -54,7 +55,7 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.next)).performClick()
             // The shot starts 11 s into this replay and ends about 30 s later.
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
-            compose.onNodeWithText(text(R.string.close)).performClick()
+            compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.tab_brews)).performClick()
             // "Synced 16:52": the server confirmed it.
             val synced = text(R.string.synced_at).substringBefore("%1\$s").trim()

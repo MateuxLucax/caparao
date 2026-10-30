@@ -84,6 +84,16 @@ class ExporterClient(
             .put("flow_avg_gps", nonNegative(brew.flowAvgGramsPerSecond))
             .put("flow_peak_gps", nonNegative(brew.flowPeakGramsPerSecond))
             .put("interrupted", brew.interrupted)
+            .apply {
+                // Optional notes (docs/adr/0021-brew-notes.md): left out when unset, so a brew without them has only
+                // the original keys.
+                brew.recipeName?.let { put("recipe_name", it.take(80)) }
+                brew.coffee?.let { put("coffee", it.take(80)) }
+                brew.grind?.let { put("grind", it.take(40)) }
+                brew.waterTempCelsius?.takeIf { it in 1..100 }?.let { put("water_temp_c", it) }
+                brew.rating?.takeIf { it in 1..5 }?.let { put("rating", it) }
+                brew.notes?.let { put("notes", it.take(1000)) }
+            }
             .put("samples", JSONArray().apply {
                 samples.take(MAX_SAMPLES).forEach {
                     put(

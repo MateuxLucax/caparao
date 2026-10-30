@@ -285,4 +285,29 @@ class BrewViewModelTest {
         pour(0.0, 40.0, 8.0)
         assertNull(vm.uiState.value.guide)
     }
+
+    @Test
+    fun theSummaryAsksForNotesWithTheLastCoffeeAndSavesThem() = kotlinx.coroutines.test.runTest {
+        BrewRepository(dao).save(
+            io.github.mateuxlucax.caparao.model.Brew("old", BrewMode.FILTER, 1, 1_000, 15.0, 250.0, null, 1.0, 2.0, false, coffee = "Caparaó"),
+            emptyList(),
+        )
+        val (vm, _) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        vm.stop()
+        val notes = vm.uiState.value.notes!!
+        assertEquals("Caparaó", notes.coffee)
+        assertEquals("22", notes.grind)
+        assertEquals(listOf("Caparaó"), vm.uiState.value.coffees)
+
+        vm.editNotes(notes.copy(rating = 5))
+        assertTrue(vm.saveNotes())
+        val stored = BrewRepository(dao).get("brew-1")!!
+        assertEquals(5, stored.rating)
+        assertEquals("Caparaó", stored.coffee)
+        // Sent after the save and again with the notes.
+        assertEquals(2, uploads.count { it.startsWith("saved brew-1") })
+
+        vm.editNotes(notes.copy(temp = "300"))
+        assertFalse(vm.saveNotes())
+    }
 }
