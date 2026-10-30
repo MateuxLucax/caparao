@@ -184,6 +184,14 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             brand = it
             capture("brand-${it.name.lowercase()}")
         }
+        // The Colors section in Settings, switching from the system's colors to Caparaó's.
+        brand = null
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.colors_brand)).performScrollTo()
+        capture("settings-colors")
+        click(R.string.colors_brand)
+        brand = BrandColor.LEAF
+        capture("settings-colors-brand")
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */
