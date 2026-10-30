@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -112,7 +114,7 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
         if (stage.pictured) {
-            MorphingShape(stage.ordinal, Modifier.size(144.dp)) {
+            MorphingShape(stage.ordinal, Modifier.padding(bottom = 20.dp).size(128.dp)) {
                 AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
             }
         }
@@ -154,9 +156,11 @@ private fun StageAnimation(stage: GuideStage) {
         transition.animateFloat(0f, 1f, infiniteRepeatable(tween(LOOP_MS, easing = LinearEasing)), label = "t").value
     }
     val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.size(112.dp)) {
+    Canvas(Modifier.size(100.dp)) {
         // Drawn in a 120-unit square.
-        scale(size.width / 120f, pivot = Offset.Zero) {
+        // The cup and scale sit low in the square; without the stream or drops above them, centre them on the shape.
+        val lift = if (stage == GuideStage.CUP || stage == GuideStage.TARE) 25f else 0f
+        scale(size.width / 120f, pivot = Offset.Zero) { translate(top = -lift) {
             val cupDrop = if (stage == GuideStage.CUP) (1f - (t / 0.5f).coerceIn(0f, 1f)).let { it * it } * 40f else 0f
             // The cup fills while the stream falls, then empties as the loop starts over.
             val fillTop = if (stage == GuideStage.POUR) 93f - 30f * Motion.Standard.transform(t) else 93f
@@ -181,7 +185,7 @@ private fun StageAnimation(stage: GuideStage) {
                 }
                 else -> Unit
             }
-        }
+        } }
     }
 }
 
