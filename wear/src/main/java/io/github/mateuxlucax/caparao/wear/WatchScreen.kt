@@ -46,22 +46,23 @@ fun WatchScreen(snapshot: WatchSnapshot?, onTare: () -> Unit, onTimer: () -> Uni
     MaterialTheme(colorScheme = dynamicColorScheme(LocalContext.current) ?: ColorScheme()) {
         AppScaffold {
             val live = snapshot != null && snapshot.state != WatchState.DISCONNECTED
-            ScreenScaffold(
-                edgeButton = {
-                    if (live) {
-                        EdgeButton(onClick = onTare, buttonSize = EdgeButtonSize.Small) {
-                            Icon(painterResource(R.drawable.ic_tare), contentDescription = stringResource(R.string.tare))
-                        }
-                    }
-                },
-            ) {
+            ScreenScaffold {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     pourProgress(snapshot)?.let { CircularProgressIndicator(progress = { it }, modifier = Modifier.fillMaxSize()) }
-                    Box(Modifier.fillMaxSize().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                    // Clear of the edge button when it shows.
+                    Box(
+                        Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = if (live) 28.dp else 0.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         when {
                             snapshot == null -> Message(stringResource(R.string.open_on_phone))
                             snapshot.state == WatchState.DISCONNECTED -> Message(stringResource(R.string.scale_disconnected))
                             else -> Readout(snapshot, onTimer, onReset)
+                        }
+                    }
+                    if (live) {
+                        EdgeButton(onClick = onTare, modifier = Modifier.align(Alignment.BottomCenter), buttonSize = EdgeButtonSize.Small) {
+                            Icon(painterResource(R.drawable.ic_tare), contentDescription = stringResource(R.string.tare))
                         }
                     }
                 }
@@ -92,7 +93,7 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
             else -> snapshot.guide?.let { stepLabel(it) } ?: WatchFormat.flow(snapshot.flowGramsPerSecond)
         }
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(WatchFormat.grams(snapshot.weightGrams), fontSize = 44.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Text(WatchFormat.grams(snapshot.weightGrams), fontSize = 40.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(WatchFormat.time(snapshot.elapsedMs), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
         val hint = snapshot.guide?.takeIf { snapshot.state == WatchState.BREWING }?.let { paceLabel(it) }
         if (hint != null) Text(hint, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
