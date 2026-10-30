@@ -1,6 +1,6 @@
 # 24. Brand color as an option next to Material You
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -14,16 +14,9 @@ the app's own and the system's, to give the app more personality.
 - The brand scheme is generated from one seed color with Material Color Utilities' tonal spot, the same algorithm Android
   uses for wallpapers, and checked in as constant light and dark `ColorScheme`s (`BrandColor`). No runtime dependency
   ([ADR 0004](0004-minimal-dependencies.md)).
-- Seed candidates, rendered by `ScreenshotsTest.brandColors` in `docs/screenshots/*/brand-*.png`:
-
-  | Name | Seed | Idea |
-  |------|------|------|
-  | Leaf | `#1E3B2C` | Coffee-leaf green, already the launcher background |
-  | Coffee | `#6F4E37` | Roasted coffee brown |
-  | Cherry | `#B23A2E` | Ripe coffee-cherry red |
-  | Mountain | `#3E5C76` | Caparaó mountain blue |
-
-  One is kept; the others are dropped before this is accepted.
+- The seed is the logo's coffee-leaf green `#1E3B2C` (`BrandColor.LEAF`), so the screens match the launcher icon.
+  Coffee brown, coffee-cherry red and a mountain blue were also rendered and set aside. The green is not one of the
+  system's preset colors, but a green wallpaper or preset gives a close scheme, since tonal spot keeps mostly the hue.
 - Screens use only the scheme's color roles (https://m3.material.io/styles/color/roles), never fixed colors, so both
   options work unchanged: `primary` for the key accents (weight line, timer, progress, selected brew), `tertiary` for the
   contrasting second series (flow line, inside the target window), `error` for failures and past the window,

@@ -27,4 +27,4 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0021](0021-brew-notes.md) | Brew metadata: coffee, grind, temperature, notes and rating | Accepted |
 | [0022](0022-compare-and-trends.md) | Compare brews and show trends on the Canvas charts | Accepted |
 | [0023](0023-watch-companion.md) | Watch companion: a Wear OS mirror fed by the phone | Proposed |
-| [0024](0024-brand-color-option.md) | Brand color as an option next to Material You | Proposed |
+| [0024](0024-brand-color-option.md) | Brand color as an option next to Material You | Accepted |
