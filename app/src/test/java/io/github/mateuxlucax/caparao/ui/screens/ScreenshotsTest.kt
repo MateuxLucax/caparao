@@ -37,6 +37,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -187,9 +188,10 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         // The Colors section in Settings, switching from the system's colors to Caparaó's.
         brand = null
         click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.colors_brand)).performScrollTo()
+        // "Caparaó" is also the app's title, so the option is the last node with that text.
+        compose.onNodeWithText(text(R.string.colors_system)).performScrollTo()
         capture("settings-colors")
-        click(R.string.colors_brand)
+        compose.onAllNodesWithText(text(R.string.colors_brand)).onLast().performClick()
         brand = BrandColor.LEAF
         capture("settings-colors-brand")
     }
