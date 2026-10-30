@@ -1,8 +1,7 @@
 package io.github.mateuxlucax.caparao.wear
 
-import android.content.Context
 import android.os.VibrationEffect
-import android.os.VibratorManager
+import android.os.Vibrator
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import io.github.mateuxlucax.caparao.watch.WatchAlert
@@ -16,7 +15,8 @@ class AlertListenerService : WearableListenerService() {
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path != WatchPaths.ALERT) return
         val alert = WatchAlert.decode(event.data) ?: return
-        val vibrator = (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator ?: return
+        // Vibrator, not VibratorManager: the watch's minSdk is 30.
+        val vibrator = getSystemService(Vibrator::class.java) ?: return
         vibrator.vibrate(VibrationEffect.createWaveform(alert.pattern, -1))
     }
 }
