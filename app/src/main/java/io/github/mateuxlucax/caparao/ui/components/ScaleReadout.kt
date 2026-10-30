@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.components
 
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -67,6 +69,8 @@ fun ScaleReadout(
     ratio: RatioTarget? = null,
     /** Overrides the timer's colour, for the espresso time window. */
     timerColor: Color? = null,
+    /** Home: the weight fills the width and the timer and flow sit in labelled cards, to read from across the bench. */
+    spacious: Boolean = false,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
@@ -96,6 +100,30 @@ fun ScaleReadout(
             }
             Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = shownTimerColor)
         }
+    }
+    if (ratio == null && spacious) {
+        Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    Format.grams(weight.toDouble(), locale),
+                    style = Tabular,
+                    fontSize = 120.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    stringResource(R.string.unit_grams),
+                    Modifier.padding(start = 4.dp, bottom = 24.dp),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard(stringResource(R.string.label_time), Format.timer(timerSeconds), shownTimerColor, Modifier.weight(1f))
+                StatCard(stringResource(R.string.label_flow), flowText, MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+            }
+        }
+        return
     }
     if (ratio == null) {
         Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -178,5 +206,16 @@ private fun Stat(label: String, value: String, color: Color, note: String?, modi
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = color)
         if (note != null) Text(note, style = MaterialTheme.typography.labelMedium.merge(Tabular), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** A label over a large number on a tonal card, for the Home readout. */
+@Composable
+private fun StatCard(label: String, value: String, color: Color, modifier: Modifier) {
+    Surface(modifier, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color, maxLines = 1)
+        }
     }
 }
