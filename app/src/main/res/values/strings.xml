@@ -222,4 +222,11 @@
     <string name="edit_notes">Edit notes</string>
     <string name="brew_notes">Notes</string>
     <string name="no_notes">No notes yet.</string>
+    <!-- Compare and trends (docs/adr/0022-compare-and-trends.md). -->
+    <string name="compare">Compare</string>
+    <string name="compare_title">Compare brews</string>
+    <string name="compare_picked">%1$d of %2$d picked</string>
+    <string name="compare_with_last">Compare with last</string>
+    <string name="trends">Trends</string>
+    <string name="trends_subtitle">The last %1$d brews, oldest on the left.</string>
 </resources>

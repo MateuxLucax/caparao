@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.ui.brews
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +13,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,7 +40,12 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 /** A saved brew: its numbers, the weight and flow curves, and delete. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrewDetailScreen(viewModel: BrewDetailViewModel, onClose: () -> Unit) {
+fun BrewDetailScreen(
+    viewModel: BrewDetailViewModel,
+    onClose: () -> Unit,
+    onCompare: (List<String>) -> Unit,
+    onTrends: (TrendKey) -> Unit,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
@@ -75,6 +82,12 @@ fun BrewDetailScreen(viewModel: BrewDetailViewModel, onClose: () -> Unit) {
                 "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
                 "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.previousId?.let { previous ->
+                    OutlinedButton(onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }
+                }
+                OutlinedButton(onClick = { onTrends(TrendKey.of(brew)) }) { Text(stringResource(R.string.trends)) }
+            }
         }
     }
     if (confirmDelete) {

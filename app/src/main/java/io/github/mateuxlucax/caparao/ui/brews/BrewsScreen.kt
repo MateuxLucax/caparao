@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,9 +24,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,9 +58,17 @@ fun BrewsScreen(
     actions: AppActions,
     onOpen: (Brew) -> Unit,
     onOpenSettings: () -> Unit,
+    onCompare: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Ids joined by commas, so it survives a rotation; a long press starts picking brews to compare.
+    var picked by rememberSaveable { mutableStateOf("") }
+    val selected = picked.split(',').filter { it.isNotEmpty() }
+    val all = state.sections.flatMap { it.second }
+    fun toggle(brew: Brew) {
+        picked = Comparison.toggle(selected, brew, all).joinToString(",")
+    }
     if (!state.loading && state.sections.isEmpty()) {
         Column(modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
             SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
@@ -61,12 +77,25 @@ fun BrewsScreen(
         return
     }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings) }
+        item {
+            if (selected.isEmpty()) {
+                SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
+            } else {
+                CompareBar(selected.size, onCancel = { picked = "" }, onCompare = { onCompare(selected) })
+            }
+        }
         state.sections.forEach { (mode, brews) ->
             item(key = mode.name) {
                 Text(stringResource(mode.label), Modifier.padding(top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
-            items(brews, key = { it.id }) { BrewRow(it) { onOpen(it) } }
+            items(brews, key = { it.id }) { brew ->
+                BrewRow(
+                    brew,
+                    selected = brew.id in selected,
+                    onClick = { if (selected.isEmpty()) onOpen(brew) else toggle(brew) },
+                    onLongClick = { toggle(brew) },
+                )
+            }
         }
     }
 }
@@ -108,12 +137,30 @@ private fun SyncStatusLine(sync: SyncStatus, actions: AppActions, onRetry: () ->
     }
 }
 
-/** Mode icon, dose → yield and ratio, time, date and sync state. */
+/** How many brews are picked, with Compare once there are enough (docs/adr/0022-compare-and-trends.md). */
 @Composable
-private fun BrewRow(brew: Brew, onClick: () -> Unit) {
+private fun CompareBar(count: Int, onCancel: () -> Unit, onCompare: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.compare_picked, count, Comparison.MAX),
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+        Button(onClick = onCompare, enabled = count >= Comparison.MIN) { Text(stringResource(R.string.compare)) }
+    }
+}
+
+/** Mode icon, dose → yield and ratio, time, date and sync state; outlined while picked for a comparison. */
+@Composable
+private fun BrewRow(brew: Brew, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clip(CardDefaults.shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+    ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(brew.mode.icon), contentDescription = null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
