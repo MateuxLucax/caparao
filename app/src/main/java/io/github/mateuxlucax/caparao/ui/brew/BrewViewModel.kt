@@ -121,10 +121,11 @@ class BrewViewModel(
         _uiState.update { it.copy(dose = grams) }
     }
 
-    /** From the dose to weighing the beans. */
+    /** From the dose to weighing the beans: tares, so a container already on the scale isn't counted. */
     fun weigh() {
         if (_uiState.value.step != BrewStep.DOSE || _uiState.value.dose == null) return
         _uiState.update { it.copy(step = BrewStep.WEIGH) }
+        scale.tare()
     }
 
     /** Zero the scale, to weigh the beans without the container. */
