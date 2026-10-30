@@ -31,13 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
@@ -117,7 +116,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val target = step.targetWeightGrams
     if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
-        CupToTarget(fill, ((previousTarget ?: 0.0) / target).toFloat(), color)
+        CupToTarget(fill, color)
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
             style = MaterialTheme.typography.headlineSmall,
@@ -208,26 +207,26 @@ private fun ReachedCheck(label: String?) {
 
 /** The cup filling toward a dashed target line; the last target as a faint line below it. */
 @Composable
-private fun CupToTarget(fill: Float, previous: Float, color: Color) {
+private fun CupToTarget(fill: Float, color: Color) {
     val colors = MaterialTheme.colorScheme
     Canvas(Modifier.size(160.dp)) {
         scale(size.width / 120f, pivot = Offset.Zero) {
-            // The bowl spans y 20..100; the target line sits at y 32.
+            // A soft rounded cup spanning y 20..100; the target is a short tick across its right side, below the rim.
             val bowl = Path().apply {
-                moveTo(26f, 20f)
-                lineTo(94f, 20f)
-                lineTo(88f, 84f)
-                quadraticTo(86f, 100f, 70f, 100f)
-                lineTo(50f, 100f)
-                quadraticTo(34f, 100f, 32f, 84f)
+                moveTo(28f, 24f)
+                quadraticTo(28f, 20f, 32f, 20f)
+                lineTo(88f, 20f)
+                quadraticTo(92f, 20f, 92f, 24f)
+                lineTo(88f, 76f)
+                cubicTo(86f, 96f, 74f, 100f, 60f, 100f)
+                cubicTo(46f, 100f, 34f, 96f, 32f, 76f)
                 close()
             }
-            fun levelY(f: Float) = 100f - 68f * f
+            fun levelY(f: Float) = 100f - 60f * f
             clipPath(bowl) { drawRect(color.copy(alpha = 0.35f), Offset(20f, levelY(fill)), Size(80f, 100f - levelY(fill))) }
-            drawPath(bowl, colors.onSurface, style = Stroke(width = 2f))
-            if (previous > 0f) drawLine(colors.outlineVariant, Offset(28f, levelY(previous)), Offset(92f, levelY(previous)), strokeWidth = 1f)
-            drawLine(color, Offset(22f, levelY(1f)), Offset(98f, levelY(1f)), strokeWidth = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f)))
-            drawRoundRect(colors.surfaceContainerHighest, Offset(14f, 104f), Size(92f, 10f), CornerRadius(5f))
+            drawPath(bowl, colors.onSurface, style = Stroke(width = 3f, join = StrokeJoin.Round))
+            val target = levelY(1f)
+            drawLine(color, Offset(84f, target), Offset(97f, target), strokeWidth = 4f, cap = StrokeCap.Round)
         }
     }
 }
