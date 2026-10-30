@@ -19,6 +19,13 @@ class BrewRepository(private val dao: BrewDao) {
 
     suspend fun delete(id: String) = dao.delete(id)
 
+    /** Saves [brew]'s notes (coffee, grind, temperature, rating, notes) and marks it unsynced. */
+    suspend fun updateNotes(brew: Brew) =
+        dao.updateNotes(brew.id, brew.coffee, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
+
+    /** Past coffees, newest first, for the picker; the first is the one suggested for the next brew. */
+    suspend fun recentCoffees(limit: Int = 8): List<String> = dao.recentCoffees(limit)
+
     /** The server confirmed [id] at [at] (epoch ms). */
     suspend fun markSynced(id: String, at: Long) = dao.markSynced(id, at)
 
@@ -37,6 +44,13 @@ class BrewRepository(private val dao: BrewDao) {
         flowPeakGramsPerSecond = flowPeak,
         interrupted = interrupted,
         syncedAt = syncedAt,
+        recipeId = recipeId,
+        recipeName = recipeName,
+        coffee = coffee,
+        grind = grind,
+        waterTempCelsius = waterTempCelsius,
+        rating = rating,
+        notes = notes,
     )
 
     private fun Brew.toEntity() = BrewEntity(
@@ -51,5 +65,12 @@ class BrewRepository(private val dao: BrewDao) {
         flowPeak = flowPeakGramsPerSecond,
         interrupted = interrupted,
         syncedAt = syncedAt,
+        recipeId = recipeId,
+        recipeName = recipeName,
+        coffee = coffee,
+        grind = grind,
+        waterTempCelsius = waterTempCelsius,
+        rating = rating,
+        notes = notes,
     )
 }

@@ -33,7 +33,7 @@
     <string name="section_scale">Scale</string>
     <string name="section_scale_text">Pair a Timemore Dot. If it is paired to another phone, hold its button until the light blinks fast.</string>
     <string name="section_target_ratio">Target ratio</string>
-    <string name="section_target_ratio_text">The live brew shows how close you are, so you know when to stop.</string>
+    <string name="section_target_ratio_text">For a free brew; a recipe brings its own. The live brew shows how close you are, so you know when to stop.</string>
     <string name="version">Version %1$s</string>
 
     <!-- Scale connection -->
@@ -150,4 +150,76 @@
     <string name="error_other">Sending failed. The app tries again later.</string>
     <string name="permission_granted">Bluetooth allowed</string>
     <string name="reconnect">Reconnect</string>
+
+    <!-- Recipes -->
+    <string name="tab_recipes">Recipes</string>
+    <string name="new_recipe">New recipe</string>
+    <string name="edit_recipe">Edit recipe</string>
+    <string name="no_recipes_title">No recipes yet</string>
+    <string name="no_recipes_text">Recipes you create show up here. Start a brew from one to follow its dose and ratio.</string>
+    <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g of water</string>
+    <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
+    <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
+    <string name="recipe_name">Name</string>
+    <string name="recipe_method">Method</string>
+    <string name="recipe_dose">Dose</string>
+    <string name="recipe_ratio">Ratio</string>
+    <string name="recipe_target_water">%1$s g of water</string>
+    <string name="recipe_target_yield">%1$s g of yield</string>
+    <string name="recipe_grind">Grind</string>
+    <string name="recipe_temp">Water temperature</string>
+    <string name="recipe_window">Time from the first drop</string>
+    <string name="recipe_window_min">From</string>
+    <string name="recipe_window_max">To</string>
+    <string name="unit_seconds" translatable="false">s</string>
+    <string name="unit_celsius" translatable="false">°C</string>
+    <string name="recipe_notes">Notes</string>
+    <string name="recipe_steps">Steps</string>
+    <string name="recipe_steps_text">Weight is what the scale shows, counted from the tare. Start counts from the first water.</string>
+    <string name="step_bloom">Bloom</string>
+    <string name="step_pour">Pour</string>
+    <string name="step_wait">Wait</string>
+    <string name="step_swirl">Swirl</string>
+    <string name="step_weight">Up to</string>
+    <string name="step_start">Start</string>
+    <string name="add_step">Add step</string>
+    <string name="remove_step">Remove step</string>
+    <string name="required">Required</string>
+    <string name="recipe_error_dose">From 1 to 100 g</string>
+    <string name="recipe_error_ratio">From 1:0.5 to 1:30</string>
+    <string name="recipe_error_temp">From 1 to 100 °C</string>
+    <string name="recipe_error_window">Whole seconds, the first not above the second.</string>
+    <string name="recipe_error_steps">Each step starts at or after the one before, as m:ss. Each pour goes higher than the one before.</string>
+    <string name="recipe_error_no_steps">Add at least one step.</string>
+    <string name="delete_recipe_title">Delete this recipe?</string>
+    <string name="delete_recipe_text">Brews that followed it keep its name.</string>
+    <string name="free_brew">Free brew</string>
+    <string name="recipe_label">Recipe</string>
+
+    <!-- Guided brew -->
+    <string name="guide_bloom">Bloom to %1$s g</string>
+    <string name="guide_pour">Pour to %1$s g</string>
+    <string name="guide_wait">Wait</string>
+    <string name="guide_swirl">Swirl the dripper</string>
+    <string name="guide_starts_in">Starts in %1$s</string>
+    <string name="guide_next_pour">Next pour to %1$s g</string>
+    <string name="guide_on_time">On time</string>
+    <string name="guide_ahead">%1$d s ahead</string>
+    <string name="guide_behind">%1$d s behind</string>
+    <string name="guide_over">%1$s g past the target</string>
+    <string name="guide_drawdown">Let it drain</string>
+    <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
+    <string name="guide_window">Target %1$s–%2$s s</string>
+    <string name="section_guide_alerts">Guide alerts</string>
+    <string name="guide_alerts_text">On each step, near the target and in the last 5 seconds before the next one. The screen always shows them.</string>
+    <string name="guide_vibration">Vibrate</string>
+    <string name="guide_sound">Sound</string>
+
+    <!-- Brew notes -->
+    <string name="brew_coffee">Coffee</string>
+    <string name="brew_rating">Rating</string>
+    <string name="rating_stars">%1$d of 5</string>
+    <string name="edit_notes">Edit notes</string>
+    <string name="brew_notes">Notes</string>
+    <string name="no_notes">No notes yet.</string>
 </resources>

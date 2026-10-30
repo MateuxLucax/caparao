@@ -16,6 +16,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Card
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +68,7 @@ fun BrewDetailScreen(viewModel: BrewDetailViewModel, onClose: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             BrewNumbers(brew)
+            NotesCard(state, viewModel)
             BrewChart(
                 state.samples,
                 brew.durationMs,
@@ -82,3 +86,38 @@ fun BrewDetailScreen(viewModel: BrewDetailViewModel, onClose: () -> Unit) {
         )
     }
 }
+
+/** The brew's recipe and notes, or the form to edit them. */
+@Composable
+private fun NotesCard(state: BrewDetailUiState, viewModel: BrewDetailViewModel) {
+    val brew = state.brew ?: return
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.brew_notes), style = MaterialTheme.typography.titleMedium)
+            val form = state.notes
+            if (form != null) {
+                BrewNotesFields(form, state.coffees, viewModel::changeNotes)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = viewModel::cancelNotes) { Text(stringResource(R.string.cancel)) }
+                    TextButton(onClick = viewModel::saveNotes, enabled = form.valid) { Text(stringResource(R.string.save)) }
+                }
+                return@Column
+            }
+            val lines = listOfNotNull(
+                brew.recipeName?.let { "${stringResource(R.string.recipe_label)}: $it" },
+                brew.coffee?.let { "${stringResource(R.string.brew_coffee)}: $it" },
+                brew.grind?.let { "${stringResource(R.string.recipe_grind)}: $it" },
+                brew.waterTempCelsius?.let { "${stringResource(R.string.recipe_temp)}: $it ${stringResource(R.string.unit_celsius)}" },
+                brew.rating?.let { "${stringResource(R.string.brew_rating)}: ${stringResource(R.string.rating_stars, it)}" },
+                brew.notes,
+            )
+            if (lines.isEmpty()) {
+                Text(stringResource(R.string.no_notes), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                lines.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            }
+            TextButton(onClick = viewModel::editNotes) { Text(stringResource(R.string.edit_notes)) }
+        }
+    }
+}
+

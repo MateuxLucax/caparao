@@ -40,6 +40,12 @@ class ContractTest {
             flowAvgGramsPerSecond = json.getDouble("flow_avg_gps"),
             flowPeakGramsPerSecond = json.getDouble("flow_peak_gps"),
             interrupted = json.getBoolean("interrupted"),
+            recipeName = json.optString("recipe_name").ifEmpty { null },
+            coffee = json.optString("coffee").ifEmpty { null },
+            grind = json.optString("grind").ifEmpty { null },
+            waterTempCelsius = if (json.has("water_temp_c")) json.getInt("water_temp_c") else null,
+            rating = if (json.has("rating")) json.getInt("rating") else null,
+            notes = json.optString("notes").ifEmpty { null },
         )
         val samples = json.getJSONArray("samples").let { array ->
             (0 until array.length()).map { array.getJSONObject(it) }
@@ -90,8 +96,12 @@ class ContractTest {
         val brew = Brew("a3c1d7e4-8f20-4b6a-b5d9-1e7c3a9f0b24", BrewMode.FILTER, 1_792_935_000_000, 195_000, 15.0, 250.0, null, 1.3, 4.8, false)
         val body = JSONObject(ExporterClient.body(brew, listOf(BrewSample(0, 0.0, 0.0))).toString())
 
+        // Without notes, exactly the required keys: servers that predate the notes still accept it.
         assertEquals(schema.getJSONArray("required").strings(), body.keyNames())
-        assertEquals(schema.getJSONObject("properties").keyNames(), body.keyNames())
+
+        val noted = brew.copy(recipeName = "V60", coffee = "Caparaó", grind = "22", waterTempCelsius = 94, rating = 4, notes = "Sweet")
+        val all = JSONObject(ExporterClient.body(noted, emptyList()).toString())
+        assertEquals(schema.getJSONObject("properties").keyNames(), all.keyNames())
         assertTrue("null, not left out", body.isNull("time_to_first_drop_s"))
         val sampleSchema = schema.getJSONObject("properties").getJSONObject("samples").getJSONObject("items")
         assertEquals(sampleSchema.getJSONArray("required").strings(), body.getJSONArray("samples").getJSONObject(0).keyNames())

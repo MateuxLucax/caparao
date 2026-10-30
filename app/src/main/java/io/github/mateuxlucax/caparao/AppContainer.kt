@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.scale.AndroidBleTransport
@@ -22,6 +23,8 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
@@ -38,7 +41,12 @@ class AppContainer(context: Context) {
 
     val settings = SettingsStore(SettingsStore.open(appContext))
 
-    val brews = BrewRepository(BrewDatabase.open(appContext).brews())
+    /** Public for the screenshot test, which empties it between runs. */
+    val database = BrewDatabase.open(appContext)
+
+    val brews = BrewRepository(database.brews())
+
+    val recipes = RecipeRepository(database.recipes())
 
     private val exporter = ExporterClient()
 
@@ -80,12 +88,14 @@ class AppContainer(context: Context) {
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
+        initializer { RecipesViewModel(recipes) }
+        initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved) }
         initializer {
             BrewViewModel(
-                requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,
+                requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
             )
         }

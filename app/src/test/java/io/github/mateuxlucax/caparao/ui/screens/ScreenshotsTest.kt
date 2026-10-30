@@ -22,6 +22,18 @@ import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
+import io.github.mateuxlucax.caparao.data.local.SeedBuiltInRecipes
+import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performScrollTo
+import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
@@ -62,8 +74,9 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val actions = AppActions(requestBluetoothPermissions = { true }, bluetoothPermissionGranted = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
-    private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).allowMainThreadQueries().build()
+    private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     private val brews = BrewRepository(db.brews())
+    private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("screenshots", Context.MODE_PRIVATE))
     private val locale get() = context.resources.configuration.locales[0]
 
@@ -97,11 +110,13 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             initializer { OnboardingViewModel(scale) {} }
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
+            initializer { RecipesViewModel(recipes) }
+            initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, settings.syncStatus) {} }
             initializer { ServerViewModel(settings, { _, _ -> error("no server in screenshots") }, {}, {}) }
             initializer {
                 BrewViewModel(
-                    requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,
+                    requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                     clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs },
                 )
             }
@@ -141,6 +156,10 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             click(tab.label)
             capture(tab.name.lowercase())
         }
+        // The built-in V60 recipe in the editor: its name, then its method on the card.
+        click(R.string.tab_recipes)
+        compose.onAllNodesWithText("V60").onFirst().performClick()
+        capture("recipe-editor")
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */
@@ -156,7 +175,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("brew-live")
         playUntilShown(scale, R.string.brew_saved, 60_000)
         capture("brew-summary")
-        click(R.string.close)
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         click(R.string.tab_brews)
         capture("brews-list")
         compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.0, locale)), substring = true).performClick()
@@ -198,11 +217,45 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         capture("brew-filter-summary")
-        click(R.string.close)
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         click(R.string.tab_brews)
         compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} →", substring = true).performClick()
         waitFor(R.string.delete)
         capture("brew-filter-detail")
+    }
+
+    /**
+     * The guided filter brew (wireframes 3a–3e) on the synthetic filter session, following a recipe shaped like it:
+     * bloom to 50 g, a wait, then pours to 100, 150 and 200 g at 0:35, 0:50 and 1:00 from the first water (20 s in).
+     */
+    @Test
+    fun filterGuide() {
+        val recipe = Recipe(
+            id = "screenshot-guide", name = "V60 · 15 g", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 17.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 50.0, 0),
+                RecipeStep(StepKind.WAIT, null, 10_000),
+                RecipeStep(StepKind.POUR, 100.0, 35_000),
+                RecipeStep(StepKind.POUR, 150.0, 50_000),
+                RecipeStep(StepKind.POUR, 200.0, 60_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        runBlocking { recipes.save(recipe) }
+        settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
+        val scale = open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        click(R.string.next)
+        play(scale, 24_000)
+        capture("guide-bloom")
+        play(scale, 45_000)
+        capture("guide-wait")
+        play(scale, 59_000)
+        capture("guide-pour")
+        play(scale, 69_000)
+        capture("guide-countdown")
+        play(scale, 89_500)
+        capture("guide-drawdown")
     }
 
     private companion object {

@@ -26,7 +26,11 @@ class TranslationsTest {
     fun portugueseIsActuallyTranslated() {
         // Units, mode names shared by both languages and the like may match; most strings must not.
         val same = english.filter { (key, text) -> portuguese[key] == text }.keys
-        assertEquals(setOf("unit_grams", "unit_grams_per_second", "mode_espresso", "battery_percent", "permissions_title", "label_dose", "ratio_value"), same)
+        val allowed = setOf(
+            "unit_grams", "unit_grams_per_second", "mode_espresso", "battery_percent", "permissions_title", "label_dose", "ratio_value",
+            "recipe_dose", "step_bloom", "recipe_summary_espresso", "recipe_summary_espresso_no_window",
+        )
+        assertEquals(allowed, same)
     }
 
     /** Positional arguments such as `%1$s` and `%2$d`, sorted. */

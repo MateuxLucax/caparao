@@ -25,22 +25,36 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
-    /** The dose used last time in [mode], to start the next brew from. */
+    /**
+     * The recipe chosen last time in [mode], preselected on the next brew (docs/adr/0018-recipes.md): null when none was
+     * ever chosen, [FREE_BREW] when the last brew had no recipe.
+     */
+    fun lastRecipeId(mode: BrewMode): String? = prefs.getString(KEY_LAST_RECIPE + mode.name.lowercase(), null)
+
+    fun setLastRecipeId(mode: BrewMode, id: String) = prefs.edit().putString(KEY_LAST_RECIPE + mode.name.lowercase(), id).apply()
+
+    /** The dose of the last free brew (no recipe) in [mode], to start the next one from. */
     fun lastDose(mode: BrewMode): Double? =
         prefs.getFloat(KEY_LAST_DOSE + mode.name.lowercase(), -1f).takeIf { it > 0 }?.toDouble()
 
     fun setLastDose(mode: BrewMode, grams: Double) =
         prefs.edit().putFloat(KEY_LAST_DOSE + mode.name.lowercase(), grams.toFloat()).apply()
 
-    /**
-     * The X of the 1:X ratio to stop at in [mode]: the per-mode default until recipes carry their own
-     * (docs/adr/0018-recipes.md).
-     */
+    /** The X of the 1:X ratio a free brew (no recipe) in [mode] aims for; a recipe carries its own. */
     fun targetRatio(mode: BrewMode): Double =
         prefs.getFloat(KEY_TARGET_RATIO + mode.name.lowercase(), -1f).takeIf { it > 0 }?.toDouble() ?: defaultTargetRatio(mode)
 
     fun setTargetRatio(mode: BrewMode, ratio: Double) =
         prefs.edit().putFloat(KEY_TARGET_RATIO + mode.name.lowercase(), ratio.toFloat()).apply()
+
+    /** Guided brew alerts (docs/adr/0019-guided-brew.md): vibration on by default, sound off. */
+    var guideVibration: Boolean
+        get() = prefs.getBoolean(KEY_GUIDE_VIBRATION, true)
+        set(value) = prefs.edit().putBoolean(KEY_GUIDE_VIBRATION, value).apply()
+
+    var guideSound: Boolean
+        get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
+        set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
 
     /** The upload server's base URL, empty when none is set. */
     val serverUrl: String get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
@@ -92,6 +106,9 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val FILE = "settings"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
         private const val KEY_LAST_DOSE = "last_dose_"
+        private const val KEY_LAST_RECIPE = "last_recipe_"
+        private const val KEY_GUIDE_VIBRATION = "guide_vibration"
+        private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"
@@ -101,6 +118,9 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_LAST_ERROR_BREW = "last_sync_error_brew"
 
         private val SYNC_KEYS = setOf(KEY_SERVER_URL, KEY_TOKEN, KEY_LAST_SYNC, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL)
+
+        /** [lastRecipeId] after a brew without a recipe. */
+        const val FREE_BREW = ""
 
         /** 1:2 for espresso, 1:16 for filter: common starting points at the bar. */
         fun defaultTargetRatio(mode: BrewMode): Double = when (mode) {
