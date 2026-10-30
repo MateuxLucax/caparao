@@ -73,6 +73,7 @@ import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
@@ -329,6 +330,13 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
 private fun Metric(label: String, value: String, modifier: Modifier = Modifier, large: Boolean = false) {
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = (if (large) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge).merge(Tabular))
+        if (large) {
+            // The result opens light and narrow and springs to heavy and wide in Roboto Flex.
+            var shown by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { shown = true }
+            Text(value, style = MaterialTheme.typography.displaySmall.merge(animatedFlex(if (shown) 760 else 200, if (shown) 115 else 70)), maxLines = 1)
+        } else {
+            Text(value, style = MaterialTheme.typography.titleLarge.merge(Tabular))
+        }
     }
 }

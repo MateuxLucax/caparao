@@ -39,6 +39,10 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
+import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 
 private val Tabular = TabularFlex
 
@@ -68,6 +72,8 @@ fun ScaleReadout(
     timerColor: Color? = null,
     /** Home: the weight fills the width and the timer and flow sit in labelled cards, to read from across the bench. */
     spacious: Boolean = false,
+    /** Home: whether the scale is connected; the weight is light until it is. */
+    live: Boolean = true,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
@@ -78,14 +84,36 @@ fun ScaleReadout(
         timerColor ?: if (timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "timer",
     )
+    // Roboto Flex's axes carry the state (docs/adr/0025-material-3-expressive.md): the weight is light until the scale
+    // connects, heavy and wide while it counts, and pulses to the heaviest the moment the ratio is reached.
+    var pulse by remember { mutableStateOf(false) }
+    LaunchedEffect(ratio?.onTarget) {
+        if (ratio?.onTarget == true) {
+            pulse = true
+            delay(350)
+            pulse = false
+        }
+    }
+    val counting = timerRunning || ratio?.onTarget == true
+    val weightStyle = animatedFlex(
+        weight = when {
+            !live -> 300
+            pulse -> 1000
+            ratio?.onTarget == true -> 820
+            timerRunning -> 720
+            else -> 560
+        },
+        // Home's weight already fills the width.
+        width = if (spacious) 100 else if (counting) 120 else 108,
+    )
+    val timerStyle = animatedFlex(if (timerRunning) 640 else 420)
     val weightAndTimer = @Composable {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     Format.grams(weight.toDouble(), locale),
-                    style = Tabular,
+                    style = weightStyle,
                     fontSize = 64.sp,
-                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
@@ -95,7 +123,7 @@ fun ScaleReadout(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(Tabular), color = shownTimerColor)
+            Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(timerStyle), color = shownTimerColor)
         }
     }
     if (ratio == null && spacious) {
@@ -103,9 +131,8 @@ fun ScaleReadout(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     Format.grams(weight.toDouble(), locale),
-                    style = Tabular,
+                    style = weightStyle,
                     fontSize = 120.sp,
-                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(

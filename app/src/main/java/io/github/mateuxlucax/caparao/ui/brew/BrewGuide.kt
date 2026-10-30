@@ -49,6 +49,7 @@ import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.flex
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -124,7 +125,8 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
             label = "stage",
         ) { shown ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                // Condensed and heavy in Roboto Flex: the step to do now.
+                Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall.merge(flex(700, 85)), textAlign = TextAlign.Center)
                 shown.text?.let {
                     Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
