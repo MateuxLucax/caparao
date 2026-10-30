@@ -17,9 +17,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +33,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.icon
@@ -122,15 +120,11 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
 @Composable
 private fun ModeSelector(connected: Boolean, onBrew: (BrewMode) -> Unit) {
     val options = listOf<BrewMode?>(null) + BrewMode.entries
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, mode ->
-            SegmentedButton(
-                selected = mode == null,
-                onClick = { if (mode != null) onBrew(mode) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                enabled = mode == null || connected,
-                label = { Text(stringResource(mode?.label ?: R.string.mode_scale)) },
-            )
-        }
-    }
+    ChoiceGroup(
+        options,
+        selected = null,
+        onSelect = { if (it != null) onBrew(it) },
+        label = { stringResource(it?.label ?: R.string.mode_scale) },
+        enabled = { it == null || connected },
+    )
 }
