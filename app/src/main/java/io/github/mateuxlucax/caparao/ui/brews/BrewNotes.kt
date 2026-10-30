@@ -5,14 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -72,7 +74,14 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
         val others = coffees.filter { it != form.coffee }
         if (others.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                others.forEach { coffee -> SuggestionChip(onClick = { onChange(form.copy(coffee = coffee)) }, label = { Text(coffee) }) }
+                others.forEach { coffee ->
+                    FilledTonalButton(
+                        onClick = { onChange(form.copy(coffee = coffee)) },
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
+                    ) { Text(coffee) }
+                }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

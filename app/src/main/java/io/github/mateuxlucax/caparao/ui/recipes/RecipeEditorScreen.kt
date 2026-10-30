@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -28,7 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -80,7 +81,13 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
                 },
-                actions = { if (!state.isNew) TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) } },
+                actions = {
+                    if (!state.isNew) {
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { confirmDelete = true }) {
+                            Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete))
+                        }
+                    }
+                },
             )
         },
     ) { padding ->
@@ -108,7 +115,12 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
     TextField(form.method, { v -> viewModel.edit { it.copy(method = v) } }, R.string.recipe_method, Field.METHOD in errors, R.string.required, text = true)
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         RecipeForm.METHODS.getValue(form.mode).forEach { method ->
-            SuggestionChip(onClick = { viewModel.edit { it.copy(method = method) } }, label = { Text(method) })
+            FilledTonalButton(
+                    onClick = { viewModel.edit { it.copy(method = method) } },
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
+                ) { Text(method) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -173,7 +185,15 @@ private fun KindPicker(kind: StepKind, modifier: Modifier, onPick: (StepKind) ->
         OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(kind.label), maxLines = 1) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
             StepKind.entries.forEach { entry ->
-                DropdownMenuItem(text = { Text(stringResource(entry.label)) }, onClick = { open = false; onPick(entry) })
+                DropdownMenuItem(
+                    text = { Text(stringResource(entry.label)) },
+                    onClick = { open = false; onPick(entry) },
+                    leadingIcon = if (entry == kind) {
+                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
+                    } else {
+                        null
+                    },
+                )
             }
         }
     }
