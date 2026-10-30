@@ -24,6 +24,11 @@ the app's own and the system's, to give the app more personality.
   | Mountain | `#3E5C76` | Caparaó mountain blue |
 
   One is kept; the others are dropped before this is accepted.
+- Screens use only the scheme's color roles (https://m3.material.io/styles/color/roles), never fixed colors, so both
+  options work unchanged: `primary` for the key accents (weight line, timer, progress, selected brew), `tertiary` for the
+  contrasting second series (flow line, inside the target window), `error` for failures and past the window,
+  `onSurface`/`onSurfaceVariant` for text, `surfaceContainerHighest` for empty tracks and `outlineVariant` for dividers.
+  Each `on*` color goes only on its own pair (`onErrorContainer` on `errorContainer`).
 - The setting lives in `SettingsStore` and applies at once, without restarting the app. Light and dark still follow
   the system.
 
