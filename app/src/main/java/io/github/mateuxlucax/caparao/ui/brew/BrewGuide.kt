@@ -9,6 +9,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlin.math.PI
 import kotlin.math.sin
@@ -105,21 +109,31 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
-    AnimatedContent(
-        stage,
-        modifier.fillMaxWidth(),
-        transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
-        label = "stage",
-    ) { shown ->
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            StageAnimation(shown)
-            Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            shown.text?.let {
-                Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
+        if (stage.pictured) {
+            MorphingShape(stage.ordinal, Modifier.size(144.dp)) {
+                AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+            }
+        }
+        AnimatedContent(
+            stage,
+            Modifier.fillMaxWidth(),
+            transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+            label = "stage",
+        ) { shown ->
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                shown.text?.let {
+                    Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
             }
         }
     }
 }
+
+/** Whether the stage has a picture; in the brewing stages the live readout is the picture. */
+private val GuideStage.pictured get() = this == GuideStage.CUP || this == GuideStage.TARE || this == GuideStage.FIRST_DROP || this == GuideStage.POUR
 
 private const val LOOP_MS = 2_400
 
@@ -130,7 +144,7 @@ private const val LOOP_MS = 2_400
  */
 @Composable
 private fun StageAnimation(stage: GuideStage) {
-    if (stage == GuideStage.DOSE || stage == GuideStage.DONE || stage == GuideStage.BREWING_ESPRESSO || stage == GuideStage.BREWING_FILTER) return
+    if (!stage.pictured) return
     val context = LocalContext.current
     val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
     val t = if (still) {

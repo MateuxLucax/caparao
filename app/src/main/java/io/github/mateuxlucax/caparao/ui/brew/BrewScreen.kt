@@ -1,7 +1,11 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -121,7 +126,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             AnimatedContent(
                 state.step,
                 Modifier.weight(1f).fillMaxWidth(),
-                transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
+                transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
                 label = "step",
             ) { step ->
                 when (step) {
@@ -263,11 +268,21 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             Button(onClick = onClose, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
             return@Column
         }
-        Text(stringResource(R.string.brew_saved), style = MaterialTheme.typography.headlineMedium)
-        if (brew.interrupted) {
-            Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+        // The result springs open.
+        val still = LocalContext.current.let { remember { Settings.Global.getFloat(it.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } }
+        val open = remember { Animatable(if (still) 1f else 0.85f) }
+        LaunchedEffect(Unit) { open.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
+        Column(
+            Modifier.graphicsLayer { scaleX = open.value; scaleY = open.value; alpha = ((open.value - 0.85f) / 0.15f).coerceIn(0f, 1f) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(stringResource(R.string.brew_saved), style = MaterialTheme.typography.headlineMedium)
+            if (brew.interrupted) {
+                Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+            }
+            BrewNumbers(brew)
         }
-        BrewNumbers(brew)
         // Asked after the brew, never before, so the main flow stays a few taps (docs/adr/0021-brew-notes.md).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
