@@ -8,5 +8,5 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 filter="io.github.mateuxlucax.caparao.ui.screens.Screenshots${VARIANTS:-*}Test${ONLY:+.$ONLY}"
-./gradlew --console=plain -q :app:recordRoborazziDebug --tests "$filter"
+./gradlew --console=plain -q :app:testDebugUnitTest -Pscreenshots --rerun --tests "$filter"
 echo "Screenshots in docs/screenshots/"

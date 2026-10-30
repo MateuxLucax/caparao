@@ -2,8 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
-    // recordRoborazziDebug writes docs/screenshots (scripts/screenshots.sh).
-    id("io.github.takahirom.roborazzi")
     // Gradle's own, for the test tasks' JaCoCo settings below; AGP still writes the report.
     jacoco
 }
@@ -73,7 +71,12 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // Robolectric's SDK 37 sandbox reaches into the JDK's FileDescriptor internals.
-        unitTests.all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED") }
+        unitTests.all {
+            it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED")
+            // -Pscreenshots (scripts/screenshots.sh): Roborazzi writes docs/screenshots. Only its library is used, as its
+            // Gradle plugin does not support AGP 9 yet.
+            it.systemProperty("roborazzi.test.record", project.hasProperty("screenshots").toString())
+        }
     }
 
     lint {

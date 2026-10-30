@@ -51,7 +51,7 @@ import java.util.TimeZone
  * The images in docs/screenshots, rendered on the JVM (Robolectric and Roborazzi) instead of an emulator: the
  * onboarding, every tab, an espresso, the espresso guide and a filter brew, in one language and theme per subclass.
  * The recorded sessions are played frame by frame ([SessionScale]), so every image comes from the same point of the
- * session on every run. Runs only from scripts/screenshots.sh (`recordRoborazziDebug`); a plain test run skips it.
+ * session on every run. Runs only from scripts/screenshots.sh (`-Pscreenshots`); a plain test run skips it.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
