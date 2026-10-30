@@ -1,6 +1,15 @@
 package io.github.mateuxlucax.caparao.ui.recipes
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -158,18 +167,7 @@ private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditor
     Text(stringResource(R.string.recipe_steps), style = MaterialTheme.typography.titleMedium)
     Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     steps.forEachIndexed { index, step ->
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            KindPicker(step.kind, Modifier.width(112.dp)) { viewModel.updateStep(index, step.copy(kind = it)) }
-            if (step.kind.pours) {
-                TextField(step.weight, { viewModel.updateStep(index, step.copy(weight = it)) }, R.string.step_weight, error, null, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
-            } else {
-                Box(Modifier.weight(1f))
-            }
-            TextField(step.start, { viewModel.updateStep(index, step.copy(start = it)) }, R.string.step_start, error, null, Modifier.weight(1f), clock = true)
-            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { viewModel.removeStep(index) }) {
-                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
-            }
-        }
+        StepRow(step, error, { viewModel.updateStep(index, it) }, { viewModel.removeStep(index) })
     }
     if (error) ErrorText(if (steps.isEmpty()) R.string.recipe_error_no_steps else R.string.recipe_error_steps)
     OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::addStep) {
@@ -178,11 +176,38 @@ private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditor
     }
 }
 
+// One connected group per step, like a button group: kind, weight, start and remove share a height, 2dp gaps, small
+// inner corners and full outer ones.
 @Composable
-private fun KindPicker(kind: StepKind, modifier: Modifier, onPick: (StepKind) -> Unit) {
+private fun StepRow(step: StepForm, error: Boolean, onChange: (StepForm) -> Unit, onRemove: () -> Unit) {
+    val inner = CornerSize(8.dp)
+    val outer = CornerSize(50)
+    val start = RoundedCornerShape(outer, inner, inner, outer)
+    val middle = RoundedCornerShape(inner)
+    val end = RoundedCornerShape(inner, outer, outer, inner)
+    Row(Modifier.fillMaxWidth().height(StepHeight), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        KindPicker(step.kind, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
+        if (step.kind.pours) {
+            StepField(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, middle, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
+        } else {
+            Box(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer, middle))
+        }
+        StepField(step.start, { onChange(step.copy(start = it)) }, R.string.step_start, error, middle, Modifier.weight(1f), clock = true)
+        FilledTonalIconButton(onClick = onRemove, shape = end, modifier = Modifier.width(48.dp).fillMaxHeight()) {
+            Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
+        }
+    }
+}
+
+private val StepHeight = 56.dp
+
+@Composable
+private fun KindPicker(kind: StepKind, shape: Shape, modifier: Modifier, onPick: (StepKind) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(kind.label), maxLines = 1) }
+        FilledTonalButton(onClick = { open = true }, shape = shape, contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.fillMaxSize()) {
+            Text(stringResource(kind.label), maxLines = 1)
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
             StepKind.entries.forEach { entry ->
                 DropdownMenuItem(
@@ -194,6 +219,42 @@ private fun KindPicker(kind: StepKind, modifier: Modifier, onPick: (StepKind) ->
                         null
                     },
                 )
+            }
+        }
+    }
+}
+
+// A filled field without the indicator line, its label small inside, so it reads as one segment of the step group.
+@Composable
+private fun StepField(
+    value: String,
+    onValue: (String) -> Unit,
+    label: Int,
+    isError: Boolean,
+    shape: Shape,
+    modifier: Modifier,
+    suffix: String? = null,
+    clock: Boolean = false,
+) {
+    val colors = MaterialTheme.colorScheme
+    val textStyle = MaterialTheme.typography.bodyLarge
+    BasicTextField(
+        value = value,
+        onValueChange = { v -> onValue(if (clock) v.filter { it.isDigit() || it == ':' }.take(5) else v.filter { it.isDigit() || it == ',' || it == '.' }.take(6)) },
+        modifier = modifier.fillMaxHeight(),
+        singleLine = true,
+        textStyle = textStyle.copy(color = colors.onSurface),
+        cursorBrush = SolidColor(colors.primary),
+        keyboardOptions = KeyboardOptions(keyboardType = if (clock) KeyboardType.Number else KeyboardType.Decimal),
+    ) { inner ->
+        Column(
+            Modifier.fillMaxSize().background(if (isError) colors.errorContainer else colors.surfaceContainerHigh, shape).padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = if (isError) colors.onErrorContainer else colors.onSurfaceVariant, maxLines = 1)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Box(Modifier.weight(1f)) { inner() }
+                suffix?.let { Text(it, style = textStyle, color = colors.onSurfaceVariant) }
             }
         }
     }
