@@ -7,7 +7,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 
 /**
  * The Settings tab's brew preferences: the 1:X a free brew aims for in each mode, which the live brew shows as progress,
- * and the guide's alerts.
+ * the guide's alerts and the app's colors.
  */
 class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
     var guideVibration: Boolean
@@ -26,6 +26,12 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
         get() = settings.guideSound
         set(value) {
             settings.guideSound = value
+        }
+
+    var brandColors: Boolean
+        get() = settings.brandColors
+        set(value) {
+            settings.brandColors = value
         }
 
     fun ratio(mode: BrewMode): Double = settings.targetRatio(mode)
