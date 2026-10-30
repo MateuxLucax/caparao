@@ -36,7 +36,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.material3.CircularWavyProgressIndicator
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
@@ -208,41 +210,30 @@ private fun ReachedCheck(label: String?) {
 /** The cup filling toward a dashed target line; the last target as a faint line below it. */
 @Composable
 private fun CupToTarget(fill: Float, color: Color) {
-    val colors = MaterialTheme.colorScheme
+    val body = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(Modifier.size(160.dp)) {
         scale(size.width / 120f, pivot = Offset.Zero) {
-            // A soft rounded cup spanning y 20..100; the target is a short tick across its right side, below the rim.
-            val bowl = Path().apply {
-                moveTo(28f, 24f)
-                quadraticTo(28f, 20f, 32f, 20f)
-                lineTo(88f, 20f)
-                quadraticTo(92f, 20f, 92f, 24f)
-                lineTo(88f, 76f)
-                cubicTo(86f, 96f, 74f, 100f, 60f, 100f)
-                cubicTo(46f, 100f, 34f, 96f, 32f, 76f)
-                close()
-            }
-            fun levelY(f: Float) = 100f - 60f * f
-            clipPath(bowl) { drawRect(color.copy(alpha = 0.35f), Offset(20f, levelY(fill)), Size(80f, 100f - levelY(fill))) }
-            drawPath(bowl, colors.onSurface, style = Stroke(width = 3f, join = StrokeJoin.Round))
-            val target = levelY(1f)
-            drawLine(color, Offset(84f, target), Offset(97f, target), strokeWidth = 4f, cap = StrokeCap.Round)
+            // A solid cup filling in the step's colour, the target a short tick on its side below the rim.
+            val cup = Rect(26f, 20f, 94f, 100f)
+            drawCup(cup, body, color, fill * 60f / 80f)
+            val target = cup.bottom - 60f
+            drawLine(color, Offset(94f, target), Offset(104f, target), strokeWidth = 5f, cap = StrokeCap.Round)
         }
     }
 }
 
-/** A ring that empties as the wait runs out. */
+/** A wavy ring that empties as the wait runs out. */
 @Composable
 private fun CountdownRing(progress: Float, color: Color) {
     val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(Modifier.size(160.dp)) {
-        val stroke = 12.dp.toPx()
-        val inset = stroke / 2
-        val arcSize = Size(size.width - stroke, size.height - stroke)
-        drawArc(track, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-        drawArc(color, -90f, 360f * (1f - shown), false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-    }
+    CircularWavyProgressIndicator(
+        progress = { 1f - shown },
+        modifier = Modifier.size(160.dp),
+        color = color,
+        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+        trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+    )
 }
 
 @Composable

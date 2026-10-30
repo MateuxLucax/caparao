@@ -31,13 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlin.math.PI
@@ -157,47 +156,33 @@ private fun StageAnimation(stage: GuideStage) {
     }
     val colors = MaterialTheme.colorScheme
     Canvas(Modifier.size(100.dp)) {
-        // Drawn in a 120-unit square.
-        // The cup and scale sit low in the square; without the stream or drops above them, centre them on the shape.
-        val lift = if (stage == GuideStage.CUP || stage == GuideStage.TARE) 25f else 0f
-        scale(size.width / 120f, pivot = Offset.Zero) { translate(top = -lift) {
+        // Drawn in a 120-unit square: the scale at the bottom, the cup on it, the stream or drops above. Without anything
+        // above the cup, the pair moves up to the middle.
+        val shift = if (stage == GuideStage.CUP || stage == GuideStage.TARE) -18f else 0f
+        scale(size.width / 120f, pivot = Offset.Zero) { translate(top = shift) {
             val cupDrop = if (stage == GuideStage.CUP) (1f - (t / 0.5f).coerceIn(0f, 1f)).let { it * it } * 40f else 0f
             // The cup fills while the stream falls, then empties as the loop starts over.
-            val fillTop = if (stage == GuideStage.POUR) 93f - 30f * Motion.Standard.transform(t) else 93f
-            if (fillTop < 92f) clipPath(cupBowl(0f)) { drawRect(colors.primary.copy(alpha = 0.35f), Offset(30f, fillTop), Size(60f, 93f - fillTop)) }
-            drawCup(colors.onSurface, cupDrop)
-            drawRoundRect(colors.surfaceContainerHighest, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f))
-            drawRoundRect(colors.outlineVariant, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f), style = Stroke(1f))
+            val fill = if (stage == GuideStage.POUR) 0.75f * Motion.Standard.transform(t) else 0f
+            val cup = Rect(36f, 62f - cupDrop, 84f, 98f - cupDrop)
             val led = when (stage) {
                 GuideStage.TARE -> 0.35f + 0.65f * (0.5f + 0.5f * sin(2 * PI * t * 2).toFloat())
-                GuideStage.CUP -> if (t > 0.55f) 1f else 0.2f
+                GuideStage.CUP -> if (t > 0.55f) 1f else 0.25f
                 else -> 1f
             }
-            drawCircle(colors.primary.copy(alpha = led), radius = 2.5f, center = Offset(60f, 100.5f))
+            drawScale(Rect(16f, 100f, 104f, 114f), colors.secondary, colors.onSecondary, led)
+            drawCup(cup, colors.primary, colors.tertiary, fill)
             when (stage) {
                 GuideStage.FIRST_DROP -> for (i in 0..1) {
                     val p = (t * 2 + i * 0.5f) % 1f
-                    drawCircle(colors.primary, radius = 2.5f, center = Offset(60f, 8f + p * 78f))
+                    drawCircle(colors.tertiary, radius = 4f, center = Offset(60f, 26f + p * 34f), alpha = 1f - p * 0.3f)
                 }
                 GuideStage.POUR -> {
+                    val surface = cup.bottom - cup.height * fill
                     val wobble = 0.6f * sin(t * 2 * PI.toFloat() * 6)
-                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, fillTop), strokeWidth = 2f)
+                    drawLine(colors.tertiary, Offset(60f + wobble, 22f), Offset(60f, surface), strokeWidth = 4f, cap = StrokeCap.Round)
                 }
                 else -> Unit
             }
         } }
     }
-}
-
-private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) =
-    drawPath(cupBowl(lift), color, style = Stroke(width = 2f))
-
-private fun cupBowl(lift: Float) = Path().apply {
-    moveTo(39f, 55f - lift)
-    lineTo(81f, 55f - lift)
-    lineTo(77f, 82f - lift)
-    quadraticTo(75f, 93f - lift, 64f, 93f - lift)
-    lineTo(56f, 93f - lift)
-    quadraticTo(45f, 93f - lift, 43f, 82f - lift)
-    close()
 }

@@ -42,22 +42,19 @@ import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
-/** The rings are open at the bottom, a gauge like the scale's own. */
+/** The ring is open at the bottom, a gauge like the scale's own. */
 private const val ARC_START = 135f
 private const val ARC_SWEEP = 270f
 
-/** Flow that fills the inner ring; a fast espresso or a steady pour stays well under it. */
-private const val RING_FULL_FLOW = 10.0
-
-/** The live ratio against the one to stop at, for [ScaleReadout]'s rings. */
+/** The live ratio against the one to stop at, for [ScaleReadout]'s ring. */
 data class RatioTarget(val ratio: Double?, val target: Double, val progress: Float, val onTarget: Boolean)
 
 /**
  * Weight with the timer under it. Shared by Home and the live brew.
  *
- * Home shows the flow under the timer, nothing around it. With a [ratio] (the brew), two open rings go around the weight:
- * the outer one fills on the way to the target ratio and turns tertiary with a glow once the ratio reads it, the inner
- * one fills with the flow. Flow and ratio then sit under the rings as two labeled numbers.
+ * Home shows the flow under the timer, nothing around it. With a [ratio] (the brew), an open ring goes around the weight,
+ * filling on the way to the target ratio and turning tertiary with a glow once the ratio reads it. Flow and ratio then
+ * sit under the ring as two labeled numbers.
  */
 @Composable
 fun ScaleReadout(
@@ -142,15 +139,9 @@ fun ScaleReadout(
         spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
         label = "progress",
     )
-    val flowFill by animateFloatAsState(
-        (flow / RING_FULL_FLOW).coerceIn(0.0, 1.0).toFloat(),
-        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
-        label = "flow",
-    )
     val colors = MaterialTheme.colorScheme
     val colorSpec = tween<Color>(500, easing = Motion.Standard)
     val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, colorSpec, label = "outer")
-    val outerTrack by animateColorAsState(if (ratio.onTarget) colors.tertiaryContainer else colors.primaryContainer, colorSpec, label = "track")
     val ratioColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.onSurface, colorSpec, label = "ratio")
     // Rolls like the weight instead of jumping a tenth at a time.
     val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
@@ -167,22 +158,17 @@ fun ScaleReadout(
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
-                val outer = 14.dp.toPx()
+                // One thick open ring with round ends on a neutral track (docs/adr/0025-material-3-expressive.md).
+                val outer = 20.dp.toPx()
                 val o = outer / 2
                 val outerSize = Size(size.width - outer, size.height - outer)
                 val outerStyle = Stroke(outer, cap = StrokeCap.Round)
                 if (glow.value > 0f) {
                     val wide = outer * (1f + 1.5f * (1f - glow.value))
-                    drawArc(outerColor.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide))
+                    drawArc(outerColor.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
                 }
-                drawArc(outerTrack, ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = outerStyle)
+                drawArc(colors.surfaceContainerHighest, ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = outerStyle)
                 if (progress > 0.005f) drawArc(outerColor, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
-                val stroke = 8.dp.toPx()
-                val i = outer + 14.dp.toPx() + stroke / 2
-                val innerSize = Size(size.width - 2 * i, size.height - 2 * i)
-                val innerStyle = Stroke(stroke, cap = StrokeCap.Round)
-                drawArc(colors.secondaryContainer, ARC_START, ARC_SWEEP, false, Offset(i, i), innerSize, style = innerStyle)
-                if (flowFill > 0.005f) drawArc(colors.secondary, ARC_START, ARC_SWEEP * flowFill, false, Offset(i, i), innerSize, style = innerStyle)
             }
             weightAndTimer()
         }
@@ -199,7 +185,7 @@ fun ScaleReadout(
     }
 }
 
-/** A label over a number, and an optional note under it; centered under the rings. */
+/** A label over a number, and an optional note under it; centered under the ring. */
 @Composable
 private fun Stat(label: String, value: String, color: Color, note: String?, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
