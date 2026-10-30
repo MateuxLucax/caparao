@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
@@ -66,6 +67,7 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
             form.coffee, { onChange(form.copy(coffee = it.take(80))) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.brew_coffee)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            shape = MaterialTheme.shapes.medium,
         )
         val others = coffees.filter { it != form.coffee }
         if (others.isNotEmpty()) {
@@ -77,18 +79,21 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
             OutlinedTextField(
                 form.grind, { onChange(form.copy(grind = it.take(40))) }, Modifier.weight(1f),
                 label = { Text(stringResource(R.string.recipe_grind)) }, singleLine = true,
+                shape = MaterialTheme.shapes.medium,
             )
             OutlinedTextField(
                 form.temp, { onChange(form.copy(temp = it.filter(Char::isDigit).take(3))) }, Modifier.weight(1f),
                 label = { Text(stringResource(R.string.recipe_temp), maxLines = 1) }, singleLine = true,
                 suffix = { Text(stringResource(R.string.unit_celsius)) }, isError = !form.valid,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = MaterialTheme.shapes.medium,
             )
         }
         OutlinedTextField(
             form.notes, { onChange(form.copy(notes = it.take(1000))) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.recipe_notes)) },
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            shape = MaterialTheme.shapes.medium,
         )
     }
 }
@@ -99,7 +104,7 @@ private fun Rating(rating: Int?, onRate: (Int?) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.brew_rating), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         (1..5).forEach { star ->
-            IconButton(onClick = { onRate(if (rating == star) null else star) }) {
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onRate(if (rating == star) null else star) }) {
                 Icon(
                     painterResource(if (rating != null && star <= rating) R.drawable.ic_star else R.drawable.ic_star_outline),
                     contentDescription = stringResource(R.string.rating_stars, star),

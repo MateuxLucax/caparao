@@ -8,15 +8,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -95,7 +100,7 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
     if (state.justSaved) StatusLine(true, stringResource(R.string.server_saved))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         if (state.configured) {
-            TextButton(onClick = {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                 viewModel.remove()
                 url = ""
                 token = ""
@@ -104,6 +109,7 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
             Spacer(Modifier.width(1.dp))
         }
         Button(
+            shapes = ButtonDefaults.shapes(),
             onClick = {
                 // Ask for local network access now, while the user is here; the worker can't ask.
                 scope.launch {
@@ -128,7 +134,7 @@ private fun PermissionsSection(actions: AppActions) {
     BodyText(stringResource(R.string.section_permissions_text))
     StatusLine(granted, stringResource(if (granted) R.string.permission_granted else R.string.error_permission_missing))
     if (!granted) {
-        Button(onClick = {
+        Button(shapes = ButtonDefaults.shapes(), onClick = {
             scope.launch {
                 // After a "don't ask again", the request returns at once without a dialog: the settings are the way.
                 granted = actions.requestBluetoothPermissions()
@@ -146,7 +152,7 @@ private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
     ScaleStatusRow(state.scale)
     (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::reconnect) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
+        TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::reconnect) { Text(stringResource(R.string.reconnect)) }
         CopyLogButton(state.log)
     }
 }
@@ -198,7 +204,15 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            thumbContent = if (checked) {
+                { Icon(painterResource(R.drawable.ic_check), contentDescription = null, Modifier.size(SwitchDefaults.IconSize)) }
+            } else {
+                null
+            },
+        )
     }
 }
 
@@ -223,6 +237,7 @@ private fun TargetRatioSection(viewModel: TargetRatioViewModel) {
                 isError = !valid,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                shape = MaterialTheme.shapes.medium,
             )
         }
     }

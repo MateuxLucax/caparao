@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -91,15 +92,15 @@ fun ScaleStatusIcon(state: ScaleState, modifier: Modifier = Modifier) {
 /** What went wrong, what to do, and the button that does it. [onRetry] restarts the connection. */
 @Composable
 fun ScaleErrorCard(error: ScaleError, retrying: Boolean, actions: AppActions, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+    Card(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(error.title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
             Text(stringResource(error.hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
             when {
-                error == ScaleError.BLUETOOTH_OFF -> Button(onClick = actions.enableBluetooth) { Text(stringResource(R.string.turn_on_bluetooth)) }
-                error == ScaleError.PERMISSION_MISSING -> Button(onClick = actions.openAppSettings) { Text(stringResource(R.string.open_app_settings)) }
+                error == ScaleError.BLUETOOTH_OFF -> Button(shapes = ButtonDefaults.shapes(), onClick = actions.enableBluetooth) { Text(stringResource(R.string.turn_on_bluetooth)) }
+                error == ScaleError.PERMISSION_MISSING -> Button(shapes = ButtonDefaults.shapes(), onClick = actions.openAppSettings) { Text(stringResource(R.string.open_app_settings)) }
                 retrying -> Text(stringResource(R.string.retrying), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                else -> TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                else -> TextButton(shapes = ButtonDefaults.shapes(), onClick = onRetry) { Text(stringResource(R.string.retry)) }
             }
         }
     }
@@ -133,7 +134,7 @@ fun CopyLogButton(log: List<String>) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var copied by rememberSaveable { mutableStateOf(false) }
-    OutlinedButton(onClick = {
+    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = {
         scope.launch {
             clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Caparaó log", log.joinToString("\n"))))
             copied = true

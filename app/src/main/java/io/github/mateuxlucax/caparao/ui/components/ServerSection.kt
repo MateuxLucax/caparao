@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +70,7 @@ fun ServerForm(
         )
         LocalNetworkNotice(url, viewModel::isLocalNetworkBlocked, actions)
         OutlinedButton(
+            shapes = ButtonDefaults.shapes(),
             onClick = { scope.launchConnectionTest(viewModel, url, token, localNetworkAccess) },
             enabled = viewModel.canSave(url, token),
             modifier = Modifier.fillMaxWidth(),
@@ -95,6 +97,7 @@ private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: Stri
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
     )
     OutlinedTextField(
         value = token,
@@ -104,11 +107,12 @@ private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: Stri
         visualTransformation = if (showToken) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
         trailingIcon = {
-            TextButton(onClick = { showToken = !showToken }) {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = { showToken = !showToken }) {
                 Text(stringResource(if (showToken) R.string.hide_token else R.string.show_token))
             }
         },
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
@@ -143,7 +147,7 @@ private fun TestResultLine(result: TestResult?, onOpenSettings: () -> Unit) {
         result.ok -> StatusLine(true, stringResource(R.string.test_ok))
         error?.kind == SyncError.Kind.LOCAL_NETWORK_PERMISSION -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             StatusLine(false, stringResource(R.string.local_network_denied))
-            OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.open_app_settings)) }
+            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.open_app_settings)) }
         }
         error != null -> SyncErrorLine(error)
     }
@@ -205,7 +209,7 @@ private fun LocalNetworkNotice(url: String, isBlocked: suspend (String) -> Boole
     if (!blocked) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusLine(null, stringResource(R.string.local_network_needed))
-        OutlinedButton(onClick = { scope.launch { actions.requestLocalNetwork(); checks++ } }, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { scope.launch { actions.requestLocalNetwork(); checks++ } }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.local_network_allow))
         }
     }

@@ -17,11 +17,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,20 +66,21 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
             title = { Text(stringResource(R.string.delete_recipe_title)) },
             text = { Text(stringResource(R.string.delete_recipe_text)) },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete() }) { Text(stringResource(R.string.delete)) } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false; viewModel.delete() }) { Text(stringResource(R.string.delete)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (state.isNew) R.string.new_recipe else R.string.edit_recipe)) },
+                title = { Text(stringResource(if (state.isNew) R.string.new_recipe else R.string.edit_recipe), style = MaterialTheme.typography.titleLargeEmphasized) },
                 navigationIcon = {
-                    IconButton(onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
                 },
-                actions = { if (!state.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) } },
+                actions = { if (!state.isNew) TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) } },
             )
         },
     ) { padding ->
@@ -87,7 +90,7 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Form(form, state.errors, state.isNew, viewModel)
-            Button(onClick = viewModel::save, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.save)) }
+            Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::save, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.save)) }
         }
     }
 }
@@ -151,13 +154,13 @@ private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditor
                 Box(Modifier.weight(1f))
             }
             TextField(step.start, { viewModel.updateStep(index, step.copy(start = it)) }, R.string.step_start, error, null, Modifier.weight(1f), clock = true)
-            IconButton(onClick = { viewModel.removeStep(index) }) {
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { viewModel.removeStep(index) }) {
                 Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
             }
         }
     }
     if (error) ErrorText(if (steps.isEmpty()) R.string.recipe_error_no_steps else R.string.recipe_error_steps)
-    OutlinedButton(onClick = viewModel::addStep) {
+    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::addStep) {
         Icon(painterResource(R.drawable.ic_add), contentDescription = null)
         Text(stringResource(R.string.add_step), Modifier.padding(start = 8.dp))
     }
@@ -167,8 +170,8 @@ private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditor
 private fun KindPicker(kind: StepKind, modifier: Modifier, onPick: (StepKind) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton(onClick = { open = true }, Modifier.fillMaxWidth()) { Text(stringResource(kind.label), maxLines = 1) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(kind.label), maxLines = 1) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
             StepKind.entries.forEach { entry ->
                 DropdownMenuItem(text = { Text(stringResource(entry.label)) }, onClick = { open = false; onPick(entry) })
             }
@@ -213,6 +216,7 @@ private fun TextField(
             clock -> KeyboardOptions(keyboardType = KeyboardType.Number)
             else -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
         },
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
