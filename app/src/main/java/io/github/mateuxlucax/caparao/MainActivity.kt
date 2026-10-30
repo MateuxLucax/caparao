@@ -20,6 +20,9 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
+import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 
@@ -63,7 +66,8 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) lifecycleScope.launch { container.uploads.ensurePending() }
         keepScreenOnWhileConnected()
         setContent {
-            AppTheme {
+            val brandColors by container.settings.brandColorsChanges.collectAsStateWithLifecycle(container.settings.brandColors)
+            AppTheme(BrandColor.LEAF.takeIf { brandColors }) {
                 App(container.viewModelFactory, container.scale, container.settings.onboardingDone, actions, BuildConfig.VERSION_NAME)
             }
         }

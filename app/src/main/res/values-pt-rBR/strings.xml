@@ -204,6 +204,8 @@
     <string name="guide_drawdown">Deixe drenar</string>
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
+    <string name="section_colors">Cores</string>
+    <string name="colors_system">Sistema</string>
     <string name="section_guide_alerts">Alertas do guia</string>
     <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
     <string name="guide_vibration">Vibrar</string>

@@ -210,6 +210,9 @@
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
+    <string name="section_colors">Colors</string>
+    <string name="colors_system">System</string>
+    <string name="colors_brand" translatable="false">Caparaó</string>
     <string name="section_guide_alerts">Guide alerts</string>
     <string name="guide_alerts_text">On each step, near the target and in the last 5 seconds before the next one. The screen always shows them.</string>
     <string name="guide_vibration">Vibrate</string>

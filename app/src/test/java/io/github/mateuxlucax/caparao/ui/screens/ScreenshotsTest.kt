@@ -37,6 +37,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -184,6 +185,15 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             brand = it
             capture("brand-${it.name.lowercase()}")
         }
+        // The Colors section in Settings, switching from the system's colors to Caparaó's.
+        brand = null
+        click(R.string.tab_settings)
+        // "Caparaó" is also the app's title, so the option is the clickable node with that text.
+        compose.onNodeWithText(text(R.string.colors_system)).performScrollTo()
+        capture("settings-colors")
+        compose.onNode(hasText(text(R.string.colors_brand)) and hasClickAction()).performClick()
+        brand = BrandColor.LEAF
+        capture("settings-colors-brand")
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */

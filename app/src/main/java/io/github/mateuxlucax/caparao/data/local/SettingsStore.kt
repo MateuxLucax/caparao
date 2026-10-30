@@ -62,6 +62,15 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
 
+    /** Caparaó's own colors instead of the system's Material You (docs/adr/0024-brand-color-option.md); off by default. */
+    var brandColors: Boolean
+        get() = prefs.getBoolean(KEY_BRAND_COLORS, false)
+        set(value) = prefs.edit().putBoolean(KEY_BRAND_COLORS, value).apply()
+
+    /** [brandColors] now and after every change, so the theme switches at once. */
+    val brandColorsChanges: Flow<Boolean>
+        get() = prefs.changes(setOf(KEY_BRAND_COLORS)).map { brandColors }.distinctUntilChanged()
+
     /** The upload server's base URL, empty when none is set. */
     val serverUrl: String get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
 
@@ -116,6 +125,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_GUIDE_VIBRATION = "guide_vibration"
         private const val KEY_GUIDE_VIBRATION_ON = "guide_vibration_on"
         private const val KEY_GUIDE_SOUND = "guide_sound"
+        private const val KEY_BRAND_COLORS = "brand_colors"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"

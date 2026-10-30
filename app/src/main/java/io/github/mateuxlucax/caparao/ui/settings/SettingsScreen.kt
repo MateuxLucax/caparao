@@ -55,7 +55,7 @@ import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order, then the target ratios and the guide's alerts. */
+/** Server, permissions and scale, in the wireframe's order, then the target ratios, the guide's alerts and the colors. */
 @Composable
 fun SettingsScreen(
     server: ServerViewModel,
@@ -73,6 +73,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
         SectionCard(stringResource(R.string.section_target_ratio)) { TargetRatioSection(targets) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
+        SectionCard(stringResource(R.string.section_colors)) { ColorsSection(targets) }
         Text(
             stringResource(R.string.version, versionName),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -182,6 +183,22 @@ private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
         }
     }
     SwitchRow(stringResource(R.string.guide_sound), sound) { sound = it; viewModel.guideSound = it }
+}
+
+/** System colors (Material You) or Caparaó's green; the theme follows the choice at once. */
+@Composable
+private fun ColorsSection(viewModel: TargetRatioViewModel) {
+    var brand by rememberSaveable { mutableStateOf(viewModel.brandColors) }
+    val options = listOf(false to R.string.colors_system, true to R.string.colors_brand)
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = brand == value,
+                onClick = { brand = value; viewModel.brandColors = value },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) { Text(stringResource(label)) }
+        }
+    }
 }
 
 @Composable
