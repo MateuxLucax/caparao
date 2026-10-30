@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -57,7 +58,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
         }
         (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::retry) }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Readout(state, Modifier.widthIn(max = 400.dp).fillMaxWidth().alpha(if (connected) 1f else 0.45f))
+            Readout(state, connected, Modifier.widthIn(max = 400.dp).fillMaxWidth().alpha(if (connected) 1f else 0.45f))
         }
         Controls(state, connected, viewModel)
         Spacer(Modifier.height(4.dp))
@@ -65,7 +66,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
 }
 
 @Composable
-private fun Readout(state: HomeUiState, modifier: Modifier) {
+private fun Readout(state: HomeUiState, connected: Boolean, modifier: Modifier) {
     val reading = state.reading
     ScaleReadout(
         weightGrams = reading?.weightGrams ?: 0.0,
@@ -74,6 +75,7 @@ private fun Readout(state: HomeUiState, modifier: Modifier) {
         timerRunning = state.timerRunning,
         modifier = modifier,
         spacious = true,
+        live = connected,
     )
 }
 
@@ -103,9 +105,9 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val content: @Composable () -> Unit = { Icon(painterResource(icon), contentDescription = label, Modifier.size(size * 0.4f)) }
         if (primary) {
-            FilledIconButton(onClick, Modifier.size(size), enabled = enabled, content = content)
+            FilledIconButton(onClick, modifier = Modifier.size(size), enabled = enabled, shapes = IconButtonDefaults.shapes(), content = content)
         } else {
-            FilledTonalIconButton(onClick, Modifier.size(size), enabled = enabled, content = content)
+            FilledTonalIconButton(onClick, modifier = Modifier.size(size), enabled = enabled, shapes = IconButtonDefaults.shapes(), content = content)
         }
         Spacer(Modifier.height(6.dp))
         // The button already carries the label for screen readers.

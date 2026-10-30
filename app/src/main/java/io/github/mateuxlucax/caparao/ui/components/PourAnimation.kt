@@ -21,7 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -53,7 +56,6 @@ private class PourFrame(t: Float) {
     val streamTail = segment(t, 3_700f, 4_100f, EmphasizedAccelerate)
     val pouring = t in 300f..4_100f
     val led = segment(t, 300f, 700f) * (1f - segment(t, 5_000f, 5_200f, LinearEasing))
-    val halo = led * if (t < 4_100f) 0.12f + 0.16f * (0.5f + 0.5f * sin(2 * PI * t / 1_200).toFloat()) else 0.28f
     val wobble = 0.6f * sin(t / 80f)
     val settled = t in 4_100f..4_400f
 }
@@ -79,47 +81,24 @@ fun PourAnimation(modifier: Modifier = Modifier) {
         Canvas(Modifier.size(240.dp)) {
             // Drawn in a 240-unit square.
             scale(size.width / 240f, pivot = Offset.Zero) {
-                val bowl = Path().apply {
-                    moveTo(78f, 110f)
-                    lineTo(162f, 110f)
-                    lineTo(154f, 165f)
-                    quadraticTo(150f, 187f, 128f, 187f)
-                    lineTo(112f, 187f)
-                    quadraticTo(90f, 187f, 86f, 165f)
-                    close()
+                // Solid shapes, no outlines (docs/adr/0025-material-3-expressive.md): the handle, the cup, the scale.
+                val cup = Rect(76f, 108f, 164f, 188f)
+                val handle = Path().apply {
+                    moveTo(158f, 124f)
+                    cubicTo(190f, 118f, 190f, 166f, 152f, 162f)
                 }
-                val surface = 187f - frame.fill * 0.78f * 77f
-                clipPath(bowl) {
-                    drawRect(colors.primary, Offset(70f, surface), Size(100f, 190f - surface))
-                }
+                drawPath(handle, colors.secondaryContainer, style = Stroke(width = 10f, cap = StrokeCap.Round))
+                drawCup(cup, colors.secondaryContainer, colors.primary, frame.fill * 0.78f)
+                val surface = cup.bottom - cup.height * frame.fill * 0.78f
                 if (frame.pouring) {
                     val top = 6f + (surface - 6f) * frame.streamTail
                     val bottom = 6f + (surface - 6f) * frame.streamHead
                     if (bottom > top) {
-                        drawLine(
-                            colors.primary.copy(alpha = 0.9f),
-                            Offset(120f + frame.wobble, top),
-                            Offset(120f, bottom),
-                            strokeWidth = 3f,
-                            cap = StrokeCap.Round,
-                        )
-                    }
-                    if (frame.streamHead == 1f && frame.streamTail == 0f && frame.fill > 0.02f) {
-                        drawOval(colors.onPrimary.copy(alpha = 0.25f), Offset(113f, surface - 1.5f), Size(14f, 3f))
+                        drawLine(colors.primary, Offset(120f + frame.wobble, top), Offset(120f, bottom), strokeWidth = 6f, cap = StrokeCap.Round)
                     }
                 }
-                drawPath(bowl, colors.onSurface, style = Stroke(width = 2.5f))
-                val handle = Path().apply {
-                    moveTo(159f, 122f)
-                    cubicTo(186f, 118f, 186f, 160f, 154f, 157f)
-                }
-                drawPath(handle, colors.onSurface, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
-                drawRoundRect(colors.surfaceContainerHighest, Offset(36f, 190f), Size(168f, 22f), CornerRadius(11f))
-                drawRoundRect(colors.outlineVariant, Offset(36f, 190f), Size(168f, 22f), CornerRadius(11f), style = Stroke(1.5f))
-                val ledCenter = Offset(120f, 201f)
-                drawCircle(colors.primary.copy(alpha = frame.halo), radius = 11f, center = ledCenter)
-                drawCircle(colors.outline.copy(alpha = 0.4f), radius = 5f, center = ledCenter)
-                drawCircle(colors.primary.copy(alpha = frame.led), radius = 5f, center = ledCenter)
+                val scale = Rect(36f, 192f, 204f, 216f)
+                drawScale(scale, colors.secondary, colors.onSecondary, 0.35f + 0.65f * frame.led)
             }
         }
         Text(

@@ -5,6 +5,9 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +16,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
 /**
@@ -40,6 +44,20 @@ object Motion {
         val enter: EnterTransition = slideInHorizontally(tween(MEDIUM_2, easing = EmphasizedDecelerate)) { if (forward) offset else -offset } +
             fadeIn(tween(MEDIUM_2 / 2, delayMillis = MEDIUM_2 / 4, easing = EmphasizedDecelerate))
         val exit: ExitTransition = slideOutHorizontally(tween(MEDIUM_2, easing = EmphasizedAccelerate)) { if (forward) -offset else offset } +
+            fadeOut(tween(MEDIUM_2 / 4, easing = EmphasizedAccelerate))
+        return enter togetherWith exit
+    }
+
+    /**
+     * Shared axis X on a spring, for the showcase flows (onboarding and the brews, docs/adr/0025-material-3-expressive.md):
+     * the content overshoots a little as it settles.
+     */
+    fun springAxisX(forward: Boolean, density: Density): ContentTransform {
+        val offset = with(density) { 48.dp.roundToPx() }
+        val slide = spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow, IntOffset.VisibilityThreshold)
+        val enter: EnterTransition = slideInHorizontally(slide) { if (forward) offset else -offset } +
+            fadeIn(tween(MEDIUM_2 / 2, delayMillis = MEDIUM_2 / 4, easing = EmphasizedDecelerate))
+        val exit: ExitTransition = slideOutHorizontally(slide) { if (forward) -offset else offset } +
             fadeOut(tween(MEDIUM_2 / 4, easing = EmphasizedAccelerate))
         return enter togetherWith exit
     }

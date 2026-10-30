@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.recipes
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,9 +15,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,11 +24,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Box
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.ui.components.BrewModeGroup
 import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.components.label
@@ -43,16 +41,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                BrewMode.entries.forEachIndexed { index, entry ->
-                    SegmentedButton(
-                        selected = mode == entry,
-                        onClick = { viewModel.show(entry) },
-                        shape = SegmentedButtonDefaults.itemShape(index, BrewMode.entries.size),
-                        icon = { Icon(painterResource(entry.icon), contentDescription = null) },
-                    ) { Text(stringResource(entry.label)) }
-                }
-            }
+            BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp), icons = true)
             val recipes = all?.get(mode) ?: return@Column
             if (recipes.isEmpty()) {
                 EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), stringResource(R.string.no_recipes_text), Modifier.padding(top = 48.dp))

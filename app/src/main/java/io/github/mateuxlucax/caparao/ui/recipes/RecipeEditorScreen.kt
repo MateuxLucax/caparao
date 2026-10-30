@@ -26,9 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.ui.components.BrewModeGroup
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm.Field
@@ -99,15 +97,9 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
     val locale = LocalConfiguration.current.locales[0]
     // The mode decides the fields, so it is chosen once, when the recipe is created.
     if (isNew) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            BrewMode.entries.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    selected = form.mode == mode,
-                    onClick = { viewModel.edit { RecipeForm.new(mode).copy(name = it.name, dose = it.dose, grind = it.grind, temp = it.temp, notes = it.notes) } },
-                    shape = SegmentedButtonDefaults.itemShape(index, BrewMode.entries.size),
-                ) { Text(stringResource(mode.label)) }
-            }
-        }
+        BrewModeGroup(form.mode, { mode ->
+            viewModel.edit { RecipeForm.new(mode).copy(name = it.name, dose = it.dose, grind = it.grind, temp = it.temp, notes = it.notes) }
+        })
     }
     TextField(form.name, { v -> viewModel.edit { it.copy(name = v) } }, R.string.recipe_name, Field.NAME in errors, R.string.required, text = true)
     TextField(form.method, { v -> viewModel.edit { it.copy(method = v) } }, R.string.recipe_method, Field.METHOD in errors, R.string.required, text = true)

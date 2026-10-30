@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -117,7 +117,7 @@ private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: Stri
 fun StatusLine(ok: Boolean?, text: String, detail: String? = null, busy: Boolean = false) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
-            busy -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            busy -> LoadingIndicator(Modifier.size(20.dp))
             ok == true -> Icon(painterResource(R.drawable.ic_check_circle), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             else -> Icon(painterResource(R.drawable.ic_error), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error)
         }
