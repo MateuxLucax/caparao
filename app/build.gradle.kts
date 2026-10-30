@@ -2,6 +2,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    // recordRoborazziDebug writes docs/screenshots (scripts/screenshots.sh).
+    id("io.github.takahirom.roborazzi")
     // Gradle's own, for the test tasks' JaCoCo settings below; AGP still writes the report.
     jacoco
 }
@@ -125,6 +127,8 @@ dependencies {
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    // The screenshots in docs/screenshots, from the screen tests (ScreenshotsTest): test-only, nothing ships.
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.46.1")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")

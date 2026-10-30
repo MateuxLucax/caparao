@@ -1,7 +1,6 @@
 # Screenshots
 
-Taken on the Pixel 10a emulator (Android 17) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the
-status bar in demo mode and the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](../adr/0015-acceptance-and-lean-ci.md)).
+Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](../adr/0015-acceptance-and-lean-ci.md)).
 
 ## English
 

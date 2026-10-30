@@ -60,7 +60,7 @@ class AppContainer(context: Context) {
 
     /**
      * Debug builds only: plays a recorded session from the assets instead of the scale, for the emulator, which has no
-     * Bluetooth (scripts/screenshots.sh, the instrumented tests). Must run before the first screen is created.
+     * Bluetooth (scripts/e2e.sh, the instrumented tests). Must run before the first screen is created.
      */
     fun replay(session: String, startAtMs: Long) {
         scale.stop()
