@@ -214,4 +214,12 @@
     <string name="guide_alerts_text">On each step, near the target and in the last 5 seconds before the next one. The screen always shows them.</string>
     <string name="guide_vibration">Vibrate</string>
     <string name="guide_sound">Sound</string>
+
+    <!-- Brew notes -->
+    <string name="brew_coffee">Coffee</string>
+    <string name="brew_rating">Rating</string>
+    <string name="rating_stars">%1$d of 5</string>
+    <string name="edit_notes">Edit notes</string>
+    <string name="brew_notes">Notes</string>
+    <string name="no_notes">No notes yet.</string>
 </resources>
