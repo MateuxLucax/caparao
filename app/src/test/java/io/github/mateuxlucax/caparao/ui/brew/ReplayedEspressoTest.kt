@@ -1,11 +1,13 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
+import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -37,7 +39,7 @@ class ReplayedEspressoTest {
         val lines = File("src/test/resources/sessions/synthetic-espresso.jsonl").readLines()
         val scale = ReplayScaleSource(backgroundScope, lines)
         val dao = FakeBrewDao()
-        val vm = BrewViewModel(BrewMode.ESPRESSO, scale, BrewRepository(dao), SettingsStore(FakePreferences()), clock = { currentTime })
+        val vm = BrewViewModel(BrewMode.ESPRESSO, scale, BrewRepository(dao), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
         scale.start()
         vm.begin()
         vm.setDose(18.0)

@@ -48,6 +48,14 @@ Use these and only these. Adding a term means adding it here.
 | Bluetooth link | connect / pair | conectar / parear | Pair only for the Dot's one-phone pairing |
 | Remote copy | send / sync | enviar / sincronizar | "send" for actions, "sync" for timestamps |
 | Optional server | server | servidor | Always "Optional" when introduced |
+| Saved way to brew | recipe | receita | |
+| Brew without a recipe | free brew | preparo livre | |
+| Part of a filter recipe | step | etapa | |
+| First small pour that wets the bed | bloom | bloom | Not translated at the bar |
+| Pouring water to a target | pour | despejo | |
+| Pause between pours | wait | espera | |
+| Stirring the slurry by moving the dripper | swirl | agitar | |
+| Grinder setting | grind | moagem | Free text: grinders have no common scale |
 
 ## Patterns
 

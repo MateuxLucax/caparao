@@ -137,6 +137,19 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
 - `RecipeDaoTest` (instrumented): save and read back with steps in order, saving again replaces the steps, list by mode
   then name, deleting a recipe deletes its steps and keeps the brews that used it.
 
+7.2 Recipe screens:
+- A Recipes tab (wireframe 1): Espresso and Filter, one card per recipe (dose, ratio, water or yield, shot window), New
+  recipe. The editor (wireframe 2): name, method with suggestions, dose, ratio and the water or yield it gives, grind,
+  temperature, notes; filter steps (kind, cumulative weight, start as m:ss), the espresso time window; delete with
+  confirmation.
+- The brew's dose step picks a recipe or a free brew; the last choice per mode is preselected (the first recipe when
+  none was ever chosen). The recipe sets the dose and target ratio; the saved brew keeps its id, name, grind and
+  temperature. A free brew keeps the last dose and the Settings target ratio.
+- `RecipeFormTest`: required fields and ranges, steps moving forward in time and weight, the espresso window, every
+  built-in recipe round-trips through the form. `RecipeEditorViewModelTest`: create, edit, delete, a missing recipe.
+  `BrewViewModelTest`: preselection, the remembered choice (free brew too), a brew carrying the recipe's fields.
+  `AppScreensTest`: a recipe created in the tab is preselected on the next brew.
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):

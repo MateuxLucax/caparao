@@ -44,18 +44,22 @@ import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 /** The bottom-bar tabs, in order. */
 enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int) {
     HOME(R.string.tab_home, R.drawable.ic_home),
+    RECIPES(R.string.tab_recipes, R.drawable.ic_menu_book),
     BREWS(R.string.tab_brews, R.drawable.ic_receipt_long),
     SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
 }
 
 /**
- * Onboarding on first launch, then the three tabs under a top bar with the name and the scale connection.
+ * Onboarding on first launch, then the four tabs under a top bar with the name and the scale connection.
  * The scale is connected only while the app is visible (docs/adr/0008).
  */
 @Composable
@@ -90,9 +94,11 @@ fun App(
 private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppActions, versionName: String) {
     var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
+    // "edit:<id>" or "new:<mode>", saveable as a string.
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    val destination = opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
+    val destination = editing?.let { Destination.Recipe(it) } ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
     val density = LocalDensity.current
     // A brew or a saved brew comes in from the right over the tabs and goes back out the same way.
     AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState != Destination.Tabs, density) }, label = "screen") { shown ->
@@ -112,7 +118,20 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
                     brewing = null
                 }
             }
-            Destination.Tabs -> Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it })
+            is Destination.Recipe -> {
+                val target = shown.key.split(':', limit = 2).let { (kind, value) ->
+                    if (kind == "edit") RecipeEditorViewModel.Target.Edit(value) else RecipeEditorViewModel.Target.New(BrewMode.valueOf(value))
+                }
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, target) }
+                RecipeEditorScreen(viewModel(key = "recipe-${shown.key}", factory = viewModelFactory, extras = extras)) { editing = null }
+            }
+            Destination.Tabs -> Tabs(
+                viewModelFactory, actions, versionName, tab,
+                onTab = { tab = it },
+                onBrew = { brewing = it },
+                onOpen = { opened = it },
+                onRecipe = { editing = it },
+            )
         }
     }
 }
@@ -122,6 +141,7 @@ private sealed interface Destination {
     data object Tabs : Destination
     data class Brew(val mode: BrewMode) : Destination
     data class Detail(val id: String) : Destination
+    data class Recipe(val key: String) : Destination
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,6 +154,7 @@ private fun Tabs(
     onTab: (Tab) -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
+    onRecipe: (String) -> Unit,
 ) {
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -161,6 +182,12 @@ private fun Tabs(
         AnimatedContent(tab, transitionSpec = { Motion.fadeThrough() }, label = "tab") { shown ->
             when (shown) {
                 Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
+                Tab.RECIPES -> RecipesScreen(
+                    viewModel(factory = viewModelFactory),
+                    onOpen = { onRecipe("edit:${it.id}") },
+                    onNew = { onRecipe("new:${it.name}") },
+                    modifier,
+                )
                 Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     viewModel(key = "server-settings", factory = viewModelFactory),

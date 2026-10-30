@@ -26,6 +26,7 @@ import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
@@ -37,10 +38,14 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
@@ -76,6 +81,7 @@ class AppScreensTest {
 
     private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).build()
     private val brews = BrewRepository(db.brews())
+    private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
 
     private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
@@ -83,10 +89,12 @@ class AppScreensTest {
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
+        initializer { RecipesViewModel(recipes) }
+        initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
         initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
-        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings) }
+        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
     }
 
@@ -188,5 +196,32 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
 
         compose.waitUntil(5_000) { settings.serverConfigured }
+    }
+
+    @Test
+    fun aRecipeCreatedInTheRecipesTabIsPickedForTheNextBrew() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+
+        compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.onAllNodesWithText(text(R.string.required)).onFirst().assertExists()
+
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).performTextReplacement("Morning shot")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_dose))).performTextReplacement("18")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_ratio))).performTextReplacement("2,4")
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        // Back on the list, which now shows it.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+        compose.onNodeWithText("Morning shot").assertExists()
+
+        compose.onNodeWithText(text(R.string.tab_home)).performClick()
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Morning shot"), 5_000)
+        compose.onNodeWithText("Morning shot").assertIsSelected()
+        compose.onNode(hasSetTextAction()).assert(hasText("18.0"))
     }
 }
