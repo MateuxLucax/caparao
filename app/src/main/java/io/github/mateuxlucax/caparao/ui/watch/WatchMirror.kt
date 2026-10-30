@@ -5,8 +5,10 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
+import io.github.mateuxlucax.caparao.watch.WatchStepKind
 
 /** What the phone knows, mirrored to the watch (docs/adr/0023-watch-companion.md). Pure, so the JVM tests cover it. */
 object WatchMirror {
@@ -31,7 +33,25 @@ object WatchMirror {
             live.phase == BrewPhase.BREWING -> WatchState.BREWING
             else -> WatchState.READY
         }
-        return WatchSnapshot(watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs, timerRunning)
+        return WatchSnapshot(
+            watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs, timerRunning, guide(live),
+        )
+    }
+
+    /** The guide's current step, for a filter brew following a recipe; null otherwise. */
+    fun guide(brew: BrewUiState): WatchGuide? {
+        val state = brew.guide ?: return null
+        val steps = brew.steps
+        if (steps.isEmpty()) return null
+        val step = steps.getOrNull(state.index)
+        return WatchGuide(
+            index = state.index,
+            count = steps.size,
+            kind = step?.kind?.let { WatchStepKind.valueOf(it.name) },
+            targetGrams = step?.targetWeightGrams?.toFloat(),
+            dueInMs = state.dueInMs,
+            paceMs = state.paceMs,
+        )
     }
 }
 

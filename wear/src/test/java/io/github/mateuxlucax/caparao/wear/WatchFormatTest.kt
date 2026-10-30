@@ -22,4 +22,12 @@ class WatchFormatTest {
         assertEquals("0:27", WatchFormat.time(27_900))
         assertEquals("3:05", WatchFormat.time(185_000))
     }
+
+    @Test
+    fun stepTargetsAndCountdowns() {
+        assertEquals("150 g", WatchFormat.wholeGrams(149.6f))
+        assertEquals(5, WatchFormat.seconds(4_200))
+        assertEquals(1, WatchFormat.seconds(1))
+        assertEquals(0, WatchFormat.seconds(0))
+    }
 }

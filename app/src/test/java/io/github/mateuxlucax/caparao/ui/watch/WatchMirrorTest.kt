@@ -1,13 +1,19 @@
 package io.github.mateuxlucax.caparao.ui.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
+import io.github.mateuxlucax.caparao.watch.WatchStepKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -38,6 +44,25 @@ class WatchMirrorTest {
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.READY), false).state)
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.WAITING_FOR_CUP), false).state)
         assertEquals(WatchState.DONE, WatchMirror.snapshot(connected, reading, brew.copy(step = BrewStep.SUMMARY), false).state)
+    }
+
+    @Test
+    fun aGuidedFilterBrewSendsItsStep() {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 40.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 150.0, 45_000),
+        )
+        val recipe = Recipe("r", "V60", BrewMode.FILTER, "V60", 15.0, 16.0, steps = steps, createdAt = 0, updatedAt = 0)
+        val brew = BrewUiState(
+            BrewMode.FILTER, step = BrewStep.LIVE, phase = BrewPhase.BREWING, weightGrams = 90.0, elapsedMs = 50_000,
+            recipe = recipe, guide = StepState(2, 0.4f, null, null, 3_000, null),
+        )
+        assertEquals(WatchGuide(2, 3, WatchStepKind.POUR, 150f, null, 3_000), WatchMirror.snapshot(connected, reading, brew, false).guide)
+        // All steps done: the count stays, the step is gone.
+        assertEquals(WatchGuide(3, 3, null, null, null, null), WatchMirror.guide(brew.copy(guide = StepState(3, 1f, null, null, null, null))))
+        // A free brew has no guide.
+        assertEquals(null, WatchMirror.snapshot(connected, reading, brew.copy(recipe = null, guide = null), false).guide)
     }
 
     @Test

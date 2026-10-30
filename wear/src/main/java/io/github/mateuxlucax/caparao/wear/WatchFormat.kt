@@ -8,6 +8,12 @@ object WatchFormat {
 
     fun flow(value: Float, locale: Locale = Locale.getDefault()): String = String.format(locale, "%.1f g/s", value.normalized())
 
+    /** A step's target: 150 g, no decimals. */
+    fun wholeGrams(value: Float): String = "%d g".format(Math.round(value))
+
+    /** Whole seconds, rounded up so a countdown never shows 0 before it is due. */
+    fun seconds(ms: Long): Int = ((ms + 999) / 1000).toInt()
+
     fun time(ms: Long): String {
         val seconds = (ms / 1000).coerceAtLeast(0)
         return "%d:%02d".format(seconds / 60, seconds % 60)

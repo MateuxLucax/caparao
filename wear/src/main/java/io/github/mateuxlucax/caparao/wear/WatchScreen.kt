@@ -23,8 +23,10 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
+import io.github.mateuxlucax.caparao.watch.WatchStepKind
 
 /**
  * The mode or the flow on top, the weight large in the middle, the timer under it; tare, and in Scale mode the timer's
@@ -57,11 +59,13 @@ private fun Readout(snapshot: WatchSnapshot, onTare: () -> Unit, onTimer: () -> 
             WatchState.SCALE -> stringResource(R.string.mode_scale)
             WatchState.READY -> stringResource(R.string.state_ready)
             WatchState.DONE -> stringResource(R.string.state_done)
-            else -> WatchFormat.flow(snapshot.flowGramsPerSecond)
+            else -> snapshot.guide?.let { stepLabel(it) } ?: WatchFormat.flow(snapshot.flowGramsPerSecond)
         }
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(WatchFormat.grams(snapshot.weightGrams), fontSize = 44.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(WatchFormat.time(snapshot.elapsedMs), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        val hint = snapshot.guide?.takeIf { snapshot.state == WatchState.BREWING }?.let { paceLabel(it) }
+        if (hint != null) Text(hint, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             FilledTonalIconButton(onClick = onTare) {
@@ -82,3 +86,33 @@ private fun Readout(snapshot: WatchSnapshot, onTare: () -> Unit, onTimer: () -> 
         }
     }
 }
+
+/** "2/5 · Pour to 150 g", "3/5 · Wait", or "Last pour done" once every step is. */
+@Composable
+private fun stepLabel(guide: WatchGuide): String {
+    if (guide.index >= guide.count || guide.kind == null) return stringResource(R.string.guide_all_done)
+    val name = when (guide.kind) {
+        WatchStepKind.BLOOM -> stringResource(R.string.step_bloom)
+        WatchStepKind.POUR -> stringResource(R.string.step_pour)
+        WatchStepKind.WAIT -> stringResource(R.string.step_wait)
+        WatchStepKind.SWIRL -> stringResource(R.string.step_swirl)
+        null -> ""
+    }
+    val target = guide.targetGrams
+    val step = if (target != null) stringResource(R.string.step_to_target, name, WatchFormat.wholeGrams(target)) else name
+    return stringResource(R.string.step_of, guide.index + 1, guide.count, step)
+}
+
+/** The countdown to the next step, or the pour's pace against the recipe; ±5 s counts as on time (ADR 0019). */
+@Composable
+private fun paceLabel(guide: WatchGuide): String? {
+    guide.dueInMs?.let { return stringResource(R.string.guide_due_in, WatchFormat.seconds(it)) }
+    val pace = guide.paceMs ?: return null
+    return when {
+        pace < -ON_TIME_MS -> stringResource(R.string.pace_ahead, WatchFormat.seconds(-pace))
+        pace > ON_TIME_MS -> stringResource(R.string.pace_behind, WatchFormat.seconds(pace))
+        else -> stringResource(R.string.pace_on_time)
+    }
+}
+
+private const val ON_TIME_MS = 5_000L

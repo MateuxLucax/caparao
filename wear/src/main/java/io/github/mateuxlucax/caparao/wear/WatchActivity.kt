@@ -13,9 +13,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.Wearable
+import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchPaths
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
+import io.github.mateuxlucax.caparao.watch.WatchStepKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -104,7 +106,9 @@ class WatchActivity : ComponentActivity() {
             WatchState.DISCONNECTED to WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, false),
             WatchState.SCALE to WatchSnapshot(WatchState.SCALE, 17.8f, 0f, 42_000, true),
             WatchState.READY to WatchSnapshot(WatchState.READY, 0f, 0f, 0, false),
-            WatchState.BREWING to WatchSnapshot(WatchState.BREWING, 32.4f, 1.9f, 24_000, false),
+            WatchState.BREWING to WatchSnapshot(
+                WatchState.BREWING, 112.6f, 4.1f, 58_000, false, WatchGuide(2, 5, WatchStepKind.POUR, 150f, null, 3_000),
+            ),
             WatchState.DONE to WatchSnapshot(WatchState.DONE, 36.1f, 0f, 28_400, false),
         )
     }
