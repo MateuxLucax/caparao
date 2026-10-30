@@ -37,6 +37,13 @@ class BrewRepository(private val dao: BrewDao) {
         flowPeakGramsPerSecond = flowPeak,
         interrupted = interrupted,
         syncedAt = syncedAt,
+        recipeId = recipeId,
+        recipeName = recipeName,
+        coffee = coffee,
+        grind = grind,
+        waterTempCelsius = waterTempCelsius,
+        rating = rating,
+        notes = notes,
     )
 
     private fun Brew.toEntity() = BrewEntity(
@@ -51,5 +58,12 @@ class BrewRepository(private val dao: BrewDao) {
         flowPeak = flowPeakGramsPerSecond,
         interrupted = interrupted,
         syncedAt = syncedAt,
+        recipeId = recipeId,
+        recipeName = recipeName,
+        coffee = coffee,
+        grind = grind,
+        waterTempCelsius = waterTempCelsius,
+        rating = rating,
+        notes = notes,
     )
 }

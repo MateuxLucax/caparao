@@ -22,6 +22,17 @@ data class Brew(
     val interrupted: Boolean,
     /** When the server confirmed it; null while only on the phone. */
     val syncedAt: Long? = null,
+    /** The recipe it followed; the recipe may since have been edited or deleted (docs/adr/0018-recipes.md). */
+    val recipeId: String? = null,
+    /** A copy of the recipe's name at brew time, so history reads well after a rename or delete. */
+    val recipeName: String? = null,
+    /** The rest is filled in after the brew (docs/adr/0021-brew-notes.md). */
+    val coffee: String? = null,
+    val grind: String? = null,
+    val waterTempCelsius: Int? = null,
+    /** 1–5. */
+    val rating: Int? = null,
+    val notes: String? = null,
 ) {
     /** The X of 1:X. */
     val ratio: Double get() = yieldGrams / doseGrams
