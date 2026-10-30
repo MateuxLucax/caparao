@@ -40,6 +40,11 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailScreen
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsScreen
+import io.github.mateuxlucax.caparao.ui.brews.CompareScreen
+import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
+import io.github.mateuxlucax.caparao.ui.brews.TrendKey
+import io.github.mateuxlucax.caparao.ui.brews.TrendsScreen
+import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
@@ -90,16 +95,34 @@ fun App(
 private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppActions, versionName: String) {
     var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
+    // Comma-joined ids and TrendKey.encode(), so both survive a rotation; they open over a saved brew or the tabs.
+    var comparing by rememberSaveable { mutableStateOf<String?>(null) }
+    var trends by rememberSaveable { mutableStateOf<String?>(null) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    val destination = opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
+    val destination = trends?.let { Destination.Trends(TrendKey.decode(it)) }
+        ?: comparing?.let { Destination.Compare(it.split(',')) }
+        ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
     val density = LocalDensity.current
     // A brew or a saved brew comes in from the right over the tabs and goes back out the same way.
     AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState != Destination.Tabs, density) }, label = "screen") { shown ->
         when (shown) {
             is Destination.Detail -> {
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
-                BrewDetailScreen(viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras)) { opened = null }
+                BrewDetailScreen(
+                    viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onClose = { opened = null },
+                    onCompare = { comparing = it.joinToString(",") },
+                    onTrends = { trends = it.encode() },
+                )
+            }
+            is Destination.Compare -> {
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CompareViewModel.BREW_IDS, shown.ids) }
+                CompareScreen(viewModel(key = "compare-${shown.ids.joinToString(",")}", factory = viewModelFactory, extras = extras)) { comparing = null }
+            }
+            is Destination.Trends -> {
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(TrendsViewModel.KEY, shown.key) }
+                TrendsScreen(viewModel(key = "trends-${shown.key.encode()}", factory = viewModelFactory, extras = extras)) { trends = null }
             }
             is Destination.Brew -> {
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
@@ -112,7 +135,7 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
                     brewing = null
                 }
             }
-            Destination.Tabs -> Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it })
+            Destination.Tabs -> Tabs(viewModelFactory, actions, versionName, tab, onTab = { tab = it }, onBrew = { brewing = it }, onOpen = { opened = it }, onCompare = { comparing = it.joinToString(",") })
         }
     }
 }
@@ -122,6 +145,8 @@ private sealed interface Destination {
     data object Tabs : Destination
     data class Brew(val mode: BrewMode) : Destination
     data class Detail(val id: String) : Destination
+    data class Compare(val ids: List<String>) : Destination
+    data class Trends(val key: TrendKey) : Destination
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,6 +159,7 @@ private fun Tabs(
     onTab: (Tab) -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
+    onCompare: (List<String>) -> Unit,
 ) {
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -161,7 +187,7 @@ private fun Tabs(
         AnimatedContent(tab, transitionSpec = { Motion.fadeThrough() }, label = "tab") { shown ->
             when (shown) {
                 Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, onCompare = onCompare, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     viewModel(key = "server-settings", factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),

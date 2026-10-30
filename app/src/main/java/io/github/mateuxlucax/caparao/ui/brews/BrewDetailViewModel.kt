@@ -9,12 +9,15 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class BrewDetailUiState(
     val brew: Brew? = null,
     val samples: List<BrewSample> = emptyList(),
     val loading: Boolean = true,
+    /** The brew of the same recipe right before this one, for "Compare with last" (docs/adr/0022-compare-and-trends.md). */
+    val previousId: String? = null,
 )
 
 /** One saved brew with its curve. */
@@ -24,7 +27,9 @@ class BrewDetailViewModel(private val id: String, private val repository: BrewRe
 
     init {
         viewModelScope.launch {
-            _uiState.value = BrewDetailUiState(repository.get(id), repository.samples(id), loading = false)
+            val brew = repository.get(id)
+            val previous = brew?.let { Comparison.previous(it, repository.brews.first()) }
+            _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false, previousId = previous?.id)
         }
     }
 

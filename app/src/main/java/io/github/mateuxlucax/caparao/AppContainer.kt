@@ -20,6 +20,8 @@ import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
+import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
+import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -88,6 +90,8 @@ class AppContainer(context: Context) {
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+        initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
+        initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings,

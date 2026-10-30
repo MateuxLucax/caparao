@@ -137,6 +137,15 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
 - `RecipeDaoTest` (instrumented): save and read back with steps in order, saving again replaces the steps, list by mode
   then name, deleting a recipe deletes its steps and keeps the brews that used it.
 
+7.6 Compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)):
+- Brews: a long press picks two to four brews of one mode, then Compare overlays their weight curves on one chart with
+  a table of dose, yield, ratio, time and average flow (the rating column comes with 7.5).
+- Brew detail: "Compare with last" opens the brew next to the previous one of the same recipe, and Trends shows ratio
+  and total time over the recipe's last 10 brews.
+- `ComparisonTest`: picking keeps one mode and at most four, previous brew of the same recipe, last 10 oldest first.
+- `CompareViewModelTest`: brews load in pick order and a deleted one is skipped; the detail offers the previous brew;
+  trends follow the recipe.
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):

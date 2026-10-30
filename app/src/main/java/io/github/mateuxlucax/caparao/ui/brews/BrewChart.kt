@@ -79,14 +79,14 @@ fun BrewChart(samples: List<BrewSample>, durationMs: Long, weightLabel: String, 
     }
 }
 
-private fun trim(value: Double) = if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
+internal fun trim(value: Double) = if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.label(measurer: TextMeasurer, text: String, at: Offset, style: androidx.compose.ui.text.TextStyle) {
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.label(measurer: TextMeasurer, text: String, at: Offset, style: androidx.compose.ui.text.TextStyle) {
     val layout = measurer.measure(text, style)
     drawText(layout, topLeft = Offset(at.x, at.y - layout.size.height / 2f))
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(points: List<Offset>, color: Color, width: Float) {
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(points: List<Offset>, color: Color, width: Float) {
     val path = Path().apply {
         moveTo(points.first().x, points.first().y)
         points.drop(1).forEach { lineTo(it.x, it.y) }
@@ -95,7 +95,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(points: L
 }
 
 @Composable
-private fun Legend(color: Color, label: String) {
+internal fun Legend(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
         Text(label, Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelMedium)

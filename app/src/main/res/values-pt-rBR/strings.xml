@@ -146,4 +146,11 @@
     <string name="error_other">O envio falhou. O app tenta de novo mais tarde.</string>
     <string name="permission_granted">Bluetooth permitido</string>
     <string name="reconnect">Reconectar</string>
+    <!-- Compare and trends (docs/adr/0022-compare-and-trends.md). -->
+    <string name="compare">Comparar</string>
+    <string name="compare_title">Comparar extrações</string>
+    <string name="compare_picked">%1$d de %2$d escolhidas</string>
+    <string name="compare_with_last">Comparar com a anterior</string>
+    <string name="trends">Tendências</string>
+    <string name="trends_subtitle">As últimas %1$d extrações, da mais antiga à esquerda.</string>
 </resources>
