@@ -4,8 +4,6 @@ name: Screenshots
 # without the Android SDK. Run from the Actions tab or `gh workflow run screenshots.yml --ref <branch>`; never on main.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/project-thread-72q2ic] # TEMP: until this PR is ready
 
 permissions:
   contents: write
