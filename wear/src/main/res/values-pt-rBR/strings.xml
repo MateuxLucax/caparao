@@ -11,4 +11,15 @@
     <string name="state_done">Pronto</string>
     <string name="brew_channel">Preparo</string>
     <string name="brew_ongoing">Preparo em andamento</string>
+    <string name="step_bloom">Bloom</string>
+    <string name="step_pour">Despejo</string>
+    <string name="step_wait">Espera</string>
+    <string name="step_swirl">Agitar</string>
+    <string name="step_to_target">%1$s até %2$s</string>
+    <string name="step_of">%1$d/%2$d · %3$s</string>
+    <string name="guide_all_done">Último despejo feito</string>
+    <string name="guide_due_in">Próximo em %d s</string>
+    <string name="pace_ahead">%d s adiantado</string>
+    <string name="pace_behind">%d s atrasado</string>
+    <string name="pace_on_time">No tempo</string>
 </resources>

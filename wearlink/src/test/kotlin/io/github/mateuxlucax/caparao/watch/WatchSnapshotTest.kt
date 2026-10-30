@@ -17,10 +17,20 @@ class WatchSnapshotTest {
     }
 
     @Test
+    fun roundTripsTheGuide() {
+        val pouring = snapshot.copy(guide = WatchGuide(2, 5, WatchStepKind.POUR, 150f, null, -3_000))
+        assertEquals(pouring, WatchSnapshot.decode(pouring.encode()))
+        val waiting = snapshot.copy(guide = WatchGuide(3, 5, WatchStepKind.WAIT, null, 4_200, null))
+        assertEquals(waiting, WatchSnapshot.decode(waiting.encode()))
+        val allDone = snapshot.copy(guide = WatchGuide(5, 5, null, null, null, null))
+        assertEquals(allDone, WatchSnapshot.decode(allDone.encode()))
+    }
+
+    @Test
     fun rejectsWhatItDidNotWrite() {
         val bytes = snapshot.encode()
         assertNull(WatchSnapshot.decode(bytes.copyOf(bytes.size - 1)))
-        assertNull(WatchSnapshot.decode(bytes.copyOf().also { it[0] = 2 }))
+        assertNull(WatchSnapshot.decode(bytes.copyOf().also { it[0] = 1 }))
         assertNull(WatchSnapshot.decode(bytes.copyOf().also { it[1] = 99 }))
         assertNull(WatchSnapshot.decode(ByteArray(0)))
     }
