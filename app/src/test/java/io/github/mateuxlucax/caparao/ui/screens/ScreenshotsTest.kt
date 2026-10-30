@@ -86,6 +86,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private fun text(id: Int) = context.getString(id)
 
+    private fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
+
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
 
     private fun open(session: String, atMs: Long, onboardingDone: Boolean = true): SessionScale {
@@ -125,6 +127,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     @Test
     fun onboardingAndEveryTab() {
         open("press-ramp", 38_300, onboardingDone = false)
+        waitFor(R.string.welcome_title)
         capture("onboarding-welcome")
         click(R.string.get_started)
         capture("onboarding-permissions")
@@ -157,6 +160,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.tab_brews)
         capture("brews-list")
         compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.0, locale)), substring = true).performClick()
+        // The brew loads from the database off the main thread.
+        waitFor(R.string.delete)
         capture("brew-detail")
     }
 
@@ -196,6 +201,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.close)
         click(R.string.tab_brews)
         compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} →", substring = true).performClick()
+        waitFor(R.string.delete)
         capture("brew-filter-detail")
     }
 
