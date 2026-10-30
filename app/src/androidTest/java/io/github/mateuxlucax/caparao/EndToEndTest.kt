@@ -51,7 +51,8 @@ class EndToEndTest {
         ActivityScenario.launch<MainActivity>(intent).use {
             compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 10_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-            compose.onNode(hasSetTextAction()).performTextReplacement("18")
+            compose.onNodeWithText(text(R.string.next)).performClick()
+            // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
             compose.onNodeWithText(text(R.string.next)).performClick()
             // The shot starts 11 s into this replay and ends about 30 s later.
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)

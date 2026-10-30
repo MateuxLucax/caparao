@@ -54,26 +54,29 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /** The steps the brew screen walks through, one at a time like the onboarding. A step has text only when it says something the title and the screen don't. */
-enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?) {
-    DOSE(R.string.dose_title, null),
-    CUP(R.string.espresso_place_cup, R.string.espresso_place_cup_text),
-    TARE(R.string.taring, null),
-    FIRST_DROP(R.string.espresso_ready, R.string.espresso_ready_text),
-    POUR(R.string.filter_ready, R.string.filter_ready_text),
-    BREWING_ESPRESSO(R.string.brewing_espresso, null),
-    BREWING_FILTER(R.string.brewing_filter, R.string.brewing_filter_text),
-    DONE(R.string.brew_saved, null),
+/** [label] names the stage next to "Step x of y". */
+enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @StringRes val label: Int) {
+    DOSE(R.string.dose_title, null, R.string.stage_ratio),
+    BEANS(R.string.weigh_beans_title, R.string.weigh_beans_text, R.string.stage_beans),
+    CUP(R.string.espresso_place_cup, R.string.espresso_place_cup_text, R.string.stage_cup),
+    TARE(R.string.taring, null, R.string.stage_tare),
+    FIRST_DROP(R.string.espresso_ready, R.string.espresso_ready_text, R.string.stage_first_drop),
+    POUR(R.string.filter_ready, R.string.filter_ready_text, R.string.stage_pour),
+    BREWING_ESPRESSO(R.string.brewing_espresso, null, R.string.stage_extracting),
+    BREWING_FILTER(R.string.brewing_filter, R.string.brewing_filter_text, R.string.stage_brewing),
+    DONE(R.string.brew_saved, null, R.string.stage_done),
 }
 
 /** The stages of [mode], in order. */
 fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
-    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
-    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
+    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
+    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
 }
 
 /** Where the screen stands, from its step and the detector's phase. */
 fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = when (step) {
     BrewStep.DOSE -> GuideStage.DOSE
+    BrewStep.WEIGH -> GuideStage.BEANS
     BrewStep.SUMMARY -> GuideStage.DONE
     BrewStep.LIVE -> when (phase) {
         BrewPhase.WAITING_FOR_CUP -> GuideStage.CUP
@@ -100,7 +103,7 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
             }
         }
         Text(
-            stringResource(R.string.step_of, index + 1, stages.size),
+            stringResource(R.string.step_of_named, index + 1, stages.size, stringResource(stage.label)),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

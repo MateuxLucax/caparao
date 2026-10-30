@@ -202,7 +202,9 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         val scale = open("synthetic-espresso", 3_000)
         click(R.string.mode_espresso)
         capture("brew-dose")
-        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        click(R.string.next)
+        capture("brew-weigh")
+        // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
         // The shot starts 14 s into the session and pours for about 25 s.
         play(scale, 21_000)
@@ -212,7 +214,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         click(R.string.tab_brews)
         capture("brews-list")
-        compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.0, locale)), substring = true).performClick()
+        // The dose is what the scale showed on the weigh step, so take the only brew in the list.
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
         // The brew loads from the database off the main thread.
         waitFor(R.string.delete)
         capture("brew-detail")
@@ -223,7 +226,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     fun espressoGuide() {
         val scale = open("synthetic-espresso-guide", 0)
         click(R.string.mode_espresso)
-        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        click(R.string.next)
+        // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
         capture("brew-step-cup")
         // The cup lands at 8 s and is tared as soon as it is still.
@@ -238,7 +242,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
-        compose.onNode(hasSetTextAction()).performTextReplacement("15")
+        click(R.string.next)
+        // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
         playUntilShown(scale, R.string.taring, 2_000)
         capture("brew-filter-taring")
@@ -253,7 +258,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("brew-filter-summary")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         click(R.string.tab_brews)
-        compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} →", substring = true).performClick()
+        // The dose is what the scale showed on the weigh step, so take the only brew in the list.
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
         waitFor(R.string.delete)
         capture("brew-filter-detail")
     }
@@ -283,7 +289,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
         compose.waitForIdle()
         click(R.string.next)
-        compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.dose_title))).fetchSemanticsNodes().isEmpty() }
+        click(R.string.next)
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.ratio_caption))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
         capture("guide-bloom")
         play(scale, 45_000)

@@ -228,4 +228,22 @@
     <string name="compare_with_last">Comparar com a anterior</string>
     <string name="trends">Tendências</string>
     <string name="trends_subtitle">As últimas %1$d extrações, da mais antiga à esquerda.</string>
+    <string name="step_of_named">Etapa %1$d de %2$d · %3$s</string>
+    <string name="stage_ratio">Razão</string>
+    <string name="stage_beans">Pesar os grãos</string>
+    <string name="stage_cup">Xícara</string>
+    <string name="stage_tare">Tara</string>
+    <string name="stage_first_drop">Primeira gota</string>
+    <string name="stage_pour">Despejo</string>
+    <string name="stage_extracting">Extraindo</string>
+    <string name="stage_brewing">Passando</string>
+    <string name="stage_done">Pronto</string>
+    <string name="weigh_beans_title">Pese os grãos</string>
+    <string name="weigh_beans_text">Tare o recipiente e coloque os grãos.</string>
+    <string name="weigh_of">de %1$s g</string>
+    <string name="ratio_caption">café : água</string>
+    <string name="ratio_less">Menos água</string>
+    <string name="ratio_more">Mais água</string>
+    <string name="water_field">Água em ml</string>
+    <string name="unit_ml">ml</string>
 </resources>

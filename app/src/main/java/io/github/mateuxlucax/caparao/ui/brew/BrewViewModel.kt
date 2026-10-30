@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewDetector
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
@@ -106,9 +107,32 @@ class BrewViewModel(
         apply(recipe)
     }
 
+    /** On the dose step: brew at 1:[ratio]. A free brew remembers it for next time. */
+    fun setRatio(ratio: Double) {
+        if (_uiState.value.step != BrewStep.DOSE) return
+        val clamped = ratio.coerceIn(RecipeForm.RATIO.start, RecipeForm.RATIO.endInclusive)
+        if (_uiState.value.recipe == null) settings.setTargetRatio(mode, clamped)
+        _uiState.update { it.copy(targetRatio = clamped) }
+    }
+
+    /** On the dose step: the dose to weigh, typed or from the water. */
+    fun planDose(grams: Double) {
+        if (_uiState.value.step != BrewStep.DOSE || grams <= 0) return
+        _uiState.update { it.copy(dose = grams) }
+    }
+
+    /** From the dose to weighing the beans. */
+    fun weigh() {
+        if (_uiState.value.step != BrewStep.DOSE || _uiState.value.dose == null) return
+        _uiState.update { it.copy(step = BrewStep.WEIGH) }
+    }
+
+    /** Zero the scale, to weigh the beans without the container. */
+    fun tare() = scale.tare()
+
     /** The dose was weighed or typed: start watching for the brew. */
     fun setDose(grams: Double) {
-        if (_uiState.value.step != BrewStep.DOSE) return
+        if (_uiState.value.step != BrewStep.DOSE && _uiState.value.step != BrewStep.WEIGH) return
         if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()

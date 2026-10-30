@@ -78,7 +78,6 @@ import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
-import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
 
@@ -139,78 +138,13 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { step ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setDose)
+                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
+                    BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose)
                     BrewStep.LIVE -> LiveStep(state, viewModel)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onDose: (Double) -> Unit) {
-    val locale = LocalConfiguration.current.locales[0]
-    var text by rememberSaveable(state.dose) { mutableStateOf(state.dose?.let { Format.grams(it, locale) } ?: "") }
-    val typed = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1000 }
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        GuideHeader(GuideStage.DOSE)
-        if (state.recipes.isNotEmpty()) RecipePicker(state, onRecipe)
-        Text(
-            "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
-            style = MaterialTheme.typography.displayMedium.merge(Tabular),
-            color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // The weighed dose is the common case: one tap takes it and moves on.
-        FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { onDose(state.weightGrams) }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), enabled = state.connected && state.weightGrams > 0) {
-            Text(stringResource(R.string.use_weight))
-        }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(6) },
-            label = { Text(stringResource(R.string.dose_field)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { typed?.let(onDose) }),
-            textStyle = MaterialTheme.typography.headlineSmall.merge(Tabular),
-            shape = MaterialTheme.shapes.medium,
-        )
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { typed?.let(onDose) }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = typed != null) {
-            Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
-/** The recipes of this mode and a free brew; the chosen one sets the dose and the target. */
-@Composable
-private fun RecipePicker(state: BrewUiState, onRecipe: (Recipe?) -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(R.string.recipe_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val options = state.recipes + null
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            options.forEachIndexed { index, recipe ->
-                val checked = state.recipe?.id == recipe?.id
-                ToggleButton(
-                    checked = checked,
-                    onCheckedChange = { onRecipe(recipe) },
-                    modifier = Modifier.semantics { role = Role.RadioButton; selected = checked },
-                    shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
-                ) { Text(recipe?.name ?: stringResource(R.string.free_brew)) }
-            }
-        }
-        state.recipe?.let { Text(recipeSummary(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 

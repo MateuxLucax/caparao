@@ -130,8 +130,9 @@ class AppTest {
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.dose_title)).assertExists()
-        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertExists()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.onNodeWithText(text(R.string.espresso_place_cup)).assertExists()
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()

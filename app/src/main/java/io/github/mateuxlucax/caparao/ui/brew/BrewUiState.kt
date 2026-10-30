@@ -10,7 +10,7 @@ import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 
 /** The brew screen's steps. */
-enum class BrewStep { DOSE, LIVE, SUMMARY }
+enum class BrewStep { DOSE, WEIGH, LIVE, SUMMARY }
 
 data class BrewUiState(
     val mode: BrewMode,
@@ -64,5 +64,8 @@ data class BrewUiState(
     val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()
 
     /** At or past the target as shown: the ratio reads to one decimal, so 1:1.96 already reads 1:2.0. */
+    /** The water the dose and the target ratio call for. */
+    val plannedWater: Double? get() = dose?.let { it * targetRatio }
+
     val onTarget: Boolean get() = ratio?.let { Math.round(it * 10) >= Math.round(targetRatio * 10) } ?: false
 }

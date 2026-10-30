@@ -90,7 +90,7 @@ class BrewViewModelTest {
         assertFalse(brew.interrupted)
         assertEquals(listOf("brew-1"), dao.brews.value.map { it.id })
         assertTrue("the curve is saved", dao.samples.getValue("brew-1").size > 200)
-        assertEquals(18.0, settings.lastDose(BrewMode.ESPRESSO)!!, 0.0)
+        assertEquals(18.0, settings.lastDose(BrewMode.ESPRESSO), 0.0)
     }
 
     @Test
@@ -219,7 +219,7 @@ class BrewViewModelTest {
         vm.begin()
         vm.setDose(18.0)
         // The recipe's dose stays the last free dose only for free brews.
-        assertNull(settings.lastDose(BrewMode.ESPRESSO))
+        assertEquals(SettingsStore.defaultDose(BrewMode.ESPRESSO), settings.lastDose(BrewMode.ESPRESSO), 0.0)
         vm.armNow()
         hold(0.0, 1.0)
         pour(0.0, 43.0, 28.0)

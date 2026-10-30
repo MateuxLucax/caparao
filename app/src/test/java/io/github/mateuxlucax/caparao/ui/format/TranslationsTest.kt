@@ -28,7 +28,7 @@ class TranslationsTest {
         val same = english.filter { (key, text) -> portuguese[key] == text }.keys
         val allowed = setOf(
             "unit_grams", "unit_grams_per_second", "mode_espresso", "battery_percent", "permissions_title", "label_dose", "ratio_value",
-            "recipe_dose", "step_bloom", "recipe_summary_espresso", "recipe_summary_espresso_no_window",
+            "recipe_dose", "step_bloom", "recipe_summary_espresso", "recipe_summary_espresso_no_window", "unit_ml",
         )
         assertEquals(allowed, same)
     }

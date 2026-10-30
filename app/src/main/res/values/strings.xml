@@ -235,4 +235,22 @@
     <string name="compare_with_last">Compare with last</string>
     <string name="trends">Trends</string>
     <string name="trends_subtitle">The last %1$d brews, oldest on the left.</string>
+    <string name="step_of_named">Step %1$d of %2$d · %3$s</string>
+    <string name="stage_ratio">Ratio</string>
+    <string name="stage_beans">Weigh the beans</string>
+    <string name="stage_cup">Cup</string>
+    <string name="stage_tare">Tare</string>
+    <string name="stage_first_drop">First drop</string>
+    <string name="stage_pour">Pour</string>
+    <string name="stage_extracting">Extracting</string>
+    <string name="stage_brewing">Brewing</string>
+    <string name="stage_done">Done</string>
+    <string name="weigh_beans_title">Weigh the beans</string>
+    <string name="weigh_beans_text">Tare the container, then add the beans.</string>
+    <string name="weigh_of">of %1$s g</string>
+    <string name="ratio_caption">coffee : water</string>
+    <string name="ratio_less">Less water</string>
+    <string name="ratio_more">More water</string>
+    <string name="water_field">Water in ml</string>
+    <string name="unit_ml">ml</string>
 </resources>
