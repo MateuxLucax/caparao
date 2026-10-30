@@ -16,7 +16,8 @@ minutes are limited, while the developer's Mac can run builds, tests and an emul
   `concurrency` cancelling superseded runs, docs-only changes ignored. Instrumented and end-to-end tests run on the local
   emulator.
 - Screenshots of every screen (English and Portuguese, light and dark) are refreshed with `scripts/screenshots.sh`
-  whenever a screen changes, and shown in the README and [docs/screenshots](../screenshots/README.md).
+  whenever a screen changes (2026-10-30 amendment: rendered on the JVM by Roborazzi from the Robolectric screen tests,
+  with the sessions played frame by frame, instead of captured on the emulator, which was the slowest step of every PR), and shown in the README and [docs/screenshots](../screenshots/README.md).
 - Once the repository is public (free minutes), the emulator job and automatic releases move to CI.
 
 ## Consequences

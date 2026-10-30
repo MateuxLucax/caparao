@@ -71,7 +71,12 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // Robolectric's SDK 37 sandbox reaches into the JDK's FileDescriptor internals.
-        unitTests.all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED") }
+        unitTests.all {
+            it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED")
+            // -Pscreenshots (scripts/screenshots.sh): Roborazzi writes docs/screenshots. Only its library is used, as its
+            // Gradle plugin does not support AGP 9 yet.
+            it.systemProperty("roborazzi.test.record", project.hasProperty("screenshots").toString())
+        }
     }
 
     lint {
@@ -125,6 +130,8 @@ dependencies {
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    // The screenshots in docs/screenshots, from the screen tests (ScreenshotsTest): test-only, nothing ships.
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.46.1")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")

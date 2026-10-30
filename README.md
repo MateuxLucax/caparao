@@ -31,7 +31,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 </tr>
 </table>
 
-Taken on an emulator by `scripts/screenshots.sh`, with a session recorded from a real Dot (and a synthetic espresso)
+Rendered on the JVM by `scripts/screenshots.sh` (Robolectric and Roborazzi), with a session recorded from a real Dot (and a synthetic espresso)
 standing in for the scale, and refreshed whenever a screen changes. The same set in Portuguese
 and in dark theme is in [docs/screenshots](docs/screenshots/README.md).
 
@@ -88,8 +88,8 @@ scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install 
 scripts/check.sh         # unit tests, lint, debug build, secret scan
 ```
 
-Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. With an emulator running,
-`scripts/screenshots.sh` refreshes the screenshots. Debug builds can replay a recorded session instead of the scale
+`scripts/screenshots.sh` refreshes the screenshots on the JVM, no emulator needed (`ONLY=Espresso` renders one test).
+Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. Debug builds can replay a recorded session instead of the scale
 (the emulator has no Bluetooth):
 
 ```bash

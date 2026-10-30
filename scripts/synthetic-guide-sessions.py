@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes two made-up sessions for the brew guide screenshots (scripts/screenshots.sh), in the probe's format.
+"""Writes two made-up sessions for the brew guide screenshots (ScreenshotsTest), in the probe's format.
 
 Not recordings, never used to tune the detectors:
 - synthetic-espresso-guide.jsonl: empty scale for 8 s (time to set the dose and see the cup step), cup (150 g) placed

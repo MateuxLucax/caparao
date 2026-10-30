@@ -13,7 +13,9 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 
 ## Devices
 
-- Emulator `emulator-5554` for tests, `scripts/e2e.sh` and `scripts/screenshots.sh`; with the phone also plugged in,
+- Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
+  with Roborazzi: no emulator, it runs in the cloud too.
+- Emulator `emulator-5554` for instrumented tests and `scripts/e2e.sh` only; with the phone also plugged in,
   set `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
 - Debug builds are `io.github.mateuxlucax.caparao.debug` ("Caparaó dev") and install next to releases.
