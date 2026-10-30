@@ -8,6 +8,7 @@ import androidx.wear.remote.interactions.RemoteActivityHelper
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.Wearable
+import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
@@ -77,6 +78,12 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
     private fun send(payload: ByteArray) {
         // Fire and forget: a lost frame is replaced by the next one 200 ms later.
         watchNodes.forEach { node -> messages.sendMessage(node, WatchPaths.SNAPSHOT, payload) }
+    }
+
+    /** Vibrates the watch for a guide moment (docs/adr/0019-guided-brew.md); nothing without a watch. */
+    fun alert(event: StepEvent) {
+        val payload = WatchMirror.alert(event).encode()
+        watchNodes.forEach { node -> messages.sendMessage(node, WatchPaths.ALERT, payload) }
     }
 
     /** A brew screen opened: bring the watch app up so the wrist shows it without a tap. */

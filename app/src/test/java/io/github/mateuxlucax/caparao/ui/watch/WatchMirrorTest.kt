@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
@@ -10,6 +11,7 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.watch.WatchAlert
 import io.github.mateuxlucax.caparao.watch.WatchGuide
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
@@ -75,5 +77,14 @@ class WatchMirrorTest {
         assertTrue(throttle.offer(250, scale.copy(state = WatchState.BREWING)))
         assertTrue(throttle.offer(260, scale.copy(state = WatchState.BREWING, timerRunning = true)))
         assertFalse(throttle.offer(300, scale.copy(state = WatchState.BREWING, timerRunning = true)))
+    }
+
+    @Test
+    fun guideEventsMapToTheWatchsVibrations() {
+        assertEquals(WatchAlert.STEP_STARTED, WatchMirror.alert(StepEvent.Started(1)))
+        assertEquals(WatchAlert.NEAR_TARGET, WatchMirror.alert(StepEvent.NearTarget(1)))
+        assertEquals(WatchAlert.TARGET_REACHED, WatchMirror.alert(StepEvent.Reached(1)))
+        assertEquals(WatchAlert.COUNTDOWN, WatchMirror.alert(StepEvent.Countdown(1, 3)))
+        assertEquals(WatchAlert.ALL_DONE, WatchMirror.alert(StepEvent.AllDone))
     }
 }

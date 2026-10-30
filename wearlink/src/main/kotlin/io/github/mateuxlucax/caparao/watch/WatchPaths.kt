@@ -1,9 +1,12 @@
 package io.github.mateuxlucax.caparao.watch
 
-/** Message paths and capabilities on the Wearable Data Layer. Messages carry no payload except [SNAPSHOT]. */
+/** Message paths and capabilities on the Wearable Data Layer. Messages carry no payload except [SNAPSHOT] and [ALERT]. */
 object WatchPaths {
     /** Phone to watch: a [WatchSnapshot]. */
     const val SNAPSHOT = "/caparao/snapshot"
+
+    /** Phone to watch: vibrate for a [WatchAlert]. */
+    const val ALERT = "/caparao/alert"
 
     /** Watch to phone: tare the scale. */
     const val TARE = "/caparao/tare"

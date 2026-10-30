@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.settings
 
 import androidx.lifecycle.ViewModel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 
 /**
@@ -13,6 +14,12 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
         get() = settings.guideVibration
         set(value) {
             settings.guideVibration = value
+        }
+
+    var guideVibrationOn: VibrationTarget
+        get() = settings.guideVibrationOn
+        set(value) {
+            settings.guideVibrationOn = value
         }
 
     var guideSound: Boolean
