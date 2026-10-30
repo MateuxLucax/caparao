@@ -9,6 +9,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -27,14 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -43,7 +45,11 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
+import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.flex
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -105,21 +111,32 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
-    AnimatedContent(
-        stage,
-        modifier.fillMaxWidth(),
-        transitionSpec = { Motion.sharedAxisX(targetState.ordinal > initialState.ordinal, density) },
-        label = "stage",
-    ) { shown ->
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            StageAnimation(shown)
-            Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            shown.text?.let {
-                Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
+        if (stage.pictured) {
+            MorphingShape(stage.ordinal, Modifier.padding(bottom = 20.dp).size(128.dp)) {
+                AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+            }
+        }
+        AnimatedContent(
+            stage,
+            Modifier.fillMaxWidth(),
+            transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+            label = "stage",
+        ) { shown ->
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Condensed and heavy in Roboto Flex: the step to do now.
+                Text(stringResource(shown.title), style = MaterialTheme.typography.headlineSmall.merge(flex(700, 85)), textAlign = TextAlign.Center)
+                shown.text?.let {
+                    Text(stringResource(it), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
             }
         }
     }
 }
+
+/** Whether the stage has a picture; in the brewing stages the live readout is the picture. */
+private val GuideStage.pictured get() = this == GuideStage.CUP || this == GuideStage.TARE || this == GuideStage.FIRST_DROP || this == GuideStage.POUR
 
 private const val LOOP_MS = 2_400
 
@@ -130,7 +147,7 @@ private const val LOOP_MS = 2_400
  */
 @Composable
 private fun StageAnimation(stage: GuideStage) {
-    if (stage == GuideStage.DOSE || stage == GuideStage.DONE || stage == GuideStage.BREWING_ESPRESSO || stage == GuideStage.BREWING_FILTER) return
+    if (!stage.pictured) return
     val context = LocalContext.current
     val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
     val t = if (still) {
@@ -140,46 +157,34 @@ private fun StageAnimation(stage: GuideStage) {
         transition.animateFloat(0f, 1f, infiniteRepeatable(tween(LOOP_MS, easing = LinearEasing)), label = "t").value
     }
     val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.size(112.dp)) {
-        // Drawn in a 120-unit square.
-        scale(size.width / 120f, pivot = Offset.Zero) {
+    Canvas(Modifier.size(100.dp)) {
+        // Drawn in a 120-unit square: the scale at the bottom, the cup on it, the stream or drops above. Without anything
+        // above the cup, the pair moves up to the middle.
+        val shift = if (stage == GuideStage.CUP || stage == GuideStage.TARE) -18f else 0f
+        scale(size.width / 120f, pivot = Offset.Zero) { translate(top = shift) {
             val cupDrop = if (stage == GuideStage.CUP) (1f - (t / 0.5f).coerceIn(0f, 1f)).let { it * it } * 40f else 0f
             // The cup fills while the stream falls, then empties as the loop starts over.
-            val fillTop = if (stage == GuideStage.POUR) 93f - 30f * Motion.Standard.transform(t) else 93f
-            if (fillTop < 92f) clipPath(cupBowl(0f)) { drawRect(colors.primary.copy(alpha = 0.35f), Offset(30f, fillTop), Size(60f, 93f - fillTop)) }
-            drawCup(colors.onSurface, cupDrop)
-            drawRoundRect(colors.surfaceContainerHighest, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f))
-            drawRoundRect(colors.outlineVariant, Offset(18f, 95f), Size(84f, 11f), CornerRadius(5.5f), style = Stroke(1f))
+            val fill = if (stage == GuideStage.POUR) 0.75f * Motion.Standard.transform(t) else 0f
+            val cup = Rect(36f, 62f - cupDrop, 84f, 98f - cupDrop)
             val led = when (stage) {
                 GuideStage.TARE -> 0.35f + 0.65f * (0.5f + 0.5f * sin(2 * PI * t * 2).toFloat())
-                GuideStage.CUP -> if (t > 0.55f) 1f else 0.2f
+                GuideStage.CUP -> if (t > 0.55f) 1f else 0.25f
                 else -> 1f
             }
-            drawCircle(colors.primary.copy(alpha = led), radius = 2.5f, center = Offset(60f, 100.5f))
+            drawScale(Rect(16f, 100f, 104f, 114f), colors.secondary, colors.onSecondary, led)
+            drawCup(cup, colors.primary, colors.tertiary, fill)
             when (stage) {
                 GuideStage.FIRST_DROP -> for (i in 0..1) {
                     val p = (t * 2 + i * 0.5f) % 1f
-                    drawCircle(colors.primary, radius = 2.5f, center = Offset(60f, 8f + p * 78f))
+                    drawCircle(colors.tertiary, radius = 4f, center = Offset(60f, 26f + p * 34f), alpha = 1f - p * 0.3f)
                 }
                 GuideStage.POUR -> {
+                    val surface = cup.bottom - cup.height * fill
                     val wobble = 0.6f * sin(t * 2 * PI.toFloat() * 6)
-                    drawLine(colors.primary.copy(alpha = 0.9f), Offset(60f + wobble, 4f), Offset(60f, fillTop), strokeWidth = 2f)
+                    drawLine(colors.tertiary, Offset(60f + wobble, 22f), Offset(60f, surface), strokeWidth = 4f, cap = StrokeCap.Round)
                 }
                 else -> Unit
             }
-        }
+        } }
     }
-}
-
-private fun DrawScope.drawCup(color: androidx.compose.ui.graphics.Color, lift: Float) =
-    drawPath(cupBowl(lift), color, style = Stroke(width = 2f))
-
-private fun cupBowl(lift: Float) = Path().apply {
-    moveTo(39f, 55f - lift)
-    lineTo(81f, 55f - lift)
-    lineTo(77f, 82f - lift)
-    quadraticTo(75f, 93f - lift, 64f, 93f - lift)
-    lineTo(56f, 93f - lift)
-    quadraticTo(45f, 93f - lift, 43f, 82f - lift)
-    close()
 }
