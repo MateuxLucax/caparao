@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -132,7 +133,7 @@ class ScreenshotTest {
             capture("brew-live")
             waitFor(R.string.brew_saved, 40_000)
             capture("brew-summary")
-            click(R.string.close)
+            compose.onNodeWithText(context.getString(R.string.save)).performScrollTo().performClick()
             click(R.string.tab_brews)
             capture("brews-list")
             compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.0, context.resources.configuration.locales[0])), substring = true).performClick()
@@ -181,7 +182,7 @@ class ScreenshotTest {
             click(R.string.done)
             waitFor(R.string.brew_saved, 5_000)
             capture("brew-filter-summary")
-            click(R.string.close)
+            compose.onNodeWithText(context.getString(R.string.save)).performScrollTo().performClick()
             click(R.string.tab_brews)
             val locale = context.resources.configuration.locales[0]
             compose.onNodeWithText("${Format.grams(15.0, locale)} ${context.getString(R.string.unit_grams)} →", substring = true).performClick()
