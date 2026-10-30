@@ -144,7 +144,7 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   confirmation.
 - The brew's dose step picks a recipe or a free brew; the last choice per mode is preselected (the first recipe when
   none was ever chosen). The recipe sets the dose and target ratio; the saved brew keeps its id, name, grind and
-  temperature. A free brew keeps the last dose and the Settings target ratio.
+  temperature. A free brew keeps the last dose and the ratio set on its dose step (no Settings card since the dose redesign).
 - `RecipeFormTest`: required fields and ranges, steps moving forward in time and weight, the espresso window, every
   built-in recipe round-trips through the form. `RecipeEditorViewModelTest`: create, edit, delete, a missing recipe.
   `BrewViewModelTest`: preselection, the remembered choice (free brew too), a brew carrying the recipe's fields.

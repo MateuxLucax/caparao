@@ -154,8 +154,9 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.dose_title)).assertExists()
-        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertExists()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
         // Closed before the cup went on: nothing started, so straight back home without a summary.
@@ -223,6 +224,6 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Morning shot"), 5_000)
         compose.onNode(hasText("Morning shot") and isSelectable()).assertIsSelected()
-        compose.onNode(hasSetTextAction()).assert(hasText("18.0"))
+        compose.onNodeWithText("18.0 g").assertExists()
     }
 }

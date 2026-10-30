@@ -34,8 +34,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun setLastRecipeId(mode: BrewMode, id: String) = prefs.edit().putString(KEY_LAST_RECIPE + mode.name.lowercase(), id).apply()
 
     /** The dose of the last free brew (no recipe) in [mode], to start the next one from. */
-    fun lastDose(mode: BrewMode): Double? =
-        prefs.getFloat(KEY_LAST_DOSE + mode.name.lowercase(), -1f).takeIf { it > 0 }?.toDouble()
+    fun lastDose(mode: BrewMode): Double =
+        prefs.getFloat(KEY_LAST_DOSE + mode.name.lowercase(), -1f).takeIf { it > 0 }?.toDouble() ?: defaultDose(mode)
 
     fun setLastDose(mode: BrewMode, grams: Double) =
         prefs.edit().putFloat(KEY_LAST_DOSE + mode.name.lowercase(), grams.toFloat()).apply()
@@ -143,6 +143,12 @@ class SettingsStore(private val prefs: SharedPreferences) {
         fun defaultTargetRatio(mode: BrewMode): Double = when (mode) {
             BrewMode.ESPRESSO -> 2.0
             BrewMode.FILTER -> 16.0
+        }
+
+        /** 18 g for espresso, 20 g for filter, until a free brew sets its own. */
+        fun defaultDose(mode: BrewMode): Double = when (mode) {
+            BrewMode.ESPRESSO -> 18.0
+            BrewMode.FILTER -> 20.0
         }
 
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
