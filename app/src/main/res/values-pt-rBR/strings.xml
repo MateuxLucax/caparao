@@ -189,4 +189,23 @@
     <string name="delete_recipe_text">Os preparos que a seguiram mantêm o nome dela.</string>
     <string name="free_brew">Preparo livre</string>
     <string name="recipe_label">Receita</string>
+
+    <!-- Guided brew -->
+    <string name="guide_bloom">Bloom até %1$s g</string>
+    <string name="guide_pour">Despeje até %1$s g</string>
+    <string name="guide_wait">Aguarde</string>
+    <string name="guide_swirl">Agite o coador</string>
+    <string name="guide_starts_in">Começa em %1$s</string>
+    <string name="guide_next_pour">Próximo despejo até %1$s g</string>
+    <string name="guide_on_time">No tempo</string>
+    <string name="guide_ahead">%1$d s adiantado</string>
+    <string name="guide_behind">%1$d s atrasado</string>
+    <string name="guide_over">%1$s g acima do alvo</string>
+    <string name="guide_drawdown">Deixe drenar</string>
+    <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
+    <string name="guide_window">Alvo %1$s–%2$s s</string>
+    <string name="section_guide_alerts">Alertas do guia</string>
+    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
+    <string name="guide_vibration">Vibrar</string>
+    <string name="guide_sound">Som</string>
 </resources>

@@ -21,6 +21,11 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BuiltInRecipes
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.model.BrewMode
+import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -181,6 +186,48 @@ class ScreenshotTest {
             val locale = context.resources.configuration.locales[0]
             compose.onNodeWithText("${Format.grams(15.0, locale)} ${context.getString(R.string.unit_grams)} →", substring = true).performClick()
             capture("brew-filter-detail")
+        }
+    }
+
+    /**
+     * The guided filter brew (wireframes 3a–3e) on the synthetic filter session, following a recipe shaped like it:
+     * bloom to 50 g, a wait, then pours to 100, 150 and 200 g at 0:35, 0:50 and 1:00 from the first water (20 s in).
+     */
+    @Test
+    fun filterGuide() {
+        assumeTrue("screenshots run only from scripts/screenshots.sh", variant != null)
+        freshApp(onboardingDone = true)
+        val container = (context.applicationContext as CaparaoApplication).container
+        val recipe = Recipe(
+            id = "screenshot-guide", name = "V60 · 15 g", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 17.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 50.0, 0),
+                RecipeStep(StepKind.WAIT, null, 10_000),
+                RecipeStep(StepKind.POUR, 100.0, 35_000),
+                RecipeStep(StepKind.POUR, 150.0, 50_000),
+                RecipeStep(StepKind.POUR, 200.0, 60_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        runBlocking { container.recipes.save(recipe) }
+        container.settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
+        launch("synthetic-filter-lift", 0).use {
+            val start = SystemClock.elapsedRealtime()
+            waitForConnected()
+            click(R.string.mode_filter)
+            click(R.string.next)
+            sleepUntil(start, 24_000)
+            capture("guide-bloom")
+            sleepUntil(start, 45_000)
+            capture("guide-wait")
+            sleepUntil(start, 59_000)
+            capture("guide-pour")
+            sleepUntil(start, 69_000)
+            capture("guide-countdown")
+            sleepUntil(start, 89_500)
+            capture("guide-drawdown")
+            click(R.string.done)
+            waitFor(R.string.brew_saved, 5_000)
         }
     }
 }

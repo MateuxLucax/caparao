@@ -11,6 +11,8 @@ import io.github.mateuxlucax.caparao.brew.EspressoDetector
 import io.github.mateuxlucax.caparao.brew.FilterDetector
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
+import io.github.mateuxlucax.caparao.brew.StepEvent
+import io.github.mateuxlucax.caparao.brew.StepTracker
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
@@ -21,8 +23,11 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -52,6 +57,14 @@ class BrewViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
+
+    private val _alerts = MutableSharedFlow<GuideAlert>(extraBufferCapacity = 16)
+
+    /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
+    val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
+
+    /** Follows the recipe's steps once a filter brew starts; null for espresso, a free brew or a recipe without steps. */
+    private var tracker: StepTracker? = null
 
     private var job: Job? = null
     private var detector: BrewDetector? = null
@@ -141,15 +154,22 @@ class BrewViewModel(
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
             brewingSinceMs = timed.atMs
             smoother.reset()
+            val steps = _uiState.value.recipe?.steps.orEmpty()
+            if (mode == BrewMode.FILTER && steps.isNotEmpty()) tracker = StepTracker(steps)
         }
         val since = brewingSinceMs
         val flow = if (since != null) smoother.add(timed) else 0.0
+        val guide = tracker?.takeIf { since != null && current.phase == BrewPhase.BREWING }?.let { t ->
+            t.update(timed.atMs - since!!, reading.weightGrams, flow).forEach(::alert)
+            t.state
+        }
         _uiState.update {
             it.copy(
                 phase = current.phase,
                 weightGrams = reading.weightGrams,
                 flowGramsPerSecond = flow,
                 elapsedMs = since?.let { s -> timed.atMs - s } ?: 0,
+                guide = guide ?: it.guide,
             )
         }
         if (current.phase == BrewPhase.DONE) finish(current)
@@ -157,8 +177,8 @@ class BrewViewModel(
 
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
-        // An edit elsewhere updates the one being followed; a deleted one leaves this brew as it was.
-        val current = state.recipe?.let { chosen -> list.find { it.id == chosen.id } ?: chosen }
+        // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
+        val current = state.recipe?.let { chosen -> list.find { it.id == chosen.id }?.takeIf { state.step == BrewStep.DOSE } ?: chosen }
         _uiState.update { it.copy(recipes = list, recipe = current) }
         if (recipeChosen || state.step != BrewStep.DOSE) return
         recipeChosen = true
@@ -183,6 +203,12 @@ class BrewViewModel(
             current.interrupt(clock())
             finish(current)
         }
+    }
+
+    private fun alert(event: StepEvent) {
+        val vibrate = settings.guideVibration
+        val sound = settings.guideSound
+        if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
 
     private fun send(command: ScaleCommand) = when (command) {
@@ -217,6 +243,7 @@ class BrewViewModel(
         readings.clear()
         smoother.reset()
         brewingSinceMs = null
+        tracker = null
         recipeChosen = false
         _uiState.value = BrewUiState(
             mode,

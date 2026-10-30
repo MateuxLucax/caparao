@@ -2,6 +2,9 @@
 # Refreshes docs/screenshots from a running emulator: the onboarding and every tab, in English and Portuguese, light and dark.
 # The status bar is put in demo mode (fixed clock, full battery, no notifications) so the images don't change for
 # no reason. Images are scaled to 540 px wide to keep the repository small.
+#
+# While iterating, run part of it: ONLY=filterGuide (one ScreenshotTest method) and VARIANTS="en-light" (any of
+# en-light en-dark pt-BR-light pt-BR-dark). Run the full set once before a PR so the committed images match.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -28,14 +31,19 @@ demo notifications -e visible false
 scale=$("$adb" shell settings get global animator_duration_scale)
 "$adb" shell settings put global animator_duration_scale 0
 
+variants=${VARIANTS:-en-light en-dark pt-BR-light pt-BR-dark}
+target=io.github.mateuxlucax.caparao.ui.ScreenshotTest${ONLY:+#$ONLY}
+expected=$([ -n "${ONLY:-}" ] && echo "OK (1 test)" || echo "OK (5 tests)")
+
 "$adb" shell rm -rf "$device_dir"
 for lang in en pt-BR; do
   for theme in light dark; do
+    case " ${variants//,/ } " in *" $lang-$theme "*) ;; *) continue ;; esac
     "$adb" shell cmd locale set-app-locales "$app" --locales "$lang"
     "$adb" shell cmd uimode night "$([ "$theme" = dark ] && echo yes || echo no)" >/dev/null
     "$adb" shell am force-stop "$app"
     "$adb" shell am instrument -w -e screenshots "$lang-$theme" \
-      -e class io.github.mateuxlucax.caparao.ui.ScreenshotTest "$app.test/androidx.test.runner.AndroidJUnitRunner" | grep -q "OK (4 tests)" \
+      -e class "$target" "$app.test/androidx.test.runner.AndroidJUnitRunner" | grep -q "$expected" \
       || { echo "screenshot run failed for $lang-$theme" >&2; exit 1; }
   done
 done
@@ -49,6 +57,7 @@ tmp=$(mktemp -d)
 for lang in en pt-BR; do
   mkdir -p "$out/$lang"
   for f in "$tmp"/screenshots/"$lang"-*/*.png; do
+    [ -e "$f" ] || continue
     theme=$(basename "$(dirname "$f")"); theme=${theme#"$lang"-}
     sips -Z 1210 "$f" --out "$out/$lang/$(basename "$f" .png)-$theme.png" >/dev/null
   done

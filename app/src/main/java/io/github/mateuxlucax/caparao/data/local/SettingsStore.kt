@@ -47,6 +47,15 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun setTargetRatio(mode: BrewMode, ratio: Double) =
         prefs.edit().putFloat(KEY_TARGET_RATIO + mode.name.lowercase(), ratio.toFloat()).apply()
 
+    /** Guided brew alerts (docs/adr/0019-guided-brew.md): vibration on by default, sound off. */
+    var guideVibration: Boolean
+        get() = prefs.getBoolean(KEY_GUIDE_VIBRATION, true)
+        set(value) = prefs.edit().putBoolean(KEY_GUIDE_VIBRATION, value).apply()
+
+    var guideSound: Boolean
+        get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
+        set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
+
     /** The upload server's base URL, empty when none is set. */
     val serverUrl: String get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
 
@@ -98,6 +107,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
         private const val KEY_LAST_DOSE = "last_dose_"
         private const val KEY_LAST_RECIPE = "last_recipe_"
+        private const val KEY_GUIDE_VIBRATION = "guide_vibration"
+        private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"

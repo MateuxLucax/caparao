@@ -159,6 +159,17 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   is a hint and never blocks; waits and swirls end when the next step is due; the synthetic filter replay session,
   decoded frame by frame, runs ahead of the V60. No real filter brew is recorded yet: the curves are synthetic.
 
+7.4 Guided brew:
+- A filter brew from a recipe with steps shows one full-screen step at a time (wireframes 3a–3e): the step's colour,
+  the cup filling to the dashed target line, "x / y g", the countdown before a pour, the pace once it begins (late turns
+  the error colour), an overshoot hint, a countdown ring for waits and swirls, a check on each reached target, then
+  "Let it drain" with Done. An espresso from a recipe colours the shot time inside and past its window.
+- Alerts: vibration (`VIBRATE`, on by default) and a tone (`ToneGenerator`, off by default), toggles in Settings.
+- The guide's state is `BrewUiState.guide` and `steps` in the `BrewViewModel` state flow, which `WatchLink` already
+  receives, so the watch can show it later (stage 9).
+- `BrewViewModelTest`: a guided filter advances and raises alerts (vibration only by default), none with both off, a
+  free brew has no guide. `BrewUiStateTest`: the espresso window. Screenshots of each guided step.
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):

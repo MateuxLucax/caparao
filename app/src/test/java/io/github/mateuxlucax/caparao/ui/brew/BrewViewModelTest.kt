@@ -6,6 +6,10 @@ import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.brew.StepEvent
+import kotlinx.coroutines.launch
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -221,5 +225,64 @@ class BrewViewModelTest {
         assertEquals("22", brew.grind)
         assertEquals(94, brew.waterTempCelsius)
         assertEquals("Espresso", BrewRepository(dao).get(brew.id)!!.recipeName)
+    }
+
+    /** A filter brew following [steps]: tared, then poured as [pours] describes; the alerts it raised. */
+    private fun guidedFilter(steps: List<RecipeStep>, pours: () -> Unit): Pair<BrewViewModel, List<GuideAlert>> {
+        val alerts = mutableListOf<GuideAlert>()
+        recipes.run { kotlinx.coroutines.runBlocking { save(v60.copy(steps = steps)) } }
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pours()
+        collecting.cancel()
+        return vm to alerts
+    }
+
+    private val twoPours = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 100.0, 20_000))
+
+    @Test
+    fun aFilterRecipeGuidesStepByStepAndRaisesAlerts() {
+        val (vm, alerts) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+        }
+        val guide = vm.uiState.value.guide!!
+        assertEquals(2, guide.index)
+        assertEquals(twoPours, vm.uiState.value.steps)
+        val events = alerts.map { it.event }
+        assertTrue(StepEvent.Reached(0) in events)
+        assertTrue(StepEvent.Started(1) in events)
+        assertTrue(StepEvent.Countdown(1, 5) in events)
+        assertEquals(StepEvent.AllDone, events.last())
+        // Vibration on, sound off by default.
+        assertTrue(alerts.all { it.vibrate && !it.sound })
+        vm.stop()
+        assertEquals("V60", vm.uiState.value.saved!!.recipeName)
+    }
+
+    @Test
+    fun noAlertsWhenBothAreOffButTheGuideStillRuns() {
+        settings.guideVibration = false
+        val (vm, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        assertEquals(1, vm.uiState.value.guide!!.index)
+        assertTrue(alerts.isEmpty())
+    }
+
+    @Test
+    fun aFreeFilterBrewHasNoGuide() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 40.0, 8.0)
+        assertNull(vm.uiState.value.guide)
     }
 }

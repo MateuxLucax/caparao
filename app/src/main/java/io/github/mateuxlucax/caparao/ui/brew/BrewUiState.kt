@@ -5,6 +5,8 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.brew.StepState
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, LIVE, SUMMARY }
@@ -29,7 +31,27 @@ data class BrewUiState(
     val recipes: List<Recipe> = emptyList(),
     /** The one being followed; null for a free brew. */
     val recipe: Recipe? = null,
+    /** Filter with a recipe's steps, once brewing: where the guide stands (docs/adr/0019-guided-brew.md). */
+    val guide: StepState? = null,
 ) {
+    /** The steps being followed, when the guide is on. */
+    val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps.orEmpty() else emptyList()
+
+    /** Espresso with a recipe's time window: where the shot time stands; null without one or before the shot. */
+    val window: Window?
+        get() {
+            val min = recipe?.targetMinMs ?: return null
+            val max = recipe.targetMaxMs ?: return null
+            if (mode != BrewMode.ESPRESSO || phase != BrewPhase.BREWING && phase != BrewPhase.DONE) return null
+            return when {
+                elapsedMs < min -> Window.BEFORE
+                elapsedMs <= max -> Window.INSIDE
+                else -> Window.PAST
+            }
+        }
+
+    enum class Window { BEFORE, INSIDE, PAST }
+
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
     val ratio: Double?
         get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.DONE) }?.let { weightGrams / it }
