@@ -9,7 +9,10 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -24,7 +27,9 @@ import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SeedBuiltInRecipes
+import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -41,6 +46,8 @@ import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
+import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
+import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -121,6 +128,8 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+            initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
+            initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         }
         compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
         play(scale, atMs)
@@ -260,6 +269,48 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("guide-countdown")
         play(scale, 89_500)
         capture("guide-drawdown")
+    }
+
+    /**
+     * Compare and trends (ADR 0022) on three saved V60 brews: two picked with a long press, their curves overlaid with
+     * the rating row, then the recipe's trends from the newest one's detail.
+     */
+    @Test
+    fun compareAndTrends() {
+        val saved = listOf(Triple(238.0, 185_000L, 4), Triple(245.0, 200_000L, 3), Triple(250.0, 178_000L, 5))
+        runBlocking {
+            saved.forEachIndexed { i, (water, duration, rating) ->
+                val brew = Brew(
+                    "compare-$i", BrewMode.FILTER, BREWED_AT - (2 - i) * 86_400_000L, duration, 15.0, water, null, water / (duration / 1000.0), 6.0,
+                    interrupted = false, recipeId = "screenshot-v60", recipeName = "V60", rating = rating,
+                )
+                brews.save(brew, curve(water, duration))
+            }
+        }
+        open("press-ramp", 0)
+        click(R.string.tab_brews)
+        val row = { water: Double -> compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}", substring = true) }
+        row(250.0).performTouchInput { longClick() }
+        row(245.0).performClick()
+        capture("brews-compare-pick")
+        click(R.string.compare)
+        waitFor(R.string.brew_rating)
+        capture("compare")
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        // The picks may come back with the list; tapping a row then picks instead of opening.
+        if (compose.onAllNodes(hasText(text(R.string.cancel))).fetchSemanticsNodes().isNotEmpty()) click(R.string.cancel)
+        row(250.0).performClick()
+        waitFor(R.string.delete)
+        compose.onNodeWithText(text(R.string.trends)).performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.label_ratio)), 5_000)
+        capture("trends")
+    }
+
+    /** An S-shaped pour to [water] over [durationMs], one sample a second. */
+    private fun curve(water: Double, durationMs: Long) = (0..durationMs / 1000).map { s ->
+        val f = s * 1000.0 / durationMs
+        val weight = water * f * f * (3 - 2 * f)
+        BrewSample(s * 1000, weight, water * 6 * f * (1 - f) / (durationMs / 1000.0))
     }
 
     private companion object {
