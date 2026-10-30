@@ -157,7 +157,8 @@ private fun StageAnimation(stage: GuideStage) {
         transition.animateFloat(0f, 1f, infiniteRepeatable(tween(LOOP_MS, easing = LinearEasing)), label = "t").value
     }
     val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.size(100.dp)) {
+    // Inset in the 128 dp shape, so the scale and the stream never touch its edges.
+    Canvas(Modifier.size(72.dp)) {
         // Drawn in a 120-unit square: the scale at the bottom, the cup on it, the stream or drops above. Without anything
         // above the cup, the pair moves up to the middle.
         val shift = if (stage == GuideStage.CUP || stage == GuideStage.TARE) -18f else 0f
@@ -180,8 +181,8 @@ private fun StageAnimation(stage: GuideStage) {
                 }
                 GuideStage.POUR -> {
                     val surface = cup.bottom - cup.height * fill
-                    val wobble = 0.6f * sin(t * 2 * PI.toFloat() * 6)
-                    drawLine(colors.tertiary, Offset(60f + wobble, 22f), Offset(60f, surface), strokeWidth = 4f, cap = StrokeCap.Round)
+                    // A still stream: the rising coffee already says the cup is filling.
+                    drawLine(colors.tertiary, Offset(60f, 22f), Offset(60f, surface), strokeWidth = 4f, cap = StrokeCap.Round)
                 }
                 else -> Unit
             }
