@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -62,6 +64,8 @@ import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.recipeSummary
+import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
@@ -122,7 +126,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 when (step) {
                     BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setDose)
                     BrewStep.LIVE -> LiveStep(state, viewModel)
-                    BrewStep.SUMMARY -> SummaryStep(state, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
+                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
         }
@@ -237,7 +241,7 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -> Unit) {
+private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit, onClose: () -> Unit) {
     val brew = state.saved
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
@@ -249,7 +253,7 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
         )
     }
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
@@ -263,8 +267,10 @@ private fun SummaryStep(state: BrewUiState, onDiscard: () -> Unit, onClose: () -
             Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
         BrewNumbers(brew)
+        // Asked after the brew, never before, so the main flow stays a few taps (docs/adr/0021-brew-notes.md).
+        state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onClose, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
+        Button(onClick = onSave, Modifier.fillMaxWidth().height(64.dp)) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
         TextButton(onClick = { confirmDiscard = true }, Modifier.fillMaxWidth().height(56.dp)) { Text(stringResource(R.string.discard)) }
     }
 }

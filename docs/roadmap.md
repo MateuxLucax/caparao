@@ -170,6 +170,18 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
 - `BrewViewModelTest`: a guided filter advances and raises alerts (vibration only by default), none with both off, a
   free brew has no guide. `BrewUiStateTest`: the espresso window. Screenshots of each guided step.
 
+7.5 Brew notes:
+- The save screen asks for coffee (the last one suggested, past ones to pick), grind and temperature (from the recipe),
+  a 1–5 rating and notes; Save keeps them, leaving keeps the brew without them. The brew detail shows them and edits
+  them. An edit clears `synced_at` and enqueues the upload again.
+- Contract: optional `recipe_name`, `coffee`, `grind`, `water_temp_c`, `rating` and `notes`, left out when unset, so a
+  brew without notes is the same body as before; the stub validates and stores them. The exporter must accept them
+  before brews with notes can sync to it.
+- `ContractTest` (a body without notes has only the required keys; with them, every schema key; `valid/with-notes.json`
+  round-trips), stub `go test` (new valid and invalid files), `NotesFormTest`, `BrewViewModelTest` (suggested coffee,
+  saved notes sent again, invalid temperature), `BrewDetailViewModelTest` (edit unsyncs and sends; unchanged or invalid
+  sends nothing), `BrewDaoTest` (notes clear `synced_at`, coffees newest first).
+
 ## 8. Prometheus exporter (last)
 
 Separate repository [`timemore-dot-prometheus-exporter`](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter) (Go):

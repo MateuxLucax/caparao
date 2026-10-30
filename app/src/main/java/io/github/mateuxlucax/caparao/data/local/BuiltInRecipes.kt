@@ -9,12 +9,15 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 
 /**
- * The two recipes a new or upgraded install starts with, as ordinary editable rows, taken from the first brews
- * recorded on the exporter (docs/adr/0018-recipes.md). The names are the same in every language.
+ * The recipes a new or upgraded install starts with, as ordinary editable rows (docs/adr/0018-recipes.md). The
+ * espresso comes from the first brews recorded on the exporter; the V60 follows the common 15 g : 250 g recipe in five
+ * pours (James Hoffmann's "better 1 cup"); the Melitta is the usual cone recipe at 1:16, a bloom and three pours.
+ * The names are the same in every language.
  */
 object BuiltInRecipes {
     const val ESPRESSO_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0001"
     const val V60_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0002"
+    const val MELITTA_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0003"
 
     fun all(now: Long) = listOf(
         Recipe(
@@ -24,12 +27,24 @@ object BuiltInRecipes {
         ),
         Recipe(
             id = V60_ID, name = "V60", mode = BrewMode.FILTER, method = "V60",
-            doseGrams = 18.0, targetRatio = 16.7,
+            doseGrams = 15.0, targetRatio = 16.7, waterTempCelsius = 96,
             steps = listOf(
                 RecipeStep(StepKind.BLOOM, 50.0, 0),
                 RecipeStep(StepKind.POUR, 100.0, 45_000),
-                RecipeStep(StepKind.POUR, 150.0, 85_000),
-                RecipeStep(StepKind.POUR, 300.0, 120_000),
+                RecipeStep(StepKind.POUR, 150.0, 70_000),
+                RecipeStep(StepKind.POUR, 200.0, 80_000),
+                RecipeStep(StepKind.POUR, 250.0, 90_000),
+            ),
+            createdAt = now, updatedAt = now,
+        ),
+        Recipe(
+            id = MELITTA_ID, name = "Melitta", mode = BrewMode.FILTER, method = "Melitta",
+            doseGrams = 20.0, targetRatio = 16.0, waterTempCelsius = 94,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 40.0, 0),
+                RecipeStep(StepKind.POUR, 160.0, 45_000),
+                RecipeStep(StepKind.POUR, 240.0, 90_000),
+                RecipeStep(StepKind.POUR, 320.0, 135_000),
             ),
             createdAt = now, updatedAt = now,
         ),

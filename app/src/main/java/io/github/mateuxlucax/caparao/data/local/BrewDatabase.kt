@@ -88,6 +88,17 @@ interface BrewDao {
 
     @Query("DELETE FROM brews WHERE id = :id")
     suspend fun delete(id: String)
+
+    /** The notes changed: the server's copy is stale, so the brew is unsynced again (docs/adr/0021-brew-notes.md). */
+    @Query(
+        "UPDATE brews SET coffee = :coffee, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
+            "notes = :notes, synced_at = NULL WHERE id = :id",
+    )
+    suspend fun updateNotes(id: String, coffee: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
+
+    /** Coffees used before, most recent first, each once. */
+    @Query("SELECT coffee FROM brews WHERE coffee IS NOT NULL GROUP BY coffee ORDER BY MAX(started_at) DESC LIMIT :limit")
+    suspend fun recentCoffees(limit: Int): List<String>
 }
 
 /** The app's database: brews, their curves and the recipes, only on the phone (docs/adr/0003-offline-first.md). */

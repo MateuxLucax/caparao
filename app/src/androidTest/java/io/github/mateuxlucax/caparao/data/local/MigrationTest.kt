@@ -43,7 +43,7 @@ class MigrationTest {
             assertEquals(2, db.brews().samples("a").size)
 
             val recipes = RecipeRepository(db.recipes()).recipes.first()
-            assertEquals(BuiltInRecipes.all(0).map { it.copy(createdAt = 0, updatedAt = 0) }.sortedBy { it.mode.name }, recipes.map { it.copy(createdAt = 0, updatedAt = 0) })
+            assertEquals(BuiltInRecipes.all(0).map { it.copy(createdAt = 0, updatedAt = 0) }.sortedWith(compareBy({ it.mode.name }, { it.name })), recipes.map { it.copy(createdAt = 0, updatedAt = 0) })
         } finally {
             db.close()
         }
@@ -54,10 +54,12 @@ class MigrationTest {
         val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first()
-            assertEquals(listOf(BuiltInRecipes.ESPRESSO_ID, BuiltInRecipes.V60_ID), recipes.map { it.id })
-            val v60 = recipes.single { it.mode == BrewMode.FILTER }
-            assertEquals(listOf(50.0, 100.0, 150.0, 300.0), v60.steps.map { it.targetWeightGrams })
-            assertEquals(listOf(0L, 45_000L, 85_000L, 120_000L), v60.steps.map { it.targetAtMs })
+            assertEquals(listOf(BuiltInRecipes.ESPRESSO_ID, BuiltInRecipes.MELITTA_ID, BuiltInRecipes.V60_ID), recipes.map { it.id })
+            val v60 = recipes.single { it.id == BuiltInRecipes.V60_ID }
+            assertEquals(listOf(50.0, 100.0, 150.0, 200.0, 250.0), v60.steps.map { it.targetWeightGrams })
+            assertEquals(listOf(0L, 45_000L, 70_000L, 80_000L, 90_000L), v60.steps.map { it.targetAtMs })
+            val melitta = recipes.single { it.id == BuiltInRecipes.MELITTA_ID }
+            assertEquals(listOf(40.0, 160.0, 240.0, 320.0), melitta.steps.map { it.targetWeightGrams })
         } finally {
             db.close()
         }

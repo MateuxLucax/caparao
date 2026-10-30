@@ -7,6 +7,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, LIVE, SUMMARY }
@@ -33,6 +34,9 @@ data class BrewUiState(
     val recipe: Recipe? = null,
     /** Filter with a recipe's steps, once brewing: where the guide stands (docs/adr/0019-guided-brew.md). */
     val guide: StepState? = null,
+    /** On the summary: the saved brew's notes being typed, and past coffees to pick from. */
+    val notes: NotesForm? = null,
+    val coffees: List<String> = emptyList(),
 ) {
     /** The steps being followed, when the guide is on. */
     val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps.orEmpty() else emptyList()
