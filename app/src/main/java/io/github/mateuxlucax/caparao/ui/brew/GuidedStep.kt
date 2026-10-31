@@ -27,10 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -51,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.Pace
+import io.github.mateuxlucax.caparao.brew.PourRate
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -133,6 +136,9 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
         }
+        if (guide.dueInMs == null) {
+            PourRate.target(step, state.steps.getOrNull(index + 1), state.elapsedMs, state.weightGrams)?.let { FlowBars(state.flowGramsPerSecond, it) }
+        }
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -148,6 +154,41 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
     Note("${Format.timer((state.elapsedMs / 1000).toInt())} · ${Format.flow(state.flowGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}")
 }
+
+/**
+ * The last few seconds of flow as bars against the pour rate to aim for, a line across them: bars on pace take the
+ * tertiary colour, too slow or too fast stay neutral. Readings come at 10 Hz; a bar is kept for each.
+ */
+@Composable
+private fun FlowBars(flow: Double, target: Double) {
+    val locale = LocalConfiguration.current.locales[0]
+    val history = remember { mutableStateListOf<Float>() }
+    LaunchedEffect(flow) {
+        history.add(flow.toFloat())
+        if (history.size > FLOW_BARS) history.removeAt(0)
+    }
+    val colors = MaterialTheme.colorScheme
+    val onPace = PourRate.onPace(flow, target)
+    Canvas(Modifier.fillMaxWidth(0.8f).height(56.dp)) {
+        val top = (target * 2).toFloat()
+        val slot = size.width / FLOW_BARS
+        val bar = slot * 0.6f
+        history.forEachIndexed { i, f ->
+            val h = (f / top).coerceIn(0.02f, 1f) * size.height
+            val x = (FLOW_BARS - history.size + i) * slot + (slot - bar) / 2
+            val color = if (PourRate.onPace(f.toDouble(), target)) colors.tertiary else colors.surfaceContainerHighest
+            drawRoundRect(color, Offset(x, size.height - h), Size(bar, h), CornerRadius(bar / 2))
+        }
+        val y = size.height / 2
+        drawLine(colors.onSurfaceVariant, Offset(0f, y), Offset(size.width, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+    }
+    Note(
+        stringResource(R.string.guide_flow, Format.flow(flow, locale), Format.flow(target, locale)),
+        if (onPace) colors.tertiary else colors.onSurfaceVariant,
+    )
+}
+
+private const val FLOW_BARS = 30
 
 @Composable
 private fun Drawdown(state: BrewUiState) {

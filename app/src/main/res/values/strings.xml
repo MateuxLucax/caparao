@@ -205,6 +205,7 @@
     <string name="guide_ahead">%1$d s ahead</string>
     <string name="guide_behind">%1$d s behind</string>
     <string name="guide_over">%1$s g past the target</string>
+    <string name="guide_flow">Flow %1$s g/s · aim for %2$s</string>
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
