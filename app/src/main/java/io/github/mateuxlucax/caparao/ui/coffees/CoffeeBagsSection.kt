@@ -87,7 +87,7 @@ private fun BagDialog(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 Field(form.roaster, R.string.coffee_roaster) { viewModel.change(form.copy(roaster = it.take(80))) }
                 Field(form.origin, R.string.coffee_origin) { viewModel.change(form.copy(origin = it.take(120))) }
                 Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
-                OutlinedButton(onClick = { picking = true }, Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
+                OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                     Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, day(it)) } ?: stringResource(R.string.coffee_roast_date))
                 }
                 Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
