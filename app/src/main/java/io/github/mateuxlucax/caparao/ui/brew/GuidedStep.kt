@@ -156,19 +156,14 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
 
 /**
  * The flow as a row of solid bars rising left to right, like a signal meter: the bars up to the current flow are lit,
- * the one at the pour rate to aim for is a little taller. Lit bars take the tertiary colour on pace, primary too slow
- * and error too fast. The scale reaches twice the target, so on pace fills about half.
+ * the one at the pour rate to aim for is a little taller. Lit bars take the tertiary colour on pace, primary otherwise. The scale reaches twice the target, so on pace fills about half.
  */
 @Composable
 private fun FlowBars(flow: Double, target: Double) {
     val locale = LocalConfiguration.current.locales[0]
     val colors = MaterialTheme.colorScheme
     val shown by animateFloatAsState(flow.toFloat(), tween(150, easing = LinearEasing), label = "flow")
-    val lit = when {
-        PourRate.onPace(flow, target) -> colors.tertiary
-        flow > target -> colors.error
-        else -> colors.primary
-    }
+    val lit = if (PourRate.onPace(flow, target)) colors.tertiary else colors.primary
     val litColor by animateColorAsState(lit, tween(300, easing = Motion.Standard), label = "flowColor")
     val targetIndex = FLOW_BARS / 2 - 1
     Row(
