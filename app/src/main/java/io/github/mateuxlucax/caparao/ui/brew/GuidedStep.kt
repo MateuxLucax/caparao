@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,12 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -156,39 +155,43 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
 }
 
 /**
- * The last few seconds of flow as bars against the pour rate to aim for, a line across them: bars on pace take the
- * tertiary colour, too slow or too fast stay neutral. Readings come at 10 Hz; a bar is kept for each.
+ * The flow as a row of solid bars rising left to right, like a signal meter: the bars up to the current flow are lit,
+ * the one at the pour rate to aim for is a little taller. Lit bars take the tertiary colour on pace, primary too slow
+ * and error too fast. The scale reaches twice the target, so on pace fills about half.
  */
 @Composable
 private fun FlowBars(flow: Double, target: Double) {
     val locale = LocalConfiguration.current.locales[0]
-    val history = remember { mutableStateListOf<Float>() }
-    LaunchedEffect(flow) {
-        history.add(flow.toFloat())
-        if (history.size > FLOW_BARS) history.removeAt(0)
-    }
     val colors = MaterialTheme.colorScheme
-    val onPace = PourRate.onPace(flow, target)
-    Canvas(Modifier.fillMaxWidth(0.8f).height(56.dp)) {
-        val top = (target * 2).toFloat()
-        val slot = size.width / FLOW_BARS
-        val bar = slot * 0.6f
-        history.forEachIndexed { i, f ->
-            val h = (f / top).coerceIn(0.02f, 1f) * size.height
-            val x = (FLOW_BARS - history.size + i) * slot + (slot - bar) / 2
-            val color = if (PourRate.onPace(f.toDouble(), target)) colors.tertiary else colors.surfaceContainerHighest
-            drawRoundRect(color, Offset(x, size.height - h), Size(bar, h), CornerRadius(bar / 2))
+    val shown by animateFloatAsState(flow.toFloat(), tween(150, easing = LinearEasing), label = "flow")
+    val lit = when {
+        PourRate.onPace(flow, target) -> colors.tertiary
+        flow > target -> colors.error
+        else -> colors.primary
+    }
+    val litColor by animateColorAsState(lit, tween(300, easing = Motion.Standard), label = "flowColor")
+    val targetIndex = FLOW_BARS / 2 - 1
+    Row(
+        Modifier.fillMaxWidth(0.8f).height(64.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        repeat(FLOW_BARS) { i ->
+            val level = (i + 1f) / FLOW_BARS * (target * 2).toFloat()
+            val height = 0.3f + 0.6f * i / (FLOW_BARS - 1) + if (i == targetIndex) 0.1f else 0f
+            Box(
+                Modifier.weight(1f).fillMaxHeight(height).clip(MaterialTheme.shapes.small)
+                    .background(if (shown >= level - 0.001f) litColor else colors.surfaceContainerHighest),
+            )
         }
-        val y = size.height / 2
-        drawLine(colors.onSurfaceVariant, Offset(0f, y), Offset(size.width, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
     }
     Note(
         stringResource(R.string.guide_flow, Format.flow(flow, locale), Format.flow(target, locale)),
-        if (onPace) colors.tertiary else colors.onSurfaceVariant,
+        if (lit == colors.tertiary) colors.tertiary else colors.onSurfaceVariant,
     )
 }
 
-private const val FLOW_BARS = 30
+private const val FLOW_BARS = 10
 
 @Composable
 private fun Drawdown(state: BrewUiState) {
