@@ -124,7 +124,7 @@ private fun ModeSelector(connected: Boolean, onBrew: (BrewMode) -> Unit) {
         options,
         selected = null,
         onSelect = { if (it != null) onBrew(it) },
-        label = { stringResource(it?.label ?: R.string.mode_scale) },
+        label = { stringResource(it?.label ?: R.string.mode_manual) },
         enabled = { it == null || connected },
     )
 }

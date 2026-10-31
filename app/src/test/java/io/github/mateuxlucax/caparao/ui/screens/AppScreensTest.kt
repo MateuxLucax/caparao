@@ -130,7 +130,7 @@ class AppScreensTest {
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
-        compose.onNodeWithText(text(R.string.mode_scale)).assertIsSelected()
+        compose.onNodeWithText(text(R.string.mode_manual)).assertIsSelected()
         compose.onNodeWithText(text(R.string.mode_espresso)).assertIsEnabled()
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
