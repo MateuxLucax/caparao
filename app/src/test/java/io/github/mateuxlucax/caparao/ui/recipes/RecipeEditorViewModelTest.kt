@@ -53,7 +53,7 @@ class RecipeEditorViewModelTest {
         repository.save(BuiltInRecipes.all(1)[1])
         val vm = editor(Target.Edit(BuiltInRecipes.V60_ID))
         assertFalse(vm.state.value.isNew)
-        assertEquals("V60", vm.state.value.form!!.name)
+        assertEquals("V60 One and Done", vm.state.value.form!!.name)
         vm.removeStep(3)
         vm.edit { it.copy(name = "V60 short") }
         vm.save()
