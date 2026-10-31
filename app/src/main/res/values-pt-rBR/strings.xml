@@ -264,4 +264,10 @@
         <item quantity="many">torrado há %1$d dias</item>
         <item quantity="other">torrado há %1$d dias</item>
     </plurals>
+    <string name="coffees_manage">Gerenciar cafés</string>
+    <plurals name="coffees_open">
+        <item quantity="one">%1$d pacote aberto.</item>
+        <item quantity="many">%1$d pacotes abertos.</item>
+        <item quantity="other">%1$d pacotes abertos.</item>
+    </plurals>
 </resources>

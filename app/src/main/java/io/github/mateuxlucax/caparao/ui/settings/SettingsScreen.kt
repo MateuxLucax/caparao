@@ -67,6 +67,7 @@ fun SettingsScreen(
     scale: ScaleStatusViewModel,
     targets: TargetRatioViewModel,
     coffees: CoffeeBagsViewModel,
+    onCoffees: () -> Unit,
     actions: AppActions, versionName: String,
     modifier: Modifier = Modifier,
 ) {
@@ -74,7 +75,7 @@ fun SettingsScreen(
         modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SectionCard(stringResource(R.string.section_coffees)) { CoffeeBagsSection(coffees) }
+        SectionCard(stringResource(R.string.section_coffees)) { CoffeeBagsSection(coffees, onCoffees) }
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }

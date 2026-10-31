@@ -1,6 +1,16 @@
 package io.github.mateuxlucax.caparao.ui.coffees
 
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,15 +53,44 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.TimeZone
 
-/** The coffee bags in Settings: open ones with what is left and the days since the roast, then the finished ones. */
+/** The Settings card: how many bags are open, and the way to the coffees screen. */
 @Composable
-fun CoffeeBagsSection(viewModel: CoffeeBagsViewModel) {
+fun CoffeeBagsSection(viewModel: CoffeeBagsViewModel, onOpen: () -> Unit) {
+    val bags by viewModel.bags.collectAsStateWithLifecycle()
+    val open = bags?.count { !it.finished } ?: return
+    BodyText(if (open == 0) stringResource(R.string.coffees_empty) else pluralStringResource(R.plurals.coffees_open, open, open))
+    FilledTonalButton(onClick = onOpen, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffees_manage)) }
+}
+
+/** The coffees screen: open bags with what is left and the days since the roast, then the finished ones. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onClose: () -> Unit) {
     val bags by viewModel.bags.collectAsStateWithLifecycle()
     val editing by viewModel.editing.collectAsStateWithLifecycle()
-    val all = bags ?: return
-    if (all.isEmpty()) BodyText(stringResource(R.string.coffees_empty))
-    all.forEach { bag -> BagRow(bag, viewModel.now()) { viewModel.edit(bag) } }
-    FilledTonalButton(onClick = viewModel::new, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffee_add)) }
+    BackHandler(onBack = onClose)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.section_coffees)) },
+                navigationIcon = {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
+                },
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = viewModel::new) { Text(stringResource(R.string.coffee_add)) }
+        },
+    ) { padding ->
+        val all = bags ?: return@Scaffold
+        Column(
+            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (all.isEmpty()) BodyText(stringResource(R.string.coffees_empty))
+            all.forEach { bag -> BagRow(bag, viewModel.now()) { viewModel.edit(bag) } }
+        }
+    }
     editing?.let { BagDialog(it, viewModel) }
 }
 
@@ -59,7 +98,8 @@ fun CoffeeBagsSection(viewModel: CoffeeBagsViewModel) {
 private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val dim = MaterialTheme.colorScheme.onSurfaceVariant
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp)) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
+    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             listOfNotNull(bag.name, bag.roaster).joinToString(" · "),
             style = MaterialTheme.typography.titleMedium,
@@ -71,6 +111,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
             bag.origin?.let { add(it) }
         }
         Text(details.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = dim)
+    }
     }
 }
 

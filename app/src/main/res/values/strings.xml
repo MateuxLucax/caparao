@@ -270,4 +270,9 @@
         <item quantity="one">roasted %1$d day ago</item>
         <item quantity="other">roasted %1$d days ago</item>
     </plurals>
+    <string name="coffees_manage">Manage coffees</string>
+    <plurals name="coffees_open">
+        <item quantity="one">%1$d open bag.</item>
+        <item quantity="other">%1$d open bags.</item>
+    </plurals>
 </resources>
