@@ -54,7 +54,7 @@ class MigrationTest {
         val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first()
-            assertEquals(5, recipes.size)
+            assertEquals(6, recipes.size)
             val v60 = recipes.single { it.id == BuiltInRecipes.V60_ID }
             assertEquals(listOf(45.0, 90.0, 250.0), v60.steps.map { it.targetWeightGrams })
             assertEquals(listOf(0L, 30_000L, 60_000L), v60.steps.map { it.targetAtMs })

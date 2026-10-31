@@ -10,7 +10,7 @@ import io.github.mateuxlucax.caparao.model.StepKind
 
 /**
  * The recipes a new or upgraded install starts with, as ordinary editable rows (docs/adr/0018-recipes.md). They come
- * from the user's recipe guide: Lance Hedrick's V60 "One and Done" and "Big Brew", Não Sou Barista's Melitta 102 and
+ * from the user's recipe guide: Lance Hedrick's V60 "One and Done" and "Big Brew", Tetsu Kasuya's 4:6 in ten pours, Não Sou Barista's Melitta 102 and
  * 103, and Pirados por Café's espresso on the Oster Xpert Perfect Brew. The names are the same in every language.
  */
 object BuiltInRecipes {
@@ -19,6 +19,7 @@ object BuiltInRecipes {
     const val MELITTA_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0003"
     const val V60_BIG_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0004"
     const val MELITTA_LITER_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0005"
+    const val V60_FOUR_SIX_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0006"
 
     /** The ids the first set of built-ins used; [MIGRATION_2_3] replaces those the user never edited. */
     val FIRST_IDS = listOf(ESPRESSO_ID, V60_ID, MELITTA_ID)
@@ -72,6 +73,14 @@ object BuiltInRecipes {
                 RecipeStep(StepKind.POUR, 600.0, 30_000),
                 RecipeStep(StepKind.POUR, 1050.0, 120_000),
             ),
+            createdAt = now, updatedAt = now,
+        ),
+        Recipe(
+            id = V60_FOUR_SIX_ID, name = "V60 4:6 10 pours", mode = BrewMode.FILTER, method = "V60",
+            doseGrams = 20.0, targetRatio = 15.0, grind = "Extremely coarse", waterTempCelsius = 96,
+            notes = "Tetsu Kasuya. Bloom 30 g, then 30 g every 15 s. Let it drain fully; done by 3:00–3:30.",
+            steps = listOf(RecipeStep(StepKind.BLOOM, 30.0, 0)) +
+                (1..9).map { RecipeStep(StepKind.POUR, 30.0 + 30.0 * it, 15_000L + 15_000L * it) },
             createdAt = now, updatedAt = now,
         ),
     )
