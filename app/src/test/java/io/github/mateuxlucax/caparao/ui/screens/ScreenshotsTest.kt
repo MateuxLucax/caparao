@@ -25,15 +25,18 @@ import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SeedBuiltInRecipes
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -123,6 +126,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { RecipesViewModel(recipes) }
+            initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, settings.syncStatus) {} }
             initializer { ServerViewModel(settings, { _, _ -> error("no server in screenshots") }, {}, {}) }
@@ -174,6 +178,23 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
         capture("recipe-editor")
+    }
+
+    /** The coffees screen from Settings, with an open bag and a finished one (docs/adr/0026-coffee-bags.md). */
+    @Test
+    fun coffees() {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        kotlinx.coroutines.runBlocking {
+            val bags = CoffeeBagRepository(db.coffeeBags())
+            bags.save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", origin = "Catuaí amarelo, natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            bags.save(CoffeeBag("bag-2", "Mantiqueira", roaster = "Sul de Minas", roastedAt = now - 40 * day, weightGrams = 500.0, finished = true, createdAt = now - 30 * day))
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_settings)
+        capture("settings-coffees")
+        click(R.string.coffees_manage)
+        capture("coffees")
     }
 
     /** The home tab in each brand color (docs/adr/0024-brand-color-option.md). */

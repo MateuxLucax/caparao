@@ -252,4 +252,27 @@
     <string name="ratio_more">More water</string>
     <string name="water_field">Water in ml</string>
     <string name="unit_ml">ml</string>
+    <!-- Coffee bags -->
+    <string name="section_coffees">Coffees</string>
+    <string name="coffees_empty">Add the bags on your shelf to see how much is left and how many days since the roast. Pick one as the coffee after a brew.</string>
+    <string name="coffee_add">Add coffee</string>
+    <string name="coffee_edit">Edit coffee</string>
+    <string name="coffee_name">Coffee</string>
+    <string name="coffee_roaster">Roaster</string>
+    <string name="coffee_origin">Origin and process</string>
+    <string name="coffee_weight">Bag weight (g)</string>
+    <string name="coffee_roast_date">Roast date</string>
+    <string name="coffee_roasted_on">Roasted on %1$s</string>
+    <string name="coffee_left">%1$s of %2$s g left</string>
+    <string name="coffee_finished">Finished</string>
+    <string name="coffee_mark_finished">Finished</string>
+    <plurals name="coffee_roasted_days">
+        <item quantity="one">roasted %1$d day ago</item>
+        <item quantity="other">roasted %1$d days ago</item>
+    </plurals>
+    <string name="coffees_manage">Manage coffees</string>
+    <plurals name="coffees_open">
+        <item quantity="one">%1$d open bag.</item>
+        <item quantity="other">%1$d open bags.</item>
+    </plurals>
 </resources>

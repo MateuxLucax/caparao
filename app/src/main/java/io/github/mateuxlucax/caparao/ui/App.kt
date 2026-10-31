@@ -50,6 +50,7 @@ import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeesScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesScreen
@@ -105,9 +106,11 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
     // Comma-joined ids and TrendKey.encode(), so both survive a rotation; they open over a saved brew or the tabs.
     var comparing by rememberSaveable { mutableStateOf<String?>(null) }
     var trends by rememberSaveable { mutableStateOf<String?>(null) }
+    var coffees by rememberSaveable { mutableStateOf(false) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    val destination = editing?.let { Destination.Recipe(it) }
+    val destination = (if (coffees) Destination.Coffees else null)
+        ?: editing?.let { Destination.Recipe(it) }
         ?: trends?.let { Destination.Trends(TrendKey.decode(it)) }
         ?: comparing?.let { Destination.Compare(it.split(',')) }
         ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
@@ -150,6 +153,7 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, target) }
                 RecipeEditorScreen(viewModel(key = "recipe-${shown.key}", factory = viewModelFactory, extras = extras)) { editing = null }
             }
+            Destination.Coffees -> CoffeesScreen(viewModel(factory = viewModelFactory)) { coffees = false }
             Destination.Tabs -> Tabs(
                 viewModelFactory, actions, versionName, tab,
                 onTab = { tab = it },
@@ -157,6 +161,7 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
                 onOpen = { opened = it },
                 onRecipe = { editing = it },
                 onCompare = { comparing = it.joinToString(",") },
+                onCoffees = { coffees = true },
             )
         }
     }
@@ -165,6 +170,7 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
 /** What fills the screen under [Main]. */
 private sealed interface Destination {
     data object Tabs : Destination
+    data object Coffees : Destination
     data class Brew(val mode: BrewMode) : Destination
     data class Detail(val id: String) : Destination
     data class Compare(val ids: List<String>) : Destination
@@ -184,6 +190,7 @@ private fun Tabs(
     onOpen: (String) -> Unit,
     onRecipe: (String) -> Unit,
     onCompare: (List<String>) -> Unit,
+    onCoffees: () -> Unit,
 ) {
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -222,6 +229,8 @@ private fun Tabs(
                     viewModel(key = "server-settings", factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
+                    onCoffees,
                     actions,
                     versionName,
                     modifier,

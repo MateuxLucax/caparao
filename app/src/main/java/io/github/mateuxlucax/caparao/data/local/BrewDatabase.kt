@@ -96,27 +96,33 @@ interface BrewDao {
     )
     suspend fun updateNotes(id: String, coffee: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
 
-    /** Coffees used before, most recent first, each once. */
-    @Query("SELECT coffee FROM brews WHERE coffee IS NOT NULL GROUP BY coffee ORDER BY MAX(started_at) DESC LIMIT :limit")
+    /** The open coffee bags, newest first, then coffees used before, most recent first, each once. */
+    @Query(
+        "SELECT coffee FROM (SELECT name AS coffee, 0 AS source, created_at AS at FROM coffee_bags WHERE finished = 0 " +
+            "UNION ALL SELECT coffee, 1, MAX(started_at) FROM brews WHERE coffee IS NOT NULL GROUP BY coffee) " +
+            "GROUP BY coffee ORDER BY MIN(source), MAX(at) DESC LIMIT :limit",
+    )
     suspend fun recentCoffees(limit: Int): List<String>
 }
 
 /** The app's database: brews, their curves and the recipes, only on the phone (docs/adr/0003-offline-first.md). */
 @Database(
-    entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class],
-    version = 3,
+    entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
+    version = 4,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
 
     abstract fun recipes(): RecipeDao
 
+    abstract fun coffeeBags(): CoffeeBagDao
+
     companion object {
         /** The file name must never change. */
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -149,6 +155,16 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         BuiltInRecipes.insert(db, System.currentTimeMillis())
     }
 }
+
+/** Coffee bags (docs/adr/0026-coffee-bags.md). */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) = db.execSQL(CREATE_COFFEE_BAGS)
+}
+
+/** As in app/schemas/…/4.json. */
+private const val CREATE_COFFEE_BAGS = "CREATE TABLE IF NOT EXISTS `coffee_bags` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +
+    "`roaster` TEXT, `origin` TEXT, `roasted_at` INTEGER, `weight_grams` REAL NOT NULL, `notes` TEXT, " +
+    "`finished` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))"
 
 /** As in app/schemas/…/2.json. */
 private const val CREATE_RECIPES = "CREATE TABLE IF NOT EXISTS `recipes` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, " +

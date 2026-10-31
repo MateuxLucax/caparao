@@ -27,6 +27,7 @@ import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
@@ -46,6 +47,7 @@ import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
@@ -91,6 +93,7 @@ class AppScreensTest {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { RecipesViewModel(recipes) }
+        initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
