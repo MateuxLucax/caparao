@@ -104,7 +104,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (docs/adr/0003-offline-first.md). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class],
-    version = 2,
+    version = 3,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -116,7 +116,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -135,6 +135,17 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         }
         db.execSQL(CREATE_RECIPES)
         db.execSQL(CREATE_RECIPE_STEPS)
+        BuiltInRecipes.insert(db, System.currentTimeMillis())
+    }
+}
+
+/** A new set of built-in recipes: the old ones the user never edited are replaced, edited ones stay. */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val ids = BuiltInRecipes.FIRST_IDS.joinToString(",") { "'$it'" }
+        val unedited = "SELECT id FROM recipes WHERE id IN ($ids) AND created_at = updated_at"
+        db.execSQL("DELETE FROM recipe_steps WHERE recipe_id IN ($unedited)")
+        db.execSQL("DELETE FROM recipes WHERE id IN ($unedited)")
         BuiltInRecipes.insert(db, System.currentTimeMillis())
     }
 }

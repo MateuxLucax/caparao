@@ -26,7 +26,7 @@ class MigrationTest {
     }
 
     @Test
-    fun from1To2KeepsBrewsAndAddsTheBuiltInRecipes() = runBlocking {
+    fun from1KeepsBrewsAndAddsTheBuiltInRecipes() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
             for (sql in VERSION_1) db.execSQL(sql)
             db.execSQL("INSERT INTO brews VALUES ('a', 'ESPRESSO', 1000, 28000, 18.0, 36.0, 4000, 1.3, 2.4, 0, NULL)")
@@ -34,7 +34,7 @@ class MigrationTest {
             db.version = 1
         }
 
-        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name).addMigrations(MIGRATION_1_2).build()
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         try {
             val brew = BrewRepository(db.brews()).get("a")!!
             assertEquals(36.0, brew.yieldGrams, 0.0)
@@ -54,12 +54,12 @@ class MigrationTest {
         val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first()
-            assertEquals(listOf(BuiltInRecipes.ESPRESSO_ID, BuiltInRecipes.MELITTA_ID, BuiltInRecipes.V60_ID), recipes.map { it.id })
+            assertEquals(6, recipes.size)
             val v60 = recipes.single { it.id == BuiltInRecipes.V60_ID }
-            assertEquals(listOf(50.0, 100.0, 150.0, 200.0, 250.0), v60.steps.map { it.targetWeightGrams })
-            assertEquals(listOf(0L, 45_000L, 70_000L, 80_000L, 90_000L), v60.steps.map { it.targetAtMs })
+            assertEquals(listOf(45.0, 90.0, 250.0), v60.steps.map { it.targetWeightGrams })
+            assertEquals(listOf(0L, 30_000L, 60_000L), v60.steps.map { it.targetAtMs })
             val melitta = recipes.single { it.id == BuiltInRecipes.MELITTA_ID }
-            assertEquals(listOf(40.0, 160.0, 240.0, 320.0), melitta.steps.map { it.targetWeightGrams })
+            assertEquals(listOf(40.0, 300.0), melitta.steps.map { it.targetWeightGrams })
         } finally {
             db.close()
         }
