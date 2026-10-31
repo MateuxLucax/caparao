@@ -199,6 +199,7 @@
     <string name="guide_ahead">%1$d s adiantado</string>
     <string name="guide_behind">%1$d s atrasado</string>
     <string name="guide_over">%1$s g acima do alvo</string>
+    <string name="guide_flow">Fluxo %1$s g/s · alvo %2$s</string>
     <string name="guide_drawdown">Deixe drenar</string>
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>

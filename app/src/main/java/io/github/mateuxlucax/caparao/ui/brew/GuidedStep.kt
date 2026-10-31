@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.Pace
+import io.github.mateuxlucax.caparao.brew.PourRate
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -133,6 +134,9 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
         }
+        if (guide.dueInMs == null) {
+            PourRate.target(step, previousTarget, state.steps.getOrNull(index + 1), state.weightGrams)?.let { FlowBar(state.flowGramsPerSecond, it) }
+        }
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -147,6 +151,32 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     }
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
     Note("${Format.timer((state.elapsedMs / 1000).toInt())} · ${Format.flow(state.flowGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}")
+}
+
+/**
+ * The flow as one thick horizontal bar, like the brew ring laid flat: it fills on a neutral track up to twice the
+ * step's pour rate, so on pace sits at the tick in the middle, and turns tertiary while on pace.
+ */
+@Composable
+private fun FlowBar(flow: Double, target: Double) {
+    val locale = LocalConfiguration.current.locales[0]
+    val colors = MaterialTheme.colorScheme
+    val onPace = PourRate.onPace(flow, target)
+    val fill by animateFloatAsState((flow / (target * 2)).coerceIn(0.0, 1.0).toFloat(), tween(150, easing = LinearEasing), label = "flow")
+    val color by animateColorAsState(if (onPace) colors.tertiary else colors.primary, tween(300, easing = Motion.Standard), label = "flowColor")
+    val track = colors.surfaceContainerHighest
+    val tick = colors.onSurfaceVariant
+    Canvas(Modifier.fillMaxWidth(0.8f).height(28.dp)) {
+        val thick = 20.dp.toPx()
+        val y = size.height / 2
+        val start = thick / 2
+        val end = size.width - thick / 2
+        drawLine(track, Offset(start, y), Offset(end, y), strokeWidth = thick, cap = StrokeCap.Round)
+        if (fill > 0.005f) drawLine(color, Offset(start, y), Offset(start + (end - start) * fill, y), strokeWidth = thick, cap = StrokeCap.Round)
+        val mid = start + (end - start) / 2
+        drawLine(tick, Offset(mid, 0f), Offset(mid, size.height), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+    }
+    Note(stringResource(R.string.guide_flow, Format.flow(flow, locale), Format.flow(target, locale)), if (onPace) colors.tertiary else colors.onSurfaceVariant)
 }
 
 @Composable
