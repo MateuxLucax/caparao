@@ -87,7 +87,7 @@ data class RecipeForm(
 
         /** Suggestions for [method]; any text is allowed. */
         val METHODS = mapOf(
-            BrewMode.FILTER to listOf("V60", "Kalita", "AeroPress", "Chemex", "Origami"),
+            BrewMode.FILTER to listOf("V60", "Melitta", "Kalita", "AeroPress", "Chemex", "Origami"),
             BrewMode.ESPRESSO to listOf("Espresso"),
         )
 
