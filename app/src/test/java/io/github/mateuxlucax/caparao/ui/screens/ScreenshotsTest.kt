@@ -115,7 +115,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
 
-    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true, brand: () -> BrandColor? = { null }): SessionScale {
+    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true, brand: () -> BrandColor? = { BrandColor.LEAF }): SessionScale {
         val scale = SessionScale(context.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() })
         val factory = viewModelFactory {
             initializer { HomeViewModel(scale) }

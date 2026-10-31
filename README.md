@@ -6,47 +6,65 @@
   <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
 </p>
 
-A small, native Android app for the [Timemore Dot](https://www.timemore.com) coffee scale. It shows weight, flow and
-battery live, records **automatic espresso** and **free-pour filter** brews, keeps everything on the phone and,
-optionally, sends each brew to your own server.
+A small, native Android app for the [Timemore Dot](https://www.timemore.com) coffee scale, with a Wear OS companion.
+It shows weight, flow and timer live, guides espresso and filter recipes step by step, records every brew with its
+curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to Prometheus
+and Grafana.
 
-**Offline-first:** the app works fully without a server. Exporting to a server (and from there to Prometheus and
-Grafana) is an add-on, built last.
+<p align="center"><a href="docs/promo.mp4"><img src="docs/promo.gif" width="720" alt="Caparaó in 40 seconds"></a></p>
 
-Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+.
+Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+, Wear OS 3+.
 
-> Status: stages 2–4 done in code: onboarding, live scale, automatic espresso and free-pour filter recording, saved
-> brews with their curves. Device runs and sync to a server are next. See the [roadmap](docs/roadmap.md).
-
-## Screenshots
+## Features
 
 <table>
-<tr><th>Welcome</th><th>Home</th><th>Espresso, live</th><th>Saved</th><th>Brew detail</th></tr>
 <tr>
-<td><img src="docs/screenshots/en/onboarding-welcome-light.png" width="160" alt="Onboarding, welcome"></td>
-<td><img src="docs/screenshots/en/home-light.png" width="160" alt="Home with live weight and flow"></td>
-<td><img src="docs/screenshots/en/brew-live-light.png" width="160" alt="Espresso being recorded"></td>
-<td><img src="docs/screenshots/en/brew-summary-light.png" width="160" alt="Espresso saved with its numbers"></td>
-<td><img src="docs/screenshots/en/brew-detail-dark.png" width="160" alt="Brew detail with weight and flow curves, dark"></td>
+<td width="33%" align="center"><img src="docs/demo/home-live.gif" width="220" alt="Home with weight, timer and flow ticking up"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
+<td width="33%" align="center"><img src="docs/demo/dose.gif" width="220" alt="Ratio step and bean weighing"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
+<td width="33%" align="center"><img src="docs/demo/guide-pour.gif" width="220" alt="V60 guide counting down and filling the cup"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/demo/espresso-live.gif" width="220" alt="Espresso recorded live and saved"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
+<td align="center"><img src="docs/demo/data.gif" width="220" alt="Brew detail chart, compare and trends"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
+<td align="center"><img src="docs/demo/recipes.gif" width="220" alt="Recipe list and editor"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
 </tr>
 </table>
 
-Rendered on the JVM by `scripts/screenshots.sh` (Robolectric and Roborazzi), with a session recorded from a real Dot (and a synthetic espresso)
-standing in for the scale, and refreshed whenever a screen changes. The same set in Portuguese
-and in dark theme is in [docs/screenshots](docs/screenshots/README.md).
+- **On the watch:** the Wear OS app mirrors the scale and the current pour, with tare and timer buttons.
+- **Offline-first:** no account and no server needed. Sync is an add-on.
+- **Your data:** brews go to any server that follows the [contract](contract/README.md), such as
+  [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).
+- **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
+
+The clips above are real recordings from the emulator, with a replayed scale session standing in for the Dot; the
+full-length MP4s are in [docs/demo](docs/demo). Static screenshots of every screen, in English and Portuguese, light and
+dark, are in [docs/screenshots](docs/screenshots/README.md), rendered on the JVM by `scripts/screenshots.sh`.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    dot["Timemore Dot<br/>BLE"] -->|"weight, flow, timer"| app["Caparaó<br/>(this app)"]
+    dot["Timemore Dot<br/>BLE"] -->|"weight, flow, timer"| app["Caparaó<br/>phone app"]
     app -->|"tare, timer, battery"| dot
-    app --> room[("Room<br/>brews + curves")]
-    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(stub or timemore-dot-prometheus-exporter)"]
+    app <-->|"Data Layer"| watch["Wear OS<br/>companion"]
+    app --> room[("Room<br/>brews, curves, recipes")]
+    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(stub or exporter)"]
+    srv -.-> prom[("Prometheus")] -.-> graf["Grafana"]
 ```
 
-Details in [docs/](docs/README.md): architecture, the Dot's BLE protocol, the upload contract and the
-[ADRs](docs/adr/README.md).
+- **Kotlin, Jetpack Compose and Material 3**, one ViewModel per screen and manual dependency injection.
+- **Layers, one way:** `model ← data ← brew ← sync ← ui`, enforced by a test.
+  - `data`: the Dot's BLE protocol (frame decoder, CRC, handshake, reconnect with backoff), Room storage, the upload client.
+  - `brew`: pure brew logic fed with timed readings: espresso and filter detectors, flow smoothing, recipe step tracking.
+  - `sync`: WorkManager uploads with retries and readable errors.
+  - `ui`: onboarding, home, guided brew, recipes, brews and settings.
+- **Modules:** `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract`
+  (upload schema), `probe` (raw BLE recorder).
+- **Tested against real data:** detectors replay sessions recorded from a real Dot; screens are covered by Robolectric
+  tests and Roborazzi screenshots; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
+
+More in [docs/](docs/README.md): [architecture](docs/architecture.md), the Dot's [BLE protocol](docs/hardware.md),
+the [roadmap](docs/roadmap.md) and the [ADRs](docs/adr/README.md).
 
 ## Install
 
@@ -54,11 +72,6 @@ Download `caparao-<version>.apk` from [Releases](../../releases) and open it on 
 browser or file manager when Android asks). Each release lists the APK signer's SHA-256; to check it before
 installing: `apksigner verify --print-certs caparao-<version>.apk`. Newer versions install over older ones and keep
 your brews.
-
-Debug builds (`./gradlew installDebug`) are a separate app, `io.github.mateuxlucax.caparao.debug`, labeled "Caparaó
-dev", so they install next to a release instead of failing on the different signer. Builds from before that change used
-the release package with the debug key: uninstall that one once (`adb uninstall io.github.mateuxlucax.caparao`) before
-installing a release.
 
 On first launch the app asks for **Nearby devices** (Bluetooth, only to find the scale), connects to the Dot, and
 optionally asks for your server's URL and token.
@@ -103,41 +116,7 @@ espresso is recorded, saved and uploaded to the stub, and the script checks what
 Docker. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
 [docs/spike.md](docs/spike.md).
 
-Nothing secret lives in the repository: release signing comes from environment variables, and the server token is
-typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](https://github.com/gitleaks/gitleaks).
-
-### Release signing
-
-Releases come from the **Release** workflow (Actions tab, or push a `v*` tag; automatic on every green push to `main`)
-and need four signing secrets; the workflow fails without them. Create the key once, on a Mac:
-
-```bash
-scripts/release-key.sh
-```
-
-It writes `~/.config/caparao/release.jks` (outside the repository, certificate `CN=Caparao` with no personal data),
-keeps a random password in the login Keychain (item `caparao-signing`) and prints the signer's SHA-256. It refuses to
-overwrite an existing key. **Back up the keystore and its password** (a password manager): losing them means every
-user must uninstall to update. Then upload the secrets with the GitHub CLI:
-
-```bash
-scripts/release-key.sh --upload
-```
-
-| Repository secret | Value |
-|---|---|
-| `SIGNING_KEYSTORE_BASE64` | the keystore, base64 |
-| `SIGNING_STORE_PASSWORD` | the Keychain password |
-| `SIGNING_KEY_ALIAS` | `release` |
-| `SIGNING_KEY_PASSWORD` | the Keychain password (PKCS12 uses one password) |
-
-To build and install a signed release from this Mac without spending Actions minutes:
-`scripts/release-apk.sh --install` (one device connected). Without the signing variables, `assembleRelease` falls back
-to the debug key.
-
-The code is one module with `model`, `data`, `brew`, `sync` and `ui` packages, manual dependency injection and one
-ViewModel per screen, the same structure as
-[health-connect-bridge](https://github.com/MateuxLucax/health-connect-bridge).
+Nothing secret lives in the repository: the server token is typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](https://github.com/gitleaks/gitleaks).
 
 ## Server
 
