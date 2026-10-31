@@ -208,11 +208,18 @@ private fun paceText(pace: Pace?, paceMs: Long): String {
 
 private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
-/** ● ● ○ ○: done and current steps filled. */
+/** How far through the steps: a wave up to the current one. */
 @Composable
 private fun StepProgress(count: Int, current: Int) {
     val progress by animateFloatAsState((current + 1f) / count, Motion.standard(), label = "steps")
-    LinearWavyProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+    // Only the wave, always moving: no track and no stop dot after it.
+    LinearWavyProgressIndicator(
+        progress = { progress },
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        trackColor = Color.Transparent,
+        stopSize = 0.dp,
+        amplitude = { 1f },
+    )
 }
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */
