@@ -76,7 +76,6 @@
     <!-- Brew -->
     <string name="dose_title">Coffee dose</string>
     <string name="dose_field">Dose in grams</string>
-    <string name="use_weight">Use weight</string>
     <string name="next">Next</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
     <string name="espresso_place_cup_text">It tares by itself once the cup is still.</string>

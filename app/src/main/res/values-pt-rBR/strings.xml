@@ -72,7 +72,6 @@
     <!-- Preparo -->
     <string name="dose_title">Dose de café</string>
     <string name="dose_field">Dose em gramas</string>
-    <string name="use_weight">Usar peso</string>
     <string name="next">Continuar</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Ela tara sozinha quando a xícara parar.</string>

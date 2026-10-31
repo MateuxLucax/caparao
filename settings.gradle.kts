@@ -19,5 +19,3 @@ include(":app")
 // Wear OS companion and what it shares with the app (docs/adr/0023-watch-companion.md).
 include(":wear")
 include(":wearlink")
-// Stage 0 hardware probe: throwaway, not shipped (docs/spike.md).
-include(":probe")

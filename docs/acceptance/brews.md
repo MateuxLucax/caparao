@@ -22,8 +22,8 @@ Manual, on a phone with the Dot connected:
 9. Turn the Dot off during a brew: the brew is saved as interrupted.
 10. Discard on the saved screen removes the brew from the list.
 
-Real espresso and filter recordings (probe) are still needed to tune the thresholds; see
-[hardware.md](../hardware.md) and [spike.md](../spike.md).
+Real espresso and filter recordings are still needed to tune the thresholds; see
+[hardware.md](../hardware.md).
 
 ## Runs
 
