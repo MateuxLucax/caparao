@@ -2,7 +2,8 @@
 
 Android app for the Timemore Dot scale (Kotlin, Compose). Start from `docs/roadmap.md` for what is done and pending,
 `docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings and `docs/adr/` before changing a decision.
-The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
+Modules: `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract` (upload
+schema). The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
 
 ## Public repository
 
@@ -14,7 +15,8 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 ## Devices
 
 - Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
-  with Roborazzi: no emulator, it runs in the cloud too.
+  with Roborazzi: no emulator, it runs in the cloud too. Cloud sessions build and test with the Android SDK setup script;
+  the Mac is only for the emulator and real devices.
 - Emulator `emulator-5554` for instrumented tests and `scripts/e2e.sh` only; with the phone also plugged in,
   set `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
@@ -30,7 +32,7 @@ the Release workflow (`gh workflow run release.yml`); `scripts/release-apk.sh --
 
 `ScaleSource.readings` is a `SharedFlow` delivering every frame: the espresso ends on a run of identical readings, which
 a `StateFlow` would swallow. Detector changes are checked against the replay sessions in
-`app/src/test/resources/sessions/`; real recordings come from the probe via `scripts/pull-sessions.sh` into the
+`app/src/test/resources/sessions/`; raw captures that are not fixtures stay in the
 git-ignored `spike-captures/`.
 
 ## Related repositories

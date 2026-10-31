@@ -27,9 +27,9 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 
 ### Watch
 
-| | Waiting | Brewing | Scale | Ready | Done | Disconnected |
-|---|---|---|---|---|---|---|
-| | <img src="en/watch-waiting.png" width="120" alt="Waiting"> | <img src="en/watch-brewing.png" width="120" alt="Brewing"> | <img src="en/watch-scale.png" width="120" alt="Scale"> | <img src="en/watch-ready.png" width="120" alt="Ready"> | <img src="en/watch-done.png" width="120" alt="Done"> | <img src="en/watch-disconnected.png" width="120" alt="Disconnected"> |
+| | Pour | Scale | Disconnected |
+|---|---|---|---|
+| | <img src="watch/en/pour.png" width="120" alt="Pour"> | <img src="watch/en/scale.png" width="120" alt="Scale"> | <img src="watch/en/disconnected.png" width="120" alt="Disconnected"> |
 
 ## Português
 
@@ -56,6 +56,6 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 
 ### Relógio
 
-| | Aguardando | Extraindo | Balança | Pronto | Concluído |
-|---|---|---|---|---|---|
-| | <img src="pt-BR/watch-waiting.png" width="120" alt="Aguardando"> | <img src="pt-BR/watch-brewing.png" width="120" alt="Extraindo"> | <img src="pt-BR/watch-scale.png" width="120" alt="Balança"> | <img src="pt-BR/watch-ready.png" width="120" alt="Pronto"> | <img src="pt-BR/watch-done.png" width="120" alt="Concluído"> |
+| | Despejo | Balança | Desconectado |
+|---|---|---|---|
+| | <img src="watch/pt-BR/pour.png" width="120" alt="Despejo"> | <img src="watch/pt-BR/scale.png" width="120" alt="Balança"> | <img src="watch/pt-BR/disconnected.png" width="120" alt="Desconectado"> |

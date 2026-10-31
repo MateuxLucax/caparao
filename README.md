@@ -58,8 +58,8 @@ flowchart LR
   - `brew`: pure brew logic fed with timed readings: espresso and filter detectors, flow smoothing, recipe step tracking.
   - `sync`: WorkManager uploads with retries and readable errors.
   - `ui`: onboarding, home, guided brew, recipes, brews and settings.
-- **Modules:** `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract`
-  (upload schema), `probe` (raw BLE recorder).
+- **Modules:** `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server) and `contract`
+  (upload schema).
 - **Tested against real data:** detectors replay sessions recorded from a real Dot; screens are covered by Robolectric
   tests and Roborazzi screenshots; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
 
@@ -113,8 +113,7 @@ The stub server (`stub/`, Go) implements the upload [contract](contract/README.m
 `cd stub && AUTH_TOKEN=dev-token go run .`. `scripts/e2e.sh` runs the whole chain on the emulator: a replayed
 espresso is recorded, saved and uploaded to the stub, and the script checks what the stub received.
 `E2E_SERVER=exporter scripts/e2e.sh` does the same against the real exporter (a sibling checkout) and Prometheus in
-Docker. The stage 0 probe (`probe/`) records raw sessions from a real Dot; see
-[docs/spike.md](docs/spike.md).
+Docker.
 
 Nothing secret lives in the repository: the server token is typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](https://github.com/gitleaks/gitleaks).
 

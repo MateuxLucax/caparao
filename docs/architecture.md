@@ -34,7 +34,7 @@ relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked 
 
 Outside the app module: `wear/` (the Wear OS companion: one screen mirroring the phone, tare and timer buttons sent
 back, [ADR 0023](adr/0023-watch-companion.md)), `wearlink/` (pure Kotlin both share: `WatchSnapshot` and the Data Layer
-paths; the phone side is `WatchLink` over `ui/watch/WatchMirror`), `probe/` (stage 0 throwaway recorder, [spike.md](spike.md)), `stub/` (Go development server)
+paths; the phone side is `WatchLink` over `ui/watch/WatchMirror`), `stub/` (Go development server)
 and `contract/` (the upload schema and the JSON files both sides test against).
 
 Imports go one way: `model <- data <- brew <- sync <- ui <- root`. Only `ui` (and the root) uses `R` and
