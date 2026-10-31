@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "c8525c57f8c4e9ff880eba416df24e6a",
+    "identityHash": "3143a4074eb93ae955378051a2509310",
     "entities": [
       {
         "tableName": "brews",
@@ -335,20 +335,17 @@
           {
             "fieldPath": "roaster",
             "columnName": "roaster",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "origin",
             "columnName": "origin",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "roastedAt",
             "columnName": "roasted_at",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "weightGrams",
@@ -359,8 +356,7 @@
           {
             "fieldPath": "notes",
             "columnName": "notes",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "finished",
@@ -385,7 +381,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8525c57f8c4e9ff880eba416df24e6a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3143a4074eb93ae955378051a2509310')"
     ]
   }
 }
