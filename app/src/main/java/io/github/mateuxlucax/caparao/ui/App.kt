@@ -222,6 +222,7 @@ private fun Tabs(
                     viewModel(key = "server-settings", factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
                     actions,
                     versionName,
                     modifier,

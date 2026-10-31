@@ -132,7 +132,7 @@ data class RecipeForm(
         fun clockText(ms: Long): String = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
 
         /** No trailing ",0": 18 and 16,7. */
-        private fun plain(value: Double, locale: Locale): String =
+        fun plain(value: Double, locale: Locale): String =
             if (value % 1.0 == 0.0) value.toLong().toString() else String.format(locale, "%.1f", value)
     }
 }

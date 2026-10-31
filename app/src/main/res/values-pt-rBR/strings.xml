@@ -245,4 +245,23 @@
     <string name="ratio_more">Mais água</string>
     <string name="water_field">Água em ml</string>
     <string name="unit_ml">ml</string>
+    <!-- Coffee bags -->
+    <string name="section_coffees">Cafés</string>
+    <string name="coffees_empty">Adicione os pacotes que você tem para ver quanto resta e há quantos dias foram torrados. Escolha um como café depois de uma extração.</string>
+    <string name="coffee_add">Adicionar café</string>
+    <string name="coffee_edit">Editar café</string>
+    <string name="coffee_name">Café</string>
+    <string name="coffee_roaster">Torrefação</string>
+    <string name="coffee_origin">Origem e processo</string>
+    <string name="coffee_weight">Peso do pacote (g)</string>
+    <string name="coffee_roast_date">Data de torra</string>
+    <string name="coffee_roasted_on">Torrado em %1$s</string>
+    <string name="coffee_left">Restam %1$s de %2$s g</string>
+    <string name="coffee_finished">Acabou</string>
+    <string name="coffee_mark_finished">Acabou</string>
+    <plurals name="coffee_roasted_days">
+        <item quantity="one">torrado há %1$d dia</item>
+        <item quantity="many">torrado há %1$d dias</item>
+        <item quantity="other">torrado há %1$d dias</item>
+    </plurals>
 </resources>
