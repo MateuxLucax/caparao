@@ -8,7 +8,7 @@ data class Recipe(
     val id: String,
     val name: String,
     val mode: BrewMode,
-    /** Free text with suggestions: V60, Kalita, AeroPress, Espresso… */
+    /** Free text with suggestions: V60, Melitta, Kalita, AeroPress, Espresso… */
     val method: String,
     val doseGrams: Double,
     /** The X of 1:X. */
