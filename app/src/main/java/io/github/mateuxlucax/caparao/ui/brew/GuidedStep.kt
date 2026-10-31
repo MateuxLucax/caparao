@@ -136,7 +136,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
         }
         if (guide.dueInMs == null) {
-            PourRate.target(step, state.steps.getOrNull(index + 1), state.elapsedMs, state.weightGrams)?.let { FlowBars(state.flowGramsPerSecond, it) }
+            PourRate.target(step, previousTarget, state.steps.getOrNull(index + 1), state.weightGrams)?.let { FlowBars(state.flowGramsPerSecond, it) }
         }
     } else {
         CountdownRing(guide.progress, color)
