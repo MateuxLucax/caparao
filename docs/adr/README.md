@@ -7,7 +7,7 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0001](0001-own-minimal-app.md) | Our own minimal app instead of Timemore's | Accepted |
 | [0002](0002-native-ble.md) | BLE through the platform's BluetoothGatt, without a library | Accepted |
 | [0003](0003-offline-first.md) | Offline-first: Room is the source of truth, the server is optional | Accepted |
-| [0004](0004-minimal-dependencies.md) | Minimal dependencies | Accepted (Room amendment planned) |
+| [0004](0004-minimal-dependencies.md) | Minimal dependencies | Accepted (amended 2026-10-25 and 2026-10-29) |
 | [0005](0005-compose-material3-dynamic-color.md) | Jetpack Compose and Material 3 with dynamic color | Accepted |
 | [0006](0006-brew-detection-in-app.md) | Brew detection in the app, with the scale in standard mode | Accepted |
 | [0007](0007-idempotent-upload.md) | Idempotent upload: id generated on the phone, upsert on the server | Accepted |
@@ -26,6 +26,6 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0020](0020-data-export.md) | Export brews as CSV and JSON through the share sheet | Proposed |
 | [0021](0021-brew-notes.md) | Brew metadata: coffee, grind, temperature, notes and rating | Accepted |
 | [0022](0022-compare-and-trends.md) | Compare brews and show trends on the Canvas charts | Accepted |
-| [0023](0023-watch-companion.md) | Watch companion: a Wear OS mirror fed by the phone | Proposed |
+| [0023](0023-watch-companion.md) | Watch companion: a Wear OS mirror fed by the phone | Accepted |
 | [0024](0024-brand-color-option.md) | Brand color as an option next to Material You | Accepted |
-| [0025](0025-material-3-expressive.md) | Material 3 Expressive on the phone and the watch | Proposed |
+| [0025](0025-material-3-expressive.md) | Material 3 Expressive on the phone and the watch | Accepted |

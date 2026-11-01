@@ -30,7 +30,10 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 </tr>
 </table>
 
-- **On the watch:** the Wear OS app mirrors the scale and the current pour, with tare and timer buttons.
+- **On the watch:** the Wear OS app mirrors the scale and the current pour, with the guided step and pace, tare and
+  timer buttons, step vibration and a finish alert.
+- **Coffee bags:** name, roaster, origin and process, roast date, weight, notes and a finished flag; the brew notes
+  suggest open bags first.
 - **Offline-first:** no account and no server needed. Sync is an add-on.
 - **Your data:** brews go to any server that follows the [contract](contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).

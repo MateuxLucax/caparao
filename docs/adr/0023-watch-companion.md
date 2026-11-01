@@ -1,6 +1,6 @@
 # 23. Watch companion: a Wear OS mirror fed by the phone
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
