@@ -1,6 +1,6 @@
 # 25. Material 3 Expressive on the phone and the watch
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

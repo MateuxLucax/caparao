@@ -6,16 +6,16 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 
 | # | Stage | Status |
 |---|-------|--------|
-| 0 | Hardware spike | Protocol questions answered with real recordings ([hardware.md](hardware.md)); real brews still to record for detector tuning |
+| 0 | Hardware spike | Protocol questions answered with real recordings ([hardware.md](hardware.md)); real espresso and filter brews still to record for detector tuning |
 | 1 | Foundation | Done |
 | 2 | Scale | Done in code: codec, BLE client, replay, onboarding and live Home; device run of [acceptance/scale.md](acceptance/scale.md) pending |
 | 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
-| 6 | Release and end-to-end test | `scripts/e2e.sh` passes locally; Release workflow (automatic on main), R8; first release waits for the signing key |
-| 7 | Recipes, guided brew, metadata and comparison | Designed, to build |
-| 8 | Prometheus exporter | Built in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server pending |
-| 9 | Watch companion | First cut shipped in v0.1.9 (scale mode, brew screen, tare and timer, ongoing activity); step vibration and finish alerts pending |
+| 6 | Release and end-to-end test | Done: `scripts/e2e.sh` passes locally; Release runs automatically on a green `main` (v0.1.39), R8; an e2e run in CI still needs an emulator on the runner |
+| 7 | Recipes, guided brew, metadata and comparison | Done: recipes, guided brew, notes and rating, compare and trends (PRs #29–#33, #35, #38–#40, #42) |
+| 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server still to confirm |
+| 9 | Watch companion | Done: mirror, tare and timer, ongoing activity, guided step and pace, vibration (phone / watch / both), finish alert and the watch APK in every release; approved on 30/10 |
 | 10 | French press mode | Not started; ADR pending |
 
 ## 0. Hardware spike
@@ -114,7 +114,7 @@ Acceptance:
 - Signed APK on GitHub Releases. Automatic on every green push to `main` (after Build passes); also
   `workflow_dispatch` or a `v*` tag.
 - `EndToEndTest` on the local emulator (`scripts/e2e.sh`): a recorded espresso is replayed, saved, uploaded and checked
-  in the stub. Moves to CI when the repository is public.
+  in the stub. Running it in CI is still open: it needs an emulator on the runner.
 - EN and pt-BR screenshots, README troubleshooting.
 - Before going public: gitleaks over the whole history; no server address or token in fixtures or screenshots.
 
@@ -215,12 +215,11 @@ Acceptance:
 ## 9. Watch companion
 
 Wear OS app for the Galaxy Watch Ultra ([ADR 0023](adr/0023-watch-companion.md)). Done: one screen mirroring the phone
-(weight, timer, flow, tare and timer buttons), opens by itself when a brew is ready, ongoing activity during a brew,
-watch APK in each release. Pending:
+(weight, timer, flow, guided step and pace, tare and timer buttons), opens by itself when a brew is ready, ongoing
+activity during a brew, vibration on step changes with the phone / watch / both toggle, a finish alert, and the watch
+APK in each release. Approved on 30/10.
 
-- Vibration on guided step changes ([ADR 0019](adr/0019-guided-brew.md)), with a phone / watch / both toggle.
-- A "time to finish" alert on the watch for filter and French press brews.
-- The guided step and pace on the watch screen.
+Open refinements from the ADR: a tile or complication, and starting a brew from the watch.
 
 ## 10. French press mode
 
