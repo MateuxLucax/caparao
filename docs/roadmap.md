@@ -14,7 +14,7 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
 | 6 | Release and end-to-end test | Done: `scripts/e2e.sh` passes locally; Release runs automatically on a green `main` (v0.1.39), R8; an e2e run in CI still needs an emulator on the runner |
 | 7 | Recipes, guided brew, metadata and comparison | Done: recipes, guided brew, notes and rating, compare and trends (PRs #29–#33, #35, #38–#40, #42) |
-| 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deploy on the home server still to confirm |
+| 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); the exporter is already deployed on the home server, but deployment of the latest image (with samples and notes) is still to confirm |
 | 9 | Watch companion | Done: mirror, tare and timer, ongoing activity, guided step and pace, vibration (phone / watch / both), finish alert and the watch APK in every release; approved on 30/10 |
 | 10 | French press mode | Not started; ADR pending |
 
