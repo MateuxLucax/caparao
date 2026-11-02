@@ -81,10 +81,10 @@ class AppContainer(context: Context) {
      * Debug builds only: plays a recorded session from the assets instead of the scale, for the emulator, which has no
      * Bluetooth (scripts/e2e.sh, the instrumented tests). Must run before the first screen is created.
      */
-    fun replay(session: String, startAtMs: Long) {
+    fun replay(session: String, startAtMs: Long, startPaused: Boolean = false) {
         scale.stop()
         val lines = appContext.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() }
-        scale = ReplayScaleSource(scope, lines, startAtMs)
+        scale = ReplayScaleSource(scope, lines, startAtMs, startPaused)
     }
 
     /** Scale mode's timer, driven from Home and the watch. */

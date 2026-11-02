@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.data.scale
 
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -28,6 +29,8 @@ class ReplayScaleSource(
     lines: List<String>,
     /** Where to start in the recording, e.g. to land on a moment with weight on the scale. */
     private val startAtMs: Long = 0,
+    /** Hold playback until [resume] so an end-to-end test can finish UI navigation first. */
+    startPaused: Boolean = false,
 ) : ScaleSource {
     private val notifications: List<Pair<Long, ByteArray>> = lines.drop(1).map(::JSONObject)
         .filter { it.getString("dir") == "rx" }
@@ -56,6 +59,14 @@ class ReplayScaleSource(
     private var lastRawWeight = 0.0
     private var timerRunning = false
     private var timerMs = 0L
+    private val playbackGate = CompletableDeferred<Unit>().apply {
+        if (!startPaused) complete(Unit)
+    }
+
+    /** Begin a replay configured with [startPaused]. Safe to call before or after [start]. */
+    fun resume() {
+        playbackGate.complete(Unit)
+    }
 
     override fun start() {
         if (job?.isActive == true) return
@@ -64,6 +75,7 @@ class ReplayScaleSource(
             val decoder = FrameDecoder()
             var from = notifications.indexOfFirst { it.first >= startAtMs }.coerceAtLeast(0)
             _state.value = ScaleState.Connected(battery = null)
+            playbackGate.await()
             while (true) {
                 for (i in from until notifications.size) {
                     val gap = if (i == from) 0 else notifications[i].first - notifications[i - 1].first

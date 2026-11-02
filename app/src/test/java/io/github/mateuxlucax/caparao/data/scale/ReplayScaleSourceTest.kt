@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.File
 
@@ -25,6 +26,20 @@ class ReplayScaleSourceTest {
         advanceTimeBy(46_700 - 2_638)
         assertEquals(1300.1, replay.reading.value!!.weightGrams, 1.0)
         assertEquals(ScaleState.Connected(ScaleBattery(percent = 100, bars = 3)), replay.state.value)
+    }
+
+    @Test
+    fun pausedReplayStaysConnectedUntilResumed() = runTest {
+        val replay = ReplayScaleSource(backgroundScope, pressRamp, startPaused = true)
+        replay.start()
+        runCurrent()
+
+        assertEquals(ScaleState.Connected(battery = null), replay.state.value)
+        assertNull(replay.reading.value)
+
+        replay.resume()
+        runCurrent()
+        assertEquals(0.0, replay.reading.value!!.weightGrams, 0.0)
     }
 
     @Test

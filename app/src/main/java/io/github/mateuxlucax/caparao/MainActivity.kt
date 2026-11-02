@@ -59,7 +59,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (BuildConfig.DEBUG) {
-            intent.getStringExtra(EXTRA_REPLAY)?.let { container.replay(it, intent.getLongExtra(EXTRA_REPLAY_AT_MS, 0)) }
+            intent.getStringExtra(EXTRA_REPLAY)?.let {
+                container.replay(
+                    it,
+                    intent.getLongExtra(EXTRA_REPLAY_AT_MS, 0),
+                    intent.getBooleanExtra(EXTRA_REPLAY_PAUSED, false),
+                )
+            }
         }
         requestedShortcut.value = LauncherShortcut.pendingOnCreate(
             savedId = savedInstanceState?.getString(STATE_SHORTCUT),
@@ -178,6 +184,8 @@ class MainActivity : ComponentActivity() {
         /** Debug builds: name of a recorded session in the assets to play instead of the scale (see [AppContainer.replay]). */
         const val EXTRA_REPLAY = "replay"
         const val EXTRA_REPLAY_AT_MS = "replay_at_ms"
+        /** Hold debug replay until an instrumentation test has finished setting up its brew screen. */
+        const val EXTRA_REPLAY_PAUSED = "replay_paused"
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"
