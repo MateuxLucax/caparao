@@ -74,6 +74,10 @@ interface BrewDao {
     @Query("SELECT * FROM brews ORDER BY started_at DESC")
     fun observeAll(): Flow<List<BrewEntity>>
 
+    /** The newest saved brew for the home-screen widget. */
+    @Query("SELECT * FROM brews ORDER BY started_at DESC, id DESC LIMIT 1")
+    suspend fun latest(): BrewEntity?
+
     /** Every brew, oldest first, for the export (#76). */
     @Query("SELECT * FROM brews ORDER BY started_at")
     suspend fun all(): List<BrewEntity>

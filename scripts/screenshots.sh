@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Refreshes docs/screenshots on the JVM, no emulator: ScreenshotsTest renders the onboarding, every tab and the brew
-# flows with Robolectric and Roborazzi, in English and Portuguese, light and dark, with the recorded sessions played
-# frame by frame so the images only change when a screen does. WatchScreenshotsTest adds the watch, in docs/screenshots/watch.
+# Refreshes docs/screenshots on the JVM, no emulator: ScreenshotsTest renders the onboarding, every tab, the brew
+# flows and the home-screen widget with Robolectric and Roborazzi, in English and Portuguese, light and dark, with the
+# recorded sessions played frame by frame so the images only change when a screen does. WatchScreenshotsTest adds the
+# watch, in docs/screenshots/watch.
 #   ONLY=Espresso scripts/screenshots.sh     one test (onboardingAndEveryTab, espresso, espressoGuide, filter, filterGuide)
 #   VARIANTS=EnLight scripts/screenshots.sh  one language and theme (EnLight, EnDark, PtBrLight, PtBrDark)
 set -euo pipefail

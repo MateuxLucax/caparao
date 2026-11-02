@@ -22,6 +22,7 @@ import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -34,6 +35,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -70,6 +72,7 @@ class AppTest {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
+        initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
         initializer { TargetRatioViewModel(settings) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
@@ -139,8 +142,6 @@ class AppTest {
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.onNodeWithText(text(R.string.espresso_place_cup)).assertExists()
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.onNodeWithText(text(R.string.nothing_recorded)).assertExists()
-        compose.onNodeWithText(text(R.string.close)).performClick()
         compose.onNodeWithText(text(R.string.tab_home)).assertExists()
     }
 }

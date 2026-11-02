@@ -1,0 +1,49 @@
+package io.github.mateuxlucax.caparao.ui.widget
+
+import android.content.Context
+import android.content.res.Configuration
+import androidx.test.core.app.ApplicationProvider
+import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import java.util.Locale
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class BrewWidgetBehaviorTest {
+    @Test
+    fun alternatesBetweenEspressoAndFilterAndReusesLauncherActions() {
+        assertEquals(BrewMode.FILTER, suggestedModeAfter(BrewMode.ESPRESSO))
+        assertEquals(BrewMode.ESPRESSO, suggestedModeAfter(BrewMode.FILTER))
+        assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.ESPRESSO))
+        assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.FILTER))
+        assertEquals(LauncherShortcut.WIDGET_HOME, shortcutForWidget(null))
+        assertEquals(LauncherShortcut.FILTER, LauncherShortcut.fromAction(shortcutForWidget(BrewMode.ESPRESSO).action))
+    }
+
+    @Test
+    fun actionIconMatchesSuggestedModeAndIsAbsentForTheMethodChooser() {
+        assertEquals(R.drawable.ic_coffee_maker, actionIconForWidget(BrewMode.ESPRESSO))
+        assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.FILTER))
+        assertNull(actionIconForWidget(null))
+    }
+
+    @Test
+    fun emptyWidgetUsesATitleAndGenericAction() {
+        val base = ApplicationProvider.getApplicationContext<Context>()
+        val english = localized(base, Locale.US)
+        val portuguese = localized(base, Locale.forLanguageTag("pt-BR"))
+
+        assertEquals("You haven't made coffee yet", english.getString(R.string.widget_empty_title))
+        assertEquals("Você ainda não fez café", portuguese.getString(R.string.widget_empty_title))
+        assertEquals("Brew a coffee", english.getString(R.string.widget_brew_coffee))
+        assertEquals("Passar um café", portuguese.getString(R.string.widget_brew_coffee))
+    }
+
+    private fun localized(context: Context, locale: Locale): Context =
+        context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(locale) })
+}

@@ -312,7 +312,7 @@ class AppScreensTest {
     }
 
     @Test
-    fun aShortcutDuringARunningBrewKeepsItAndItsReadings() {
+    fun aSuggestedModeShortcutDuringARunningBrewKeepsItAndItsReadings() {
         val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         val shortcut = mutableStateOf<LauncherShortcut?>(null)
         compose.setContent {
@@ -332,8 +332,8 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
         runEspressoToTheFirstDrops(scale)
 
-        // Brews would normally close the brew, but a running one is never interrupted.
-        shortcut.value = LauncherShortcut.BREWS
+        // The widget suggests Filter after this Espresso, but a running brew is never interrupted.
+        shortcut.value = LauncherShortcut.FILTER
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
@@ -457,7 +457,10 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         // Back on the list, which now shows it.
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
-        compose.onNodeWithText("Morning shot").assertExists()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Morning shot", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Morning shot", useUnmergedTree = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()

@@ -150,6 +150,7 @@ private fun Main(
         when (requested) {
             is ShortcutDestination.Brew -> brewing = requested.mode
             ShortcutDestination.Brews -> tab = Tab.BREWS
+            ShortcutDestination.Home -> tab = Tab.HOME
         }
         onShortcutConsumed()
     }
