@@ -54,8 +54,8 @@ jobs:
       # Cache the system image installed by android-emulator-runner.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: /usr/local/lib/android/sdk/system-images/android-37/google_apis/x86_64
-          key: android-emulator-${{ runner.os }}-api-37-google-apis-x86_64-v1
+          path: /usr/local/lib/android/sdk/system-images/android-36/google_apis/x86_64
+          key: android-emulator-${{ runner.os }}-api-36-google-apis-x86_64-v1
 
       - name: Enable KVM
         run: |
@@ -69,12 +69,11 @@ jobs:
         env:
           E2E_FORCE_FAILURE: ${{ inputs.force_failure || false }}
         with:
-          # Use API 36 for the action's stable platform setup, but exercise the app on the API 37 emulator image.
+          # API 36 is above minSdk 31; compileSdk 37 has no published emulator image on the hosted runner yet.
           api-level: 36
-          system-image-api-level: 37
           target: google_apis
           arch: x86_64
-          channel: canary
+          channel: stable
           emulator-boot-timeout: 600
           script: |
             set -euo pipefail
