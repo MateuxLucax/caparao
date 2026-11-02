@@ -14,7 +14,6 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -37,13 +36,15 @@ class EndToEndTest {
     fun anEspressoReachesTheServer() {
         val serverUrl = arguments.getString("server_url")
         val token = arguments.getString("token")
-        assumeTrue("run by scripts/e2e.sh", serverUrl != null && token != null)
+        // AndroidJUnitRunner reports JUnit assumption failures as test failures. Leave this test inert during the
+        // regular connected suite; scripts/e2e.sh supplies both arguments and exercises the full path.
+        if (serverUrl == null || token == null) return
 
         context.deleteDatabase(BrewDatabase.NAME)
         SettingsStore.open(context).edit().clear().commit()
         val settings = (context.applicationContext as CaparaoApplication).container.settings
         settings.onboardingDone = true
-        settings.saveServer(serverUrl!!, token!!)
+        settings.saveServer(serverUrl, token)
 
         val intent = Intent(context, MainActivity::class.java)
             .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-espresso")

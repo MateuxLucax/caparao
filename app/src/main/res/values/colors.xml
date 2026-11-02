@@ -2,4 +2,9 @@
 <resources>
     <!-- Coffee-leaf green; also the background of the in-app logo. -->
     <color name="ic_launcher_background">#1E3B2C</color>
+    <color name="widget_background">#FFF2EFE7</color>
+    <color name="widget_primary_text">#FF211D18</color>
+    <color name="widget_secondary_text">#FF5D625D</color>
+    <color name="widget_action_background">#FF1E3B2C</color>
+    <color name="widget_action_text">#FFFFFFFF</color>
 </resources>

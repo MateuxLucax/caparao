@@ -50,7 +50,7 @@ class AppContainer(context: Context) {
     /** Public for the screenshot test, which empties it between runs. */
     val database = BrewDatabase.open(appContext)
 
-    val brews = BrewRepository(database.brews())
+    val brews = BrewRepository(database.brews()) { BrewWidgetProvider.requestRefresh(appContext) }
 
     val recipes = RecipeRepository(database.recipes())
 

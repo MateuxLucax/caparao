@@ -312,7 +312,7 @@ class AppScreensTest {
     }
 
     @Test
-    fun aShortcutDuringARunningBrewKeepsItAndItsReadings() {
+    fun aSuggestedModeShortcutDuringARunningBrewKeepsItAndItsReadings() {
         val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         val shortcut = mutableStateOf<LauncherShortcut?>(null)
         compose.setContent {
@@ -332,8 +332,8 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
         runEspressoToTheFirstDrops(scale)
 
-        // Brews would normally close the brew, but a running one is never interrupted.
-        shortcut.value = LauncherShortcut.BREWS
+        // The widget suggests Filter after this Espresso, but a running brew is never interrupted.
+        shortcut.value = LauncherShortcut.FILTER
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()

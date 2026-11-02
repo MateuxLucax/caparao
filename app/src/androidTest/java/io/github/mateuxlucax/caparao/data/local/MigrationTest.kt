@@ -34,7 +34,9 @@ class MigrationTest {
             db.version = 1
         }
 
-        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .build()
         try {
             val brew = BrewRepository(db.brews()).get("a")!!
             assertEquals(36.0, brew.yieldGrams, 0.0)

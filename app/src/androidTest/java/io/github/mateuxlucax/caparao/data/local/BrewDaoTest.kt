@@ -29,7 +29,13 @@ class BrewDaoTest {
         dao.insertWithSamples(brew("a", "ESPRESSO", 1), samples("a"))
         dao.insertWithSamples(brew("b", "FILTER", 2), samples("b"))
         assertEquals(listOf("b", "a"), dao.observeAll().first().map { it.id })
+        assertEquals("b", dao.latest()?.id)
         assertEquals(listOf(0L, 100L, 200L), dao.samples("a").map { it.atMs })
+    }
+
+    @Test
+    fun latestIsNullWhenThereAreNoBrews() = runBlocking {
+        assertNull(dao.latest())
     }
 
     @Test

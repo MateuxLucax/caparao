@@ -50,6 +50,18 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- The last-brew home-screen widget is backed by Room and uses the launcher shortcut route for its action. -->
+        <receiver
+            android:name=".BrewWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/brew_widget_info" />
+        </receiver>
+
         <!-- The export files in cache/exports, shared with ACTION_SEND and no storage permission (#76). -->
         <provider
             android:name="androidx.core.content.FileProvider"
