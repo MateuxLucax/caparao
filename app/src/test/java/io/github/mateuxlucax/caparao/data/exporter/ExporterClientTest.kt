@@ -58,6 +58,20 @@ class ExporterClientTest {
     }
 
     @Test
+    fun postsFrenchPressWithItsContractMode() = runBlocking {
+        client.upload(
+            server.url,
+            "dev-token",
+            brew.copy(mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null),
+            emptyList(),
+        )
+
+        val request = server.requests.single()
+        assertEquals("french_press", request.json.getString("mode"))
+        assertTrue(request.json.isNull("time_to_first_drop_s"))
+    }
+
+    @Test
     fun createdAndReplacedAreSuccess() {
         server.status(201)
         upload()

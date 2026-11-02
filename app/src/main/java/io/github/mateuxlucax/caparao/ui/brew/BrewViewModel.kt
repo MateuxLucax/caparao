@@ -9,7 +9,9 @@ import io.github.mateuxlucax.caparao.brew.BrewDetector
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.EspressoDetector
+import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.FilterDetector
+import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
@@ -67,14 +69,18 @@ class BrewViewModel(
     /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
     val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
 
-    /** Follows the recipe's steps once a filter brew starts; null for espresso, a free brew or a recipe without steps. */
+    /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
+    /** Starts only after the terminal press deadline, and never ends the brew. */
+    private var frenchPressFinishTracker: FrenchPressFinishTracker? = null
 
     private var job: Job? = null
     private var detector: BrewDetector? = null
     private val readings = ArrayList<TimedReading>()
     private val smoother = FlowSmoother()
     private var brewingSinceMs: Long? = null
+    /** Highest tared water weight for the current French press, held as the server is lifted off the scale. */
+    private var frenchPressWaterGrams = 0.0
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
@@ -138,6 +144,7 @@ class BrewViewModel(
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()
             BrewMode.FILTER -> FilterDetector()
+            BrewMode.FRENCH_PRESS -> FilterDetector(FilterConfig(liftDetectionEnabled = false))
         }
         detector = new
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
@@ -202,24 +209,43 @@ class BrewViewModel(
         if (readings.size < MAX_READINGS) readings += timed
         current.onReading(timed)?.let(::send)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
-            brewingSinceMs = timed.atMs
+            brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
             smoother.reset()
             val steps = _uiState.value.recipe?.steps.orEmpty()
-            if (mode == BrewMode.FILTER && steps.isNotEmpty()) tracker = StepTracker(steps)
+            when (mode) {
+                BrewMode.ESPRESSO -> Unit
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> if (steps.isNotEmpty()) tracker = StepTracker(steps)
+            }
         }
         val since = brewingSinceMs
-        val flow = if (since != null) smoother.add(timed) else 0.0
+        val shownWeight = if (mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING) {
+            frenchPressWaterGrams = maxOf(frenchPressWaterGrams, reading.weightGrams.coerceAtLeast(0.0))
+            frenchPressWaterGrams
+        } else {
+            reading.weightGrams
+        }
+        // Feed the running maximum to flow smoothing too: removing the carafe is not a negative pour.
+        val flowReading = if (mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING) {
+            timed.copy(reading = reading.copy(weightGrams = shownWeight))
+        } else {
+            timed
+        }
+        val flow = if (since != null) smoother.add(flowReading) else 0.0
         val guide = tracker?.takeIf { since != null && current.phase == BrewPhase.BREWING }?.let { t ->
-            t.update(timed.atMs - since!!, reading.weightGrams, flow).forEach(::alert)
+            val events = t.update(timed.atMs - since!!, reading.weightGrams, flow)
+            events.forEach(::alert)
+            if (mode == BrewMode.FRENCH_PRESS && StepEvent.AllDone in events) frenchPressFinishTracker = FrenchPressFinishTracker()
             t.state
         }
+        val frenchPressRemoved = frenchPressFinishTracker?.update(timed.atMs, reading.weightGrams) ?: false
         _uiState.update {
             it.copy(
                 phase = current.phase,
-                weightGrams = reading.weightGrams,
+                weightGrams = shownWeight,
                 flowGramsPerSecond = flow,
                 elapsedMs = since?.let { s -> timed.atMs - s } ?: 0,
                 guide = guide ?: it.guide,
+                frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
             )
         }
         if (current.phase == BrewPhase.DONE) finish(current)
@@ -273,7 +299,20 @@ class BrewViewModel(
             _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = null) }
             return
         }
-        val summary = BrewSummary.of(mode, readings, result)
+        val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
+        val summaryReadings = if (mode == BrewMode.FRENCH_PRESS) {
+            var highestWater = 0.0
+            readings.asSequence()
+                .filter { it.atMs in result.startedAtMs..result.endedAtMs && (removalAtMs == null || it.atMs < removalAtMs) }
+                .map { reading ->
+                    highestWater = maxOf(highestWater, reading.reading.weightGrams.coerceAtLeast(0.0))
+                    reading.copy(reading = reading.reading.copy(weightGrams = highestWater))
+                }
+                .toList()
+        } else {
+            readings
+        }
+        val summary = BrewSummary.of(mode, summaryReadings, result)
         val startedAt = wallClock() - (clock() - result.startedAtMs)
         val recipe = _uiState.value.recipe
         val brew = summary.toBrew(newId(), mode, startedAt, requireNotNull(_uiState.value.dose), result.interrupted).copy(
@@ -299,7 +338,9 @@ class BrewViewModel(
         readings.clear()
         smoother.reset()
         brewingSinceMs = null
+        frenchPressWaterGrams = 0.0
         tracker = null
+        frenchPressFinishTracker = null
         recipeChosen = false
         _uiState.value = BrewUiState(
             mode,

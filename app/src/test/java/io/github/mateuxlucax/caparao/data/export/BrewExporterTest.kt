@@ -54,4 +54,14 @@ class BrewExporterTest {
         assertEquals(0, element.getJSONArray("samples").length())
         assertEquals(1_792_931_400_000, element.getLong("started_at_ms"))
     }
+
+    @Test
+    fun frenchPressJsonKeepsItsContractMode() {
+        val press = brew.copy(mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
+
+        val element = JSONArray(BrewExporter.json(listOf(BrewWithSamples(press, emptyList())))).getJSONObject(0)
+
+        assertEquals("french_press", element.getString("mode"))
+        assertEquals(org.json.JSONObject.NULL, element.get("time_to_first_drop_s"))
+    }
 }

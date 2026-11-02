@@ -31,23 +31,27 @@ data class RecipeForm(
         if (number(dose)?.takeIf { it in DOSE } == null) add(Field.DOSE)
         if (number(ratio)?.takeIf { it in RATIO } == null) add(Field.RATIO)
         if (temp.isNotBlank() && temp.trim().toIntOrNull()?.takeIf { it in TEMP } == null) add(Field.TEMP)
-        if (mode == BrewMode.ESPRESSO) {
-            val min = seconds(minSeconds)
-            val max = seconds(maxSeconds)
-            if (minSeconds.isNotBlank() && min == null) add(Field.WINDOW)
-            if (maxSeconds.isNotBlank() && max == null) add(Field.WINDOW)
-            if (min != null && max != null && min > max) add(Field.WINDOW)
-        } else {
-            if (steps.isEmpty()) add(Field.STEPS)
-            var lastStart = -1L
-            var lastWeight = 0.0
-            for (step in steps) {
-                val start = clock(step.start)
-                val weight = number(step.weight)
-                if (start == null || start < lastStart) add(Field.STEPS)
-                if (step.kind.pours && (weight == null || weight <= lastWeight || weight > MAX_WATER)) add(Field.STEPS)
-                lastStart = start ?: lastStart
-                if (step.kind.pours) lastWeight = weight ?: lastWeight
+        when (mode) {
+            BrewMode.ESPRESSO -> {
+                val min = seconds(minSeconds)
+                val max = seconds(maxSeconds)
+                if (minSeconds.isNotBlank() && min == null) add(Field.WINDOW)
+                if (maxSeconds.isNotBlank() && max == null) add(Field.WINDOW)
+                if (min != null && max != null && min > max) add(Field.WINDOW)
+            }
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> {
+                if (steps.isEmpty()) add(Field.STEPS)
+                var lastStart = -1L
+                var lastWeight = 0.0
+                for ((index, step) in steps.withIndex()) {
+                    val start = clock(step.start)
+                    val weight = number(step.weight)
+                    if (start == null || start < lastStart) add(Field.STEPS)
+                    if (step.kind.pours && (weight == null || weight <= lastWeight || weight > MAX_WATER)) add(Field.STEPS)
+                    if (step.kind == StepKind.PRESS && (mode != BrewMode.FRENCH_PRESS || index != steps.lastIndex)) add(Field.STEPS)
+                    lastStart = start ?: lastStart
+                    if (step.kind.pours) lastWeight = weight ?: lastWeight
+                }
             }
         }
     }
@@ -63,12 +67,18 @@ data class RecipeForm(
         grind = grind.trim().ifEmpty { null },
         waterTempCelsius = temp.trim().toIntOrNull(),
         notes = notes.trim().ifEmpty { null },
-        targetMinMs = if (mode == BrewMode.ESPRESSO) seconds(minSeconds)?.times(1000) else null,
-        targetMaxMs = if (mode == BrewMode.ESPRESSO) seconds(maxSeconds)?.times(1000) else null,
-        steps = if (mode == BrewMode.FILTER) {
-            steps.map { RecipeStep(it.kind, if (it.kind.pours) number(it.weight) else null, clock(it.start)!!) }
-        } else {
-            emptyList()
+        targetMinMs = when (mode) {
+            BrewMode.ESPRESSO -> seconds(minSeconds)?.times(1000)
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+        },
+        targetMaxMs = when (mode) {
+            BrewMode.ESPRESSO -> seconds(maxSeconds)?.times(1000)
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+        },
+        steps = when (mode) {
+            BrewMode.ESPRESSO -> emptyList()
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS ->
+                steps.map { RecipeStep(it.kind, if (it.kind.pours) number(it.weight) else null, clock(it.start)!!) }
         },
         createdAt = createdAt,
         updatedAt = now,
@@ -89,6 +99,7 @@ data class RecipeForm(
         val METHODS = mapOf(
             BrewMode.FILTER to listOf("V60", "Melitta", "Kalita", "AeroPress", "Chemex", "Origami"),
             BrewMode.ESPRESSO to listOf("Espresso"),
+            BrewMode.FRENCH_PRESS to listOf("French press"),
         )
 
         fun of(recipe: Recipe, locale: Locale) = RecipeForm(
@@ -105,11 +116,14 @@ data class RecipeForm(
             steps = recipe.steps.map { StepForm(it.kind, it.targetWeightGrams?.let { w -> plain(w, locale) }.orEmpty(), clockText(it.targetAtMs)) },
         )
 
-        /** A new recipe: one bloom at 0:00 for filter. */
+        /** A new pour-based recipe: one bloom at 0:00. */
         fun new(mode: BrewMode) = RecipeForm(
             mode = mode,
             method = METHODS.getValue(mode).first(),
-            steps = if (mode == BrewMode.FILTER) listOf(StepForm(StepKind.BLOOM, start = "0:00")) else emptyList(),
+            steps = when (mode) {
+                BrewMode.ESPRESSO -> emptyList()
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> listOf(StepForm(StepKind.BLOOM, start = "0:00"))
+            },
         )
 
         /** A comma or a dot. */

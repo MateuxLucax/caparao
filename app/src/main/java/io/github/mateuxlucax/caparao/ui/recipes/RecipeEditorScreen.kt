@@ -138,7 +138,13 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
     }
     form.targetGrams?.let {
         Text(
-            stringResource(if (form.mode == BrewMode.FILTER) R.string.recipe_target_water else R.string.recipe_target_yield, Format.grams(it, locale)),
+            stringResource(
+                when (form.mode) {
+                    BrewMode.ESPRESSO -> R.string.recipe_target_yield
+                    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.recipe_target_water
+                },
+                Format.grams(it, locale),
+            ),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleMedium,
         )
@@ -157,17 +163,23 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
             }
             if (Field.WINDOW in errors) ErrorText(R.string.recipe_error_window)
         }
-        BrewMode.FILTER -> Steps(form.steps, Field.STEPS in errors, viewModel)
+        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
     }
     TextField(form.notes, { v -> viewModel.edit { it.copy(notes = v) } }, R.string.recipe_notes, false, R.string.required, text = true, singleLine = false)
 }
 
 @Composable
-private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditorViewModel) {
+private fun Steps(mode: BrewMode, steps: List<StepForm>, error: Boolean, viewModel: RecipeEditorViewModel) {
     Text(stringResource(R.string.recipe_steps), style = MaterialTheme.typography.titleMedium)
     Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     steps.forEachIndexed { index, step ->
-        StepRow(step, error, { viewModel.updateStep(index, it) }, { viewModel.removeStep(index) })
+        StepRow(
+            step,
+            error,
+            allowedKinds = StepKind.entries.filter { it != StepKind.PRESS || mode == BrewMode.FRENCH_PRESS },
+            onChange = { viewModel.updateStep(index, it) },
+            onRemove = { viewModel.removeStep(index) },
+        )
     }
     if (error) ErrorText(if (steps.isEmpty()) R.string.recipe_error_no_steps else R.string.recipe_error_steps)
     OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::addStep) {
@@ -179,14 +191,20 @@ private fun Steps(steps: List<StepForm>, error: Boolean, viewModel: RecipeEditor
 // One connected group per step, like a button group: kind, weight, start and remove share a height, 2dp gaps, small
 // inner corners and full outer ones.
 @Composable
-private fun StepRow(step: StepForm, error: Boolean, onChange: (StepForm) -> Unit, onRemove: () -> Unit) {
+private fun StepRow(
+    step: StepForm,
+    error: Boolean,
+    allowedKinds: List<StepKind>,
+    onChange: (StepForm) -> Unit,
+    onRemove: () -> Unit,
+) {
     val inner = CornerSize(8.dp)
     val outer = CornerSize(50)
     val start = RoundedCornerShape(outer, inner, inner, outer)
     val middle = RoundedCornerShape(inner)
     val end = RoundedCornerShape(inner, outer, outer, inner)
     Row(Modifier.fillMaxWidth().height(StepHeight), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        KindPicker(step.kind, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
+        KindPicker(step.kind, allowedKinds, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
         if (step.kind.pours) {
             StepField(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, middle, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
         } else {
@@ -202,14 +220,14 @@ private fun StepRow(step: StepForm, error: Boolean, onChange: (StepForm) -> Unit
 private val StepHeight = 56.dp
 
 @Composable
-private fun KindPicker(kind: StepKind, shape: Shape, modifier: Modifier, onPick: (StepKind) -> Unit) {
+private fun KindPicker(kind: StepKind, options: List<StepKind>, shape: Shape, modifier: Modifier, onPick: (StepKind) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
     Box(modifier) {
         FilledTonalButton(onClick = { open = true }, shape = shape, contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.fillMaxSize()) {
             Text(stringResource(kind.label), maxLines = 1)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
-            StepKind.entries.forEach { entry ->
+            options.forEach { entry ->
                 DropdownMenuItem(
                     text = { Text(stringResource(entry.label)) },
                     onClick = { open = false; onPick(entry) },
@@ -310,4 +328,5 @@ val StepKind.label: Int
         StepKind.POUR -> R.string.step_pour
         StepKind.WAIT -> R.string.step_wait
         StepKind.SWIRL -> R.string.step_swirl
+        StepKind.PRESS -> R.string.step_press
     }

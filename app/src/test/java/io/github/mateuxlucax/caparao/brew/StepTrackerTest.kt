@@ -148,6 +148,31 @@ class StepTrackerTest {
         assertEquals(15_000L, tracker.state.dueInMs)
     }
 
+    @Test
+    fun terminalPressTriggersAllDoneOnceAtItsScheduledStartWithoutAlertCountdowns() {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 100.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 300.0, 60_000),
+            RecipeStep(StepKind.PRESS, null, 240_000),
+        )
+        val tracker = StepTracker(steps)
+        tracker.update(10_000, 100.0, 0.0)
+        tracker.update(60_000, 100.0, 0.0)
+        val pourReached = tracker.update(80_000, 300.0, 4.0)
+
+        assertTrue(StepEvent.Reached(2) in pourReached)
+        assertTrue(pourReached.none { it == StepEvent.Started(3) || it is StepEvent.Countdown })
+        assertEquals(3, tracker.state.index)
+        assertEquals(160_000L, tracker.state.dueInMs)
+
+        assertTrue(tracker.update(239_000, 300.0, 0.0).isEmpty())
+        assertEquals(1_000L, tracker.state.dueInMs)
+        assertEquals(listOf(StepEvent.AllDone), tracker.update(240_000, 300.0, 0.0))
+        assertTrue(tracker.state.allDone(steps.size))
+        assertTrue(tracker.update(241_000, 300.0, 0.0).isEmpty())
+    }
+
     /**
      * The synthetic filter replay session decoded frame by frame: dripper and server (400 g, tared away), pours from 20 s
      * to 50, 100, 150 and 255 g ending at 28, 63, 78 and 88 s. Followed with that V60, whose second and third

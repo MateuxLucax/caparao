@@ -113,6 +113,50 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFrenchPressStartsOnFirstWaterAndWaitsForDoneAfterTheCarafeIsLifted() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        assertEquals(BrewPhase.READY, vm.uiState.value.phase)
+
+        pour(0.0, 300.0, 30.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        pour(300.0, 0.0, 0.4)
+        hold(0.0, 10.0)
+        assertEquals("lifting the carafe does not end a French press", BrewPhase.BREWING, vm.uiState.value.phase)
+
+        vm.stop()
+        val brew = vm.uiState.value.saved!!
+        assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
+        assertEquals(300.0, brew.yieldGrams, 0.5)
+        assertNull(brew.timeToFirstDropMs)
+        assertFalse(brew.interrupted)
+    }
+
+    @Test
+    fun aFrenchPressDisconnectDuringTheBrewSavesTheHighestWaterWeightAsInterrupted() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 120.0, 12.0)
+        pour(120.0, 0.0, 0.4)
+
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+
+        val brew = vm.uiState.value.saved!!
+        assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
+        assertEquals(120.0, brew.yieldGrams, 0.5)
+        assertNull(brew.timeToFirstDropMs)
+        assertTrue(brew.interrupted)
+    }
+
+    @Test
     fun stoppingBeforeTheFirstDropSavesNothing() {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
@@ -269,6 +313,52 @@ class BrewViewModelTest {
         assertTrue(alerts.all { it.vibrate && !it.sound })
         vm.stop()
         assertEquals("V60", vm.uiState.value.saved!!.recipeName)
+    }
+
+    @Test
+    fun aFrenchPressAlertsOnceAtFourMinutesAndStaysOpenUntilDone() = kotlinx.coroutines.test.runTest {
+        val frenchPress = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        recipes.save(frenchPress)
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        hold(100.0, 0.2)
+        pour(100.0, 300.0, 20.0)
+        val beforeFinish = alerts.count { it.event == StepEvent.AllDone }
+        assertEquals(0, beforeFinish)
+        hold(300.0, 161.0)
+        assertEquals("the timer alert does not end the brew", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertFalse(vm.uiState.value.frenchPressRemoved)
+        pour(300.0, -400.0, 0.4)
+        hold(-400.0, 10.0)
+        collecting.cancel()
+
+        val finishAlerts = alerts.filter { it.event == StepEvent.AllDone }
+        assertEquals(1, finishAlerts.size)
+        assertTrue(finishAlerts.single().vibrate)
+        assertFalse(finishAlerts.single().sound)
+        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals("the sustained lift does not end the brew", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertTrue(vm.uiState.value.frenchPressRemoved)
+        assertEquals("the live readout keeps the on-scale water", 300.0, vm.uiState.value.weightGrams, 0.5)
+        assertNull(vm.uiState.value.saved)
+        assertEquals(frenchPress.steps.size, vm.uiState.value.guide?.index)
+
+        vm.stop()
+        assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
+        assertEquals(BrewMode.FRENCH_PRESS, vm.uiState.value.saved?.mode)
+        assertNull(vm.uiState.value.saved?.timeToFirstDropMs)
+        assertEquals(300.0, vm.uiState.value.saved?.yieldGrams ?: 0.0, 0.5)
+        val curve = dao.samples.getValue("brew-1")
+        assertTrue("the off-scale weight is not a curve sample", curve.all { it.weightGrams > 0.0 })
+        assertEquals(300.0, curve.last().weightGrams, 0.5)
     }
 
     @Test

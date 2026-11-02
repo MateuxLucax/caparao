@@ -127,7 +127,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 4,
+    version = 5,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -141,13 +141,13 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
 }
 
-/** A fresh install gets the built-in recipes; an upgrade gets them from [MIGRATION_1_2]. */
+/** A fresh install gets current built-ins; upgrades get each set through the migration that introduced it. */
 object SeedBuiltInRecipes : RoomDatabase.Callback() {
     override fun onCreate(db: SupportSQLiteDatabase) = BuiltInRecipes.insert(db, System.currentTimeMillis())
 }
@@ -160,7 +160,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         }
         db.execSQL(CREATE_RECIPES)
         db.execSQL(CREATE_RECIPE_STEPS)
-        BuiltInRecipes.insert(db, System.currentTimeMillis())
+        BuiltInRecipes.insert(db, BuiltInRecipes.beforeFrenchPress(System.currentTimeMillis()))
     }
 }
 
@@ -171,13 +171,20 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         val unedited = "SELECT id FROM recipes WHERE id IN ($ids) AND created_at = updated_at"
         db.execSQL("DELETE FROM recipe_steps WHERE recipe_id IN ($unedited)")
         db.execSQL("DELETE FROM recipes WHERE id IN ($unedited)")
-        BuiltInRecipes.insert(db, System.currentTimeMillis())
+        BuiltInRecipes.insert(db, BuiltInRecipes.beforeFrenchPress(System.currentTimeMillis()))
     }
 }
 
 /** Coffee bags (#110). */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) = db.execSQL(CREATE_COFFEE_BAGS)
+}
+
+/** French press (#125): add only its recipe, leaving earlier built-ins the user deleted untouched. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        BuiltInRecipes.insert(db, listOf(BuiltInRecipes.frenchPress(System.currentTimeMillis())))
+    }
 }
 
 /** As in app/schemas/…/4.json. */

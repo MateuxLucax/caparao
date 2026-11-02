@@ -178,6 +178,18 @@ class BrewExporterCsvTest {
     }
 
     @Test
+    fun frenchPressModeStaysDistinctInBothCsvs() {
+        val pressBrew = brew.copy(mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
+        val pressRecipe = recipe.copy(mode = BrewMode.FRENCH_PRESS, method = "French press")
+
+        val brewMode = BrewExporter.brewsCsv(listOf(BrewWithSamples(pressBrew, emptyList()))).lines()[1].split(",")[1]
+        val recipeMode = BrewExporter.recipesCsv(listOf(pressRecipe)).lines()[1].split(",")[2]
+
+        assertEquals("french_press", brewMode)
+        assertEquals("french_press", recipeMode)
+    }
+
+    @Test
     fun emptyHistoryStillWritesTheHeaders() {
         val empty = emptyList<BrewWithSamples>()
 

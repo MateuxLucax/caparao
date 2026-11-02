@@ -71,15 +71,18 @@ class ExporterClient(
          */
         fun body(brew: Brew, samples: List<BrewSample>): JSONObject = JSONObject()
             .put("id", brew.id.lowercase())
-            .put("mode", if (brew.mode == BrewMode.ESPRESSO) "espresso" else "filter")
+            .put("mode", brew.mode.toContractValue())
             .put("started_at_ms", brew.startedAt)
             .put("ended_at_ms", brew.startedAt + brew.durationMs.coerceAtLeast(1))
             .put("dose_g", brew.doseGrams)
             .put("yield_g", nonNegative(brew.yieldGrams))
-            // put(key, null) would drop the key; the contract wants it present and null for filter brews.
+            // put(key, null) would drop the key; the contract wants it present and null for filter and French press.
             .put(
                 "time_to_first_drop_s",
-                brew.timeToFirstDropMs?.takeIf { brew.mode == BrewMode.ESPRESSO }?.let { it.coerceAtLeast(0) / 1000.0 } ?: JSONObject.NULL,
+                when (brew.mode) {
+                    BrewMode.ESPRESSO -> brew.timeToFirstDropMs?.let { it.coerceAtLeast(0) / 1000.0 } ?: JSONObject.NULL
+                    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> JSONObject.NULL
+                },
             )
             .put("flow_avg_gps", nonNegative(brew.flowAvgGramsPerSecond))
             .put("flow_peak_gps", nonNegative(brew.flowPeakGramsPerSecond))

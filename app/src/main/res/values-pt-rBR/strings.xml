@@ -14,6 +14,7 @@
     <string name="mode_filter">Filtrado</string>
     <string name="mode_manual">Manual</string>
     <string name="mode_espresso">Espresso</string>
+    <string name="mode_french_press">Prensa francesa</string>
 
     <!-- Widget da tela inicial -->
     <string name="widget_description">Último preparo ou resumo dos últimos 7 dias</string>
@@ -21,6 +22,7 @@
     <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
+    <string name="widget_brew_french_press">Preparar prensa francesa</string>
     <string name="widget_brew_coffee">Passar um café</string>
     <string name="widget_weekly_title">Últimos 7 dias</string>
     <string name="widget_weekly_empty">Nenhum preparo nesta semana</string>
@@ -36,7 +38,7 @@
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
     <string name="brews_empty_title">Nenhum preparo ainda</string>
-    <string name="brews_empty_text">Os preparos que você registrar aparecem aqui, separados em filtrado e espresso.</string>
+    <string name="brews_empty_text">Os preparos que você registrar aparecem aqui, separados em filtrado, espresso e prensa francesa.</string>
 
     <!-- Config -->
     <string name="section_server">Servidor</string>
@@ -95,6 +97,7 @@
     <string name="cup_on">Coloquei a xícara</string>
     <string name="taring">Tarando…</string>
     <string name="brewing_filter_text">Despeje no seu ritmo. Tire o dripper ou toque em Pronto para terminar.</string>
+    <string name="french_press_brewing_text">O timer começa com a primeira água. Toque em Pronto para terminar.</string>
     <string name="step_of">Etapa %1$d de %2$d</string>
     <string name="espresso_ready">Pode extrair</string>
     <string name="espresso_ready_text">O timer começa na primeira gota e para quando o fluxo para.</string>
@@ -189,6 +192,7 @@
     <string name="step_pour">Despejo</string>
     <string name="step_wait">Espera</string>
     <string name="step_swirl">Agitar</string>
+    <string name="step_press">Prensar</string>
     <string name="step_weight">Até</string>
     <string name="step_start">Início</string>
     <string name="add_step">Adicionar etapa</string>
@@ -219,6 +223,10 @@
     <string name="guide_flow">Fluxo %1$s g/s · alvo %2$s</string>
     <string name="guide_drawdown">Deixe drenar</string>
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
+    <string name="guide_press_at">Abaixe o êmbolo às %1$s</string>
+    <string name="guide_remove_press">Tire a prensa da balança.</string>
+    <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
+    <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
     <string name="section_colors">Cores</string>
     <string name="section_data">Dados</string>

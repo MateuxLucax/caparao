@@ -86,7 +86,7 @@ fun recipeSummary(recipe: Recipe): String {
     val dose = Format.grams(recipe.doseGrams, locale)
     val target = Format.grams(recipe.targetYieldGrams, locale)
     return when (recipe.mode) {
-        BrewMode.FILTER -> stringResource(R.string.recipe_summary_filter, dose, Format.ratio(recipe.targetRatio, locale), target)
+        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> stringResource(R.string.recipe_summary_filter, dose, Format.ratio(recipe.targetRatio, locale), target)
         BrewMode.ESPRESSO -> {
             val min = recipe.targetMinMs
             val max = recipe.targetMaxMs

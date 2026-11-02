@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.data.export
 
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
+import io.github.mateuxlucax.caparao.data.exporter.toContractValue
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import io.github.mateuxlucax.caparao.model.Recipe
@@ -30,12 +31,15 @@ object BrewExporter {
             append(
                 listOf(
                     csv(brew.id),
-                    if (brew.mode == BrewMode.ESPRESSO) "espresso" else "filter",
+                    brew.mode.toContractValue(),
                     csv(Instant.ofEpochMilli(brew.startedAt).toString()),
                     seconds(brew.durationMs),
                     number(brew.doseGrams),
                     number(brew.yieldGrams),
-                    brew.timeToFirstDropMs?.let { seconds(it) }.orEmpty(),
+                    when (brew.mode) {
+                        BrewMode.ESPRESSO -> brew.timeToFirstDropMs?.let { seconds(it) }.orEmpty()
+                        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> ""
+                    },
                     number(brew.flowAvgGramsPerSecond),
                     number(brew.flowPeakGramsPerSecond),
                     brew.interrupted.toString(),
@@ -71,7 +75,7 @@ object BrewExporter {
             val fields = listOf(
                 csv(recipe.id),
                 csv(recipe.name),
-                if (recipe.mode == BrewMode.ESPRESSO) "espresso" else "filter",
+                recipe.mode.toContractValue(),
                 csv(recipe.method),
                 number(recipe.doseGrams),
                 number(recipe.targetRatio),

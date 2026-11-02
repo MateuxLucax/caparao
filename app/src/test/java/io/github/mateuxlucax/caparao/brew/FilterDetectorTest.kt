@@ -50,6 +50,7 @@ class FilterDetectorTest {
         detector.stop(session.nowMs)
         val result = detector.result!!
         assertEquals(firstWater.toDouble(), result.startedAtMs.toDouble(), 500.0)
+        assertEquals(result.startedAtMs, detector.startedAtMs)
         assertEquals(session.nowMs, result.endedAtMs)
         assertEquals(250.0, result.yieldGrams, 0.3)
         assertEquals(false, result.interrupted)
@@ -128,5 +129,24 @@ class FilterDetectorTest {
         detector.stop(session.nowMs)
         assertEquals(BrewPhase.DONE, detector.phase)
         assertNull(detector.result)
+    }
+
+    @Test
+    fun disabledLiftDetectionKeepsBrewingAndDoneUsesTheHighestWaterWeight() {
+        val detector = FilterDetector(FilterConfig(liftDetectionEnabled = false))
+        val session = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
+        detector.feed(session)
+        session.ramp(0.0, 300.0, 30.0)
+        detector.feed(session)
+        session.ramp(300.0, 0.0, 0.4).hold(0.0, 10.0)
+        detector.feed(session)
+
+        assertEquals(BrewPhase.BREWING, detector.phase)
+        detector.stop(session.nowMs)
+
+        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(300.0, detector.result!!.yieldGrams, 0.3)
+        assertEquals(session.nowMs, detector.result!!.endedAtMs)
+        assertEquals(false, detector.result!!.interrupted)
     }
 }

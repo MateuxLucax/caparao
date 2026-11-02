@@ -80,6 +80,7 @@ val BrewMode.label: Int
     get() = when (this) {
         BrewMode.FILTER -> R.string.mode_filter
         BrewMode.ESPRESSO -> R.string.mode_espresso
+        BrewMode.FRENCH_PRESS -> R.string.mode_french_press
     }
 
 @get:DrawableRes
@@ -87,6 +88,7 @@ val BrewMode.icon: Int
     get() = when (this) {
         BrewMode.FILTER -> R.drawable.ic_coffee_maker
         BrewMode.ESPRESSO -> R.drawable.ic_coffee
+        BrewMode.FRENCH_PRESS -> R.drawable.ic_coffee
     }
 
 /**

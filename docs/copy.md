@@ -37,6 +37,7 @@ Use these and only these. Adding a term means adding it here.
 | One recorded extraction | brew | preparo | Not "shot" in lists; "shot" only in espresso instructions |
 | Brewing method: filter | Filter | Filtrado | |
 | Brewing method: espresso | Espresso | Espresso | Not "expresso" |
+| Brewing method: French press | French press | Prensa francesa | |
 | Ground coffee weight | dose | dose | |
 | Liquid out (espresso) | yield | bebida | |
 | Water poured (filter) | water | água | |

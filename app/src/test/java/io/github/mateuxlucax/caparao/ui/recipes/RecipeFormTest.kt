@@ -61,6 +61,49 @@ class RecipeFormTest {
     }
 
     @Test
+    fun frenchPressCanFinishWithATerminalPressAtFourMinutes() {
+        val frenchPress = RecipeForm.new(BrewMode.FRENCH_PRESS).copy(
+            name = "French press",
+            dose = "20",
+            ratio = "15",
+            steps = listOf(
+                StepForm(StepKind.BLOOM, "100", "0:00"),
+                StepForm(StepKind.WAIT, start = "0:00"),
+                StepForm(StepKind.POUR, "300", "1:00"),
+                StepForm(StepKind.PRESS, start = "4:00"),
+            ),
+        )
+
+        assertEquals(emptySet<Field>(), frenchPress.validate())
+        assertEquals(
+            listOf(
+                RecipeStep(StepKind.BLOOM, 100.0, 0),
+                RecipeStep(StepKind.WAIT, null, 0),
+                RecipeStep(StepKind.POUR, 300.0, 60_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            frenchPress.toRecipe("press", 0, 0).steps,
+        )
+        assertEquals("French press", RecipeForm.new(BrewMode.FRENCH_PRESS).method)
+    }
+
+    @Test
+    fun pressStepMustBeTerminalAndFrenchPressOnly() {
+        val press = StepForm(StepKind.PRESS, start = "4:00")
+        val laterPour = StepForm(StepKind.POUR, "300", "4:30")
+        assertEquals(setOf(Field.STEPS), filter.copy(steps = listOf(filter.steps.first(), press)).validate())
+        assertEquals(
+            setOf(Field.STEPS),
+            RecipeForm.new(BrewMode.FRENCH_PRESS).copy(
+                name = "Press",
+                dose = "20",
+                ratio = "15",
+                steps = listOf(StepForm(StepKind.BLOOM, "100", "0:00"), press, laterPour),
+            ).validate(),
+        )
+    }
+
+    @Test
     fun aRecipeRoundTripsThroughTheForm() {
         for (recipe in BuiltInRecipes.all(5)) {
             val form = RecipeForm.of(recipe, Locale.US)

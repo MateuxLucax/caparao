@@ -32,8 +32,10 @@ data class BrewUiState(
     val recipes: List<Recipe> = emptyList(),
     /** The one being followed; null for a free brew. */
     val recipe: Recipe? = null,
-    /** Filter with a recipe's steps, once brewing: where the guide stands (#103). */
+    /** Filter or French press with a recipe's steps, once brewing: where the guide stands (#103, #125). */
     val guide: StepState? = null,
+    /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */
+    val frenchPressRemoved: Boolean = false,
     /** On the summary: the saved brew's notes being typed, and past coffees to pick from. */
     val notes: NotesForm? = null,
     val coffees: List<String> = emptyList(),
@@ -46,11 +48,17 @@ data class BrewUiState(
         get() {
             val min = recipe?.targetMinMs ?: return null
             val max = recipe.targetMaxMs ?: return null
-            if (mode != BrewMode.ESPRESSO || phase != BrewPhase.BREWING && phase != BrewPhase.DONE) return null
-            return when {
-                elapsedMs < min -> Window.BEFORE
-                elapsedMs <= max -> Window.INSIDE
-                else -> Window.PAST
+            return when (mode) {
+                BrewMode.ESPRESSO -> if (phase != BrewPhase.BREWING && phase != BrewPhase.DONE) {
+                    null
+                } else {
+                    when {
+                        elapsedMs < min -> Window.BEFORE
+                        elapsedMs <= max -> Window.INSIDE
+                        else -> Window.PAST
+                    }
+                }
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
             }
         }
 
