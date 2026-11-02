@@ -78,12 +78,22 @@ fun BrewDetailScreen(
             )
             BrewNumbers(brew)
             NotesCard(state, viewModel)
-            BrewChart(
-                state.samples,
-                brew.durationMs,
-                "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
-                "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BrewChart(
+                    state.samples,
+                    brew.durationMs,
+                    "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
+                    "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
+                )
+                if (state.samples.isNotEmpty()) {
+                    // The curve starts at the first drop, not at the tare; the wait is the first-drop metric above.
+                    Text(
+                        stringResource(R.string.brew_chart_origin),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.previousId?.let { previous ->
                     OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }

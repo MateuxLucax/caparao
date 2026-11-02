@@ -110,6 +110,7 @@
     <string name="delete">Apagar</string>
     <string name="brew_detail_weight">Peso</string>
     <string name="brew_detail_flow">Fluxo</string>
+    <string name="brew_chart_origin">Curva a partir da primeira gota</string>
     <string name="delete_brew_title">Apagar este preparo?</string>
     <string name="cancel">Cancelar</string>
     <string name="brewing_espresso">Extraindo</string>
