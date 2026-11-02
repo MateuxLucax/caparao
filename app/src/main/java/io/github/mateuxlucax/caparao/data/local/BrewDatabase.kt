@@ -74,6 +74,14 @@ interface BrewDao {
     @Query("SELECT * FROM brews ORDER BY started_at DESC")
     fun observeAll(): Flow<List<BrewEntity>>
 
+    /** Every brew, oldest first, for the export (#76). */
+    @Query("SELECT * FROM brews ORDER BY started_at")
+    suspend fun all(): List<BrewEntity>
+
+    /** Every sample, ordered so each brew's curve reads chronologically when grouped. */
+    @Query("SELECT * FROM brew_samples ORDER BY brew_id, at_ms")
+    suspend fun allSamples(): List<BrewSampleEntity>
+
     @Query("SELECT * FROM brews WHERE id = :id")
     suspend fun get(id: String): BrewEntity?
 

@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.data.local
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -14,6 +15,14 @@ class BrewRepository(private val dao: BrewDao) {
         dao.insertWithSamples(brew.toEntity(), samples.map { BrewSampleEntity(brew.id, it.atMs, it.weightGrams, it.flowGramsPerSecond) })
 
     suspend fun get(id: String): Brew? = dao.get(id)?.toModel()
+
+    /** Every brew with its curve, oldest first, for the export (#76). */
+    suspend fun allWithSamples(): List<BrewWithSamples> {
+        val samples = dao.allSamples().groupBy { it.brewId }
+        return dao.all().map { row ->
+            BrewWithSamples(row.toModel(), samples[row.id].orEmpty().map { BrewSample(it.atMs, it.weightGrams, it.flow) })
+        }
+    }
 
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
