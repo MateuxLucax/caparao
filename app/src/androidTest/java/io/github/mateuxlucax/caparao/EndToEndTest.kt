@@ -63,10 +63,30 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.next)).performClick()
             // The replay has not started, so Next keeps the planned 18 g dose.
             compose.onNodeWithText(text(R.string.next)).performClick()
-            replay.resume()
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
-
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
+            // Don't start the 52 s fixture until the live screen and detector are mounted.
+            val liveStepError = runCatching {
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 10_000)
+            }.exceptionOrNull()
+            if (liveStepError != null) {
+                throw AssertionError(
+                    "The live step did not appear before replay: scale=${replay.state.value}, reading=${replay.reading.value}",
+                    liveStepError,
+                )
+            }
+            replay.resume()
+            // Allow scheduling overhead while the emulator replays the fixture at its recorded pace.
+            val savedError = runCatching {
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 90_000)
+            }.exceptionOrNull()
+            if (savedError != null) {
+                val savedCount = runBlocking(Dispatchers.IO) { dao.all().size }
+                throw AssertionError(
+                    "The replay did not reach the summary: scale=${replay.state.value}, reading=${replay.reading.value}, storedBrews=$savedCount",
+                    savedError,
+                )
+            }
+
             compose.waitUntil(10_000) { runBlocking(Dispatchers.IO) { dao.all().size == 1 } }
             val (brew, sampleCount) = runBlocking(Dispatchers.IO) {
                 val saved = dao.all().single()
