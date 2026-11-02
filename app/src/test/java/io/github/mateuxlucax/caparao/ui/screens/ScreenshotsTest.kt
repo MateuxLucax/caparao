@@ -47,6 +47,8 @@ import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
+import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
@@ -86,11 +88,13 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.util.TimeZone
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * The images in docs/screenshots, rendered on the JVM (Robolectric and Roborazzi) instead of an emulator: the
- * onboarding, every tab, an espresso, the espresso guide, a filter brew and the home-screen widget, in one language
- * and theme per subclass. The recorded sessions are played frame by frame ([SessionScale]), so every image comes from
+ * onboarding, every tab, an espresso, the espresso guide, a filter brew and both home-screen widget sizes, in one
+ * language and theme per subclass. The recorded sessions are played frame by frame ([SessionScale]), so every image comes from
  * the same point of the session on every run. Runs only from scripts/screenshots.sh (`-Pscreenshots`); a plain test run
  * skips it.
  */
@@ -218,6 +222,67 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         latest = null
         compose.waitForIdle()
         compose.onNodeWithTag("widget").captureRoboImage("../docs/screenshots/widget/$lang/empty-$theme.png", OPTIONS)
+    }
+
+    /** The expanded widget's estimates and neutral empty-week state, rendered at its 260×210 dp breakpoint. */
+    @Test
+    fun weeklyWidget() {
+        val zone = ZoneId.of("UTC")
+        val today = LocalDate.of(2026, 10, 18)
+        val window = brewWidgetWeekWindow(today, zone)
+        val days = window.days
+        val atNoon = { date: LocalDate -> date.atTime(12, 0).atZone(zone).toInstant().toEpochMilli() }
+        fun savedBrew(
+            id: String,
+            dayIndex: Int,
+            mode: BrewMode,
+            dose: Double,
+            yield: Double,
+            interrupted: Boolean = false,
+        ) = Brew(
+            id = id,
+            mode = mode,
+            startedAt = atNoon(days[dayIndex]) - 28_000,
+            durationMs = 28_000,
+            doseGrams = dose,
+            yieldGrams = yield,
+            timeToFirstDropMs = if (mode == BrewMode.ESPRESSO) 4_000 else null,
+            flowAvgGramsPerSecond = 1.3,
+            flowPeakGramsPerSecond = 2.4,
+            interrupted = interrupted,
+        )
+
+        val saved = listOf(
+            savedBrew("filter-1", 1, BrewMode.FILTER, 15.0, 250.0),
+            savedBrew("espresso-1", 2, BrewMode.ESPRESSO, 18.0, 36.0),
+            savedBrew("espresso-2", 2, BrewMode.ESPRESSO, 18.0, 40.0),
+            savedBrew("filter-2", 4, BrewMode.FILTER, 15.0, 250.0),
+            savedBrew("filter-3", 4, BrewMode.FILTER, 15.0, 250.0),
+            savedBrew("filter-4", 5, BrewMode.FILTER, 15.0, 250.0),
+            savedBrew("filter-5", 5, BrewMode.FILTER, 15.0, 250.0),
+            savedBrew("espresso-3", 5, BrewMode.ESPRESSO, 18.0, 36.0),
+            savedBrew("interrupted-filter", 6, BrewMode.FILTER, 15.0, 100.0, interrupted = true),
+        )
+        var week by mutableStateOf(summarizeBrewWidgetWeek(saved, window, zone))
+        val emptyWeek = summarizeBrewWidgetWeek(emptyList(), window, zone)
+        val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
+        val widthDp = context.resources.getDimension(R.dimen.widget_weekly_min_width) / context.resources.displayMetrics.density
+        val heightDp = context.resources.getDimension(R.dimen.widget_weekly_min_height) / context.resources.displayMetrics.density
+        compose.setContent {
+            Box(Modifier.background(wallpaper)) {
+                key(week) {
+                    AndroidView(
+                        factory = { BrewWidgetProvider().weeklyViews(context, 1, BrewMode.FILTER, week).apply(context, null) },
+                        modifier = Modifier.size(widthDp.dp, heightDp.dp).testTag("weekly-widget"),
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("weekly-widget").captureRoboImage("../docs/screenshots/widget/$lang/weekly-saved-$theme.png", OPTIONS)
+        week = emptyWeek
+        compose.waitForIdle()
+        compose.onNodeWithTag("weekly-widget").captureRoboImage("../docs/screenshots/widget/$lang/weekly-empty-$theme.png", OPTIONS)
     }
 
     /** The coffees screen from Settings, with an open bag and a finished one (#110). */

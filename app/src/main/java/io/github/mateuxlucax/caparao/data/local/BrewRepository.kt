@@ -23,6 +23,10 @@ class BrewRepository(
 
     suspend fun latest(): Brew? = dao.latest()?.toModel()
 
+    /** Saved brews whose end instants fall in [startInclusive, endExclusive), without loading their curves. */
+    suspend fun endedBetween(startInclusive: Long, endExclusive: Long): List<Brew> =
+        dao.endedBetween(startInclusive, endExclusive).map { it.toModel() }
+
     /** Every brew with its curve, oldest first, for the export (#76). */
     suspend fun allWithSamples(): List<BrewWithSamples> {
         val samples = dao.allSamples().groupBy { it.brewId }

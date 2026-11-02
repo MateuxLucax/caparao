@@ -25,6 +25,13 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 | Light | <img src="widget/en/saved-light.png" width="140" alt="Saved brew"> | <img src="widget/en/empty-light.png" width="140" alt="Empty"> |
 | Dark | <img src="widget/en/saved-dark.png" width="140" alt="Saved brew"> | <img src="widget/en/empty-dark.png" width="140" alt="Empty"> |
 
+The expanded layout is captured at its 260×210 dp breakpoint:
+
+| | Weekly summary | Empty week |
+|---|---|---|
+| Light | <img src="widget/en/weekly-saved-light.png" width="180" alt="Weekly summary"> | <img src="widget/en/weekly-empty-light.png" width="180" alt="Empty week"> |
+| Dark | <img src="widget/en/weekly-saved-dark.png" width="180" alt="Weekly summary"> | <img src="widget/en/weekly-empty-dark.png" width="180" alt="Empty week"> |
+
 ### Espresso
 
 | | Dose | Live | Saved | Brews | Detail |
@@ -60,6 +67,13 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 |---|---|---|
 | Claro | <img src="widget/pt-BR/saved-light.png" width="140" alt="Preparo salvo"> | <img src="widget/pt-BR/empty-light.png" width="140" alt="Vazio"> |
 | Escuro | <img src="widget/pt-BR/saved-dark.png" width="140" alt="Preparo salvo"> | <img src="widget/pt-BR/empty-dark.png" width="140" alt="Vazio"> |
+
+O layout expandido é capturado no limite de 260×210 dp:
+
+| | Resumo semanal | Semana vazia |
+|---|---|---|
+| Claro | <img src="widget/pt-BR/weekly-saved-light.png" width="180" alt="Resumo semanal"> | <img src="widget/pt-BR/weekly-empty-light.png" width="180" alt="Semana vazia"> |
+| Escuro | <img src="widget/pt-BR/weekly-saved-dark.png" width="180" alt="Resumo semanal"> | <img src="widget/pt-BR/weekly-empty-dark.png" width="180" alt="Semana vazia"> |
 
 ### Espresso
 
