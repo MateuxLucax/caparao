@@ -9,30 +9,16 @@ adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 
 capture_emulator_logs() {
   local status=$?
-  local devices=""
-  local serial=""
   trap - EXIT
-  {
-    printf '\nE2E runner exit status: %s\n' "$status"
-    if [ -x "$adb" ]; then
-      if devices=$(timeout --kill-after=5s 10s "$adb" devices -l 2>&1); then
-        printf '%s\n' "$devices"
-      else
-        printf '%s\n' "$devices"
-        echo "adb devices failed or timed out; continuing with available diagnostics."
-      fi
-      serial="${ANDROID_SERIAL:-$(printf '%s\n' "$devices" | awk '/^emulator-/ { print $1; exit }')}"
-      if [ -n "$serial" ]; then
-        if ! timeout --kill-after=5s 30s "$adb" -s "$serial" logcat -d -v threadtime -t 5000; then
-          echo "Emulator logcat failed or timed out."
-        fi
-      else
-        echo "No emulator serial was available for logcat."
-      fi
-    else
-      echo "adb was unavailable at $adb."
-    fi
-  } >> "$log_dir/emulator.log" 2>&1 || true
+  # The helper bounds every capture and scrubs serials, model/device names, addresses and tokens before the
+  # workflow uploads this directory (#146). It must never change the E2E result, so failures here are ignored.
+  python3 scripts/e2e-diagnostics.py collect \
+    --log-dir "$log_dir" \
+    --adb "$adb" \
+    --serial "${ANDROID_SERIAL:-}" \
+    --status "$status" \
+    --heading "E2E runner diagnostics" \
+    --append-emulator || true
   exit "$status"
 }
 trap capture_emulator_logs EXIT
