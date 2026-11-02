@@ -8,6 +8,7 @@ native speaker would say it, not as a translation of the other.
 
 - **Direct.** Say what is happening or what to do. No greetings, no "Oops!", no exclamation marks.
 - **Calm.** The user is holding a kettle or a portafilter. Short sentences, one idea each.
+- **Idle moments.** Empty states may be short and playful, with one line and no subtitle. Instructions during a brew stay calm and direct. Still no exclamation marks or emoji.
 - **Honest about data.** Say where brews live ("Only on this phone", "Server set. Nothing sent yet.") and what the app
   will do next ("The app tries again later.").
 - **Plain.** No marketing, no emoji, no jargon the user doesn't already use at the bar. Coffee terms are fine; tech
@@ -81,8 +82,8 @@ exception text, status codes or addresses; the debug log is where those go.
 
 ### Empty states
 
-Title says what is missing, text says how it fills up:
-`No brews yet` / `Brews you record show up here, split into filter and espresso.`
+Empty states may use a short, playful title as their only line. No subtitle.
+For example: `You haven't made coffee yet` / `Você ainda não fez café`.
 
 ### Progress and status
 

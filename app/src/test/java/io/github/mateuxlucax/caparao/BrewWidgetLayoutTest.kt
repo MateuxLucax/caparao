@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -41,6 +42,18 @@ class BrewWidgetLayoutTest {
                     )
                     root.layout(0, 0, minWidth, minHeight)
 
+                    val iconContainer = root.findViewById<View>(R.id.widget_method_icon_container)
+                    val methodIcon = root.findViewById<View>(R.id.widget_method_icon)
+                    val minimumIconClearance = (8 * base.resources.displayMetrics.density).roundToInt()
+                    assertTrue("icon left clearance", methodIcon.left >= minimumIconClearance)
+                    assertTrue(
+                        "icon top clearance: container=${iconContainer.height}, icon=${methodIcon.height}, " +
+                            "top=${methodIcon.top}, min=$minimumIconClearance",
+                        methodIcon.top >= minimumIconClearance,
+                    )
+                    assertTrue("icon right clearance", iconContainer.width - methodIcon.right >= minimumIconClearance)
+                    assertTrue("icon bottom clearance", iconContainer.height - methodIcon.bottom >= minimumIconClearance)
+
                     val action = root.findViewById<View>(R.id.widget_action)
                     assertTrue("$locale night=$night action height ${action.height}", action.height >= minimumActionHeight)
                     assertTrue("$locale night=$night action bottom ${action.bottom}", action.bottom <= minHeight - root.paddingBottom)
@@ -49,11 +62,17 @@ class BrewWidgetLayoutTest {
                     if (latest == null) {
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
+                        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
+                        val emptyActionLabel = root.findViewById<TextView>(R.id.widget_action_label)
+                        assertTrue(
+                            "empty chooser action is centered",
+                            abs(emptyActionLabel.left + emptyActionLabel.width / 2 - action.width / 2) <= 2,
+                        )
                         assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
-                        assertNoEllipsis(root.findViewById(R.id.widget_empty_text), locale, night)
                     } else {
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
+                        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
                         assertNoEllipsis(root.findViewById(R.id.widget_age), locale, night)
                     }

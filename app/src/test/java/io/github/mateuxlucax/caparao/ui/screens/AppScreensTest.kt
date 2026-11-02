@@ -457,7 +457,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         // Back on the list, which now shows it.
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
-        compose.onNodeWithText("Morning shot").assertExists()
+        compose.onNodeWithText("Morning shot", useUnmergedTree = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()

@@ -14,6 +14,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.widget.BrewAge
 import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetRefresh
+import io.github.mateuxlucax.caparao.ui.widget.actionIconForWidget
 import io.github.mateuxlucax.caparao.ui.widget.brewAge
 import io.github.mateuxlucax.caparao.ui.widget.shortcutForWidget
 import io.github.mateuxlucax.caparao.ui.widget.suggestedModeAfter
@@ -73,7 +74,6 @@ class BrewWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(R.id.widget_last_brew, View.GONE)
             views.setViewVisibility(R.id.widget_empty_content, View.VISIBLE)
             views.setTextViewText(R.id.widget_empty_title, context.getString(R.string.widget_empty_title))
-            views.setTextViewText(R.id.widget_empty_text, context.getString(R.string.widget_empty_text))
         } else {
             views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_last_brew_title))
             views.setViewVisibility(R.id.widget_title, View.VISIBLE)
@@ -85,6 +85,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
         val actionLabel = context.getString(actionLabel(suggestedMode))
         views.setTextViewText(R.id.widget_action_label, actionLabel)
         views.setContentDescription(R.id.widget_action, actionLabel)
+        val actionIcon = actionIconForWidget(mode)
+        if (actionIcon == null) {
+            views.setViewVisibility(R.id.widget_action_icon, View.GONE)
+        } else {
+            views.setImageViewResource(R.id.widget_action_icon, actionIcon)
+            views.setViewVisibility(R.id.widget_action_icon, View.VISIBLE)
+        }
         val intent = Intent(context, MainActivity::class.java)
             .setAction(shortcut.action)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -99,7 +106,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
     }
 
     private fun actionLabel(mode: BrewMode?): Int = when {
-        mode == null -> R.string.widget_choose_method
+        mode == null -> R.string.widget_brew_coffee
         mode == BrewMode.FILTER -> R.string.widget_brew_filter
         else -> R.string.widget_brew_espresso
     }

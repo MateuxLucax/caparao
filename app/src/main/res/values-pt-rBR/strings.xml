@@ -18,8 +18,7 @@
     <!-- Widget da tela inicial -->
     <string name="widget_description">Último preparo salvo e uma sugestão para o próximo</string>
     <string name="widget_last_brew_title">Último preparo</string>
-    <string name="widget_empty_title">Nenhum preparo ainda</string>
-    <string name="widget_empty_text">Os preparos salvos aparecem aqui.</string>
+    <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_saved_today">Salvo hoje</string>
     <string name="widget_saved_yesterday">Salvo ontem</string>
     <plurals name="widget_saved_days">
@@ -29,7 +28,7 @@
     </plurals>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
-    <string name="widget_choose_method">Escolher método</string>
+    <string name="widget_brew_coffee">Passar um café</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
