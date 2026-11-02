@@ -90,6 +90,7 @@ class BrewDetailViewModel(
         val state = _uiState.value
         val brew = state.brew ?: return
         val exporter = export ?: return
+        _uiState.update { it.copy(share = null, shareFailed = false) }
         viewModelScope.launch {
             try {
                 val file = exporter.one(brew, state.samples)
