@@ -59,11 +59,37 @@ jobs:
 
       - name: Enable KVM
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          log_dir="$RUNNER_TEMP/caparao-e2e-logs"
+          mkdir -p "$log_dir"
+          log="$log_dir/emulator.log"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules | tee -a "$log"
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=5
+          {
+            echo "KVM preflight after udev trigger and settle"
+            echo "Runner kernel: $(uname -r)"
+            id
+            getent group kvm || echo "No kvm group is present."
+            if [ -e /sys/class/misc/kvm/dev ]; then
+              printf 'KVM sysfs device: '
+              cat /sys/class/misc/kvm/dev
+            else
+              echo "KVM is not registered under /sys/class/misc."
+            fi
+            if [ -e /dev/kvm ]; then
+              stat -Lc 'KVM node: type=%F mode=%a owner=%U:%G uid=%u gid=%g' /dev/kvm
+              sudo udevadm info --query=all --name=/dev/kvm || true
+            else
+              echo "/dev/kvm does not exist."
+            fi
+            if [ -r /dev/kvm ]; then echo "/dev/kvm is readable."; else echo "/dev/kvm is not readable."; fi
+            if [ -w /dev/kvm ]; then echo "/dev/kvm is writable."; else echo "/dev/kvm is not writable."; fi
+          } | tee -a "$log"
           if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
-            echo "/dev/kvm is not accessible; refusing software-emulated E2E under issue #80's runtime limit." >&2
+            echo "/dev/kvm is not accessible; refusing software-emulated E2E under issue #80's runtime limit." \
+              | tee -a "$log" >&2
             exit 1
           fi
 
@@ -71,7 +97,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/caparao-e2e-logs"
           printf 'Emulator startup diagnostics; see the emulator-runner step in the Actions log.\n' \
-            > "$RUNNER_TEMP/caparao-e2e-logs/emulator.log"
+            >> "$RUNNER_TEMP/caparao-e2e-logs/emulator.log"
 
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
@@ -92,6 +118,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          mkdir -p "$RUNNER_TEMP/caparao-e2e-logs"
           adb="$ANDROID_HOME/platform-tools/adb"
           {
             printf '\nPost-run emulator diagnostics\n'
