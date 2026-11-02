@@ -10,4 +10,7 @@ Manual checks that need the real Timemore Dot or a phone. Each stage's automated
 | [brews.md](brews.md) | 3, 4 |
 | [sync.md](sync.md) | 5 |
 
+The [recording guide](recording.md) comes before the device runs: it lists the sessions to capture for the detectors and
+the order to run these scripts on the phone. A coffee is either a recording or an app run, never both.
+
 Record format: date, app version, phone and Android version, result per step (pass / fail + note).
