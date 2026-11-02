@@ -61,6 +61,7 @@ class EndToEndTest {
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 10_000)
             compose.onNodeWithText(text(R.string.free_brew)).performClick()
             compose.onNodeWithText(text(R.string.next)).performClick()
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.tare)), 10_000)
             // The replay has not started, so Next keeps the planned 18 g dose.
             compose.onNodeWithText(text(R.string.next)).performClick()
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
