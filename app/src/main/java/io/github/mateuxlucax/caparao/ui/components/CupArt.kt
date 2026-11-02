@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 
 /**
  * The app's cup and scale, drawn as solid filled shapes with no outlines, the way Material 3 Expressive draws its
- * pictures (docs/adr/0025-material-3-expressive.md). Shared by the welcome animation, the brew stages and the guided pour.
+ * pictures (#109). Shared by the welcome animation, the brew stages and the guided pour.
  */
 object CupArt {
     /** A cup in [box]: straight sides tapering to a round bottom. */

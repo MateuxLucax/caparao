@@ -35,7 +35,7 @@ import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.flex
 
-/** Ratio and total time over the last brews of a recipe, oldest on the left (docs/adr/0022-compare-and-trends.md). */
+/** Ratio and total time over the last brews of a recipe, oldest on the left (#106). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrendsScreen(viewModel: TrendsViewModel, onClose: () -> Unit) {

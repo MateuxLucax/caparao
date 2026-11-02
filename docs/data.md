@@ -30,12 +30,12 @@ Content-Type: application/json
 - All fields are required and unknown ones are rejected. `time_to_first_drop_s` is `null` for filter brews;
   `dose_g > 0`; `ended_at_ms > started_at_ms`; at most 20000 samples (may be empty); body at most 4 MiB.
 - `id` is a lowercase UUID generated on the phone; the server upserts on it, so a retry never duplicates a brew
-  ([ADR 0007](adr/0007-idempotent-upload.md)).
+  ([ADR 0007](https://github.com/MateuxLucax/caparao/issues/91)).
 - `201` for a new brew, `200` when it already existed. `400` invalid body, `401` wrong token, `413` too large; none of
   the 4xx are retried. `5xx` and timeouts are retried.
 - `samples[].t_ms` is relative to `started_at_ms`.
 - "Test connection" sends `GET /healthz` and an authenticated `GET /api/v1/brews`; neither creates data.
-- One WorkManager job per brew (`upload-<id>`, tag `upload`), only while a server is set ([ADR 0016](adr/0016-upload-jobs.md)).
+- One WorkManager job per brew (`upload-<id>`, tag `upload`), only while a server is set ([ADR 0016](https://github.com/MateuxLucax/caparao/issues/100)).
 
 ## On-device data
 

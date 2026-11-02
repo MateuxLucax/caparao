@@ -142,7 +142,7 @@ private fun SyncStatusLine(sync: SyncStatus, actions: AppActions, onRetry: () ->
     }
 }
 
-/** How many brews are picked, with Compare once there are enough (docs/adr/0022-compare-and-trends.md). */
+/** How many brews are picked, with Compare once there are enough (#106). */
 @Composable
 private fun CompareBar(count: Int, onCancel: () -> Unit, onCompare: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {

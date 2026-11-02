@@ -12,7 +12,7 @@ data class Axis(val max: Double, val step: Double) {
     fun fraction(value: Double) = (value / max).coerceIn(0.0, 1.0)
 }
 
-/** Picks round axes for the brew chart (docs/adr/0013-canvas-charts.md). Pure, so it is unit tested. */
+/** Picks round axes for the brew chart (#97). Pure, so it is unit tested. */
 object ChartScale {
     /**
      * The smallest axis from 0 that holds [maxValue] with 3 to 6 gridlines on 1, 2 or 5 × 10ⁿ steps; [minimum]

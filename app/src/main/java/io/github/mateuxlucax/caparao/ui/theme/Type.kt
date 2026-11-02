@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import io.github.mateuxlucax.caparao.R
 import kotlin.math.roundToInt
 
-/** Roboto Flex, bundled so it works offline; one variable file, its weight axis set per weight (docs/adr/0025-material-3-expressive.md). */
+/** Roboto Flex, bundled so it works offline; one variable file, its weight axis set per weight (#109). */
 val RobotoFlex = FontFamily(
     listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map {
         Font(R.font.roboto_flex, it, variationSettings = FontVariation.Settings(FontVariation.weight(it.weight)))

@@ -8,7 +8,7 @@ import android.os.VibratorManager
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.ui.watch.WatchMirror
 
-/** A guide moment and how Settings lets it be felt and heard (docs/adr/0019-guided-brew.md). */
+/** A guide moment and how Settings lets it be felt and heard (#103). */
 data class GuideAlert(val event: StepEvent, val vibrate: Boolean, val sound: Boolean)
 
 /**

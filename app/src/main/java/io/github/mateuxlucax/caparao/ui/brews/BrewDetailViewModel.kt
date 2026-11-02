@@ -20,7 +20,7 @@ data class BrewDetailUiState(
     /** Set while the notes are being edited. */
     val notes: NotesForm? = null,
     val coffees: List<String> = emptyList(),
-    /** The brew of the same recipe right before this one, for "Compare with last" (docs/adr/0022-compare-and-trends.md). */
+    /** The brew of the same recipe right before this one, for "Compare with last" (#106). */
     val previousId: String? = null,
 )
 
@@ -54,7 +54,7 @@ class BrewDetailViewModel(
 
     fun cancelNotes() = _uiState.update { it.copy(notes = null) }
 
-    /** Saves the notes; the brew is unsynced until the server has them (docs/adr/0021-brew-notes.md). */
+    /** Saves the notes; the brew is unsynced until the server has them (#105). */
     fun saveNotes() {
         val state = _uiState.value
         val brew = state.brew ?: return

@@ -81,7 +81,7 @@ fun PourAnimation(modifier: Modifier = Modifier) {
         Canvas(Modifier.size(240.dp)) {
             // Drawn in a 240-unit square.
             scale(size.width / 240f, pivot = Offset.Zero) {
-                // Solid shapes, no outlines (docs/adr/0025-material-3-expressive.md): the handle, the cup, the scale.
+                // Solid shapes, no outlines (#109): the handle, the cup, the scale.
                 val cup = Rect(76f, 108f, 164f, 188f)
                 val handle = Path().apply {
                     moveTo(158f, 124f)

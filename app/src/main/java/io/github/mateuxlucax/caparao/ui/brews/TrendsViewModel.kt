@@ -19,7 +19,7 @@ data class TrendsUiState(
     val loading: Boolean = true,
 )
 
-/** Ratio and total time over the last brews of a recipe, computed from Room with no aggregation tables (ADR 0022). */
+/** Ratio and total time over the last brews of a recipe, computed from Room with no aggregation tables (#106). */
 class TrendsViewModel(private val key: TrendKey, repository: BrewRepository) : ViewModel() {
     val uiState: StateFlow<TrendsUiState> = repository.brews.map { all ->
         val brews = Comparison.trend(key, all)

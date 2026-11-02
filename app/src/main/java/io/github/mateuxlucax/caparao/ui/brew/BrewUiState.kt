@@ -32,7 +32,7 @@ data class BrewUiState(
     val recipes: List<Recipe> = emptyList(),
     /** The one being followed; null for a free brew. */
     val recipe: Recipe? = null,
-    /** Filter with a recipe's steps, once brewing: where the guide stands (docs/adr/0019-guided-brew.md). */
+    /** Filter with a recipe's steps, once brewing: where the guide stands (#103). */
     val guide: StepState? = null,
     /** On the summary: the saved brew's notes being typed, and past coffees to pick from. */
     val notes: NotesForm? = null,

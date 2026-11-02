@@ -16,6 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "caparao"
 include(":app")
-// Wear OS companion and what it shares with the app (docs/adr/0023-watch-companion.md).
+// Wear OS companion and what it shares with the app (#107).
 include(":wear")
 include(":wearlink")

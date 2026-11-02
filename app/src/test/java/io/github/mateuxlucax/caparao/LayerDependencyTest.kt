@@ -5,7 +5,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The package rules of docs/adr/0011-code-structure.md: model <- data <- brew <- sync <- ui, only ui uses resources
+ * The package rules of #95: model <- data <- brew <- sync <- ui, only ui uses resources
  * (`R`, `BuildConfig`), and no layer refers to the root package (entry points and wiring). Checks imports and fully
  * qualified names written in the code.
  */

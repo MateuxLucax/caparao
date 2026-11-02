@@ -1,6 +1,6 @@
 # Screenshots
 
-Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](../adr/0015-acceptance-and-lean-ci.md)). Every image lives in `en/` or `pt-BR/`; screenshots made only for a PR description go in the PR, not here.
+Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](https://github.com/MateuxLucax/caparao/issues/99)). Every image lives in `en/` or `pt-BR/`; screenshots made only for a PR description go in the PR, not here.
 
 ## English
 

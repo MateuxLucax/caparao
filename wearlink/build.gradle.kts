@@ -1,4 +1,4 @@
-// Pure Kotlin shared by :app and :wear: what goes over the Wearable Data Layer (docs/adr/0023-watch-companion.md).
+// Pure Kotlin shared by :app and :wear: what goes over the Wearable Data Layer (#107).
 plugins {
     id("org.jetbrains.kotlin.jvm")
 }

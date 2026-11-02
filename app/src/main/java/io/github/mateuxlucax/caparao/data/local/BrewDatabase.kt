@@ -32,7 +32,7 @@ data class BrewEntity(
     @ColumnInfo(name = "flow_peak") val flowPeak: Double,
     val interrupted: Boolean,
     @ColumnInfo(name = "synced_at") val syncedAt: Long?,
-    /** No foreign key: deleting a recipe keeps its brews (docs/adr/0018-recipes.md). */
+    /** No foreign key: deleting a recipe keeps its brews (#102). */
     @ColumnInfo(name = "recipe_id") val recipeId: String? = null,
     @ColumnInfo(name = "recipe_name") val recipeName: String? = null,
     val coffee: String? = null,
@@ -89,7 +89,7 @@ interface BrewDao {
     @Query("DELETE FROM brews WHERE id = :id")
     suspend fun delete(id: String)
 
-    /** The notes changed: the server's copy is stale, so the brew is unsynced again (docs/adr/0021-brew-notes.md). */
+    /** The notes changed: the server's copy is stale, so the brew is unsynced again (#105). */
     @Query(
         "UPDATE brews SET coffee = :coffee, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
             "notes = :notes, synced_at = NULL WHERE id = :id",
@@ -105,7 +105,7 @@ interface BrewDao {
     suspend fun recentCoffees(limit: Int): List<String>
 }
 
-/** The app's database: brews, their curves and the recipes, only on the phone (docs/adr/0003-offline-first.md). */
+/** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
     version = 4,
@@ -133,7 +133,7 @@ object SeedBuiltInRecipes : RoomDatabase.Callback() {
     override fun onCreate(db: SupportSQLiteDatabase) = BuiltInRecipes.insert(db, System.currentTimeMillis())
 }
 
-/** Recipes and brew metadata (docs/adr/0018-recipes.md, docs/adr/0021-brew-notes.md). */
+/** Recipes and brew metadata (#102, #105). */
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
         for (column in listOf("recipe_id TEXT", "recipe_name TEXT", "coffee TEXT", "grind TEXT", "water_temp_celsius INTEGER", "rating INTEGER", "notes TEXT")) {
@@ -156,7 +156,7 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-/** Coffee bags (docs/adr/0026-coffee-bags.md). */
+/** Coffee bags (#110). */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) = db.execSQL(CREATE_COFFEE_BAGS)
 }

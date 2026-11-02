@@ -10,7 +10,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
-/** A recipe row (docs/adr/0018-recipes.md). Column names are the schema (app/schemas); change them only with a migration. */
+/** A recipe row (#102). Column names are the schema (app/schemas); change them only with a migration. */
 @Entity(tableName = "recipes")
 data class RecipeEntity(
     @PrimaryKey val id: String,

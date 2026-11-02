@@ -21,7 +21,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.github.mateuxlucax.caparao.model.BrewMode
 
-/** The brew type, espresso or filter, as a connected button group (docs/adr/0025-material-3-expressive.md). */
+/** The brew type, espresso or filter, as a connected button group (#109). */
 @Composable
 fun BrewModeGroup(selected: BrewMode, onSelect: (BrewMode) -> Unit, modifier: Modifier = Modifier, icons: Boolean = false) {
     val last = BrewMode.entries.lastIndex

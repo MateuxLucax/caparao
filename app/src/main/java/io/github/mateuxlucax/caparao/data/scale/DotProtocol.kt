@@ -4,7 +4,7 @@ import java.util.UUID
 
 /**
  * Wire format of the Timemore Dot (docs/hardware.md): GATT identifiers, frame types, command ids and the encoders for
- * what the app sends. Pure Kotlin so it runs on the JVM with recorded frames (docs/adr/0002-native-ble.md).
+ * what the app sends. Pure Kotlin so it runs on the JVM with recorded frames (#86).
  */
 object DotProtocol {
     val SERVICE_UUID: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")

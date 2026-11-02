@@ -45,7 +45,7 @@ import io.github.mateuxlucax.caparao.watch.WatchState
 import io.github.mateuxlucax.caparao.watch.WatchStepKind
 
 /**
- * Wear Material 3 Expressive (docs/adr/0025-material-3-expressive.md), one thing at a time: the weight large and the
+ * Wear Material 3 Expressive (#109), one thing at a time: the weight large and the
  * timer under it. In Scale mode a tap on the timer starts or pauses it, a long press resets it, and tare is the edge
  * button hugging the bottom of the round screen; a brew hides it. A pour to a target draws its progress around the
  * edge, colored by the pace.
@@ -164,7 +164,7 @@ private fun stepLabel(guide: WatchGuide): String {
     return stringResource(R.string.step_of, guide.index + 1, guide.count, step)
 }
 
-/** The pour's pace against the recipe, in words for TalkBack; ±5 s counts as on time (ADR 0019). */
+/** The pour's pace against the recipe, in words for TalkBack; ±5 s counts as on time (#103). */
 @Composable
 private fun paceLabel(guide: WatchGuide): String? {
     val pace = guide.paceMs ?: return null

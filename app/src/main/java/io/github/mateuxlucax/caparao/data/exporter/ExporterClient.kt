@@ -22,7 +22,7 @@ class ExporterClient(
     private val connectTimeoutMs: Int = 15_000,
     private val readTimeoutMs: Int = 60_000,
 ) {
-    /** Sends one brew; returns on `201` (new) or `200` (replaced, docs/adr/0007-idempotent-upload.md). */
+    /** Sends one brew; returns on `201` (new) or `200` (replaced, #91). */
     suspend fun upload(serverUrl: String, token: String, brew: Brew, samples: List<BrewSample>) = withContext(Dispatchers.IO) {
         request("POST", serverUrl, "/api/v1/brews", token, body(brew, samples).toString().toByteArray())
     }
@@ -85,7 +85,7 @@ class ExporterClient(
             .put("flow_peak_gps", nonNegative(brew.flowPeakGramsPerSecond))
             .put("interrupted", brew.interrupted)
             .apply {
-                // Optional notes (docs/adr/0021-brew-notes.md): left out when unset, so a brew without them has only
+                // Optional notes (#105): left out when unset, so a brew without them has only
                 // the original keys.
                 brew.recipeName?.let { put("recipe_name", it.take(80)) }
                 brew.coffee?.let { put("coffee", it.take(80)) }

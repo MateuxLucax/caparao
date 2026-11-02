@@ -19,7 +19,7 @@ data class SyncError(val kind: Kind, val detail: String? = null) {
         /** Unreachable, refused or timed out. */
         NETWORK(true),
         INVALID_URL(false),
-        /** Android 17+ blocks the local server until the user allows local network access (docs/adr/0017). */
+        /** Android 17+ blocks the local server until the user allows local network access (#101). */
         LOCAL_NETWORK_PERMISSION(false),
         OTHER(true),
     }

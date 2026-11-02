@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // The watch mirrors the phone only while the app is visible, like the scale connection (docs/adr/0008).
+    // The watch mirrors the phone only while the app is visible, like the scale connection (#92).
     override fun onStart() {
         super.onStart()
         container.watch.start()
@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
         return result.await()
     }
 
-    /** Android 17+ local network access for a server on the LAN (docs/adr/0017-local-network-permission.md). */
+    /** Android 17+ local network access for a server on the LAN (#101). */
     private suspend fun requestLocalNetwork(): Boolean {
         if (LocalNetwork.isGranted(this)) return true
         if (localNetworkDeniedForGood) {

@@ -2,7 +2,7 @@
 
 A development server for the [upload contract](../contract/README.md): standard library only, brews kept in memory
 (lost on restart). For development and the end-to-end test; the real server is `timemore-dot-prometheus-exporter`
-([ADR 0014](../docs/adr/0014-stub-in-repo-exporter-separate.md)).
+([ADR 0014](https://github.com/MateuxLucax/caparao/issues/98)).
 
 ## Run
 

@@ -64,7 +64,7 @@ import kotlin.math.ceil
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
 /**
- * A guided filter brew, one full-screen step at a time (wireframes 3a–3e, docs/adr/0019-guided-brew.md): the cup
+ * A guided filter brew, one full-screen step at a time (wireframes 3a–3e, #103): the cup
  * filling to the target line for a bloom or pour, a countdown ring for a wait or swirl, then the drawdown. Each kind has
  * its own colour; a late pour turns the error colour. Done stays at the bottom: the filter detector still ends the brew.
  */

@@ -37,7 +37,7 @@ data class BrewResult(
 )
 
 /**
- * Pure brew logic fed with readings, one implementation per mode (docs/adr/0006-brew-detection-in-app.md). Not
+ * Pure brew logic fed with readings, one implementation per mode (#90). Not
  * thread-safe; feed it in order from one thread.
  */
 interface BrewDetector {

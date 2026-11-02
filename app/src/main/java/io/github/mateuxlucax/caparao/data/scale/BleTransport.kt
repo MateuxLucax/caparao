@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * The Bluetooth operations [ScaleClient] needs, one at a time. The Android implementation wraps [android.bluetooth]
- * (docs/adr/0002-native-ble.md); tests use a fake, so the connection logic runs on the JVM.
+ * (#86); tests use a fake, so the connection logic runs on the JVM.
  */
 interface BleTransport {
     /** Whether Bluetooth can be used right now. */

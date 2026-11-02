@@ -7,7 +7,7 @@ import io.github.mateuxlucax.caparao.model.StepKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-/** Recipes on the phone (docs/adr/0018-recipes.md); they never leave it, only a brew's copy of the name does. */
+/** Recipes on the phone (#102); they never leave it, only a brew's copy of the name does. */
 class RecipeRepository(private val dao: RecipeDao) {
     /** Every recipe with its steps, by mode, then name. */
     val recipes: Flow<List<Recipe>> = combine(dao.observeAll(), dao.observeAllSteps()) { rows, steps ->

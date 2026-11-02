@@ -67,7 +67,7 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 
 /**
  * Onboarding on first launch, then the four tabs under a top bar with the name and the scale connection.
- * The scale is connected only while the app is visible (docs/adr/0008).
+ * The scale is connected only while the app is visible (#92).
  */
 @Composable
 fun App(

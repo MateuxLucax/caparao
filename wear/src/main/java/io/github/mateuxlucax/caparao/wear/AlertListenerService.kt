@@ -13,7 +13,7 @@ import io.github.mateuxlucax.caparao.watch.WatchAlert
 import io.github.mateuxlucax.caparao.watch.WatchPaths
 
 /**
- * Vibrates for the guide moments the phone sends (docs/adr/0019-guided-brew.md). A listener service, so the wrist feels
+ * Vibrates for the guide moments the phone sends (#103). A listener service, so the wrist feels
  * them with the screen off or another app open, not only while the watch app is visible.
  */
 class AlertListenerService : WearableListenerService() {

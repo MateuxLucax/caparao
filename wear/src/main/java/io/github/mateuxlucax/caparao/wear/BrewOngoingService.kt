@@ -23,7 +23,7 @@ import io.github.mateuxlucax.caparao.watch.WatchState
 
 /**
  * An Ongoing Activity while a brew is ready or running: the watch face shows its icon and raising the wrist comes back
- * to [WatchActivity] (docs/adr/0023-watch-companion.md). It keeps listening to the phone so it ends with the brew, or
+ * to [WatchActivity] (#107). It keeps listening to the phone so it ends with the brew, or
  * when the phone goes quiet.
  */
 class BrewOngoingService : Service() {

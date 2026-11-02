@@ -1,7 +1,7 @@
 package io.github.mateuxlucax.caparao.watch
 
 /**
- * A guided brew moment the phone asks the watch to vibrate for (docs/adr/0019-guided-brew.md), sent as one byte on
+ * A guided brew moment the phone asks the watch to vibrate for (#103), sent as one byte on
  * [WatchPaths.ALERT]. The patterns match the phone's, so both feel the same.
  */
 enum class WatchAlert(val pattern: LongArray) {

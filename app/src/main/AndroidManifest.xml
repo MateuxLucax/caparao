@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Android 12+ Bluetooth permissions; the scan never derives location (docs/adr/0009-min-sdk-31.md). -->
+    <!-- Android 12+ Bluetooth permissions; the scan never derives location (#93). -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
@@ -10,9 +10,9 @@
 
     <!-- Optional upload of brews to the user's server (docs/data.md). -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Guided brew alerts (docs/adr/0019-guided-brew.md); a normal permission, granted at install. -->
+    <!-- Guided brew alerts (#103); a normal permission, granted at install. -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Android 17+: needed to reach a server on the local network, asked at runtime (docs/adr/0017-local-network-permission.md). -->
+    <!-- Android 17+: needed to reach a server on the local network, asked at runtime (#101). -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <uses-feature

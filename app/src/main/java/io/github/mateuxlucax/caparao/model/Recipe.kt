@@ -1,7 +1,7 @@
 package io.github.mateuxlucax.caparao.model
 
 /**
- * A reusable way to brew (docs/adr/0018-recipes.md). Filter recipes carry [steps]; espresso recipes have none and are
+ * A reusable way to brew (#102). Filter recipes carry [steps]; espresso recipes have none and are
  * guided by the target window [targetMinMs]..[targetMaxMs] instead. [id] is generated on the phone.
  */
 data class Recipe(

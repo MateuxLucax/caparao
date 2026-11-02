@@ -15,7 +15,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 
-/** One choice among a few, as a connected button group filling the width (docs/adr/0025-material-3-expressive.md). */
+/** One choice among a few, as a connected button group filling the width (#109). */
 @Composable
 fun <T> ChoiceGroup(
     options: List<T>,

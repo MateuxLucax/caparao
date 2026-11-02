@@ -17,7 +17,7 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
 
-        <!-- Needs the phone app: the watch only mirrors it (docs/adr/0023-watch-companion.md). -->
+        <!-- Needs the phone app: the watch only mirrors it (#107). -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="false" />

@@ -12,7 +12,7 @@ import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState
 import io.github.mateuxlucax.caparao.watch.WatchStepKind
 
-/** What the phone knows, mirrored to the watch (docs/adr/0023-watch-companion.md). Pure, so the JVM tests cover it. */
+/** What the phone knows, mirrored to the watch (#107). Pure, so the JVM tests cover it. */
 object WatchMirror {
     /**
      * The snapshot for the scale's [state] and latest [reading], and the open [brew] if any. With a brew going the

@@ -7,7 +7,7 @@ import kotlin.math.ceil
 /** How the start of a pour compares with the recipe's time for it. */
 enum class Pace { AHEAD, ON_TIME, BEHIND }
 
-/** A moment worth an alert (docs/adr/0019-guided-brew.md), reported once by [StepTracker.update]. */
+/** A moment worth an alert (#103), reported once by [StepTracker.update]. */
 sealed interface StepEvent {
     /** Step [index] is now the current one. */
     data class Started(val index: Int) : StepEvent
@@ -43,7 +43,7 @@ data class StepState(
 }
 
 /**
- * Follows a filter recipe's [steps] through the readings of a brew (docs/adr/0019-guided-brew.md). Pure and in order
+ * Follows a filter recipe's [steps] through the readings of a brew (#103). Pure and in order
  * like the detectors: feed it the time since the first water, the weight and the smoothed flow.
  *
  * A pour is done within [TOLERANCE_GRAMS] of its cumulative target, a wait or swirl when the next step is due; the
@@ -140,7 +140,7 @@ class StepTracker(private val steps: List<RecipeStep>) {
     }
 
     companion object {
-        /** Recorded pours land 1–4 g past round targets (docs/adr/0019-guided-brew.md). */
+        /** Recorded pours land 1–4 g past round targets (#103). */
         const val TOLERANCE_GRAMS = 3.0
         const val NEAR_GRAMS = 5.0
         /** Pours run at 3–7 g/s; between them the weight rests. */

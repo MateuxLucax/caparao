@@ -8,7 +8,7 @@ changed.
 
 | Area | State | Finding |
 | --- | --- | --- |
-| Color | Good | Dynamic color only, light and dark ([ADR 0005](adr/0005-compose-material3-dynamic-color.md)). Roles are used by meaning: `primary` for the live value, `errorContainer` for failures, `onSurfaceVariant` for secondary text. |
+| Color | Good | Dynamic color only, light and dark ([ADR 0005](https://github.com/MateuxLucax/caparao/issues/89)). Roles are used by meaning: `primary` for the live value, `errorContainer` for failures, `onSurfaceVariant` for secondary text. |
 | Shape | Good | Default `Shapes` everywhere: Card medium (12dp), buttons full, segmented buttons from `SegmentedButtonDefaults`. No ad hoc `RoundedCornerShape`. |
 | Typography | Mostly good | The type scale is used throughout. One exception: the readout's weight is `64.sp` with `FontWeight.Medium`, outside the scale. `displayLarge` (57sp) is the closest token; keep the custom size only if 57sp reads too small on the bar. |
 | Motion easing | Off | Animations use Compose defaults (`FastOutSlowIn`, 300ms springs) or `LinearEasing`. M3 asks for the emphasized easing on transitions in and out of view and the standard easing on small changes, with durations from the token set (short 50–200ms, medium 250–400ms, long 450–600ms). |

@@ -35,7 +35,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * [BleTransport] on the platform [BluetoothGatt] API, without a library (docs/adr/0002-native-ble.md). The flow mirrors
+ * [BleTransport] on the platform [BluetoothGatt] API, without a library (#86). The flow mirrors
  * the stage 0 probe that ran against a real Dot (docs/hardware.md "Connection").
  *
  * Why it is shaped this way: Android allows one GATT operation in flight and reports each result on a binder thread.
