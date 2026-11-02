@@ -18,20 +18,21 @@ sealed interface ShortcutDestination {
 private const val ACTION_PREFIX = "io.github.mateuxlucax.caparao.shortcut"
 
 /**
- * Launcher actions: the static Espresso, Filter and Brews shortcuts (#116), plus the widget-only Home action. The
+ * Launcher actions: the static Espresso, Filter, French press and Brews shortcuts (#116, #126), plus the widget-only Home action. The
  * static ids and actions are written in `res/xml/shortcuts.xml` (and its debug copy, which only changes the target
  * package); the launcher stores them, so they stay stable.
  */
 enum class LauncherShortcut(val id: String, val action: String, val destination: ShortcutDestination) {
     ESPRESSO("espresso", "$ACTION_PREFIX.ESPRESSO", ShortcutDestination.Brew(BrewMode.ESPRESSO)),
     FILTER("filter", "$ACTION_PREFIX.FILTER", ShortcutDestination.Brew(BrewMode.FILTER)),
+    FRENCH_PRESS("french-press", "$ACTION_PREFIX.FRENCH_PRESS", ShortcutDestination.Brew(BrewMode.FRENCH_PRESS)),
     BREWS("brews", "$ACTION_PREFIX.BREWS", ShortcutDestination.Brews),
     WIDGET_HOME("widget-home", "$ACTION_PREFIX.WIDGET_HOME", ShortcutDestination.Home),
     ;
 
     companion object {
         /** The actions shown in the launcher's long-press menu. */
-        val staticEntries = listOf(ESPRESSO, FILTER, BREWS)
+        val staticEntries = listOf(ESPRESSO, FILTER, FRENCH_PRESS, BREWS)
 
         /** The shortcut an intent action asks for; anything else (the launcher's MAIN included) opens the app as usual. */
         fun fromAction(action: String?): LauncherShortcut? = entries.firstOrNull { it.action == action }

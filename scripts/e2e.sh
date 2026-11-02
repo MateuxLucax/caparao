@@ -90,20 +90,26 @@ if [ "$instrumentation_status" -ne 0 ]; then
   cat "$tmp/server.log" >&2
   exit "$instrumentation_status"
 fi
-echo "$result" | grep -q "OK (1 test)" || { echo "$result" >&2; echo "--- $server log" >&2; cat "$tmp/server.log" >&2; exit 1; }
+echo "$result" | grep -q "OK (2 tests)" || { echo "$result" >&2; echo "--- $server log" >&2; cat "$tmp/server.log" >&2; exit 1; }
 
 brews=$(curl -fs -H "Authorization: Bearer $token" "http://127.0.0.1:$port/api/v1/brews")
 python3 - "$brews" <<'PY'
 import json, sys
 brews = json.loads(sys.argv[1])
-assert len(brews) == 1, f"expected one brew, got {len(brews)}"
-b = brews[0]
-assert b["mode"] == "espresso", b
-assert abs(b["dose_g"] - 18.0) < 1e-9, b
-assert abs(b["yield_g"] - 36.0) <= 0.5, b
-assert b["sample_count"] > 100, b
-assert not b["interrupted"], b
-print(f"server holds the espresso: {b['dose_g']} g -> {b['yield_g']} g, {b['sample_count']} samples")
+assert len(brews) == 2, f"expected espresso and French press, got {len(brews)}"
+by_mode = {b["mode"]: b for b in brews}
+assert set(by_mode) == {"espresso", "french_press"}, by_mode
+espresso = by_mode["espresso"]
+assert abs(espresso["dose_g"] - 18.0) < 1e-9, espresso
+assert abs(espresso["yield_g"] - 36.0) <= 0.5, espresso
+assert espresso["sample_count"] > 100, espresso
+assert not espresso["interrupted"], espresso
+press = by_mode["french_press"]
+assert abs(press["dose_g"] - 20.0) < 1e-9, press
+assert abs(press["yield_g"] - 300.0) <= 0.5, press
+assert press["sample_count"] > 2, press
+assert not press["interrupted"], press
+print(f"server holds espresso {espresso['dose_g']} g -> {espresso['yield_g']} g and French press {press['dose_g']} g -> {press['yield_g']} g")
 PY
 
 if [ "$server" = exporter ]; then
@@ -115,8 +121,11 @@ if [ "$server" = exporter ]; then
     sleep 1
   done
   [ -n "$yield" ] || { echo "no caparao_brew_yield_grams in Prometheus" >&2; cat "$tmp/server.log" >&2; exit 1; }
+  press_yield=$(curl -fs "http://127.0.0.1:$prom_port/api/v1/query" --data-urlencode 'query=caparao_brew_yield_grams{mode="french_press"}' \
+    | python3 -c 'import json,sys; r=json.load(sys.stdin)["data"]["result"]; print(r[0]["value"][1] if r else "")')
+  [ -n "$press_yield" ] || { echo "no French press caparao_brew_yield_grams in Prometheus" >&2; cat "$tmp/server.log" >&2; exit 1; }
   points=$(curl -fs "http://127.0.0.1:$prom_port/api/v1/query" --data-urlencode 'query=count_over_time(caparao_brew_weight_grams[10m])' \
     | python3 -c 'import json,sys; r=json.load(sys.stdin)["data"]["result"]; print(r[0]["value"][1] if r else 0)')
-  echo "Prometheus has the espresso: yield $yield g, $points curve points"
+  echo "Prometheus has espresso yield $yield g, French press yield $press_yield g, $points curve points"
 fi
 echo "e2e passed against the $server"

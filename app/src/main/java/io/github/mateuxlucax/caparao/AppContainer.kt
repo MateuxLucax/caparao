@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -81,10 +82,16 @@ class AppContainer(context: Context) {
      * Debug builds only: plays a recorded session from the assets instead of the scale, for the emulator, which has no
      * Bluetooth (scripts/e2e.sh, the instrumented tests). Must run before the first screen is created.
      */
-    fun replay(session: String, startAtMs: Long, startPaused: Boolean = false) {
+    fun replay(
+        session: String,
+        startAtMs: Long,
+        startPaused: Boolean = false,
+        playbackSpeed: Double = 1.0,
+        repeat: Boolean = true,
+    ) {
         scale.stop()
         val lines = appContext.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() }
-        scale = ReplayScaleSource(scope, lines, startAtMs, startPaused)
+        scale = ReplayScaleSource(scope, lines, startAtMs, startPaused, playbackSpeed, repeat)
     }
 
     /** Scale mode's timer, driven from Home and the watch. */
@@ -111,6 +118,7 @@ class AppContainer(context: Context) {
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
+                clock = { (scale as? ReplayScaleSource)?.nowMs ?: SystemClock.elapsedRealtime() },
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
                 onWatchAlert = watch::alert,
             )

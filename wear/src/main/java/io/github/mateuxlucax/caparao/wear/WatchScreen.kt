@@ -142,7 +142,7 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
             Text(time, style = timeStyle, color = MaterialTheme.colorScheme.primary)
         }
         // The pace shows as the arc's color; only the countdown to the next step stays in words.
-        val due = snapshot.guide?.dueInMs?.takeIf { snapshot.state == WatchState.BREWING }
+        val due = snapshot.guide?.dueInMs?.takeIf { snapshot.state == WatchState.BREWING && it > 0 }
         if (due != null) {
             Text(stringResource(R.string.guide_due_in, WatchFormat.seconds(due)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -152,6 +152,9 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
 /** "2/5 · 150 g" for a step with a target, "3/5 · Wait" without, or "Last pour done" once every step is. */
 @Composable
 private fun stepLabel(guide: WatchGuide): String {
+    if (guide.index == guide.count && guide.kind == WatchStepKind.WAIT) {
+        return stringResource(if (guide.paceMs == 0L) R.string.guide_press_serve else R.string.guide_remove_press)
+    }
     if (guide.index >= guide.count || guide.kind == null) return stringResource(R.string.guide_all_done)
     val name = when (guide.kind) {
         WatchStepKind.BLOOM -> stringResource(R.string.step_bloom)

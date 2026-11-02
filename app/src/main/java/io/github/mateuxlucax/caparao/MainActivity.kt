@@ -64,6 +64,8 @@ class MainActivity : ComponentActivity() {
                     it,
                     intent.getLongExtra(EXTRA_REPLAY_AT_MS, 0),
                     intent.getBooleanExtra(EXTRA_REPLAY_PAUSED, false),
+                    intent.getDoubleExtra(EXTRA_REPLAY_SPEED, 1.0),
+                    intent.getBooleanExtra(EXTRA_REPLAY_REPEAT, true),
                 )
             }
         }
@@ -186,6 +188,10 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_REPLAY_AT_MS = "replay_at_ms"
         /** Hold debug replay until an instrumentation test has finished setting up its brew screen. */
         const val EXTRA_REPLAY_PAUSED = "replay_paused"
+        /** Speed up a debug replay while its detector follows the captured timeline. */
+        const val EXTRA_REPLAY_SPEED = "replay_speed"
+        /** Whether a debug replay loops after its final frame. */
+        const val EXTRA_REPLAY_REPEAT = "replay_repeat"
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"

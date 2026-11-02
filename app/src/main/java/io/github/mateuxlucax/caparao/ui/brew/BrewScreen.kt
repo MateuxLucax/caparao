@@ -105,10 +105,26 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     if (confirmStop) {
         AlertDialog(
             onDismissRequest = { confirmStop = false },
-            title = { Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop_brew_title else R.string.finish_brew_title)) },
+            title = {
+                Text(
+                    stringResource(
+                        when (state.mode) {
+                            BrewMode.ESPRESSO -> R.string.stop_brew_title
+                            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.finish_brew_title
+                        },
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false; viewModel.stop() }) {
-                    Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done))
+                    Text(
+                        stringResource(
+                            when (state.mode) {
+                                BrewMode.ESPRESSO -> R.string.stop
+                                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.done
+                            },
+                        ),
+                    )
                 }
             },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
@@ -181,13 +197,16 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
             state.recipe?.let { recipe ->
                 val min = recipe.targetMinMs
                 val max = recipe.targetMaxMs
-                if (state.mode == BrewMode.ESPRESSO && min != null && max != null) {
-                    Text(
-                        stringResource(R.string.guide_window, (min / 1000).toString(), (max / 1000).toString()),
-                        Modifier.padding(top = 8.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                when (state.mode) {
+                    BrewMode.ESPRESSO -> if (min != null && max != null) {
+                        Text(
+                            stringResource(R.string.guide_window, (min / 1000).toString(), (max / 1000).toString()),
+                            Modifier.padding(top = 8.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> Unit
                 }
             }
         }
@@ -196,7 +215,15 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
                 Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
             }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(if (state.mode == BrewMode.ESPRESSO) R.string.stop else R.string.done), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(
+                        when (state.mode) {
+                            BrewMode.ESPRESSO -> R.string.stop
+                            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.done
+                        },
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
             else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
         }
@@ -258,7 +285,12 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
                 Metric(
-                    stringResource(if (brew.mode == BrewMode.FILTER) R.string.label_water else R.string.label_yield),
+                    stringResource(
+                        when (brew.mode) {
+                            BrewMode.ESPRESSO -> R.string.label_yield
+                            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.label_water
+                        },
+                    ),
                     "${Format.grams(brew.yieldGrams, locale)} $g",
                     Modifier.weight(1f),
                     large = true,

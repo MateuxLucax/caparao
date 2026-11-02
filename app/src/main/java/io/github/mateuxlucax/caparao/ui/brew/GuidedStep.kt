@@ -1,6 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
+import android.animation.ValueAnimator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -43,7 +44,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -53,6 +53,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.brew.PourRate
 import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -86,7 +87,11 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
             val live = state.guide.takeIf { it.index == index } ?: guide
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
                 val previous = steps.take(index).lastOrNull { it.kind.pours }?.targetWeightGrams
-                if (step == null) Drawdown(state) else Step(step, index, steps.size, live, state, previous)
+                if (step == null) {
+                    if (state.mode == BrewMode.FRENCH_PRESS) FrenchPressReady(state) else Drawdown(state)
+                } else {
+                    Step(step, index, steps.size, live, state, previous)
+                }
             }
         }
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
@@ -117,7 +122,11 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     )
     previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g") }
     val target = step.targetWeightGrams
-    if (step.kind.pours && target != null) {
+    if (step.kind == StepKind.PRESS) {
+        CountdownRing(guide.progress, color)
+        Text(stringResource(R.string.guide_press_at, Format.timer((step.targetAtMs / 1000).toInt())), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        guide.dueInMs?.let { Text(Format.timer(seconds(it)), style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color) }
+    } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         CupToTarget(fill, color)
         Text(
@@ -190,6 +199,62 @@ private fun Drawdown(state: BrewUiState) {
             stringResource(R.string.ratio_value, Format.ratio(state.ratio ?: 0.0, locale)),
     )
     Note(stringResource(R.string.guide_drawdown_text))
+}
+
+/** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
+@Composable
+private fun FrenchPressReady(state: BrewUiState) {
+    Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
+    if (state.frenchPressRemoved) {
+        Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Note(stringResource(R.string.guide_press_serve_text))
+        FrenchPressPlungerAnimation()
+    } else {
+        Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    }
+}
+
+/** The carafe stays still; only the plunger lowers, after the user has removed the press from the scale. */
+@Composable
+private fun FrenchPressPlungerAnimation() {
+    val still = stillAnimations()
+    val progress = remember { Animatable(if (still) 1f else 0f) }
+    val spatialMotion = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(still) {
+        if (!still) progress.animateTo(1f, spatialMotion)
+    }
+    val colors = MaterialTheme.colorScheme
+    Canvas(Modifier.size(160.dp)) {
+        scale(size.width / 120f, pivot = Offset.Zero) {
+            val left = 31f
+            val right = 89f
+            val top = 28f
+            val bottom = 105f
+            val press = Rect(left, top, right, bottom)
+            drawRoundRect(
+                color = colors.surfaceContainerHighest,
+                topLeft = Offset(press.left, press.top),
+                size = Size(press.width, press.height),
+                cornerRadius = CornerRadius(7f, 7f),
+            )
+            drawRect(
+                colors.tertiary.copy(alpha = 0.45f),
+                topLeft = Offset(left + 4f, 70f),
+                size = Size(right - left - 8f, bottom - 74f),
+            )
+            drawRoundRect(
+                color = colors.outline,
+                topLeft = Offset(press.left, press.top),
+                size = Size(press.width, press.height),
+                cornerRadius = CornerRadius(7f, 7f),
+                style = Stroke(width = 3f),
+            )
+            drawLine(colors.outline, Offset(right, 42f), Offset(100f, 50f), strokeWidth = 3f, cap = StrokeCap.Round)
+            val plateY = 42f + 42f * progress.value
+            drawLine(colors.primary, Offset(60f, 8f), Offset(60f, plateY), strokeWidth = 4f, cap = StrokeCap.Round)
+            drawLine(colors.primary, Offset(42f, plateY), Offset(78f, plateY), strokeWidth = 6f, cap = StrokeCap.Round)
+        }
+    }
 }
 
 @Composable
@@ -275,6 +340,5 @@ private fun CountdownRing(progress: Float, color: Color) {
 
 @Composable
 private fun stillAnimations(): Boolean {
-    val context = LocalContext.current
-    return remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    return remember { !ValueAnimator.areAnimatorsEnabled() }
 }

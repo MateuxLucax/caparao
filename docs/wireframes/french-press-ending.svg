@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="720" viewBox="0 0 920 720">
+<rect width="920" height="720" fill="#f1f3f5"/>
+<g font-family="Roboto, Arial, sans-serif" fill="#233140">
+<text x="28" y="48" font-size="28" font-weight="700">French press ending · #126</text>
+<text x="30" y="82" font-size="17" fill="#53606c">One alert at 4:00; lifting the press does not finish the brew.</text>
+</g>
+<g stroke="#425062" stroke-width="3" fill="#fbfaf7"><rect x="30" y="112" width="390" height="550" rx="28"/><rect x="478" y="112" width="390" height="550" rx="28"/></g>
+<g stroke="#d4d9df" stroke-width="1" fill="#fff"><rect x="44" y="128" width="362" height="518" rx="20"/><rect x="492" y="128" width="362" height="518" rx="20"/></g>
+<g fill="#c5cbd2"><rect x="181" y="136" width="88" height="5" rx="3"/><rect x="629" y="136" width="88" height="5" rx="3"/></g>
+<g font-family="Roboto, Arial, sans-serif" text-anchor="middle">
+<text x="225" y="180" font-size="14" letter-spacing="1.5" fill="#53606c">REMOVE THE PRESS</text><text x="225" y="223" font-size="24" font-weight="600" fill="#202934">French press</text>
+<text x="225" y="314" font-size="56" font-weight="500" fill="#456b62">4:00</text>
+<rect x="88" y="348" width="272" height="82" rx="18" fill="#f4f6f7" stroke="#d4d9df"/><text x="224" y="385" font-size="22" fill="#263544">300 g water</text><text x="224" y="416" font-size="16" fill="#59656f">Lift the press off the scale.</text>
+<text x="218" y="482" font-size="15" fill="#59656f">The brew stays open.</text>
+<rect x="88" y="558" width="272" height="56" rx="28" fill="#476e65"/><text x="224" y="594" font-size="18" font-weight="600" fill="white">Done</text>
+<text x="673" y="180" font-size="14" letter-spacing="1.5" fill="#53606c">PRESS &amp; SERVE</text><text x="673" y="223" font-size="24" font-weight="600" fill="#202934">French press</text><text x="673" y="296" font-size="46" font-weight="500" fill="#456b62">4:10</text>
+</g>
+<g stroke="#657783" stroke-width="3" fill="#edf2f1"><rect x="600" y="344" width="126" height="174" rx="18"/></g><rect x="610" y="414" width="106" height="94" rx="10" fill="#bdcfc5" stroke="#90a69e"/>
+<g stroke="#476e65" fill="#476e65"><rect x="656" y="305" width="14" height="125" rx="6"/><rect x="632" y="414" width="62" height="10" rx="5"/></g>
+<g font-family="Roboto, Arial, sans-serif" text-anchor="middle"><text x="663" y="544" font-size="13" fill="#59656f">Carafe stays still</text><text x="666" y="573" font-size="16" fill="#263544">Press the plunger, then serve.</text><rect x="536" y="588" width="272" height="44" rx="22" fill="#476e65"/><text x="672" y="617" font-size="17" font-weight="600" fill="white">Done</text></g>
+<text x="30" y="701" font-family="Roboto, Arial, sans-serif" font-size="14" fill="#59656f">Reduced motion shows the lowered plunger as a still frame.</text>
+</svg>

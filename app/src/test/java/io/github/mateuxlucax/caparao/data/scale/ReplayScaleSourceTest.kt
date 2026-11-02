@@ -43,6 +43,19 @@ class ReplayScaleSourceTest {
     }
 
     @Test
+    fun fastOneShotReplayKeepsTheCapturedClockAndStopsAtTheLastFrame() = runTest {
+        val session = File("src/test/resources/sessions/synthetic-french-press.jsonl").readLines()
+        val replay = ReplayScaleSource(backgroundScope, session, playbackSpeed = 32.0, repeat = false)
+        replay.start()
+        advanceTimeBy(8_500)
+        runCurrent()
+
+        assertEquals(260_000L, replay.nowMs)
+        assertEquals(-400.0, replay.reading.value!!.weightGrams, 0.0)
+        assertEquals(ScaleState.Connected(battery = null), replay.state.value)
+    }
+
+    @Test
     fun tareAndTimerApplyToTheReplayedReadings() = runTest {
         val replay = ReplayScaleSource(backgroundScope, pressRamp, startAtMs = 38_000)
         replay.start()

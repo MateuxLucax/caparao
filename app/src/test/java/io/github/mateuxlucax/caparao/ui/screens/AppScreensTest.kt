@@ -319,6 +319,28 @@ class AppScreensTest {
     }
 
     @Test
+    fun aFrenchPressShortcutOpensItsPreselectedRecipeAtTheDoseStep() {
+        runBlocking { recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)) }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.FRENCH_PRESS)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNode(hasText("French press") and isSelectable()).assertIsSelected()
+        compose.onNodeWithText(text(R.string.next)).assertExists()
+        assertEquals(1, consumed)
+    }
+
+    @Test
     fun aBrewsShortcutOpensTheSavedBrewsTab() {
         val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.BREWS)
         compose.setContent {

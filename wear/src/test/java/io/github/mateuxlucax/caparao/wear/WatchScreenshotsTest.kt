@@ -39,6 +39,22 @@ abstract class WatchScreenshotsTest(private val lang: String) {
         ),
     )
 
+    @Test fun frenchPressRemove() = shot(
+        "french-press-remove",
+        WatchSnapshot(
+            WatchState.BREWING, 300f, 0f, 240_000, timerRunning = false,
+            guide = WatchGuide(index = 4, count = 4, kind = WatchStepKind.WAIT, targetGrams = null, dueInMs = null, paceMs = null),
+        ),
+    )
+
+    @Test fun frenchPressServe() = shot(
+        "french-press-serve",
+        WatchSnapshot(
+            WatchState.BREWING, 300f, 0f, 250_000, timerRunning = false,
+            guide = WatchGuide(index = 4, count = 4, kind = WatchStepKind.WAIT, targetGrams = null, dueInMs = null, paceMs = 0),
+        ),
+    )
+
     @Test fun disconnected() = shot("disconnected", WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false))
 
     private fun shot(name: String, snapshot: WatchSnapshot) {

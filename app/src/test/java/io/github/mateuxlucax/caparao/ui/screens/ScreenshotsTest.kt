@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -427,6 +429,36 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("guide-countdown")
         play(scale, 89_500)
         capture("guide-drawdown")
+    }
+
+    /** The third mode selector and its preselected built-in French press recipe. */
+    @Test
+    fun frenchPressRecipeSelector() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        click(R.string.mode_french_press)
+        waitFor(R.string.mode_french_press)
+        capture("recipes-french-press")
+    }
+
+    /** The timer, post-timer removal prompt and plunger-only serve animation (#126). */
+    @Test
+    fun frenchPressGuide() {
+        val scale = open("synthetic-french-press", 0)
+        click(R.string.mode_french_press)
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+
+        play(scale, 80_000)
+        capture("french-press-steep")
+        play(scale, 241_100)
+        waitFor(R.string.guide_remove_press)
+        capture("french-press-remove")
+        play(scale, 255_000)
+        waitFor(R.string.guide_press_serve)
+        capture("french-press-serve")
     }
 
     /**

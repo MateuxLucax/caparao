@@ -14,6 +14,8 @@
     <string name="step_pour">Despejo</string>
     <string name="step_wait">Espera</string>
     <string name="step_swirl">Agitar</string>
+    <string name="guide_remove_press">Tire a prensa</string>
+    <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="step_of">%1$d/%2$d · %3$s</string>
     <string name="guide_all_done">Último despejo feito</string>
     <string name="guide_due_in">Próximo em %d s</string>
