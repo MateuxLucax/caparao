@@ -15,6 +15,8 @@ last PR sets `VERSION` (`0.3`), so automatic releases come out as `0.3.N`. A new
 `decision`, closed when implemented or superseded, and every PR links the issue it closes. There are no ADRs in the
 repository: decisions 0001–0026 were archived as closed issues #85–#110.
 
+Create every issue and PR with `MateuxLucax` as assignee until the auto-assign workflow (#142) is merged.
+
 ## Agents
 
 Workers run on the Mac through Orca, one worktree per issue (`orca worktree create --issue <n>`).
