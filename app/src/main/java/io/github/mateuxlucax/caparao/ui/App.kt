@@ -14,9 +14,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -49,6 +51,8 @@ import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
+import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.launcher.ShortcutDestination
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeesScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
@@ -68,6 +72,9 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 /**
  * Onboarding on first launch, then the four tabs under a top bar with the name and the scale connection.
  * The scale is connected only while the app is visible (#92).
+ *
+ * [shortcut] is the launcher shortcut still to apply (#116), consumed with [onShortcutConsumed] once [Main] has opened
+ * its destination. It waits here, above the onboarding gate, so a first run still onboards and then honors it.
  */
 @Composable
 fun App(
@@ -76,6 +83,8 @@ fun App(
     onboardingDone: Boolean,
     actions: AppActions,
     versionName: String,
+    shortcut: LauncherShortcut? = null,
+    onShortcutConsumed: () -> Unit = {},
 ) {
     LifecycleStartEffect(scale) {
         scale.start()
@@ -92,13 +101,19 @@ fun App(
             onboarded = true
         }
     } else {
-        Main(viewModelFactory, actions, versionName)
+        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed)
     }
 }
 
 /** The tabs, or a brew on top of them while one is open. */
 @Composable
-private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppActions, versionName: String) {
+private fun Main(
+    viewModelFactory: ViewModelProvider.Factory,
+    actions: AppActions,
+    versionName: String,
+    shortcut: LauncherShortcut?,
+    onShortcutConsumed: () -> Unit,
+) {
     var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
     // "edit:<id>" or "new:<mode>", saveable as a string.
@@ -109,6 +124,26 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
     var coffees by rememberSaveable { mutableStateOf(false) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    // The open brew's close action, registered by its screen: a shortcut that leaves a brew ends it, so its ViewModel
+    // stops listening to the scale instead of finishing a hidden brew. Kept after the brew closes (ending twice is
+    // harmless) and never cleared on dispose: AnimatedContent keeps the outgoing brew composed during the transition,
+    // and clearing there would drop the incoming brew's action.
+    val closeBrew = remember { mutableStateOf<(() -> Unit)?>(null) }
+    LaunchedEffect(shortcut) {
+        val requested = shortcut?.destination ?: return@LaunchedEffect
+        opened = null
+        editing = null
+        comparing = null
+        trends = null
+        coffees = false
+        val close = closeBrew.value
+        if (close != null) close() else brewing = null
+        when (requested) {
+            is ShortcutDestination.Brew -> brewing = requested.mode
+            ShortcutDestination.Brews -> tab = Tab.BREWS
+        }
+        onShortcutConsumed()
+    }
     val destination = (if (coffees) Destination.Coffees else null)
         ?: editing?.let { Destination.Recipe(it) }
         ?: trends?.let { Destination.Trends(TrendKey.decode(it)) }
@@ -141,6 +176,13 @@ private fun Main(viewModelFactory: ViewModelProvider.Factory, actions: AppAction
                 // listening to the scale; a rotation keeps the brew going.
                 val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
                 LaunchedEffect(brew) { brew.begin() }
+                DisposableEffect(brew) {
+                    closeBrew.value = {
+                        brew.end()
+                        brewing = null
+                    }
+                    onDispose {}
+                }
                 BrewScreen(brew) {
                     brew.end()
                     brewing = null

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -46,6 +47,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
+import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
@@ -58,6 +60,7 @@ import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -204,6 +207,76 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
 
         compose.waitUntil(5_000) { settings.serverConfigured }
+    }
+
+    @Test
+    fun anEspressoShortcutOpensTheDoseAndIsConsumedOnce() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.ESPRESSO)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+
+        // The dose step of a free brew, before anything is weighed or started.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).assertExists()
+        assertEquals(1, consumed)
+
+        // Closed: back on the tabs, and the consumed shortcut does not open the brew again.
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aFilterShortcutWaitsForOnboardingAndThenOpensItsDose() {
+        var done = false
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test",
+                    shortcut = LauncherShortcut.FILTER,
+                    onShortcutConsumed = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
+        compose.onNodeWithText(text(R.string.get_started)).performClick()
+        compose.onNodeWithText(text(R.string.permissions_title)).assertExists()
+        compose.onNodeWithText(text(R.string.allow_bluetooth)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.server_title)).assertExists()
+        compose.onNodeWithText(text(R.string.skip)).performClick()
+
+        assertTrue(done)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_filter)).assertExists()
+    }
+
+    @Test
+    fun aBrewsShortcutOpensTheSavedBrewsTab() {
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.BREWS)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
     }
 
     @Test
