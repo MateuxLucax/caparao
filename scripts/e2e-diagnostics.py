@@ -14,6 +14,7 @@ import argparse
 import os
 import re
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -109,7 +110,12 @@ class Redactor:
     def redact(self, text: str) -> str:
         result = str(text)
         for value in self._sensitive:
-            result = re.sub(re.escape(value), REDACTED, result, flags=re.IGNORECASE)
+            escaped = re.escape(value)
+            if value.isdigit():
+                pattern = rf"(?<![A-Za-z0-9_.]){escaped}(?![A-Za-z0-9_.])"
+            else:
+                pattern = escaped
+            result = re.sub(pattern, REDACTED, result, flags=re.IGNORECASE)
         result = _DASH_S.sub("-s " + REDACTED, result)
         result = _QUOTED_DEVICE.sub(r"\1" + REDACTED + r"\3", result)
         result = _EMULATOR_SERIAL.sub(REDACTED, result)
@@ -123,8 +129,6 @@ class Redactor:
 
 def _useful_identifier(value: str) -> bool:
     if len(value) < 4:
-        return False
-    if value.isdigit():
         return False
     return value.lower() not in IGNORED_IDENTIFIERS
 
@@ -412,28 +416,43 @@ def read_bounded(path: Path, limit: int) -> Tuple[bytes, bool]:
     return head + marker + tail, True
 
 
-def sanitize_file(path: Path, redactor: Redactor, limit: int) -> bool:
-    raw, _ = read_bounded(path, limit)
+def sanitize_file(source: Path, destination: Path, redactor: Redactor, limit: int) -> None:
+    raw, _ = read_bounded(source, limit)
     text = raw.decode("utf-8", "replace")
     clean = sanitize_text(text, redactor)
     clean, _ = cap_text(clean, limit)
-    if clean == text:
-        return False
+    with destination.open("w", encoding="utf-8") as handle:
+        handle.write(clean)
 
-    mode = stat.S_IMODE(path.stat().st_mode)
-    descriptor, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(clean)
-        os.chmod(temp_name, mode)
-        os.replace(temp_name, path)
-    except Exception:
-        try:
-            os.unlink(temp_name)
-        except OSError:
-            pass
-        raise
-    return True
+
+def _safe_io_error(exc: OSError) -> str:
+    if exc.errno is None:
+        return "I/O error"
+    return f"{os.strerror(exc.errno)} (errno {exc.errno})"
+
+
+def _write_emulator_log(
+    log_dir: Path,
+    redactor: Redactor,
+    args: argparse.Namespace,
+    device_result: CommandResult,
+    inventory: Inventory,
+    logcat_text: Optional[str],
+) -> None:
+    with (log_dir / "emulator.log").open("a", encoding="utf-8") as handle:
+        handle.write(f"\n{redactor.redact(args.heading)}\n")
+        if args.status is not None:
+            handle.write(f"E2E runner exit status: {args.status}\n")
+        handle.write("\n".join(_device_lines(device_result, inventory)) + "\n")
+        if logcat_text:
+            handle.write(logcat_text)
+
+
+def _write_runtime_log(log_dir: Path, args: argparse.Namespace, logcat_text: Optional[str]) -> None:
+    with (log_dir / "android-runtime.log").open("w", encoding="utf-8") as handle:
+        if args.status is not None:
+            handle.write(f"E2E diagnostics for status {args.status}\n")
+        handle.write(logcat_text or "")
 
 
 def _device_lines(result: CommandResult, inventory: Inventory) -> List[str]:
@@ -456,18 +475,39 @@ def _device_lines(result: CommandResult, inventory: Inventory) -> List[str]:
 
 def collect(args: argparse.Namespace) -> int:
     log_dir = Path(args.log_dir)
-    try:
-        log_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        print(f"warning: cannot create {log_dir}: {exc}", file=sys.stderr)
-        return 0
+    raw_dir = Path(args.raw_dir) if args.raw_dir else None
 
+    if args.only_file and raw_dir is None:
+        print("error: --only-file requires --raw-dir", file=sys.stderr)
+        return 1
+    if raw_dir is not None and args.existing_safe_logs:
+        print("error: --existing-safe-logs cannot be combined with --raw-dir", file=sys.stderr)
+        return 1
+    if raw_dir is not None:
+        try:
+            raw_path = raw_dir.resolve()
+            output_path = log_dir.resolve()
+        except OSError as exc:
+            print(
+                f"error: diagnostic paths could not be checked: {_safe_io_error(exc)}",
+                file=sys.stderr,
+            )
+            return 1
+        if (
+            raw_path == output_path
+            or raw_path in output_path.parents
+            or output_path in raw_path.parents
+        ):
+            print("error: --raw-dir and --log-dir must be separate directories", file=sys.stderr)
+            return 1
+
+    sensitive_token = os.environ.pop("E2E_DIAGNOSTICS_SENSITIVE", "")
     device_result = run_bounded(
         [args.adb, "devices", "-l"], DEFAULT_DEVICE_TIMEOUT, DEVICES_BYTE_LIMIT
     )
     inventory = parse_inventory(device_result.output)
     redactor = Redactor(inventory.identifiers)
-    redactor.add(args.serial, *args.sensitive)
+    redactor.add(args.serial, sensitive_token)
 
     logcat_text: Optional[str] = None
     if args.append_emulator or args.runtime_log:
@@ -481,38 +521,84 @@ def collect(args: argparse.Namespace) -> int:
             args.timeout,
         )
 
-    if args.append_emulator:
-        with (log_dir / "emulator.log").open("a", encoding="utf-8") as handle:
-            handle.write(f"\n{redactor.redact(args.heading)}\n")
-            if args.status is not None:
-                handle.write(f"E2E runner exit status: {args.status}\n")
-            handle.write("\n".join(_device_lines(device_result, inventory)) + "\n")
-            if logcat_text:
-                handle.write(logcat_text)
+    staging_dir: Optional[Path] = None
+    current_file: Optional[str] = None
+    try:
+        if raw_dir is not None:
+            log_dir.parent.mkdir(parents=True, exist_ok=True)
+            if log_dir.exists():
+                if not log_dir.is_dir() or any(log_dir.iterdir()):
+                    raise FileExistsError("output directory is not empty")
+                log_dir.rmdir()
+            staging_dir = Path(
+                tempfile.mkdtemp(prefix=f".{log_dir.name}.", dir=str(log_dir.parent))
+            )
+            destination_dir = staging_dir
+            try:
+                raw_mode = raw_dir.stat().st_mode
+            except FileNotFoundError:
+                paths = []
+            else:
+                if not stat.S_ISDIR(raw_mode):
+                    raise NotADirectoryError("raw log path is not a directory")
+                if args.only_file:
+                    paths = [raw_dir / name for name in args.only_file]
+                else:
+                    with os.scandir(raw_dir) as entries:
+                        paths = sorted(
+                            raw_dir / entry.name
+                            for entry in entries
+                            if entry.name.endswith(".log") and entry.is_file()
+                        )
+            for source in paths:
+                try:
+                    source_mode = source.stat().st_mode
+                except FileNotFoundError:
+                    continue
+                if not stat.S_ISREG(source_mode):
+                    continue
+                current_file = source.name
+                sanitize_file(
+                    source,
+                    destination_dir / source.name,
+                    redactor,
+                    args.file_limit,
+                )
+            current_file = None
+        else:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            if not args.existing_safe_logs and any(log_dir.glob("*.log")):
+                raise FileExistsError("existing logs require --raw-dir or --existing-safe-logs")
+            destination_dir = log_dir
 
-    if args.runtime_log:
-        with (log_dir / "android-runtime.log").open("w", encoding="utf-8") as handle:
-            if args.status is not None:
-                handle.write(f"E2E diagnostics for status {args.status}\n")
-            handle.write(logcat_text or "")
+        if args.append_emulator:
+            _write_emulator_log(
+                destination_dir, redactor, args, device_result, inventory, logcat_text
+            )
+        if args.runtime_log:
+            _write_runtime_log(destination_dir, args, logcat_text)
 
-    if args.only_file:
-        paths = [log_dir / name for name in args.only_file]
-    else:
-        paths = sorted(log_dir.glob("*.log"))
-    changed = 0
-    for path in paths:
-        if not path.is_file():
-            continue
-        try:
-            if sanitize_file(path, redactor, args.file_limit):
-                changed += 1
-        except OSError as exc:
-            print(f"warning: could not sanitize {path}: {exc}", file=sys.stderr)
+        if staging_dir is not None:
+            os.replace(staging_dir, log_dir)
+            staging_dir = None
+    except OSError as exc:
+        subject = (
+            f"could not sanitize {current_file}"
+            if current_file
+            else "diagnostic output or publication"
+        )
+        print(f"error: {subject} failed: {_safe_io_error(exc)}", file=sys.stderr)
+        return 1
+    finally:
+        if staging_dir is not None:
+            try:
+                shutil.rmtree(staging_dir)
+            except OSError:
+                pass
 
     print(
         f"E2E diagnostics: {len(inventory.entries)} device(s) visible, "
-        f"{changed} log file(s) sanitized in {log_dir}"
+        f"safe logs written to {log_dir}"
     )
     return 0
 
@@ -521,7 +607,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bound and sanitize Caparaó E2E diagnostics.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     collect_parser = subparsers.add_parser("collect", help="collect and sanitize E2E diagnostics")
-    collect_parser.add_argument("--log-dir", required=True, help="directory holding the uploaded logs")
+    collect_parser.add_argument("--log-dir", required=True, help="directory receiving safe logs")
+    collect_parser.add_argument(
+        "--raw-dir",
+        help="private directory containing raw logs; files are published only after all are sanitized",
+    )
+    collect_parser.add_argument(
+        "--existing-safe-logs",
+        action="store_true",
+        help="append generated diagnostics to an output directory whose existing logs are already sanitized",
+    )
     collect_parser.add_argument("--adb", required=True, help="path to adb")
     collect_parser.add_argument("--serial", default="", help="device serial to use for logcat")
     collect_parser.add_argument("--status", type=int, help="E2E exit status to record")
@@ -540,13 +635,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--only-file",
         action="append",
         default=[],
-        help="sanitize only this file in log-dir (repeatable; default: every *.log)",
-    )
-    collect_parser.add_argument(
-        "--sensitive",
-        action="append",
-        default=[],
-        help="an extra value to redact, such as the run token (repeatable)",
+        help="sanitize only this file from raw-dir (repeatable; default: every *.log)",
     )
     collect_parser.add_argument("--line-limit", type=int, default=DEFAULT_LINE_LIMIT)
     collect_parser.add_argument("--byte-limit", type=int, default=DEFAULT_BYTE_LIMIT)

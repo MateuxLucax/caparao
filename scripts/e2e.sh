@@ -6,7 +6,7 @@
 #   scripts/e2e.sh                       against the stub (stub/)
 #   E2E_SERVER=exporter scripts/e2e.sh   against timemore-dot-prometheus-exporter (EXPORTER_DIR, default: a sibling
 #                                        checkout) with a throwaway Prometheus in Docker; also checks the metrics
-#   E2E_LOG_DIR=/tmp/e2e-logs            keeps sanitized server and instrumentation logs for CI artifact upload
+#   E2E_LOG_DIR=/tmp/e2e-logs            publishes sanitized server and instrumentation logs
 #
 # Failure diagnostics are filtered to AndroidRuntime:E (all other tags silent), bounded, and scrubbed of device
 # serials, model names, addresses and tokens by scripts/e2e-diagnostics.py before they are uploaded (#146).
@@ -19,12 +19,14 @@ port="${E2E_PORT:-8099}"
 export ANDROID_SERIAL="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
 [ -n "$ANDROID_SERIAL" ] || { echo "no emulator running (or set ANDROID_SERIAL)" >&2; exit 1; }
 
-# A throwaway token for this run only.
-token=$(openssl rand -hex 16)
+# A throwaway token for this run only. The CI wrapper can provide it so it can redact the complete artifact set.
+token="${E2E_AUTH_TOKEN:-$(openssl rand -hex 16)}"
+unset E2E_AUTH_TOKEN
 server="${E2E_SERVER:-stub}"
 prometheus=caparao-e2e-prometheus
 prom_port="${E2E_PROMETHEUS_PORT:-19091}"
 log_dir="${E2E_LOG_DIR:-}"
+raw_log_dir="${E2E_RAW_LOG_DIR:-}"
 tmp=$(mktemp -d)
 pid=""
 cleanup() {
@@ -35,18 +37,23 @@ cleanup() {
     wait "$pid" 2>/dev/null || true
   fi
   if [ "$server" = exporter ]; then docker rm -f "$prometheus" >/dev/null 2>&1 || true; fi
-  if [ -n "$log_dir" ]; then
-    mkdir -p "$log_dir"
-    [ ! -f "$tmp/server.log" ] || cp "$tmp/server.log" "$log_dir/server.log"
-    [ ! -f "$tmp/instrumentation.log" ] || cp "$tmp/instrumentation.log" "$log_dir/instrumentation.log"
-    if [ "$status" -ne 0 ]; then
-      python3 scripts/e2e-diagnostics.py collect --log-dir "$log_dir" --adb "$adb" \
-        --serial "$ANDROID_SERIAL" --status "$status" --sensitive "$token" --runtime-log \
-        --only-file server.log --only-file instrumentation.log --only-file android-runtime.log || true
+  if [ -n "$raw_log_dir" ]; then
+    if mkdir -p "$raw_log_dir"; then
+      [ ! -f "$tmp/server.log" ] || cp "$tmp/server.log" "$raw_log_dir/server.log" || \
+        echo "warning: could not preserve the raw server log for private sanitization" >&2
+      [ ! -f "$tmp/instrumentation.log" ] || cp "$tmp/instrumentation.log" "$raw_log_dir/instrumentation.log" || \
+        echo "warning: could not preserve the raw instrumentation log for private sanitization" >&2
     else
-      python3 scripts/e2e-diagnostics.py collect --log-dir "$log_dir" --adb "$adb" \
-        --serial "$ANDROID_SERIAL" --sensitive "$token" \
-        --only-file server.log --only-file instrumentation.log --only-file android-runtime.log || true
+      echo "warning: could not create the private E2E log directory" >&2
+    fi
+  elif [ -n "$log_dir" ]; then
+    diagnostic_args=(collect --raw-dir "$tmp" --log-dir "$log_dir" --adb "$adb" \
+      --serial "$ANDROID_SERIAL" --only-file server.log --only-file instrumentation.log)
+    if [ "$status" -ne 0 ]; then
+      diagnostic_args+=(--status "$status" --runtime-log)
+    fi
+    if ! E2E_DIAGNOSTICS_SENSITIVE="$token" python3 scripts/e2e-diagnostics.py "${diagnostic_args[@]}"; then
+      echo "warning: E2E diagnostic sanitization failed; no raw logs were published" >&2
     fi
   fi
   rm -rf "$tmp"

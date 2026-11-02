@@ -7,9 +7,14 @@ the success and failure paths of scripts/e2e-ci.sh without a real emulator or ph
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
+import errno
 import importlib.util
+import io
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -17,6 +22,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "e2e-diagnostics.py"
@@ -109,10 +115,11 @@ raise SystemExit(2)
 
 FAKE_E2E = """#!/usr/bin/env bash
 set -euo pipefail
+printf '%s' "$E2E_AUTH_TOKEN" > "$E2E_RAW_LOG_DIR/expected-token"
 printf 'e2e stdout serial=%s model=%s device=%s mac=%s token=%s\\n' \\
-  "emulator-5554" "FAKE_MODEL_X" "fake_device_x" "02:00:00:00:00:01" "fake-test-token-not-a-secret"
-printf 'server serial=%s\\n' "FAKEserial0001" > "$E2E_LOG_DIR/server.log"
-printf 'instrumentation emulator=%s\\n' "emulator-5556" > "$E2E_LOG_DIR/instrumentation.log"
+  "emulator-5554" "FAKE_MODEL_X" "fake_device_x" "02:00:00:00:00:01" "$E2E_AUTH_TOKEN"
+printf 'server serial=%s token=%s\\n' "FAKEserial0001" "$E2E_AUTH_TOKEN" > "$E2E_RAW_LOG_DIR/server.log"
+printf 'instrumentation emulator=%s\\n' "emulator-5556" > "$E2E_RAW_LOG_DIR/instrumentation.log"
 exit "${FAKE_E2E_STATUS:-0}"
 """
 
@@ -123,6 +130,8 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
         self.log_dir = self.temp_dir / "logs"
         self.log_dir.mkdir()
+        self.raw_dir = self.temp_dir / "raw"
+        self.raw_dir.mkdir()
         self.adb_log = self.temp_dir / "adb-argv.jsonl"
         self.adb = self._write_fake_adb(self.temp_dir / "sdk")
 
@@ -149,16 +158,24 @@ class E2EDiagnosticsTest(unittest.TestCase):
         env.update(overrides)
         return env
 
-    def collect(self, *extra: str, env: dict = None) -> subprocess.CompletedProcess:
+    def collect(
+        self,
+        *extra: str,
+        env: dict = None,
+        raw_dir: Path = None,
+        log_dir: Path = None,
+    ) -> subprocess.CompletedProcess:
         command = [
             sys.executable,
             str(SCRIPT),
             "collect",
             "--log-dir",
-            str(self.log_dir),
+            str(log_dir or self.log_dir),
             "--adb",
             str(self.adb),
         ]
+        if raw_dir is not None:
+            command.extend(["--raw-dir", str(raw_dir)])
         command.extend(extra)
         return subprocess.run(
             command,
@@ -211,6 +228,21 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertIn("<emulator-1>", second)
         self.assert_sanitized(second)
+
+    def test_numeric_identifiers_are_redacted_as_complete_values(self) -> None:
+        inventory = diagnostics.parse_inventory("5554 device\n")
+        redactor = diagnostics.Redactor(inventory.identifiers)
+        redactor.add("1234567890123456")
+
+        result = redactor.redact(
+            "connected to 5554; run token 1234567890123456; "
+            "nearby values 15554, 55540, 12345678901234560 and dose 18.0"
+        )
+
+        self.assertIn("connected to <redacted>", result)
+        self.assertIn("run token <redacted>", result)
+        self.assertIn("15554, 55540, 12345678901234560", result)
+        self.assertIn("dose 18.0", result)
 
     def test_runtime_log_uses_the_narrow_filter_and_silences_other_tags(self) -> None:
         result = self.collect("--runtime-log", "--serial", EMULATOR_SERIAL)
@@ -274,9 +306,12 @@ class E2EDiagnosticsTest(unittest.TestCase):
             ]
         )
         for name in ("e2e.log", "server.log", "instrumentation.log"):
-            (self.log_dir / name).write_text(payload + "\n", encoding="utf-8")
+            (self.raw_dir / name).write_text(payload + "\n", encoding="utf-8")
 
-        result = self.collect("--sensitive", TOKEN)
+        result = self.collect(
+            raw_dir=self.raw_dir,
+            env=self.environment(E2E_DIAGNOSTICS_SENSITIVE=TOKEN),
+        )
 
         self.assertEqual(0, result.returncode, result.stderr)
         combined = ""
@@ -290,14 +325,61 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("<redacted>", combined)
 
     def test_large_existing_log_is_capped(self) -> None:
-        (self.log_dir / "server.log").write_text("x" * 20000 + "\n", encoding="utf-8")
+        (self.raw_dir / "server.log").write_text("x" * 20000 + "\n", encoding="utf-8")
 
-        result = self.collect("--file-limit", "2048")
+        result = self.collect("--file-limit", "2048", raw_dir=self.raw_dir)
 
         self.assertEqual(0, result.returncode, result.stderr)
         text = self.read_log("server.log")
         self.assertLessEqual(len(text.encode("utf-8")), 2048)
         self.assertIn("truncated", text)
+
+    def test_raw_log_is_not_published_when_sanitized_output_write_fails(self) -> None:
+        source = self.raw_dir / "server.log"
+        source.write_text(f"connected to 5554 token {TOKEN}\n", encoding="utf-8")
+        output = self.temp_dir / "safe-artifacts"
+        args = argparse.Namespace(
+            log_dir=str(output),
+            raw_dir=str(self.raw_dir),
+            existing_safe_logs=False,
+            only_file=["server.log"],
+            adb=str(self.adb),
+            serial="",
+            status=1,
+            heading="failure",
+            append_emulator=False,
+            runtime_log=False,
+            line_limit=1000,
+            byte_limit=512 * 1024,
+            timeout=30.0,
+            file_limit=1024 * 1024,
+        )
+        original_open = Path.open
+
+        def fail_staged_write(path: Path, mode: str = "r", *positional, **keywords):
+            if (
+                path.name == "server.log"
+                and path.parent.name.startswith(f".{output.name}.")
+                and "w" in mode
+            ):
+                raise OSError(errno.EIO, "injected write failure")
+            return original_open(path, mode, *positional, **keywords)
+
+        stderr = io.StringIO()
+        with mock.patch.dict(
+            os.environ,
+            self.environment(E2E_DIAGNOSTICS_SENSITIVE=TOKEN),
+        ):
+            with mock.patch.object(Path, "open", fail_staged_write):
+                with contextlib.redirect_stderr(stderr):
+                    result = diagnostics.collect(args)
+
+        self.assertEqual(1, result)
+        self.assertIn("could not sanitize server.log", stderr.getvalue())
+        self.assertIn("Input/output error", stderr.getvalue())
+        self.assertNotIn(str(self.temp_dir), stderr.getvalue())
+        self.assertFalse(output.exists())
+        self.assertEqual(f"connected to 5554 token {TOKEN}\n", source.read_text(encoding="utf-8"))
 
     def test_no_androidruntime_errors_is_explicit(self) -> None:
         env = self.environment(
@@ -313,14 +395,15 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("filter AndroidRuntime:E *:S", text)
 
     def test_only_file_sanitizes_only_the_named_files(self) -> None:
-        (self.log_dir / "server.log").write_text(f"serial={EMULATOR_SERIAL}\n", encoding="utf-8")
-        (self.log_dir / "e2e.log").write_text(f"serial={EMULATOR_SERIAL}\n", encoding="utf-8")
+        (self.raw_dir / "server.log").write_text(f"serial={EMULATOR_SERIAL}\n", encoding="utf-8")
+        (self.raw_dir / "e2e.log").write_text(f"serial={EMULATOR_SERIAL}\n", encoding="utf-8")
 
-        result = self.collect("--only-file", "server.log")
+        result = self.collect("--only-file", "server.log", raw_dir=self.raw_dir)
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertNotIn(EMULATOR_SERIAL, self.read_log("server.log"))
-        self.assertIn(EMULATOR_SERIAL, self.read_log("e2e.log"))
+        self.assertFalse((self.log_dir / "e2e.log").exists())
+        self.assertIn(EMULATOR_SERIAL, (self.raw_dir / "e2e.log").read_text(encoding="utf-8"))
 
     def test_adb_devices_failure_is_reported_without_raw_identifiers(self) -> None:
         env = self.environment(
@@ -406,16 +489,63 @@ class E2EDiagnosticsTest(unittest.TestCase):
         fake_e2e.chmod(0o755)
         self._write_fake_adb(repo / "sdk")
         logs = repo / "logs"
-        logs.mkdir()
-        return repo, logs
+        raw_logs = repo / "raw-logs"
+        raw_logs.mkdir()
+        (raw_logs / "emulator.log").write_text(
+            f"emulator preflight serial={OTHER_EMULATOR_SERIAL} model={EMULATOR_MODEL}\n",
+            encoding="utf-8",
+        )
 
-    def _run_e2e_ci(self, status: int, force: bool = False) -> tuple:
-        repo, logs = self._make_e2e_repo()
+        bin_dir = repo / "bin"
+        bin_dir.mkdir()
+        python_wrapper = bin_dir / "python3"
+        python_wrapper.write_text(
+            "#!/bin/sh\n"
+            'if [ "${1:-}" = "scripts/e2e-diagnostics.py" ]; then\n'
+            '  printf \'%s\\n\' "$*" >> "$E2E_HELPER_ARGS_LOG"\n'
+            "fi\n"
+            f"exec {shlex.quote(sys.executable)} \"$@\"\n",
+            encoding="utf-8",
+        )
+        python_wrapper.chmod(0o755)
+        openssl = bin_dir / "openssl"
+        openssl.write_text("#!/bin/sh\nprintf '1234567890123456\\n'\n", encoding="utf-8")
+        openssl.chmod(0o755)
+        fault_dir = repo / "fault-injection"
+        fault_dir.mkdir()
+        (fault_dir / "sitecustomize.py").write_text(
+            "import os\n"
+            "from pathlib import Path\n"
+            "_original_open = Path.open\n"
+            "def _open(path, mode='r', *args, **kwargs):\n"
+            "    if (os.environ.get('INJECT_DIAGNOSTIC_WRITE_FAILURE') == '1'\n"
+            "            and path.parent.name.startswith('.logs.') and 'w' in mode):\n"
+            "        raise OSError(5, 'injected artifact write failure')\n"
+            "    return _original_open(path, mode, *args, **kwargs)\n"
+            "Path.open = _open\n",
+            encoding="utf-8",
+        )
+        helper_args = repo / "helper-args.txt"
+        return repo, logs, raw_logs, bin_dir, helper_args, fault_dir
+
+    def _run_e2e_ci(
+        self,
+        status: int,
+        force: bool = False,
+        fail_sanitization: bool = False,
+    ) -> tuple:
+        repo, logs, raw_logs, bin_dir, helper_args, fault_dir = self._make_e2e_repo()
         env = self.environment(
             ANDROID_HOME=str(repo / "sdk"),
             E2E_LOG_DIR=str(logs),
+            E2E_RAW_LOG_DIR=str(raw_logs),
+            E2E_HELPER_ARGS_LOG=str(helper_args),
             FAKE_E2E_STATUS=str(status),
+            PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
         )
+        if fail_sanitization:
+            env["INJECT_DIAGNOSTIC_WRITE_FAILURE"] = "1"
+            env["PYTHONPATH"] = str(fault_dir)
         if force:
             env["E2E_FORCE_FAILURE"] = "true"
         result = subprocess.run(
@@ -426,40 +556,134 @@ class E2EDiagnosticsTest(unittest.TestCase):
             text=True,
             timeout=60,
         )
-        return result, logs
+        return result, logs, raw_logs, helper_args
 
-    def _assert_uploaded_logs_are_sanitized(self, logs: Path, status: int) -> None:
+    def _assert_uploaded_logs_are_sanitized(self, logs: Path, status: int, token: str) -> None:
         emulator = (logs / "emulator.log").read_text(encoding="utf-8")
         self.assertIn(f"E2E runner exit status: {status}", emulator)
         self.assertIn("<emulator-1>", emulator)
         self.assert_sanitized(emulator)
         for path in sorted(logs.glob("*.log")):
-            self.assert_sanitized(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            self.assert_sanitized(text)
+            self.assertNotIn(token, text)
+        self.assertFalse((logs / "expected-token").exists())
+
+    def _assert_helper_argv_does_not_contain_token(self, helper_args: Path, token: str) -> None:
+        argv = helper_args.read_text(encoding="utf-8")
+        self.assertNotIn(token, argv)
+        self.assertNotIn("--sensitive", argv)
 
     def test_e2e_ci_failure_path_preserves_the_status_and_sanitizes_logs(self) -> None:
-        result, logs = self._run_e2e_ci(status=1)
+        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=1)
 
         self.assertEqual(1, result.returncode, result.stderr)
-        self._assert_uploaded_logs_are_sanitized(logs, status=1)
+        token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self._assert_uploaded_logs_are_sanitized(logs, status=1, token=token)
+        self._assert_helper_argv_does_not_contain_token(helper_args, token)
         self.assertIn("e2e stdout", (logs / "e2e.log").read_text(encoding="utf-8"))
         self.assertIn("<redacted>", (logs / "e2e.log").read_text(encoding="utf-8"))
+        runtime = (logs / "android-runtime.log").read_text(encoding="utf-8")
+        self.assertIn("AndroidRuntime: crash", runtime)
+        self.assertIn("filter AndroidRuntime:E *:S", runtime)
 
     def test_e2e_ci_success_path_preserves_the_status_and_sanitizes_logs(self) -> None:
-        result, logs = self._run_e2e_ci(status=0)
+        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=0)
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self._assert_uploaded_logs_are_sanitized(logs, status=0)
+        token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self._assert_uploaded_logs_are_sanitized(logs, status=0, token=token)
+        self._assert_helper_argv_does_not_contain_token(helper_args, token)
         self.assertIn("e2e stdout", (logs / "e2e.log").read_text(encoding="utf-8"))
+        self.assertFalse((logs / "android-runtime.log").exists())
 
     def test_e2e_ci_forced_failure_uploads_sanitized_useful_logs(self) -> None:
-        result, logs = self._run_e2e_ci(status=0, force=True)
+        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=0, force=True)
 
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn("Intentional failure after E2E passed", result.stderr)
-        self._assert_uploaded_logs_are_sanitized(logs, status=1)
+        token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self._assert_uploaded_logs_are_sanitized(logs, status=1, token=token)
+        self._assert_helper_argv_does_not_contain_token(helper_args, token)
         e2e_log = (logs / "e2e.log").read_text(encoding="utf-8")
         self.assertIn("e2e stdout", e2e_log)
         self.assertIn("<redacted>", e2e_log)
+
+    def test_e2e_ci_sanitization_write_failure_keeps_raw_logs_out_of_artifact_path(self) -> None:
+        result, logs, raw_logs, _ = self._run_e2e_ci(status=1, fail_sanitization=True)
+
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("could not sanitize", result.stderr)
+        self.assertIn("no raw logs were published", result.stderr)
+        self.assertFalse(logs.exists())
+        self.assertIn(EMULATOR_SERIAL, (raw_logs / "e2e.log").read_text(encoding="utf-8"))
+
+    def test_e2e_script_failure_captures_runtime_log_and_preserves_exit_status(self) -> None:
+        repo = self.temp_dir / "actual-e2e"
+        scripts = repo / "scripts"
+        scripts.mkdir(parents=True)
+        shutil.copy2(REPO_ROOT / "scripts" / "e2e.sh", scripts / "e2e.sh")
+        shutil.copy2(REPO_ROOT / "scripts" / "e2e-diagnostics.py", scripts / "e2e-diagnostics.py")
+        (repo / "stub").mkdir()
+        logs = repo / "safe-logs"
+        gradlew = repo / "gradlew"
+        gradlew.write_text("#!/bin/sh\necho 'intentional fake build failure' >&2\nexit 23\n", encoding="utf-8")
+        gradlew.chmod(0o755)
+
+        bin_dir = repo / "bin"
+        bin_dir.mkdir()
+        fake_go = bin_dir / "go"
+        fake_go.write_text(
+            "#!/bin/sh\n"
+            "output=''\n"
+            "while [ $# -gt 0 ]; do\n"
+            "  if [ \"$1\" = '-o' ]; then shift; output=$1; fi\n"
+            "  shift\n"
+            "done\n"
+            "cat > \"$output\" <<'SERVER'\n"
+            "#!/bin/sh\nexec sleep 60\n"
+            "SERVER\n"
+            "chmod +x \"$output\"\n",
+            encoding="utf-8",
+        )
+        fake_go.chmod(0o755)
+        fake_curl = bin_dir / "curl"
+        fake_curl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake_curl.chmod(0o755)
+        self._write_fake_adb(repo / "sdk")
+
+        env = self.environment(
+            ANDROID_HOME=str(repo / "sdk"),
+            ANDROID_SERIAL=EMULATOR_SERIAL,
+            E2E_LOG_DIR=str(logs),
+            E2E_AUTH_TOKEN="1234567890123456",
+            FAKE_ADB_LOGCAT=LOGCAT_OUTPUT,
+            PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        )
+        result = subprocess.run(
+            ["bash", str(scripts / "e2e.sh")],
+            cwd=str(repo),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertEqual(23, result.returncode, result.stderr)
+        runtime = (logs / "android-runtime.log").read_text(encoding="utf-8")
+        self.assertIn("E2E diagnostics for status 23", runtime)
+        self.assertIn("AndroidRuntime: crash", runtime)
+        self.assertIn("filter AndroidRuntime:E *:S", runtime)
+        self.assert_sanitized(runtime)
+        self.assertNotIn("1234567890123456", runtime)
+        self.assertIn("intentional fake build failure", result.stderr)
+
+    def test_e2e_ci_sanitization_failure_does_not_turn_a_pass_into_failure(self) -> None:
+        result, logs, _, _ = self._run_e2e_ci(status=0, fail_sanitization=True)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("no raw logs were published", result.stderr)
+        self.assertFalse(logs.exists())
 
     def test_shell_scripts_parse_and_keep_the_real_assertions(self) -> None:
         for script in ("e2e.sh", "e2e-ci.sh"):
