@@ -164,7 +164,7 @@ private fun stepLabel(guide: WatchGuide): String {
     return stringResource(R.string.step_of, guide.index + 1, guide.count, step)
 }
 
-/** The pour's pace against the recipe, in words for TalkBack; ±5 s counts as on time (ADR 0019). */
+/** The pour's pace against the recipe, in words for TalkBack; ±5 s counts as on time (#103). */
 @Composable
 private fun paceLabel(guide: WatchGuide): String? {
     val pace = guide.paceMs ?: return null

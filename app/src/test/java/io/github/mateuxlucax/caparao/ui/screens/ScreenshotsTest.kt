@@ -325,7 +325,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     }
 
     /**
-     * Compare and trends (ADR 0022) on three saved V60 brews: two picked with a long press, their curves overlaid with
+     * Compare and trends (#106) on three saved V60 brews: two picked with a long press, their curves overlaid with
      * the rating row, then the recipe's trends from the newest one's detail.
      */
     @Test
