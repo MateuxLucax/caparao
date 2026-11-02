@@ -76,13 +76,14 @@ jobs:
           channel: stable
           emulator-boot-timeout: 600
           script: |
-            set -euo pipefail
+            bash -euo pipefail <<'BASH'
             logs="$RUNNER_TEMP/caparao-e2e-logs"
             E2E_LOG_DIR="$logs" E2E_PORT=8099 scripts/e2e.sh 2>&1 | tee "$logs/e2e.log"
             if [ "$E2E_FORCE_FAILURE" = "true" ]; then
               echo "Intentional failure after E2E passed, to verify failure log upload." >&2
               exit 1
             fi
+            BASH
 
       - name: Upload end-to-end failure logs
         if: failure()
