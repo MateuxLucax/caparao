@@ -38,6 +38,20 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 `coffee.example.com` and `dev-token`; the real domain and token live only in the user's homeserver `private/` copy.
 `scripts/check.sh` (tests, lint, build, gitleaks) runs locally before every push and mirrors CI.
 
+## UI design
+
+- Every UI task, including a new screen and any change to an existing screen or widget, starts from an editable
+  Excalidraw draft, created or updated before implementation. Commit the source under `docs/wireframes/`, link it from
+  the originating issue, and attach the exported illustration with a short scenario description to that issue (a
+  readable table with one row per scenario when there are several). Use the Orca Excalidraw editor when available, keep
+  the draft and issue export current with user feedback, and link the PR to the issue's design reference.
+- Motion and transitions follow Material You / Material 3 Expressive patterns, consistent with the app's theme and
+  dynamic colors and using the existing Compose Material primitives. Respect the system motion preferences and start
+  from the [official motion guidance](https://m3.material.io/styles/motion/overview).
+- A draft communicates flow and guides planning; it is not approval. Ask the user about unresolved product choices.
+  Final art and motion follow the Material language above, and finished UI evidence stays with `scripts/screenshots.sh`
+  and the table rule under Devices, not the sketch.
+
 ## Devices
 
 - Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
