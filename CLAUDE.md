@@ -19,6 +19,9 @@ repository: decisions 0001–0026 were archived as closed issues #85–#110.
 
 Workers run on the Mac through Orca, one worktree per issue (`orca worktree create --issue <n>`).
 
+A new worktree lacks git-ignored files: copy `local.properties` from the main checkout before building (it holds the SDK
+path), and read raw captures from the main checkout's `spike-captures/`.
+
 - Pick only `agent-ready` issues whose dependencies are merged. Stop and ask instead of reopening a decision.
 - Open a PR and never merge: the user merges, because every green push to `main` is a release.
 - `scripts/check.sh` and JVM tests can run in parallel. **The emulator is one worker at a time**: worktrees install the
