@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -201,14 +200,8 @@ class SessionLogTest(unittest.TestCase):
         self.assertIn(capture.REDACTED, contents)
 
     def test_capture_directory_is_git_ignored(self):
-        if shutil.which("git") is None:
-            self.skipTest("git is not installed")
-        result = subprocess.run(
-            ["git", "check-ignore", "-q", "spike-captures/session.jsonl"],
-            cwd=REPO_ROOT,
-            check=False,
-        )
-        self.assertEqual(0, result.returncode)
+        ignored = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        self.assertIn("spike-captures/", ignored)
 
 
 class NameMatchingTest(unittest.TestCase):
@@ -332,6 +325,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         scanner_factory, client_factory, _, _ = self.factories(
             FakeDevice(name="Kitchen Scale"),
             stop_event=stop,
+            on_battery=lambda client: client.notify(COMBINED_RX),
             local_name="TIMEMORE_TES017",
         )
         result = await capture.capture_session(
@@ -543,10 +537,156 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, events.count("disconnected"))
         self.assertEqual(["disconnect_requested", "disconnected", "session_end"], events[-3:])
 
-    async def test_stop_already_requested_skips_waiting_for_disconnect(self):
+    async def test_stop_during_scan_returns_before_connecting(self):
+        entered = asyncio.Event()
+        stop = asyncio.Event()
+        clients = []
+
+        class HangingScanner:
+            async def __aenter__(self):
+                entered.set()
+                await asyncio.Event().wait()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        def scanner_factory(_callback):
+            return HangingScanner()
+
+        def client_factory(_device, _callback):
+            client = FakeClient()
+            clients.append(client)
+            return client
+
+        task = asyncio.create_task(
+            capture.capture_session(
+                "stop during scan",
+                output_dir=self.dir,
+                scanner_factory=scanner_factory,
+                client_factory=client_factory,
+                stop_event=stop,
+                wall_clock=lambda: FIXED_NOW,
+                monotonic_ns=Clock().monotonic_ns,
+            )
+        )
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        stop.set()
+        result = await asyncio.wait_for(task, timeout=1)
+
+        self.assertEqual(0, result.exit_code)
+        self.assertEqual([], clients)
+        events = [row["note"] for row in read_records(result.path)[1]]
+        self.assertEqual(
+            ["session_start", "scan_start", "disconnect_requested", "session_end"],
+            events,
+        )
+
+    async def test_stop_during_connect_cancels_retries_and_disconnects(self):
+        started = asyncio.Event()
+        stop = asyncio.Event()
+
+        class HangingClient:
+            def __init__(self):
+                self.disconnected = False
+
+            async def connect(self):
+                started.set()
+                await asyncio.Event().wait()
+
+            async def disconnect(self):
+                self.disconnected = True
+
+        client = HangingClient()
+        scanner_factory, _, _, _ = self.factories(FakeDevice())
+        task = asyncio.create_task(
+            capture.capture_session(
+                "stop during connect",
+                output_dir=self.dir,
+                scanner_factory=scanner_factory,
+                client_factory=lambda _device, _callback: client,
+                sleep=self.no_sleep,
+                stop_event=stop,
+                wall_clock=lambda: FIXED_NOW,
+                monotonic_ns=Clock().monotonic_ns,
+            )
+        )
+        await asyncio.wait_for(started.wait(), timeout=1)
+        stop.set()
+        result = await asyncio.wait_for(task, timeout=1)
+
+        self.assertEqual(0, result.exit_code)
+        self.assertTrue(client.disconnected)
+        events = [row["note"] for row in read_records(result.path)[1]]
+        self.assertEqual(
+            [
+                "session_start",
+                "scan_start",
+                "scan_match",
+                "connect_attempt 1",
+                "disconnect_requested",
+                "session_end",
+            ],
+            events,
+        )
+
+    async def test_no_notifications_warns_and_returns_failure(self):
+        old_warning_delay = capture.NO_NOTIFICATIONS_WARNING_SECONDS
+        capture.NO_NOTIFICATIONS_WARNING_SECONDS = 0.01
+        self.addCleanup(
+            setattr,
+            capture,
+            "NO_NOTIFICATIONS_WARNING_SECONDS",
+            old_warning_delay,
+        )
+        stop = asyncio.Event()
+        warning_seen = asyncio.Event()
+        statuses = []
+
+        def status(message):
+            statuses.append(message)
+            if message.startswith("warning: no scale notifications"):
+                warning_seen.set()
+
+        scanner_factory, client_factory, _, _ = self.factories(FakeDevice())
+        task = asyncio.create_task(
+            capture.capture_session(
+                "no notifications",
+                output_dir=self.dir,
+                scanner_factory=scanner_factory,
+                client_factory=client_factory,
+                sleep=self.no_sleep,
+                stop_event=stop,
+                wall_clock=lambda: FIXED_NOW,
+                monotonic_ns=Clock().monotonic_ns,
+                on_status=status,
+            )
+        )
+        await asyncio.wait_for(warning_seen.wait(), timeout=1)
+        stop.set()
+        result = await asyncio.wait_for(task, timeout=1)
+
+        self.assertEqual(1, result.exit_code)
+        self.assertIn(
+            "error: no scale notifications received; capture not saved as complete",
+            statuses,
+        )
+        _, records = read_records(result.path)
+        self.assertEqual([], [row for row in records if row["dir"] == "rx"])
+        events = [row["note"] for row in records if row["dir"] == "event"]
+        self.assertEqual(
+            [
+                "disconnect_requested",
+                "capture_incomplete no_notifications",
+                "disconnected",
+                "session_end",
+            ],
+            events[-4:],
+        )
+
+    async def test_stop_already_requested_returns_before_scanning(self):
         stop = asyncio.Event()
         stop.set()
-        scanner_factory, client_factory, _, clients = self.factories(FakeDevice())
+        scanner_factory, client_factory, scanners, clients = self.factories(FakeDevice())
         result = await capture.capture_session(
             "already stopped",
             output_dir=self.dir,
@@ -559,9 +699,13 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(0, result.exit_code)
+        self.assertEqual([], scanners)
+        self.assertEqual([], clients)
         events = [row["note"] for row in read_records(result.path)[1]]
-        self.assertIn("disconnect_requested", events)
-        self.assertTrue(clients[0].disconnected)
+        self.assertEqual(
+            ["session_start", "scan_start", "disconnect_requested", "session_end"],
+            events,
+        )
 
     async def no_sleep(self, _seconds):
         return None

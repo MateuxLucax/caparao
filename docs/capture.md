@@ -39,8 +39,9 @@ behavior is untested here. Allow Terminal or its Python process Bluetooth access
 4. Wait for `connected; recording until Ctrl+C`. Weight notifications start automatically after the handshake. The
    app's tare and timer commands are **not** sent: this is a passive recording. The replay applies those controls when
    the file is used later.
-5. Press **Ctrl+C**. The script disconnects, flushes the file and prints its path. An unexpected disconnect or failure
-   also leaves a partial file, with a nonzero exit status.
+5. Press **Ctrl+C** when done. It also cancels an in-progress scan or connection attempt. The script disconnects,
+   flushes the file and prints its path. An unexpected disconnect or failure also leaves a partial file, with a nonzero
+   exit status.
 
 One file per connection is written to `spike-captures/<UTC timestamp>-<label>.jsonl`. The file is created exclusively:
 a second capture in the same second with the same label fails instead of overwriting the first.
@@ -86,6 +87,9 @@ This check is read-only. Review a capture for identifiers before copying it into
 - Passive only: no interactive tare, timer, unit or battery commands. Those interactions can be recorded when the app
   sends them, but this script does not generate them.
 - One connection per file. A dropped link ends the capture instead of reconnecting and mixing sessions.
+- After a successful connection, no notifications for 3 seconds prints a warning. Ending with no notifications returns
+  failure and records `capture_incomplete no_notifications`; nothing was recorded for the brew, so do not discard the
+  scale's state thinking the capture is usable.
 - macOS is the supported host for now. Linux and Windows are not covered by the documented acceptance run.
 - Bleak and macOS handle MTU negotiation and pairing; the script logs the application-level handshake, not every
   platform GATT callback available to the Android transport.

@@ -38,6 +38,7 @@ CONNECT_ATTEMPTS = 3
 CONNECT_RETRY_SECONDS = 0.5
 NOTIFY_DELAY_SECONDS = 0.5
 MODE_DELAY_SECONDS = 0.2
+NO_NOTIFICATIONS_WARNING_SECONDS = 3.0
 
 APP_NAME = "capture-session.py"
 REDACTED = "[redacted]"
@@ -194,6 +195,8 @@ def bleak_client_factory(device: Any, disconnected_callback: Callable[[Any], Non
     return BleakClient(
         device,
         disconnected_callback=disconnected_callback,
+        # No effect on macOS: CoreBluetooth pairs on its own when the first encrypted characteristic is accessed.
+        # It still covers the other Bleak backends if this tool is ported beyond the validated macOS host.
         pair=True,
         timeout=30.0,
     )
@@ -245,6 +248,13 @@ async def connect_dot(
             client = client_factory(device, disconnected_callback)
             await client.connect()
             return client
+        except asyncio.CancelledError:
+            if client is not None:
+                try:
+                    await client.disconnect()
+                except Exception as cleanup_error:  # noqa: BLE001
+                    log.event(f"connect_cleanup_failed {type(cleanup_error).__name__}")
+            raise
         except Exception as error:  # noqa: BLE001 - only the safe class name is logged
             log.event(f"connect_failed {type(error).__name__}")
             if client is not None:
@@ -277,6 +287,28 @@ async def _wait_for_stop(stop_event: asyncio.Event, disconnected: asyncio.Event)
     return disconnected.is_set()
 
 
+async def _run_until_stopped(operation: Any, stop_event: asyncio.Event) -> tuple[bool, Any]:
+    """Runs an operation unless stop wins first. Returns (finished, result); cancellation is consumed."""
+    work = asyncio.create_task(operation)
+    if stop_event.is_set():
+        work.cancel()
+        await asyncio.gather(work, return_exceptions=True)
+        return False, None
+    stop_task = asyncio.create_task(stop_event.wait())
+    try:
+        done, _ = await asyncio.wait({work, stop_task}, return_when=asyncio.FIRST_COMPLETED)
+        if work in done:
+            return True, work.result()
+        work.cancel()
+        await asyncio.gather(work, return_exceptions=True)
+        return False, None
+    finally:
+        stop_task.cancel()
+        if not work.done():
+            work.cancel()
+        await asyncio.gather(stop_task, work, return_exceptions=True)
+
+
 async def capture_session(
     label: str,
     *,
@@ -302,8 +334,10 @@ async def capture_session(
     log: Optional[SessionLog] = None
     client = None
     connected = False
+    received = 0
     status = 1
     disconnected = asyncio.Event()
+    warning_task: Optional[Any] = None
 
     def announce(message: str) -> None:
         if on_status is not None:
@@ -339,11 +373,22 @@ async def capture_session(
         log.event("disconnected")
         disconnected.set()
 
+    def on_notification(_sender: Any, data: Any) -> None:
+        nonlocal received
+        if log is not None and log.active:
+            received += 1
+            log.rx(bytes(data))
+
     try:
         announce(f"scanning for {DOT_NAME} (10 s)...")
         record_event("session_start")
         record_event("scan_start")
-        found = await scan_for_dot(scanner, scan_timeout)
+        scanned, found = await _run_until_stopped(scan_for_dot(scanner, scan_timeout), stop)
+        if not scanned:
+            record_event("disconnect_requested")
+            open_log()
+            status = 0
+            return CaptureResult(log.path, status)
         if found is None:
             record_event("scan_timeout")
             open_log()
@@ -355,26 +400,47 @@ async def capture_session(
         open_log(redactor)
         announce(f"recording to {log.path}")
 
-        client = await connect_dot(found.device, log, on_disconnected, client_for, pause)
+        if stop.is_set():
+            record_event("disconnect_requested")
+            status = 0
+            return CaptureResult(log.path, status)
+
+        connecting, client = await _run_until_stopped(
+            connect_dot(found.device, log, on_disconnected, client_for, pause),
+            stop,
+        )
+        if not connecting:
+            record_event("disconnect_requested")
+            status = 0
+            return CaptureResult(log.path, status)
         if client is None:
             record_event("connect_failed_all")
             return CaptureResult(log.path, 1)
 
         connected = True
         record_event("connected")
-        await client.start_notify(
-            NOTIFY_UUID,
-            lambda _sender, data: log.rx(bytes(data)) if log.active else None,
-        )
+        await client.start_notify(NOTIFY_UUID, on_notification)
         record_event("notifications_enabled")
 
         await pause(NOTIFY_DELAY_SECONDS)
+        if stop.is_set():
+            record_event("disconnect_requested")
+            status = 0
+            return CaptureResult(log.path, status)
         await _write_frame(log, client, UNIT_GRAMS, "unit grams")
         await pause(MODE_DELAY_SECONDS)
         await _write_frame(log, client, STANDARD_MODE, "standard mode")
         await _write_frame(log, client, READ_BATTERY, "battery")
         record_event("handshake_done")
         announce("connected; recording until Ctrl+C")
+
+        if on_status is not None:
+            async def warn_without_notifications() -> None:
+                await asyncio.sleep(NO_NOTIFICATIONS_WARNING_SECONDS)
+                if received == 0:
+                    announce("warning: no scale notifications received")
+
+            warning_task = asyncio.create_task(warn_without_notifications())
 
         if stop.is_set():
             record_event("disconnect_requested")
@@ -396,7 +462,14 @@ async def capture_session(
             open_log()
         status = 1
     finally:
+        if warning_task is not None:
+            warning_task.cancel()
+            await asyncio.gather(warning_task, return_exceptions=True)
         if log is not None:
+            if connected and received == 0 and status == 0:
+                status = 1
+                log.event("capture_incomplete no_notifications")
+                announce("error: no scale notifications received; capture not saved as complete")
             if client is not None:
                 if connected:
                     try:
