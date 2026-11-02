@@ -94,7 +94,7 @@ class AppScreensTest {
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
-            initializer { ExportViewModel(BrewExportFiles(context, brews)) }
+            initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.BrewWithSamples
@@ -15,12 +16,13 @@ import java.io.File
 data class ExportedFile(val uri: Uri, val mimeType: String)
 
 /** Writes the exports to the cache and hands them to the share sheet through the FileProvider (#76). */
-class BrewExportFiles(private val context: Context, private val repository: BrewRepository) {
-    /** Every brew in one zip: contract JSON, `brews.csv` and, when asked, `samples.csv`. */
+class BrewExportFiles(private val context: Context, private val repository: BrewRepository, private val recipes: RecipeRepository) {
+    /** Every brew and recipe in one zip: contract JSON, `brews.csv`, `recipes.csv` and, when asked, `samples.csv`. */
     suspend fun all(includeSamples: Boolean): ExportedFile = withContext(Dispatchers.IO) {
         val brews = repository.allWithSamples()
+        val recipeList = recipes.all()
         val file = newFile("caparao-export.zip")
-        file.outputStream().use { BrewExporter.writeZip(it, brews, includeSamples) }
+        file.outputStream().use { BrewExporter.writeZip(it, brews, recipeList, includeSamples) }
         ExportedFile(uri(file), "application/zip")
     }
 

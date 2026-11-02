@@ -57,7 +57,7 @@ class AppContainer(context: Context) {
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
 
     /** Writes the exports to the cache and shares them through the FileProvider (#76). */
-    val export = BrewExportFiles(appContext, brews)
+    val export = BrewExportFiles(appContext, brews, recipes)
 
     private val exporter = ExporterClient()
 

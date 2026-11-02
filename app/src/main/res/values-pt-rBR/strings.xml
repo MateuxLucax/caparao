@@ -205,7 +205,7 @@
     <string name="guide_window">Alvo %1$s–%2$s s</string>
     <string name="section_colors">Cores</string>
     <string name="section_data">Dados</string>
-    <string name="section_data_text">Todos os preparos em um zip: JSON no formato de envio e CSV para planilhas. O arquivo abre no compartilhamento; nada é enviado.</string>
+    <string name="section_data_text">Exporte receitas e preparos em CSV, ou preparos em JSON para reenviar a um servidor.</string>
     <string name="export">Exportar</string>
     <string name="export_include_samples">Incluir o CSV das amostras</string>
     <string name="export_working">Preparando…</string>

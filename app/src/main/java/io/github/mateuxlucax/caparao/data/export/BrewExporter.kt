@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.data.export
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewWithSamples
+import io.github.mateuxlucax.caparao.model.Recipe
 import org.json.JSONArray
 import java.io.BufferedOutputStream
 import java.io.OutputStream
@@ -61,13 +62,52 @@ object BrewExporter {
     }
 
     /**
-     * The shareable archive: `brews.json` and `brews.csv` always, `samples.csv` only when [includeSamples]. The JSON
-     * always carries the curve, since it is the re-postable copy.
+     * One row per step, the recipe fields repeated; a recipe with no steps (espresso) still gets one row with the step
+     * columns empty, so nothing is lost.
      */
-    fun writeZip(out: OutputStream, brews: List<BrewWithSamples>, includeSamples: Boolean) {
+    fun recipesCsv(recipes: List<Recipe>): String = buildString {
+        appendLine(RECIPES_HEADER)
+        recipes.forEach { recipe ->
+            val fields = listOf(
+                csv(recipe.id),
+                csv(recipe.name),
+                if (recipe.mode == BrewMode.ESPRESSO) "espresso" else "filter",
+                csv(recipe.method),
+                number(recipe.doseGrams),
+                number(recipe.targetRatio),
+                number(recipe.targetYieldGrams),
+                csv(recipe.grind),
+                recipe.waterTempCelsius?.toString().orEmpty(),
+                csv(recipe.notes),
+                recipe.targetMinMs?.let { seconds(it) }.orEmpty(),
+                recipe.targetMaxMs?.let { seconds(it) }.orEmpty(),
+            )
+            if (recipe.steps.isEmpty()) {
+                appendLine(fields.joinToString(",") + ",,,,")
+            } else {
+                recipe.steps.forEachIndexed { index, step ->
+                    appendLine(
+                        (fields + listOf(
+                            (index + 1).toString(),
+                            step.kind.name.lowercase(),
+                            step.targetWeightGrams?.let { number(it) }.orEmpty(),
+                            seconds(step.targetAtMs),
+                        )).joinToString(","),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * The shareable archive: `brews.json`, `brews.csv` and `recipes.csv` always, `samples.csv` only when
+     * [includeSamples]. The JSON always carries the curve, since it is the re-postable copy.
+     */
+    fun writeZip(out: OutputStream, brews: List<BrewWithSamples>, recipes: List<Recipe>, includeSamples: Boolean) {
         ZipOutputStream(BufferedOutputStream(out)).use { zip ->
             zip.entry("brews.json", json(brews))
             zip.entry("brews.csv", brewsCsv(brews))
+            zip.entry("recipes.csv", recipesCsv(recipes))
             if (includeSamples) zip.entry("samples.csv", samplesCsv(brews))
         }
     }
@@ -96,4 +136,7 @@ object BrewExporter {
         "id,mode,started_at,duration_s,dose_g,yield_g,time_to_first_drop_s,flow_avg_gps,flow_peak_gps,interrupted," +
             "recipe_name,coffee,grind,water_temp_c,rating,notes"
     private const val SAMPLES_HEADER = "brew_id,at_ms,weight_g,flow_gps"
+    private const val RECIPES_HEADER =
+        "recipe_id,name,mode,method,dose_g,target_ratio,target_yield_g,grind,water_temp_c,notes,target_min_s,target_max_s," +
+            "step_position,step_kind,step_weight_g,step_at_s"
 }

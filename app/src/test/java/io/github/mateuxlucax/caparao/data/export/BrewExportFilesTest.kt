@@ -3,13 +3,19 @@ package io.github.mateuxlucax.caparao.data.export
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
+import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,7 +27,8 @@ class BrewExportFilesTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val dao = FakeBrewDao()
     private val repository = BrewRepository(dao)
-    private val files = BrewExportFiles(context, repository)
+    private val recipeRepository = RecipeRepository(FakeRecipeDao())
+    private val files = BrewExportFiles(context, repository, recipeRepository)
 
     private val brew = Brew(
         id = "0f8e1c2a-5b7d-4c3e-9a10-2f6d8b4e7c91",
@@ -44,13 +51,28 @@ class BrewExportFilesTest {
     @Test
     fun writesTheZipAndTheSingleBrewJsonThroughTheProvider() = runBlocking {
         repository.save(brew, samples)
+        recipeRepository.save(
+            Recipe(
+                id = "5d2b9f60-1c4e-4a8b-8e37-c0a1f6d3b7e5",
+                name = "V60",
+                mode = BrewMode.FILTER,
+                method = "V60",
+                doseGrams = 15.0,
+                targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.BLOOM, 30.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
+                createdAt = 1_792_000_000_000,
+                updatedAt = 1_792_000_000_000,
+            ),
+        )
 
         val all = files.all(includeSamples = true)
         assertEquals("application/zip", all.mimeType)
         assertEquals("content", all.uri.scheme)
         assertEquals("${context.packageName}.fileprovider", all.uri.authority)
         val bytes = context.contentResolver.openInputStream(all.uri)!!.use { it.readBytes() }
-        assertEquals(setOf("brews.json", "brews.csv", "samples.csv"), zipEntries(bytes).keys)
+        val entries = zipEntries(bytes)
+        assertEquals(setOf("brews.json", "brews.csv", "recipes.csv", "samples.csv"), entries.keys)
+        assertTrue(entries.getValue("recipes.csv").contains("V60"))
 
         val one = files.one(brew, samples)
         assertEquals("application/json", one.mimeType)

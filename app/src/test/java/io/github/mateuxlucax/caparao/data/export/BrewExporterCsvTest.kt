@@ -4,6 +4,9 @@ import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.BrewWithSamples
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -35,6 +38,25 @@ class BrewExporterCsvTest {
     )
     private val samples = listOf(BrewSample(0, 0.0, 0.0), BrewSample(15_000, 17.9, 2.1), BrewSample(28_600, 36.4, 1.1))
     private val brews = listOf(BrewWithSamples(brew, samples))
+    private val recipe = Recipe(
+        id = "5d2b9f60-1c4e-4a8b-8e37-c0a1f6d3b7e5",
+        name = "V60",
+        mode = BrewMode.FILTER,
+        method = "V60",
+        doseGrams = 15.0,
+        targetRatio = 16.0,
+        grind = "22",
+        waterTempCelsius = 94,
+        notes = "Bright",
+        steps = listOf(
+            RecipeStep(StepKind.BLOOM, 30.0, 0),
+            RecipeStep(StepKind.POUR, 240.0, 30_000),
+            RecipeStep(StepKind.WAIT, null, 60_000),
+        ),
+        createdAt = 1_792_000_000_000,
+        updatedAt = 1_792_000_000_000,
+    )
+    private val recipes = listOf(recipe)
 
     @Test
     fun brewsCsvHasTheHeaderAndOneRowPerBrew() {
@@ -95,15 +117,64 @@ class BrewExporterCsvTest {
     fun zipHasJsonAndBothCsvs() {
         val entries = zipEntries(includeSamples = true)
 
-        assertEquals(setOf("brews.json", "brews.csv", "samples.csv"), entries.keys)
+        assertEquals(setOf("brews.json", "brews.csv", "recipes.csv", "samples.csv"), entries.keys)
         assertTrue(entries.getValue("brews.json").trimStart().startsWith("["))
         assertTrue(entries.getValue("brews.csv").startsWith("id,mode,"))
+        assertTrue(entries.getValue("recipes.csv").startsWith("recipe_id,"))
         assertTrue(entries.getValue("samples.csv").startsWith("brew_id,"))
     }
 
     @Test
     fun zipCanSkipTheSamplesCsv() {
-        assertEquals(setOf("brews.json", "brews.csv"), zipEntries(includeSamples = false).keys)
+        assertEquals(setOf("brews.json", "brews.csv", "recipes.csv"), zipEntries(includeSamples = false).keys)
+    }
+
+    @Test
+    fun recipesCsvListsOneRowPerStep() {
+        val lines = BrewExporter.recipesCsv(recipes).lines().filter { it.isNotEmpty() }
+
+        assertEquals(4, lines.size)
+        assertEquals(
+            "recipe_id,name,mode,method,dose_g,target_ratio,target_yield_g,grind,water_temp_c,notes,target_min_s,target_max_s," +
+                "step_position,step_kind,step_weight_g,step_at_s",
+            lines.first(),
+        )
+        val bloom = lines[1].split(",")
+        assertEquals(recipe.id, bloom[0])
+        assertEquals("V60", bloom[1])
+        assertEquals("filter", bloom[2])
+        assertEquals("15", bloom[4])
+        assertEquals("16", bloom[5])
+        assertEquals("240", bloom[6])
+        assertEquals("1", bloom[12])
+        assertEquals("bloom", bloom[13])
+        assertEquals("30", bloom[14])
+        assertEquals("0", bloom[15])
+        assertEquals("wait", lines[3].split(",")[13])
+        assertEquals("", lines[3].split(",")[14])
+        assertEquals("60", lines[3].split(",")[15])
+    }
+
+    @Test
+    fun espressoCsvHasOneRowWithEmptyStepColumns() {
+        val espresso = recipe.copy(
+            id = "b7c1a2d3-4e5f-4a6b-8c9d-0e1f2a3b4c5d",
+            name = "Oster",
+            mode = BrewMode.ESPRESSO,
+            method = "Espresso",
+            steps = emptyList(),
+            targetMinMs = 25_000,
+            targetMaxMs = 30_000,
+        )
+
+        val lines = BrewExporter.recipesCsv(listOf(espresso)).lines().filter { it.isNotEmpty() }
+
+        assertEquals(2, lines.size)
+        val row = lines[1].split(",")
+        assertEquals("espresso", row[2])
+        assertEquals("25", row[10])
+        assertEquals("30", row[11])
+        assertEquals(listOf("", "", "", ""), row.subList(12, 16))
     }
 
     @Test
@@ -112,12 +183,13 @@ class BrewExporterCsvTest {
 
         assertEquals("id,mode,", BrewExporter.brewsCsv(empty).take(8))
         assertEquals("brew_id,at_ms,", BrewExporter.samplesCsv(empty).take(14))
+        assertEquals("recipe_id,name,", BrewExporter.recipesCsv(emptyList()).take(15))
         assertEquals("[]", BrewExporter.json(empty))
     }
 
     private fun zipEntries(includeSamples: Boolean): Map<String, String> {
         val out = ByteArrayOutputStream()
-        BrewExporter.writeZip(out, brews, includeSamples)
+        BrewExporter.writeZip(out, brews, recipes, includeSamples)
         val entries = LinkedHashMap<String, String>()
         ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
             var entry = zip.nextEntry
