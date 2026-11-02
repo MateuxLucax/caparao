@@ -3,11 +3,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-log_dir="${E2E_LOG_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/caparao-e2e-logs}"
-raw_log_dir="${E2E_RAW_LOG_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/caparao-e2e-raw-logs}"
+runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+log_dir="$runner_temp/caparao-e2e-logs"
+raw_log_dir="${E2E_RAW_LOG_DIR:-$runner_temp/caparao-e2e-raw-logs}"
+artifact_ready="$runner_temp/caparao-e2e-artifacts-ready"
+rm -f "$artifact_ready"
 mkdir -p "$raw_log_dir"
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 token=$(openssl rand -hex 16)
+python3 scripts/e2e-diagnostics.py prepare-output \
+  --log-dir "$log_dir" \
+  --raw-dir "$raw_log_dir" \
+  --managed-output-root "$runner_temp"
+touch "$artifact_ready"
 
 capture_emulator_logs() {
   local status=$?
@@ -17,6 +25,7 @@ capture_emulator_logs() {
   diagnostic_args=(collect \
     --log-dir "$log_dir" \
     --raw-dir "$raw_log_dir" \
+    --managed-output-root "$runner_temp" \
     --adb "$adb" \
     --serial "${ANDROID_SERIAL:-}" \
     --status "$status" \
@@ -34,7 +43,11 @@ capture_emulator_logs() {
 trap capture_emulator_logs EXIT
 
 E2E_AUTH_TOKEN="$token" E2E_RAW_LOG_DIR="$raw_log_dir" E2E_PORT="${E2E_PORT:-8099}" \
-  scripts/e2e.sh 2>&1 | tee "$raw_log_dir/e2e.log"
+  python3 scripts/e2e-diagnostics.py run \
+    --log-file "$raw_log_dir/e2e.log" \
+    --adb "$adb" \
+    --serial "${ANDROID_SERIAL:-}" \
+    -- scripts/e2e.sh
 
 if [ "${E2E_FORCE_FAILURE:-false}" = "true" ]; then
   echo "Intentional failure after E2E passed, to verify failure log upload." >&2

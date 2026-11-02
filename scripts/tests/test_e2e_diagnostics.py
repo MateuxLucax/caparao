@@ -43,6 +43,8 @@ PHONE_DEVICE = "fake_device_x"
 PRODUCT = "fake_product"
 MAC = "02:00:00:00:00:01"
 TOKEN = "fake-test-token-not-a-secret"
+NUMERIC_SERIAL = "1234567890"
+RUN_TOKEN = "98765432109876543210987654321098"
 
 DEVICES_OUTPUT = f"""List of devices attached
 {EMULATOR_SERIAL}          device product:{EMULATOR_MODEL} model:{EMULATOR_MODEL} device:{EMULATOR_DEVICE} transport_id:1 usb:1-1
@@ -69,6 +71,7 @@ RAW_IDENTIFIERS = [
     PRODUCT,
     MAC,
     TOKEN,
+    NUMERIC_SERIAL,
     "transport_id:1",
     "transport_id:2",
     "transport_id:3",
@@ -116,10 +119,19 @@ raise SystemExit(2)
 FAKE_E2E = """#!/usr/bin/env bash
 set -euo pipefail
 printf '%s' "$E2E_AUTH_TOKEN" > "$E2E_RAW_LOG_DIR/expected-token"
-printf 'e2e stdout serial=%s model=%s device=%s mac=%s token=%s\\n' \\
-  "emulator-5554" "FAKE_MODEL_X" "fake_device_x" "02:00:00:00:00:01" "$E2E_AUTH_TOKEN"
-printf 'server serial=%s token=%s\\n' "FAKEserial0001" "$E2E_AUTH_TOKEN" > "$E2E_RAW_LOG_DIR/server.log"
+printf 'e2e stdout serial=%s numeric_serial=%s model=%s device=%s mac=%s token=%s\\n' \\
+  "emulator-5554" "1234567890" "FAKE_MODEL_X" "fake_device_x" "02:00:00:00:00:01" "$E2E_AUTH_TOKEN"
+printf 'e2e stderr serial=%s numeric_serial=%s mac=%s token=%s\\n' \\
+  "FAKEserial0001" "1234567890" "02:00:00:00:00:01" "$E2E_AUTH_TOKEN" >&2
+printf 'server serial=%s numeric_serial=%s token=%s\\n' \\
+  "FAKEserial0001" "1234567890" "$E2E_AUTH_TOKEN" > "$E2E_RAW_LOG_DIR/server.log"
 printf 'instrumentation emulator=%s\\n' "emulator-5556" > "$E2E_RAW_LOG_DIR/instrumentation.log"
+count="${FAKE_E2E_EXTRA_LINES:-0}"
+index=0
+while [ "$index" -lt "$count" ]; do
+  printf 'progress line %s\\n' "$index"
+  index=$((index + 1))
+done
 exit "${FAKE_E2E_STATUS:-0}"
 """
 
@@ -337,10 +349,18 @@ class E2EDiagnosticsTest(unittest.TestCase):
     def test_raw_log_is_not_published_when_sanitized_output_write_fails(self) -> None:
         source = self.raw_dir / "server.log"
         source.write_text(f"connected to 5554 token {TOKEN}\n", encoding="utf-8")
-        output = self.temp_dir / "safe-artifacts"
+        output = self.temp_dir / "caparao-e2e-logs"
+        output.mkdir()
+        (output / "stale.log").write_text(
+            f"serial={NUMERIC_SERIAL} token={RUN_TOKEN} mac={MAC}\n",
+            encoding="utf-8",
+        )
+        preserved_data = self.temp_dir / "user-data.txt"
+        preserved_data.write_text("preserve this sibling\n", encoding="utf-8")
         args = argparse.Namespace(
             log_dir=str(output),
             raw_dir=str(self.raw_dir),
+            managed_output_root=str(self.temp_dir),
             existing_safe_logs=False,
             only_file=["server.log"],
             adb=str(self.adb),
@@ -379,7 +399,30 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("Input/output error", stderr.getvalue())
         self.assertNotIn(str(self.temp_dir), stderr.getvalue())
         self.assertFalse(output.exists())
+        quarantined = list(self.raw_dir.glob("stale-artifacts-*"))
+        self.assertEqual(1, len(quarantined))
+        self.assertIn(RUN_TOKEN, (quarantined[0] / "stale.log").read_text(encoding="utf-8"))
+        self.assertEqual("preserve this sibling\n", preserved_data.read_text(encoding="utf-8"))
         self.assertEqual(f"connected to 5554 token {TOKEN}\n", source.read_text(encoding="utf-8"))
+
+    def test_prepare_output_rejects_arbitrary_target_without_mutating_it(self) -> None:
+        output = self.temp_dir / "user-data"
+        output.mkdir()
+        sentinel = output / "sentinel.txt"
+        sentinel.write_text("preserve this user data\n", encoding="utf-8")
+        args = argparse.Namespace(
+            log_dir=str(output),
+            raw_dir=str(self.raw_dir),
+            managed_output_root=str(self.temp_dir),
+        )
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            result = diagnostics.prepare_output(args)
+
+        self.assertEqual(1, result)
+        self.assertIn("not the managed E2E artifact directory", stderr.getvalue())
+        self.assertEqual("preserve this user data\n", sentinel.read_text(encoding="utf-8"))
 
     def test_no_androidruntime_errors_is_explicit(self) -> None:
         env = self.environment(
@@ -478,7 +521,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertTrue(result.truncated)
         self.assertLessEqual(len(result.output.encode("utf-8")), 1000)
 
-    def _make_e2e_repo(self) -> tuple:
+    def _make_e2e_repo(self, prepopulate_output: bool = False) -> tuple:
         repo = self.temp_dir / "repo"
         scripts = repo / "scripts"
         scripts.mkdir(parents=True)
@@ -488,9 +531,19 @@ class E2EDiagnosticsTest(unittest.TestCase):
         fake_e2e.write_text(FAKE_E2E, encoding="utf-8")
         fake_e2e.chmod(0o755)
         self._write_fake_adb(repo / "sdk")
-        logs = repo / "logs"
-        raw_logs = repo / "raw-logs"
+        runner_temp = repo / "runner-temp"
+        runner_temp.mkdir()
+        logs = runner_temp / "caparao-e2e-logs"
+        raw_logs = runner_temp / "caparao-e2e-raw-logs"
         raw_logs.mkdir()
+        preserved_data = runner_temp / "user-data.txt"
+        preserved_data.write_text("keep this sibling data\n", encoding="utf-8")
+        if prepopulate_output:
+            logs.mkdir()
+            (logs / "stale.log").write_text(
+                f"serial={NUMERIC_SERIAL} token={RUN_TOKEN} mac={MAC}\n",
+                encoding="utf-8",
+            )
         (raw_logs / "emulator.log").write_text(
             f"emulator preflight serial={OTHER_EMULATOR_SERIAL} model={EMULATOR_MODEL}\n",
             encoding="utf-8",
@@ -509,7 +562,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         )
         python_wrapper.chmod(0o755)
         openssl = bin_dir / "openssl"
-        openssl.write_text("#!/bin/sh\nprintf '1234567890123456\\n'\n", encoding="utf-8")
+        openssl.write_text(f"#!/bin/sh\nprintf '{RUN_TOKEN}\\n'\n", encoding="utf-8")
         openssl.chmod(0o755)
         fault_dir = repo / "fault-injection"
         fault_dir.mkdir()
@@ -519,28 +572,34 @@ class E2EDiagnosticsTest(unittest.TestCase):
             "_original_open = Path.open\n"
             "def _open(path, mode='r', *args, **kwargs):\n"
             "    if (os.environ.get('INJECT_DIAGNOSTIC_WRITE_FAILURE') == '1'\n"
-            "            and path.parent.name.startswith('.logs.') and 'w' in mode):\n"
+            "            and path.parent.name.startswith('.caparao-e2e-logs.') and 'w' in mode):\n"
             "        raise OSError(5, 'injected artifact write failure')\n"
             "    return _original_open(path, mode, *args, **kwargs)\n"
             "Path.open = _open\n",
             encoding="utf-8",
         )
         helper_args = repo / "helper-args.txt"
-        return repo, logs, raw_logs, bin_dir, helper_args, fault_dir
+        return repo, runner_temp, logs, raw_logs, preserved_data, bin_dir, helper_args, fault_dir
 
     def _run_e2e_ci(
         self,
         status: int,
         force: bool = False,
         fail_sanitization: bool = False,
+        prepopulate_output: bool = False,
+        extra_lines: int = 0,
     ) -> tuple:
-        repo, logs, raw_logs, bin_dir, helper_args, fault_dir = self._make_e2e_repo()
+        repo, runner_temp, logs, raw_logs, preserved_data, bin_dir, helper_args, fault_dir = (
+            self._make_e2e_repo(prepopulate_output=prepopulate_output)
+        )
         env = self.environment(
             ANDROID_HOME=str(repo / "sdk"),
-            E2E_LOG_DIR=str(logs),
+            RUNNER_TEMP=str(runner_temp),
             E2E_RAW_LOG_DIR=str(raw_logs),
             E2E_HELPER_ARGS_LOG=str(helper_args),
             FAKE_E2E_STATUS=str(status),
+            FAKE_E2E_EXTRA_LINES=str(extra_lines),
+            FAKE_ADB_DEVICES=DEVICES_OUTPUT + f"{NUMERIC_SERIAL} device\n",
             PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
         )
         if fail_sanitization:
@@ -556,7 +615,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
             text=True,
             timeout=60,
         )
-        return result, logs, raw_logs, helper_args
+        return result, logs, raw_logs, helper_args, preserved_data
 
     def _assert_uploaded_logs_are_sanitized(self, logs: Path, status: int, token: str) -> None:
         emulator = (logs / "emulator.log").read_text(encoding="utf-8")
@@ -574,13 +633,23 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertNotIn(token, argv)
         self.assertNotIn("--sensitive", argv)
 
+    def _assert_public_console_is_sanitized(self, result: subprocess.CompletedProcess, token: str) -> None:
+        console = result.stdout + result.stderr
+        for stream in (result.stdout, result.stderr):
+            for value in RAW_IDENTIFIERS + [NUMERIC_SERIAL, token]:
+                self.assertNotIn(value, stream)
+        self.assertIn("e2e stdout serial=<redacted>", console)
+        self.assertIn("mac=<mac-address>", console)
+
     def test_e2e_ci_failure_path_preserves_the_status_and_sanitizes_logs(self) -> None:
-        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=1)
+        result, logs, raw_logs, helper_args, _ = self._run_e2e_ci(status=1)
 
         self.assertEqual(1, result.returncode, result.stderr)
         token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self.assertEqual(RUN_TOKEN, token)
         self._assert_uploaded_logs_are_sanitized(logs, status=1, token=token)
         self._assert_helper_argv_does_not_contain_token(helper_args, token)
+        self._assert_public_console_is_sanitized(result, token)
         self.assertIn("e2e stdout", (logs / "e2e.log").read_text(encoding="utf-8"))
         self.assertIn("<redacted>", (logs / "e2e.log").read_text(encoding="utf-8"))
         runtime = (logs / "android-runtime.log").read_text(encoding="utf-8")
@@ -588,35 +657,64 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("filter AndroidRuntime:E *:S", runtime)
 
     def test_e2e_ci_success_path_preserves_the_status_and_sanitizes_logs(self) -> None:
-        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=0)
+        result, logs, raw_logs, helper_args, _ = self._run_e2e_ci(status=0)
 
         self.assertEqual(0, result.returncode, result.stderr)
         token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self.assertEqual(RUN_TOKEN, token)
         self._assert_uploaded_logs_are_sanitized(logs, status=0, token=token)
         self._assert_helper_argv_does_not_contain_token(helper_args, token)
+        self._assert_public_console_is_sanitized(result, token)
         self.assertIn("e2e stdout", (logs / "e2e.log").read_text(encoding="utf-8"))
         self.assertFalse((logs / "android-runtime.log").exists())
 
     def test_e2e_ci_forced_failure_uploads_sanitized_useful_logs(self) -> None:
-        result, logs, raw_logs, helper_args = self._run_e2e_ci(status=0, force=True)
+        result, logs, raw_logs, helper_args, _ = self._run_e2e_ci(status=0, force=True)
 
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn("Intentional failure after E2E passed", result.stderr)
         token = (raw_logs / "expected-token").read_text(encoding="utf-8")
+        self.assertEqual(RUN_TOKEN, token)
         self._assert_uploaded_logs_are_sanitized(logs, status=1, token=token)
         self._assert_helper_argv_does_not_contain_token(helper_args, token)
+        self._assert_public_console_is_sanitized(result, token)
         e2e_log = (logs / "e2e.log").read_text(encoding="utf-8")
         self.assertIn("e2e stdout", e2e_log)
         self.assertIn("<redacted>", e2e_log)
 
     def test_e2e_ci_sanitization_write_failure_keeps_raw_logs_out_of_artifact_path(self) -> None:
-        result, logs, raw_logs, _ = self._run_e2e_ci(status=1, fail_sanitization=True)
+        result, logs, raw_logs, _, preserved_data = self._run_e2e_ci(
+            status=1,
+            fail_sanitization=True,
+            prepopulate_output=True,
+        )
 
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn("could not sanitize", result.stderr)
         self.assertIn("no raw logs were published", result.stderr)
         self.assertFalse(logs.exists())
-        self.assertIn(EMULATOR_SERIAL, (raw_logs / "e2e.log").read_text(encoding="utf-8"))
+        console_log = (raw_logs / "e2e.log").read_text(encoding="utf-8")
+        self.assertIn("serial=<redacted>", console_log)
+        self.assertNotIn(EMULATOR_SERIAL, console_log)
+        self.assertIn(RUN_TOKEN, (raw_logs / "server.log").read_text(encoding="utf-8"))
+        quarantined = list(raw_logs.glob("stale-artifacts-*"))
+        self.assertEqual(1, len(quarantined))
+        self.assertIn(RUN_TOKEN, (quarantined[0] / "stale.log").read_text(encoding="utf-8"))
+        self.assertEqual("keep this sibling data\n", preserved_data.read_text(encoding="utf-8"))
+        self._assert_public_console_is_sanitized(result, RUN_TOKEN)
+
+    def test_e2e_ci_console_output_is_bounded_while_child_output_is_fully_drained(self) -> None:
+        result, logs, raw_logs, _, _ = self._run_e2e_ci(status=0, extra_lines=20000)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("E2E output truncated", result.stdout)
+        self.assertIn("progress line 19999", result.stdout)
+        self.assertLessEqual(
+            len((result.stdout + result.stderr).encode("utf-8")),
+            diagnostics.DEFAULT_CONSOLE_BYTE_LIMIT + 2048,
+        )
+        self.assertTrue((logs / "e2e.log").exists())
+        self.assertTrue((raw_logs / "e2e.log").exists())
 
     def test_e2e_script_failure_captures_runtime_log_and_preserves_exit_status(self) -> None:
         repo = self.temp_dir / "actual-e2e"
@@ -679,7 +777,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("intentional fake build failure", result.stderr)
 
     def test_e2e_ci_sanitization_failure_does_not_turn_a_pass_into_failure(self) -> None:
-        result, logs, _, _ = self._run_e2e_ci(status=0, fail_sanitization=True)
+        result, logs, _, _, _ = self._run_e2e_ci(status=0, fail_sanitization=True)
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("no raw logs were published", result.stderr)
