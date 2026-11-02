@@ -20,7 +20,6 @@
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Nenhum preparo ainda</string>
     <string name="widget_empty_text">Os preparos salvos aparecem aqui.</string>
-    <string name="widget_next_suggestion">Próximo: %1$s</string>
     <string name="widget_saved_today">Salvo hoje</string>
     <string name="widget_saved_yesterday">Salvo ontem</string>
     <plurals name="widget_saved_days">

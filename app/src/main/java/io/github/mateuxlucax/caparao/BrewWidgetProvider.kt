@@ -62,26 +62,29 @@ class BrewWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.widget_brew)
         val mode = latest?.mode
         val suggestedMode = mode?.let(::suggestedModeAfter)
+        val icon = when (mode) {
+            BrewMode.FILTER -> R.drawable.ic_coffee_maker
+            BrewMode.ESPRESSO, null -> R.drawable.ic_coffee
+        }
+        views.setImageViewResource(R.id.widget_method_icon, icon)
         val shortcut = shortcutForWidget(mode)
         if (latest == null) {
-            views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
+            views.setViewVisibility(R.id.widget_title, View.GONE)
             views.setViewVisibility(R.id.widget_last_brew, View.GONE)
-            views.setViewVisibility(R.id.widget_empty_text, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_next, View.GONE)
-            views.setTextViewText(R.id.widget_action, context.getString(R.string.widget_choose_method))
+            views.setViewVisibility(R.id.widget_empty_content, View.VISIBLE)
+            views.setTextViewText(R.id.widget_empty_title, context.getString(R.string.widget_empty_title))
+            views.setTextViewText(R.id.widget_empty_text, context.getString(R.string.widget_empty_text))
         } else {
             views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_last_brew_title))
+            views.setViewVisibility(R.id.widget_title, View.VISIBLE)
             views.setViewVisibility(R.id.widget_last_brew, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_empty_text, View.GONE)
-            views.setViewVisibility(R.id.widget_next, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_empty_content, View.GONE)
             views.setTextViewText(R.id.widget_method, context.getString(latest.mode.label))
             views.setTextViewText(R.id.widget_age, savedAge(context, latest, now))
-            views.setTextViewText(
-                R.id.widget_next,
-                context.getString(R.string.widget_next_suggestion, context.getString(requireNotNull(suggestedMode).labelForWidgetAction())),
-            )
-            views.setTextViewText(R.id.widget_action, context.getString(actionLabel(suggestedMode)))
         }
+        val actionLabel = context.getString(actionLabel(suggestedMode))
+        views.setTextViewText(R.id.widget_action_label, actionLabel)
+        views.setContentDescription(R.id.widget_action, actionLabel)
         val intent = Intent(context, MainActivity::class.java)
             .setAction(shortcut.action)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -94,8 +97,6 @@ class BrewWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_action, pendingIntent)
         return views
     }
-
-    private fun BrewMode.labelForWidgetAction(): Int = if (this == BrewMode.FILTER) R.string.mode_filter else R.string.mode_espresso
 
     private fun actionLabel(mode: BrewMode?): Int = when {
         mode == null -> R.string.widget_choose_method
