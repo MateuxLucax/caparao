@@ -1,9 +1,11 @@
 # Recorded sessions
 
-Real Timemore Dot sessions captured with the stage 0 probe ([docs/spike.md](../../../../../docs/spike.md)), used as
-test fixtures ([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). One JSON object per line: a header, then
+Real Timemore Dot sessions captured with the removed stage 0 probe or with
+[`scripts/capture-session.py`](../../../../../docs/capture.md), used as test fixtures
+([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). One JSON object per line: a header, then
 `{"t_ms", "dir": "rx"|"tx"|"event", "hex", "note"}`. `rx` lines are notifications exactly as received, so one line may
-hold several frames. No MAC address or device name is recorded.
+hold several frames. No MAC address or device name is recorded. Raw captures stay in the ignored `spike-captures/`
+until reviewed.
 
 | File | Phone | What happened |
 |------|-------|---------------|

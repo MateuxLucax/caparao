@@ -8,6 +8,11 @@ local.properties
 .idea/
 *.iml
 .kotlin/
+
+# Python capture tool
+.venv/
+__pycache__/
+*.pyc
 captures/
 .externalNativeBuild/
 .cxx/

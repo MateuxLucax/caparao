@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.data.scale
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 
@@ -11,13 +12,36 @@ import java.io.File
  * notification, exactly as they arrived.
  */
 class RecordedSessionTest {
-    private fun decode(name: String): List<ScaleMessage> {
-        // Unit tests run in the module directory.
-        val lines = File("src/test/resources/sessions/$name.jsonl").readLines().drop(1).map(::JSONObject)
+    private fun decode(file: File): List<ScaleMessage> {
+        val lines = file.readLines().drop(1).map(::JSONObject)
         val decoder = FrameDecoder()
         return lines.filter { it.getString("dir") == "rx" }.flatMap { line ->
             decoder.feed(line.getString("hex").split(' ').map { it.toInt(16).toByte() }.toByteArray())
         }
+    }
+
+    private fun decode(name: String): List<ScaleMessage> {
+        // Unit tests run in the module directory.
+        return decode(File("src/test/resources/sessions/$name.jsonl"))
+    }
+
+    /**
+     * Opt-in check for a fresh capture without copying or editing it:
+     * `CAPARAO_CAPTURE=/absolute/path/session.jsonl ./gradlew --no-build-cache --rerun-tasks
+     * :app:testDebugUnitTest --tests '*RecordedSessionTest'`. Forcing the run matters because Gradle does not track
+     * the environment variable as a task input.
+     */
+    @Test
+    fun externalCaptureContainsOnlyKnownFrames() {
+        val path = System.getenv("CAPARAO_CAPTURE")
+        assumeTrue("set CAPARAO_CAPTURE to a captured .jsonl file", path != null)
+        val messages = decode(File(path!!))
+        assertTrue("the capture has no rx notifications", messages.isNotEmpty())
+        assertEquals(
+            "frames the decoder did not understand",
+            emptyList<ScaleMessage>(),
+            messages.filterIsInstance<ScaleMessage.Unknown>(),
+        )
     }
 
     @Test
