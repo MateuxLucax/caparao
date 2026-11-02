@@ -62,6 +62,10 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.free_brew)).performClick()
             compose.onNodeWithText(text(R.string.next)).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.tare)), 10_000)
+            compose.waitForIdle()
+            // AnimatedContent can keep the outgoing DoseStep's Next semantics during its transition.
+            compose.waitUntilDoesNotExist(hasText(text(R.string.ratio_caption)), 10_000)
+            compose.waitForIdle()
             // The replay has not started, so Next keeps the planned 18 g dose.
             compose.onNodeWithText(text(R.string.next)).performClick()
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
@@ -70,15 +74,18 @@ class EndToEndTest {
                 compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 10_000)
             }.exceptionOrNull()
             if (liveStepError != null) {
+                val visibleSteps = listOf(R.string.ratio_caption, R.string.weigh_beans_title, R.string.tare, R.string.cup_on)
+                    .filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
+                    .map { text(it) }
                 throw AssertionError(
-                    "The live step did not appear before replay: scale=${replay.state.value}, reading=${replay.reading.value}",
+                    "The live step did not appear before replay: visible=$visibleSteps, " +
+                        "scale=${replay.state.value}, reading=${replay.reading.value}",
                     liveStepError,
                 )
             }
             replay.resume()
-            // Allow scheduling overhead while the emulator replays the fixture at its recorded pace.
             val savedError = runCatching {
-                compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 90_000)
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
             }.exceptionOrNull()
             if (savedError != null) {
                 val savedCount = runBlocking(Dispatchers.IO) { dao.all().size }
