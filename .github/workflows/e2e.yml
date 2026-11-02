@@ -63,7 +63,10 @@ jobs:
           sudo udevadm control --reload-rules
 
       - name: Prepare E2E logs
-        run: mkdir -p "$RUNNER_TEMP/caparao-e2e-logs"
+        run: |
+          mkdir -p "$RUNNER_TEMP/caparao-e2e-logs"
+          printf 'Emulator startup diagnostics; see the emulator-runner step in the Actions log.\n' \
+            > "$RUNNER_TEMP/caparao-e2e-logs/emulator.log"
 
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
@@ -75,15 +78,24 @@ jobs:
           arch: x86_64
           channel: stable
           emulator-boot-timeout: 600
-          script: |
-            bash -euo pipefail <<'BASH'
-            logs="$RUNNER_TEMP/caparao-e2e-logs"
-            E2E_LOG_DIR="$logs" E2E_PORT=8099 scripts/e2e.sh 2>&1 | tee "$logs/e2e.log"
-            if [ "$E2E_FORCE_FAILURE" = "true" ]; then
-              echo "Intentional failure after E2E passed, to verify failure log upload." >&2
-              exit 1
+          script: bash scripts/e2e-ci.sh
+
+      - name: Capture emulator diagnostics
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          adb="$ANDROID_HOME/platform-tools/adb"
+          {
+            printf '\nPost-run emulator diagnostics\n'
+            "$adb" devices -l
+            serial="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
+            if [ -n "$serial" ]; then
+              "$adb" -s "$serial" logcat -d -v threadtime -t 5000
+            else
+              echo "No emulator serial was available for logcat."
             fi
-            BASH
+          } >> "$RUNNER_TEMP/caparao-e2e-logs/emulator.log" 2>&1 || true
 
       - name: Upload end-to-end failure logs
         if: failure()
