@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.widget
 
+import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import java.time.Instant
@@ -31,3 +32,7 @@ internal fun brewAge(endAtMs: Long, nowMs: Long, zone: ZoneId): BrewAge {
         else -> BrewAge.DaysAgo(days.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
     }
 }
+
+/** The widget treats a brew as ending at its saved start plus its recorded duration. */
+internal fun brewAge(brew: Brew, nowMs: Long, zone: ZoneId): BrewAge =
+    brewAge(brew.startedAt + brew.durationMs, nowMs, zone)

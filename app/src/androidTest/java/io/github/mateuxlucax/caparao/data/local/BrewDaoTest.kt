@@ -39,6 +39,17 @@ class BrewDaoTest {
     }
 
     @Test
+    fun latestFallsBackToTheNextBrewAfterDeletingTheNewest() = runBlocking {
+        dao.insertWithSamples(brew("older", "FILTER", 1), samples("older"))
+        dao.insertWithSamples(brew("newest", "ESPRESSO", 2), samples("newest"))
+        assertEquals("newest", dao.latest()?.id)
+
+        dao.delete("newest")
+
+        assertEquals("older", dao.latest()?.id)
+    }
+
+    @Test
     fun deleteCascadesToSamples() = runBlocking {
         dao.insertWithSamples(brew("a", "ESPRESSO", 1), samples("a"))
         dao.delete("a")

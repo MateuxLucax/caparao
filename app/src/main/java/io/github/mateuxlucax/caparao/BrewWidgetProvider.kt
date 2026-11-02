@@ -13,6 +13,7 @@ import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.widget.BrewAge
+import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetRefresh
 import io.github.mateuxlucax.caparao.ui.widget.brewAge
 import io.github.mateuxlucax.caparao.ui.widget.shortcutForWidget
 import io.github.mateuxlucax.caparao.ui.widget.suggestedModeAfter
@@ -42,9 +43,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val latest = (context.applicationContext as CaparaoApplication).container.brews.latest()
-                val now = System.currentTimeMillis()
-                appWidgetIds.forEach { id -> manager.updateAppWidget(id, views(context, id, latest, now)) }
+                BrewWidgetRefresh.run(
+                    read = { (context.applicationContext as CaparaoApplication).container.brews.latest() },
+                    publish = { latest ->
+                        val now = System.currentTimeMillis()
+                        appWidgetIds.forEach { id -> manager.updateAppWidget(id, views(context, id, latest, now)) }
+                    },
+                )
             } catch (failure: Exception) {
                 Log.w(TAG, "Brew widget refresh failed", failure)
             } finally {
@@ -53,7 +58,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun views(context: Context, appWidgetId: Int, latest: Brew?, now: Long): RemoteViews {
+    internal fun views(context: Context, appWidgetId: Int, latest: Brew?, now: Long): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_brew)
         val mode = latest?.mode
         val suggestedMode = mode?.let(::suggestedModeAfter)
@@ -70,7 +75,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(R.id.widget_empty_text, View.GONE)
             views.setViewVisibility(R.id.widget_next, View.VISIBLE)
             views.setTextViewText(R.id.widget_method, context.getString(latest.mode.label))
-            views.setTextViewText(R.id.widget_age, savedAge(context, latest.startedAt + latest.durationMs, now))
+            views.setTextViewText(R.id.widget_age, savedAge(context, latest, now))
             views.setTextViewText(
                 R.id.widget_next,
                 context.getString(R.string.widget_next_suggestion, context.getString(requireNotNull(suggestedMode).labelForWidgetAction())),
@@ -98,7 +103,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         else -> R.string.widget_brew_espresso
     }
 
-    private fun savedAge(context: Context, endAtMs: Long, nowMs: Long): String = when (val age = brewAge(endAtMs, nowMs, ZoneId.systemDefault())) {
+    private fun savedAge(context: Context, brew: Brew, nowMs: Long): String = when (val age = brewAge(brew, nowMs, ZoneId.systemDefault())) {
         BrewAge.Today -> context.getString(R.string.widget_saved_today)
         BrewAge.Yesterday -> context.getString(R.string.widget_saved_yesterday)
         is BrewAge.DaysAgo -> context.resources.getQuantityString(R.plurals.widget_saved_days, age.days, age.days)
