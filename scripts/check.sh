@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Local gate before pushing: JVM unit tests, Android lint, debug build, a compile of the instrumented tests, the stub
-# server's tests against contract/ and a secret scan. Mirrors the CI job, so a green run here should be a green run there (#99).
+# Local gate before pushing: JVM unit tests, Android lint, debug build, a compile of the instrumented tests, the capture
+# script's tests, the stub server's tests against contract/ and a secret scan. Mirrors the CI job, so a green run here
+# should be a green run there (#99).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 start=$(date +%s)
 ./gradlew --console=plain createDebugUnitTestCoverageReport :wear:testDebugUnitTest :wearlink:test lintDebug assembleDebug compileDebugAndroidTestKotlin
+python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 (cd stub && go vet ./... && go test ./...)
 
 if command -v gitleaks >/dev/null; then

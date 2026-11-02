@@ -5,6 +5,7 @@
 | [roadmap.md](roadmap.md) | The eleven stages (0–10), what each delivers and its acceptance criteria |
 | [architecture.md](architecture.md) | System context, components, code structure and package rules |
 | [hardware.md](hardware.md) | The Timemore Dot's BLE protocol and what is still to be confirmed on the device |
+| [capture.md](capture.md) | Recording real Dot sessions with `scripts/capture-session.py` for replay and fixtures |
 | [copy.md](copy.md) | How the app talks: voice, terminology (EN and pt-BR) and patterns for buttons, errors and empty states |
 | [data.md](data.md) | Upload contract (files in [contract/](../contract/README.md)) and on-device data |
 | [acceptance/](acceptance/README.md) | Manual acceptance scripts and the record of each run |
