@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.brew.BrewScreen
@@ -124,20 +125,28 @@ private fun Main(
     var coffees by rememberSaveable { mutableStateOf(false) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    // The open brew's close action, registered by its screen: a shortcut that leaves a brew ends it, so its ViewModel
-    // stops listening to the scale instead of finishing a hidden brew. Kept after the brew closes (ending twice is
-    // harmless) and never cleared on dispose: AnimatedContent keeps the outgoing brew composed during the transition,
-    // and clearing there would drop the incoming brew's action.
-    val closeBrew = remember { mutableStateOf<(() -> Unit)?>(null) }
+    // The brew screen on top of the tabs, registered by it: a shortcut compares against it before closing anything.
+    // Kept until close() runs: AnimatedContent still keeps the outgoing brew composed during the transition.
+    val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
     LaunchedEffect(shortcut) {
         val requested = shortcut?.destination ?: return@LaunchedEffect
+        val open = openBrew.value
+        // A brew in progress is never interrupted: the shortcut is consumed and the brew stays, whichever one it was.
+        if (open?.running() == true) {
+            onShortcutConsumed()
+            return@LaunchedEffect
+        }
+        // The open mode keeps its screen, its ViewModel and its scale listener instead of being ended and reopened.
+        if (open != null && requested == ShortcutDestination.Brew(open.mode)) {
+            onShortcutConsumed()
+            return@LaunchedEffect
+        }
         opened = null
         editing = null
         comparing = null
         trends = null
         coffees = false
-        val close = closeBrew.value
-        if (close != null) close() else brewing = null
+        if (open != null) open.close() else brewing = null
         when (requested) {
             is ShortcutDestination.Brew -> brewing = requested.mode
             ShortcutDestination.Brews -> tab = Tab.BREWS
@@ -175,18 +184,19 @@ private fun Main(
                 // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
                 // listening to the scale; a rotation keeps the brew going.
                 val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
-                LaunchedEffect(brew) { brew.begin() }
-                DisposableEffect(brew) {
-                    closeBrew.value = {
+                val close = remember(brew) {
+                    {
                         brew.end()
                         brewing = null
+                        openBrew.value = null
                     }
+                }
+                LaunchedEffect(brew) { brew.begin() }
+                DisposableEffect(brew) {
+                    openBrew.value = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING }, close = close)
                     onDispose {}
                 }
-                BrewScreen(brew) {
-                    brew.end()
-                    brewing = null
-                }
+                BrewScreen(brew, onClose = close)
             }
             is Destination.Recipe -> {
                 val target = shown.key.split(':', limit = 2).let { (kind, value) ->
@@ -208,6 +218,12 @@ private fun Main(
         }
     }
 }
+
+/**
+ * The brew screen on top of the tabs (#116): its [mode], whether it is [running], and how to [close] it. A launcher
+ * shortcut consults it before ending a brew or reopening a mode that is already on screen.
+ */
+private class OpenBrew(val mode: BrewMode, val running: () -> Boolean, val close: () -> Unit)
 
 /** What fills the screen under [Main]. */
 private sealed interface Destination {
