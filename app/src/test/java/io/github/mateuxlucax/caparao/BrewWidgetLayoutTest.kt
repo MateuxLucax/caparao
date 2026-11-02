@@ -44,15 +44,29 @@ class BrewWidgetLayoutTest {
 
                     val iconContainer = root.findViewById<View>(R.id.widget_method_icon_container)
                     val methodIcon = root.findViewById<View>(R.id.widget_method_icon)
-                    val minimumIconClearance = (8 * base.resources.displayMetrics.density).roundToInt()
-                    assertTrue("icon left clearance", methodIcon.left >= minimumIconClearance)
+                    // The 56 dp container around the 32 dp icon leaves 12 dp on every side: the PR's clearance.
+                    val requiredIconClearance = (12 * base.resources.displayMetrics.density).roundToInt()
+                    assertTrue(
+                        "icon left clearance ${methodIcon.left}px, expected at least ${requiredIconClearance}px",
+                        methodIcon.left >= requiredIconClearance,
+                    )
                     assertTrue(
                         "icon top clearance: container=${iconContainer.height}, icon=${methodIcon.height}, " +
-                            "top=${methodIcon.top}, min=$minimumIconClearance",
-                        methodIcon.top >= minimumIconClearance,
+                            "top=${methodIcon.top}, min=$requiredIconClearance",
+                        methodIcon.top >= requiredIconClearance,
                     )
-                    assertTrue("icon right clearance", iconContainer.width - methodIcon.right >= minimumIconClearance)
-                    assertTrue("icon bottom clearance", iconContainer.height - methodIcon.bottom >= minimumIconClearance)
+                    assertTrue(
+                        "icon right clearance ${iconContainer.width - methodIcon.right}px, " +
+                            "expected at least ${requiredIconClearance}px",
+                        iconContainer.width - methodIcon.right >= requiredIconClearance,
+                    )
+                    assertTrue(
+                        "icon bottom clearance ${iconContainer.height - methodIcon.bottom}px, " +
+                            "expected at least ${requiredIconClearance}px",
+                        iconContainer.height - methodIcon.bottom >= requiredIconClearance,
+                    )
+                    assertEquals("icon centered horizontally", methodIcon.left, iconContainer.width - methodIcon.right)
+                    assertEquals("icon centered vertically", methodIcon.top, iconContainer.height - methodIcon.bottom)
 
                     val action = root.findViewById<View>(R.id.widget_action)
                     assertTrue("$locale night=$night action height ${action.height}", action.height >= minimumActionHeight)

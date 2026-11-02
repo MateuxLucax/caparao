@@ -3,10 +3,18 @@ package io.github.mateuxlucax.caparao.ui.screens
 import android.content.Context
 import android.os.Looper
 import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.key
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.longClick
@@ -14,6 +22,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
@@ -21,6 +31,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
+import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
@@ -78,9 +89,10 @@ import java.util.TimeZone
 
 /**
  * The images in docs/screenshots, rendered on the JVM (Robolectric and Roborazzi) instead of an emulator: the
- * onboarding, every tab, an espresso, the espresso guide and a filter brew, in one language and theme per subclass.
- * The recorded sessions are played frame by frame ([SessionScale]), so every image comes from the same point of the
- * session on every run. Runs only from scripts/screenshots.sh (`-Pscreenshots`); a plain test run skips it.
+ * onboarding, every tab, an espresso, the espresso guide, a filter brew and the home-screen widget, in one language
+ * and theme per subclass. The recorded sessions are played frame by frame ([SessionScale]), so every image comes from
+ * the same point of the session on every run. Runs only from scripts/screenshots.sh (`-Pscreenshots`); a plain test run
+ * skips it.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -181,6 +193,31 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
         capture("recipe-editor")
+    }
+
+    /** The home-screen widget in docs/screenshots/widget: saved and empty at the declared 180x176 dp minimum. */
+    @Test
+    fun widget() {
+        var latest by mutableStateOf<Brew?>(
+            Brew("screenshot-widget", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false),
+        )
+        // A neutral home screen behind the widget, so its rounded shape reads in both themes.
+        val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
+        compose.setContent {
+            Box(Modifier.background(wallpaper)) {
+                key(latest) {
+                    AndroidView(
+                        factory = { BrewWidgetProvider().views(context, 1, latest, 28_000L).apply(context, null) },
+                        modifier = Modifier.size(180.dp, 176.dp).testTag("widget"),
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("widget").captureRoboImage("../docs/screenshots/widget/$lang/saved-$theme.png", OPTIONS)
+        latest = null
+        compose.waitForIdle()
+        compose.onNodeWithTag("widget").captureRoboImage("../docs/screenshots/widget/$lang/empty-$theme.png", OPTIONS)
     }
 
     /** The coffees screen from Settings, with an open bag and a finished one (#110). */
