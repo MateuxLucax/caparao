@@ -9,9 +9,22 @@ schema). The user writes in Portuguese; code, commits and docs are in English, a
 ## Tracking
 
 GitHub Issues are the only tracker and the only decision log. Labels: `decision`, `data`, `feature`, `tooling`,
-`validation`, `infra`, `documentation`; one milestone per release (`0.3.0` and up). A new decision is an issue labelled
+`validation`, `infra`, `documentation`, plus `agent-ready` (a worker can pick it up once its dependencies are merged)
+and `needs-user` (depends on the user or a real device). One milestone per release (`0.3.0` and up): the milestone's
+last PR sets `VERSION` (`0.3`), so automatic releases come out as `0.3.N`. A new decision is an issue labelled
 `decision`, closed when implemented or superseded, and every PR links the issue it closes. There are no ADRs in the
 repository: decisions 0001–0026 were archived as closed issues #85–#110.
+
+## Agents
+
+Workers run on the Mac through Orca, one worktree per issue (`orca worktree create --issue <n>`).
+
+- Pick only `agent-ready` issues whose dependencies are merged. Stop and ask instead of reopening a decision.
+- Open a PR and never merge: the user merges, because every green push to `main` is a release.
+- `scripts/check.sh` and JVM tests can run in parallel. **The emulator is one worker at a time**: worktrees install the
+  same `.debug` package, so a second worker breaks the first one's test.
+- Attach with `orca emulator attach` (AVDs `Pixel_10_Pro_XL`, `Wear_OS_XL_Round`) and always set `ANDROID_SERIAL`, so
+  nothing reaches the phone. Set `E2E_PORT` for `scripts/e2e.sh` when another server is running.
 
 ## Public repository
 
@@ -25,8 +38,8 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 - Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
   with Roborazzi: no emulator, it runs in the cloud too. Cloud sessions build and test with the Android SDK setup script;
   the Mac is only for the emulator and real devices.
-- Emulator `emulator-5554` for instrumented tests and `scripts/e2e.sh` only; with the phone also plugged in,
-  set `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
+- The emulator is for instrumented tests, `scripts/e2e.sh` and on-device checks; with the phone also plugged in, set
+  `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
 - Debug builds are `io.github.mateuxlucax.caparao.debug` ("Caparaó dev") and install next to releases.
 

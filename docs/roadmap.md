@@ -13,11 +13,11 @@ delivered; pending work and new decisions live in the [issues](https://github.co
 | 3 | Brews | Done in code: detectors, dose, Room, brew screen; device run of [acceptance/brews.md](acceptance/brews.md) and real recordings pending |
 | 4 | Brew history | List, detail with Canvas chart and delete done; performance check on a phone pending |
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
-| 6 | Release and end-to-end test | Done: `scripts/e2e.sh` passes locally; Release runs automatically on a green `main` (v0.1.39), R8; an e2e run in CI still needs an emulator on the runner |
+| 6 | Release and end-to-end test | Done: `scripts/e2e.sh` passes locally; Release runs automatically on a green `main`, R8; an e2e run in CI still needs an emulator on the runner |
 | 7 | Recipes, guided brew, metadata and comparison | Done: recipes, guided brew, notes and rating, compare and trends (PRs #29–#33, #35, #38–#40, #42) |
 | 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deployed on the home server with a brew with notes validated ([#82](https://github.com/MateuxLucax/caparao/issues/82)) |
 | 9 | Watch companion | Done: mirror, tare and timer, ongoing activity, guided step and pace, vibration (phone / watch / both), finish alert and the watch APK in every release; approved on 30/10 |
-| 10 | French press mode | Not started ([#81](https://github.com/MateuxLucax/caparao/issues/81)) |
+| 10 | French press mode | Decided, not started: its own `BrewMode` ([#81](https://github.com/MateuxLucax/caparao/issues/81)) |
 
 ## 0. Hardware spike
 
@@ -224,5 +224,6 @@ Open refinements from the decision: a tile or complication, and starting a brew 
 
 ## 10. French press mode
 
-A recipe with steps: add the coffee, pour 100 g, wait until 1:00, pour the rest, wait until 4:00. The ratio is shown
-as water for coffee, for example 300 g of water for 20 g of coffee (1:15). Needs its own issue before the code.
+Its own `BrewMode`, contract value `french_press`, with a built-in recipe: 20 g of coffee, bloom to 100 g, wait until
+1:00, pour to 300 g, wait until 4:00, then finish with Done (1:15). The decision and the work are in
+[#81](https://github.com/MateuxLucax/caparao/issues/81).
