@@ -35,7 +35,7 @@ class BrewWidgetLayoutTest {
                 val context = configured(base, locale, night)
                 for (latest in listOf(brew, null)) {
                     assertContrast(context)
-                    val root = BrewWidgetProvider().views(context, 123, latest, 28_000L).apply(context, null)
+                    val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
                     root.measure(
                         View.MeasureSpec.makeMeasureSpec(minWidth, View.MeasureSpec.EXACTLY),
                         View.MeasureSpec.makeMeasureSpec(minHeight, View.MeasureSpec.EXACTLY),
@@ -88,7 +88,6 @@ class BrewWidgetLayoutTest {
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
-                        assertNoEllipsis(root.findViewById(R.id.widget_age), locale, night)
                     }
                 }
             }

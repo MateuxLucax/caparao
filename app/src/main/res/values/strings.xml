@@ -23,12 +23,6 @@
     <string name="widget_description">Latest saved brew and a suggestion for the next one</string>
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
-    <string name="widget_saved_today">Saved today</string>
-    <string name="widget_saved_yesterday">Saved yesterday</string>
-    <plurals name="widget_saved_days">
-        <item quantity="one">Saved %1$d day ago</item>
-        <item quantity="other">Saved %1$d days ago</item>
-    </plurals>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_coffee">Brew a coffee</string>

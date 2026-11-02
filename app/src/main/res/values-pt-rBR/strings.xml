@@ -19,13 +19,6 @@
     <string name="widget_description">Último preparo salvo e uma sugestão para o próximo</string>
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Você ainda não fez café</string>
-    <string name="widget_saved_today">Salvo hoje</string>
-    <string name="widget_saved_yesterday">Salvo ontem</string>
-    <plurals name="widget_saved_days">
-        <item quantity="one">Salvo há %1$d dia</item>
-        <item quantity="many">Salvo há %1$d dias</item>
-        <item quantity="other">Salvo há %1$d dias</item>
-    </plurals>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_coffee">Passar um café</string>

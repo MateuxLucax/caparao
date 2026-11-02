@@ -60,15 +60,6 @@
                     android:textColor="@color/widget_primary_text"
                     android:textSize="20sp"
                     android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/widget_age"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textColor="@color/widget_secondary_text"
-                    android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout

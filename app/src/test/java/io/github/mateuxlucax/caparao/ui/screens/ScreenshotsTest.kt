@@ -207,7 +207,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             Box(Modifier.background(wallpaper)) {
                 key(latest) {
                     AndroidView(
-                        factory = { BrewWidgetProvider().views(context, 1, latest, 28_000L).apply(context, null) },
+                        factory = { BrewWidgetProvider().views(context, 1, latest).apply(context, null) },
                         modifier = Modifier.size(180.dp, 176.dp).testTag("widget"),
                     )
                 }
