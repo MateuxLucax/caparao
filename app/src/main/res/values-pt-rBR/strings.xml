@@ -16,12 +16,21 @@
     <string name="mode_espresso">Espresso</string>
 
     <!-- Widget da tela inicial -->
-    <string name="widget_description">Último preparo salvo e uma sugestão para o próximo</string>
+    <string name="widget_description">Último preparo ou resumo dos últimos 7 dias</string>
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_coffee">Passar um café</string>
+    <string name="widget_weekly_title">Últimos 7 dias</string>
+    <string name="widget_weekly_estimates">Estimativas da bebida preparada e da cafeína</string>
+    <string name="widget_weekly_empty">Nenhum preparo nesta semana</string>
+    <string name="widget_weekly_brews">Preparos</string>
+    <string name="widget_weekly_beverage">Bebida</string>
+    <string name="widget_weekly_dose">Dose</string>
+    <string name="widget_weekly_caffeine">Cafeína</string>
+    <string name="widget_weekly_chart_description">Preparos por dia: %1$s</string>
+    <string name="widget_amount_with_unit">%1$s %2$s</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
@@ -261,6 +270,8 @@
     <string name="ratio_more">Mais água</string>
     <string name="water_field">Água em ml</string>
     <string name="unit_ml">ml</string>
+    <string name="unit_l">L</string>
+    <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Cafés</string>
     <string name="coffees_empty">Adicione os pacotes que você tem para ver quanto resta e há quantos dias foram torrados. Escolha um como café depois de uma extração.</string>

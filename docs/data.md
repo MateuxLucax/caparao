@@ -56,3 +56,38 @@ Settings → Export writes `cache/exports/caparao-export.zip` with `brews.json` 
 receiving app read access, so no storage permission is needed and the export uploads nothing by itself.
 
 All of it is excluded from cloud backups and device transfers.
+
+## Weekly widget estimates (#136)
+
+The expanded home-screen widget covers the last seven **local calendar dates**, including today. A brew belongs to the
+date of its end instant (`started_at + duration_ms`); interrupted brews count and use their recorded dose and yield. The
+query reads `brews` only, not `brew_samples`.
+
+- Beverage volume is an estimate: espresso yield at about 1 g ≈ 1 ml; filter water poured minus about 2 g of retained
+  water per gram of dose, clamped to zero. The current model stores poured water for filter brews.
+- Caffeine is an estimate of the **beverage brewed**, not caffeine consumed or a health measure: dose × 7 mg/g for
+  espresso, or × 11 mg/g for filter. The app does not know coffee variety, roast, decaf status or extraction. These
+  product factors assume regular coffee and vary from brew to brew.
+- The caffeine factors are estimates, not universal measurements. Arabica espresso studies report roughly 8.4–9.5 mg/g
+  of dose; filter results vary by method, roughly 8.4–12.8 mg/g, with V60 around 10.2 mg/g. The 7 mg/g espresso value is
+  a conservative product choice; 11 mg/g is a rough central filter estimate. Robusta can be about twice the Arabica
+  caffeine per gram in a brewed serving. Angeloni et al.'s French-press preparation measured about 6.9 mg/g, supporting
+  a separate rounded 7 mg/g estimate when that mode lands. It was one recipe, not a universal French-press factor.
+- For Angeloni et al.'s espresso comparison, the beverage concentration × beverage mass is used: its Table 4 mg/g
+  entries conflict with those values, while the V60 and French-press results are internally consistent.
+- The 2 g/g retention assumption is approximate: a drip-brewing model uses about 2.1 g/g, while a full-immersion
+  mass-balance study measured 2.48 ± 0.19 g/g. The 2 g/g value is a reasonable estimate, not an exact per-brew
+  measurement. French press will use the same 2 g/g volume retention once its mode is added.
+
+Primary sources:
+
+- [Ludwig et al. (2014), *Variations in caffeine and chlorogenic acid contents of coffees: what are we drinking?*](https://doi.org/10.1039/c4fo00290c)
+- [Angeloni et al. (2019), *What kind of coffee do you drink? An investigation on effects of eight different extraction methods*](https://doi.org/10.1016/j.foodres.2018.10.022)
+- [Caporaso et al. (2014), *Neapolitan coffee brew chemical analysis in comparison to espresso, moka and American brews*](https://doi.org/10.1016/j.foodres.2014.01.020)
+- [Ludwig et al. (2012), *Extraction of coffee antioxidants: Impact of brewing time and method*](https://doi.org/10.1016/j.foodres.2012.02.023)
+- [Guinard et al. (2023), *A new Coffee Brewing Control Chart relating sensory properties and consumer liking to brew strength, extraction yield, and brew ratio*](https://doi.org/10.1111/1750-3841.16531)
+- [Liang et al. (2021), *An equilibrium desorption model for the strength and extraction yield of full immersion brewed coffee*](https://doi.org/10.1038/s41598-021-85787-1)
+
+French press is still out of scope until [#125](https://github.com/MateuxLucax/caparao/issues/125) adds the mode. When it
+does, use its own exhaustive per-mode rule: 7 mg/g caffeine and 2 g/g retained water per gram of dose. This supersedes
+the earlier #136 wording that French press counts like filter; do not add the mode as part of #136.

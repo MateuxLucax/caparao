@@ -40,6 +40,7 @@ Use these and only these. Adding a term means adding it here.
 | Ground coffee weight | dose | dose | |
 | Liquid out (espresso) | yield | bebida | |
 | Water poured (filter) | water | água | |
+| Weekly widget estimate | brewed beverage and caffeine estimates | estimativas da bebida preparada e da cafeína | Approximate amounts brewed, never an estimate of what was consumed or health advice |
 | Coffee:water | ratio | razão | Shown as `1:16` |
 | Weight per second | flow | fluxo | `g/s` |
 | Zero the scale | tare | tara (noun), tarar (verb) | |

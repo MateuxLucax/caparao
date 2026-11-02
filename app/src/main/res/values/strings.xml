@@ -20,12 +20,21 @@
     <string name="mode_espresso">Espresso</string>
 
     <!-- Home-screen widget -->
-    <string name="widget_description">Latest saved brew and a suggestion for the next one</string>
+    <string name="widget_description">Last brew or a 7-day summary</string>
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
+    <string name="widget_weekly_title">Last 7 days</string>
+    <string name="widget_weekly_estimates">Brewed beverage and caffeine estimates</string>
+    <string name="widget_weekly_empty">No brews this week</string>
+    <string name="widget_weekly_brews">Brews</string>
+    <string name="widget_weekly_beverage">Beverage</string>
+    <string name="widget_weekly_dose">Dose</string>
+    <string name="widget_weekly_caffeine">Caffeine</string>
+    <string name="widget_weekly_chart_description">Brews per day: %1$s</string>
+    <string name="widget_amount_with_unit">%1$s %2$s</string>
 
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
@@ -268,6 +277,8 @@
     <string name="ratio_more">More water</string>
     <string name="water_field">Water in ml</string>
     <string name="unit_ml">ml</string>
+    <string name="unit_l">L</string>
+    <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Coffees</string>
     <string name="coffees_empty">Add the bags on your shelf to see how much is left and how many days since the roast. Pick one as the coffee after a brew.</string>

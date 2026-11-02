@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_weekly_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_brew_background"
+    android:minHeight="@dimen/widget_weekly_min_height"
+    android:minWidth="@dimen/widget_weekly_min_width"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_weekly_padding">
+
+    <TextView
+        android:id="@+id/widget_weekly_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:textColor="@color/widget_primary_text"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_weekly_estimates"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:textColor="@color/widget_secondary_text"
+        android:textSize="10sp" />
+
+    <FrameLayout
+        android:id="@+id/widget_weekly_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/widget_weekly_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:maxLines="2"
+            android:textColor="@color/widget_secondary_text"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/widget_weekly_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/widget_weekly_chart"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/widget_weekly_chart_height"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:tint="@color/widget_action_background" />
+
+            <LinearLayout
+                android:id="@+id/widget_weekly_days"
+                android:layout_width="match_parent"
+                android:layout_height="18dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView android:id="@+id/widget_weekly_day_0" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_1" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_2" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_3" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_4" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_5" style="@style/BrewWidgetWeekday" />
+                <TextView android:id="@+id/widget_weekly_day_6" style="@style/BrewWidgetWeekday" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_weekly_totals"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/BrewWidgetStat">
+                        <TextView
+                            android:id="@+id/widget_weekly_brews_label"
+                            style="@style/BrewWidgetStatLabel"
+                            android:text="@string/widget_weekly_brews" />
+                        <TextView
+                            android:id="@+id/widget_weekly_brews_value"
+                            style="@style/BrewWidgetStatValue" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/BrewWidgetStat">
+                        <TextView
+                            android:id="@+id/widget_weekly_beverage_label"
+                            style="@style/BrewWidgetStatLabel"
+                            android:text="@string/widget_weekly_beverage" />
+                        <TextView
+                            android:id="@+id/widget_weekly_beverage_value"
+                            style="@style/BrewWidgetStatValue" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/BrewWidgetStat">
+                        <TextView
+                            android:id="@+id/widget_weekly_dose_label"
+                            style="@style/BrewWidgetStatLabel"
+                            android:text="@string/widget_weekly_dose" />
+                        <TextView
+                            android:id="@+id/widget_weekly_dose_value"
+                            style="@style/BrewWidgetStatValue" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/BrewWidgetStat">
+                        <TextView
+                            android:id="@+id/widget_weekly_caffeine_label"
+                            style="@style/BrewWidgetStatLabel"
+                            android:text="@string/widget_weekly_caffeine" />
+                        <TextView
+                            android:id="@+id/widget_weekly_caffeine_value"
+                            style="@style/BrewWidgetStatValue" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>
