@@ -1,7 +1,7 @@
 name: Build
 
-# One lean job while the repository is private (GitHub Free minutes): unit tests, lint, the debug build and the
-# stub's contract tests, the same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (#99).
+# Keep the Release workflow's Build dependency quick: unit tests, lint, the debug build and the stub's contract tests.
+# Emulator end-to-end runs in a separate workflow (#80), so it does not gate or delay a release.
 on:
   push:
     branches: [main]
