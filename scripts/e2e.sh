@@ -22,7 +22,8 @@ prometheus=caparao-e2e-prometheus
 prom_port="${E2E_PROMETHEUS_PORT:-19091}"
 tmp=$(mktemp -d)
 cleanup() {
-  kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
   [ "$server" = exporter ] && docker rm -f "$prometheus" >/dev/null 2>&1
   rm -rf "$tmp"
 }
