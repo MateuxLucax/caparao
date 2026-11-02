@@ -81,6 +81,13 @@ class ExporterClient(
                 "time_to_first_drop_s",
                 brew.timeToFirstDropMs?.takeIf { brew.mode == BrewMode.ESPRESSO }?.let { it.coerceAtLeast(0) / 1000.0 } ?: JSONObject.NULL,
             )
+            .apply {
+                // Espresso only: the tare timestamp, derived from the summary. Left out when unknown or nonsensical
+                // (a tare after the first drop), so the contract's invariant always holds.
+                brew.timeToFirstDropMs
+                    ?.takeIf { brew.mode == BrewMode.ESPRESSO && it in 0..brew.startedAt }
+                    ?.let { put("tared_at_ms", brew.startedAt - it) }
+            }
             .put("flow_avg_gps", nonNegative(brew.flowAvgGramsPerSecond))
             .put("flow_peak_gps", nonNegative(brew.flowPeakGramsPerSecond))
             .put("interrupted", brew.interrupted)

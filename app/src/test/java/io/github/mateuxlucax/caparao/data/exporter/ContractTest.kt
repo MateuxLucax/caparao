@@ -6,6 +6,7 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -101,11 +102,31 @@ class ContractTest {
 
         val noted = brew.copy(recipeName = "V60", coffee = "Caparaó", grind = "22", waterTempCelsius = 94, rating = 4, notes = "Sweet")
         val all = JSONObject(ExporterClient.body(noted, emptyList()).toString())
-        assertEquals(schema.getJSONObject("properties").keyNames(), all.keyNames())
+        // tared_at_ms is optional and espresso-only, so a filter body never has it.
+        assertEquals(schema.getJSONObject("properties").keyNames() - "tared_at_ms", all.keyNames())
         assertTrue("null, not left out", body.isNull("time_to_first_drop_s"))
         val sampleSchema = schema.getJSONObject("properties").getJSONObject("samples").getJSONObject("items")
         assertEquals(sampleSchema.getJSONArray("required").strings(), body.getJSONArray("samples").getJSONObject(0).keyNames())
         assertTrue(body.get("started_at_ms") is Number)
+    }
+
+    @Test
+    fun espressoBodyCarriesTheTareTimestamp() {
+        val started = 1_792_931_400_000
+        val espresso = Brew(
+            "0f8e1c2a-5b7d-4c3e-9a10-2f6d8b4e7c91", BrewMode.ESPRESSO, started, 28_600,
+            18.0, 36.4, 6_200, 1.3, 2.1, false,
+        )
+        val body = ExporterClient.body(espresso, emptyList())
+        assertEquals(started - 6_200, body.getLong("tared_at_ms"))
+        assertEquals(6.2, body.getDouble("time_to_first_drop_s"), 1e-9)
+
+        // A filter brew has no first drop, and an unknown tare leaves the field out.
+        assertFalse(ExporterClient.body(espresso.copy(mode = BrewMode.FILTER, timeToFirstDropMs = null), emptyList()).has("tared_at_ms"))
+        assertFalse(ExporterClient.body(espresso.copy(timeToFirstDropMs = null), emptyList()).has("tared_at_ms"))
+        // Bad data (a tare after the first drop) is not sent: the contract's invariant would not hold.
+        assertFalse(ExporterClient.body(espresso.copy(timeToFirstDropMs = -1), emptyList()).has("tared_at_ms"))
+        assertFalse(ExporterClient.body(espresso.copy(timeToFirstDropMs = started + 1), emptyList()).has("tared_at_ms"))
     }
 
     @Test
