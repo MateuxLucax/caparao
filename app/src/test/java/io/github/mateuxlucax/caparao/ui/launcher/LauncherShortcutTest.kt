@@ -18,11 +18,14 @@ class LauncherShortcutTest {
         assertEquals(ShortcutDestination.Brew(BrewMode.ESPRESSO), LauncherShortcut.ESPRESSO.destination)
         assertEquals(ShortcutDestination.Brew(BrewMode.FILTER), LauncherShortcut.FILTER.destination)
         assertEquals(ShortcutDestination.Brews, LauncherShortcut.BREWS.destination)
+        assertEquals(ShortcutDestination.Home, LauncherShortcut.WIDGET_HOME.destination)
+        assertEquals(LauncherShortcut.ESPRESSO, LauncherShortcut.forMode(BrewMode.ESPRESSO))
+        assertEquals(LauncherShortcut.FILTER, LauncherShortcut.forMode(BrewMode.FILTER))
     }
 
     @Test
     fun theDestinationComesFromTheActionAlone() {
-        for (shortcut in LauncherShortcut.entries) {
+        for (shortcut in LauncherShortcut.staticEntries) {
             assertEquals(shortcut, LauncherShortcut.fromAction(shortcut.action))
             assertEquals(shortcut, LauncherShortcut.fromId(shortcut.id))
         }
@@ -58,11 +61,11 @@ class LauncherShortcutTest {
     fun bothBuildVariantsDeclareTheCodeShortcuts() {
         val release = declared("src/main/res/xml/shortcuts.xml")
         val debug = declared("src/debug/res/xml/shortcuts.xml")
-        val ids = LauncherShortcut.entries.map { it.id }.toSet()
+        val ids = LauncherShortcut.staticEntries.map { it.id }.toSet()
         assertEquals("release shortcuts", ids, release.keys)
         assertEquals("debug shortcuts", ids, debug.keys)
 
-        for (shortcut in LauncherShortcut.entries) {
+        for (shortcut in LauncherShortcut.staticEntries) {
             for ((variant, declared) in listOf("release" to release, "debug" to debug)) {
                 val entry = declared.getValue(shortcut.id)
                 assertEquals("$variant ${shortcut.id} action", shortcut.action, entry.action)

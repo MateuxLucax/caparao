@@ -118,6 +118,46 @@ func TestResendWithChangedBodyReplaces(t *testing.T) {
 	}
 }
 
+// French press is its own mode (#81) and has no first drop, so time_to_first_drop_s is null as for filter. The body is
+// inline because contract/valid/french-press.json lands with the app mode (#125).
+func TestFrenchPressMode(t *testing.T) {
+	ts, _ := newTestServer(t)
+	const id = "c4b8f2a6-1d95-4e37-8b60-7f3a2c9e5d18"
+	body := []byte(`{
+  "id": "c4b8f2a6-1d95-4e37-8b60-7f3a2c9e5d18",
+  "mode": "french_press",
+  "started_at_ms": 1792938600000,
+  "ended_at_ms": 1792938840000,
+  "dose_g": 20.0,
+  "yield_g": 300.0,
+  "time_to_first_drop_s": null,
+  "flow_avg_gps": 1.3,
+  "flow_peak_gps": 5.0,
+  "interrupted": false,
+  "samples": [
+    { "t_ms": 0, "weight_g": 0.0, "flow_gps": 0.0 },
+    { "t_ms": 4000, "weight_g": 100.0, "flow_gps": 25.0 }
+  ]
+}`)
+	if resp, b := do(t, "POST", ts.URL+"/api/v1/brews", testToken, body); resp.StatusCode != 201 {
+		t.Fatalf("french_press = %d, want 201 (%s)", resp.StatusCode, b)
+	}
+	resp, b := do(t, "GET", ts.URL+"/api/v1/brews/"+id, testToken, nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("GET = %d, want 200 (%s)", resp.StatusCode, b)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["mode"] != "french_press" {
+		t.Errorf("mode = %v, want french_press", got["mode"])
+	}
+	if v, present := got["time_to_first_drop_s"]; !present || v != nil {
+		t.Errorf("time_to_first_drop_s = %v (present %t), want null", v, present)
+	}
+}
+
 func TestInvalidFilesAreRejected(t *testing.T) {
 	ts, _ := newTestServer(t)
 	for name, body := range contractFiles(t, "invalid") {

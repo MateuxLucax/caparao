@@ -29,7 +29,24 @@ class BrewDaoTest {
         dao.insertWithSamples(brew("a", "ESPRESSO", 1), samples("a"))
         dao.insertWithSamples(brew("b", "FILTER", 2), samples("b"))
         assertEquals(listOf("b", "a"), dao.observeAll().first().map { it.id })
+        assertEquals("b", dao.latest()?.id)
         assertEquals(listOf(0L, 100L, 200L), dao.samples("a").map { it.atMs })
+    }
+
+    @Test
+    fun latestIsNullWhenThereAreNoBrews() = runBlocking {
+        assertNull(dao.latest())
+    }
+
+    @Test
+    fun latestFallsBackToTheNextBrewAfterDeletingTheNewest() = runBlocking {
+        dao.insertWithSamples(brew("older", "FILTER", 1), samples("older"))
+        dao.insertWithSamples(brew("newest", "ESPRESSO", 2), samples("newest"))
+        assertEquals("newest", dao.latest()?.id)
+
+        dao.delete("newest")
+
+        assertEquals("older", dao.latest()?.id)
     }
 
     @Test

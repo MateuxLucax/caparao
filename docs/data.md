@@ -27,8 +27,9 @@ Content-Type: application/json
 }
 ```
 
-- All fields are required and unknown ones are rejected. `time_to_first_drop_s` is `null` for filter brews;
-  `dose_g > 0`; `ended_at_ms > started_at_ms`; at most 20000 samples (may be empty); body at most 4 MiB.
+- All fields are required and unknown ones are rejected. `mode` is `espresso`, `filter` or `french_press`;
+  `time_to_first_drop_s` is `null` for filter and French press brews, which start on the first water; `dose_g > 0`;
+  `ended_at_ms > started_at_ms`; at most 20000 samples (may be empty); body at most 4 MiB.
 - `id` is a lowercase UUID generated on the phone; the server upserts on it, so a retry never duplicates a brew
   ([ADR 0007](https://github.com/MateuxLucax/caparao/issues/91)).
 - `201` for a new brew, `200` when it already existed. `400` invalid body, `401` wrong token, `413` too large; none of

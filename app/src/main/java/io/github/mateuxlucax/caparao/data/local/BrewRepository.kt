@@ -8,13 +8,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /** Brews on the phone: the source of truth; the server only ever gets copies. */
-class BrewRepository(private val dao: BrewDao) {
+class BrewRepository(
+    private val dao: BrewDao,
+    private val onChanged: () -> Unit = {},
+) {
     val brews: Flow<List<Brew>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
-    suspend fun save(brew: Brew, samples: List<BrewSample>) =
+    suspend fun save(brew: Brew, samples: List<BrewSample>) {
         dao.insertWithSamples(brew.toEntity(), samples.map { BrewSampleEntity(brew.id, it.atMs, it.weightGrams, it.flowGramsPerSecond) })
+        refreshAfterChange()
+    }
 
     suspend fun get(id: String): Brew? = dao.get(id)?.toModel()
+
+    suspend fun latest(): Brew? = dao.latest()?.toModel()
 
     /** Every brew with its curve, oldest first, for the export (#76). */
     suspend fun allWithSamples(): List<BrewWithSamples> {
@@ -26,7 +33,10 @@ class BrewRepository(private val dao: BrewDao) {
 
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
-    suspend fun delete(id: String) = dao.delete(id)
+    suspend fun delete(id: String) {
+        dao.delete(id)
+        refreshAfterChange()
+    }
 
     /** Saves [brew]'s notes (coffee, grind, temperature, rating, notes) and marks it unsynced. */
     suspend fun updateNotes(brew: Brew) =
@@ -40,6 +50,11 @@ class BrewRepository(private val dao: BrewDao) {
 
     /** Ids of the brews the server hasn't confirmed, oldest first. */
     suspend fun unsyncedIds(): List<String> = dao.unsynced().map { it.id }
+
+    /** A widget refresh is best-effort and must not make a committed brew write fail. */
+    private fun refreshAfterChange() {
+        runCatching(onChanged)
+    }
 
     private fun BrewEntity.toModel() = Brew(
         id = id,

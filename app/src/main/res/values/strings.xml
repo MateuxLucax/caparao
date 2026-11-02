@@ -19,6 +19,14 @@
     <string name="mode_manual">Manual</string>
     <string name="mode_espresso">Espresso</string>
 
+    <!-- Home-screen widget -->
+    <string name="widget_description">Latest saved brew and a suggestion for the next one</string>
+    <string name="widget_last_brew_title">Last brew</string>
+    <string name="widget_empty_title">You haven\'t made coffee yet</string>
+    <string name="widget_brew_espresso">Brew espresso</string>
+    <string name="widget_brew_filter">Brew filter</string>
+    <string name="widget_brew_coffee">Brew a coffee</string>
+
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>

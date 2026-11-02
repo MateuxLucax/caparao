@@ -1,6 +1,6 @@
 # Screenshots
 
-Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](https://github.com/MateuxLucax/caparao/issues/99)). Every image lives in `en/` or `pt-BR/`; screenshots made only for a PR description go in the PR, not here.
+Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/screenshots.sh`](../../scripts/screenshots.sh), with the `press-ramp` recording and the synthetic espresso replayed as the scale. Refreshed whenever a screen changes ([ADR 0015](https://github.com/MateuxLucax/caparao/issues/99)). Phone images live in `en/` or `pt-BR/`; the watch (`watch/`) and the home-screen widget (`widget/`) have their own folders. The widget is captured at its declared 180×176 dp minimum on a neutral background. Screenshots made only for a PR description go in the PR, not here.
 
 ## English
 
@@ -17,6 +17,13 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 |---|---|---|---|
 | Light | <img src="en/home-light.png" width="140" alt="Home"> | <img src="en/brews-light.png" width="140" alt="Brews"> | <img src="en/settings-light.png" width="140" alt="Settings"> |
 | Dark | <img src="en/home-dark.png" width="140" alt="Home"> | <img src="en/brews-dark.png" width="140" alt="Brews"> | <img src="en/settings-dark.png" width="140" alt="Settings"> |
+
+### Widget
+
+| | Saved brew | Empty |
+|---|---|---|
+| Light | <img src="widget/en/saved-light.png" width="140" alt="Saved brew"> | <img src="widget/en/empty-light.png" width="140" alt="Empty"> |
+| Dark | <img src="widget/en/saved-dark.png" width="140" alt="Saved brew"> | <img src="widget/en/empty-dark.png" width="140" alt="Empty"> |
 
 ### Espresso
 
@@ -46,6 +53,13 @@ Rendered on the JVM (Robolectric and Roborazzi, a 411 dp phone) by [`scripts/scr
 |---|---|---|---|
 | Claro | <img src="pt-BR/home-light.png" width="140" alt="Início"> | <img src="pt-BR/brews-light.png" width="140" alt="Dados"> | <img src="pt-BR/settings-light.png" width="140" alt="Config"> |
 | Escuro | <img src="pt-BR/home-dark.png" width="140" alt="Início"> | <img src="pt-BR/brews-dark.png" width="140" alt="Dados"> | <img src="pt-BR/settings-dark.png" width="140" alt="Config"> |
+
+### Widget
+
+| | Preparo salvo | Vazio |
+|---|---|---|
+| Claro | <img src="widget/pt-BR/saved-light.png" width="140" alt="Preparo salvo"> | <img src="widget/pt-BR/empty-light.png" width="140" alt="Vazio"> |
+| Escuro | <img src="widget/pt-BR/saved-dark.png" width="140" alt="Preparo salvo"> | <img src="widget/pt-BR/empty-dark.png" width="140" alt="Vazio"> |
 
 ### Espresso
 
