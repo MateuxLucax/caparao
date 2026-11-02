@@ -24,7 +24,8 @@
 
 ## Screenshots
 
-<!-- Screens for every visible change (before/after when useful). Write "N/A" for changes with nothing to show. -->
+<!-- Screens for every visible change (before/after when useful). Write "N/A" for changes with nothing to show.
+     UI work: link the issue's Excalidraw draft here; it is planning, not screenshot evidence. -->
 
 | Before | After |
 |--------|-------|
