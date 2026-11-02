@@ -6,7 +6,10 @@
 #   scripts/e2e.sh                       against the stub (stub/)
 #   E2E_SERVER=exporter scripts/e2e.sh   against timemore-dot-prometheus-exporter (EXPORTER_DIR, default: a sibling
 #                                        checkout) with a throwaway Prometheus in Docker; also checks the metrics
-#   E2E_LOG_DIR=/tmp/e2e-logs            keeps server and instrumentation logs for CI artifact upload
+#   E2E_LOG_DIR=/tmp/e2e-logs            keeps sanitized server and instrumentation logs for CI artifact upload
+#
+# Failure diagnostics are filtered to AndroidRuntime:E (all other tags silent), bounded, and scrubbed of device
+# serials, model names, addresses and tokens by scripts/e2e-diagnostics.py before they are uploaded (#146).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,15 +27,6 @@ prom_port="${E2E_PROMETHEUS_PORT:-19091}"
 log_dir="${E2E_LOG_DIR:-}"
 tmp=$(mktemp -d)
 pid=""
-capture_android_runtime_logs() {
-  if command -v timeout >/dev/null 2>&1; then
-    timeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
-  elif command -v gtimeout >/dev/null 2>&1; then
-    gtimeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
-  else
-    "$adb" logcat -d -v threadtime AndroidRuntime:E
-  fi
-}
 cleanup() {
   status=$?
   trap - EXIT
@@ -46,7 +40,13 @@ cleanup() {
     [ ! -f "$tmp/server.log" ] || cp "$tmp/server.log" "$log_dir/server.log"
     [ ! -f "$tmp/instrumentation.log" ] || cp "$tmp/instrumentation.log" "$log_dir/instrumentation.log"
     if [ "$status" -ne 0 ]; then
-      capture_android_runtime_logs > "$log_dir/android-runtime.log" 2>&1 || true
+      python3 scripts/e2e-diagnostics.py collect --log-dir "$log_dir" --adb "$adb" \
+        --serial "$ANDROID_SERIAL" --status "$status" --sensitive "$token" --runtime-log \
+        --only-file server.log --only-file instrumentation.log --only-file android-runtime.log || true
+    else
+      python3 scripts/e2e-diagnostics.py collect --log-dir "$log_dir" --adb "$adb" \
+        --serial "$ANDROID_SERIAL" --sensitive "$token" \
+        --only-file server.log --only-file instrumentation.log --only-file android-runtime.log || true
     fi
   fi
   rm -rf "$tmp"
