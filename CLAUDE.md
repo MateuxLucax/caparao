@@ -1,9 +1,18 @@
 # Caparaó
 
 Android app for the Timemore Dot scale (Kotlin, Compose). Start from `docs/roadmap.md` for what is done and pending,
-`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings and `docs/adr/` before changing a decision.
+`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings
+and the [issues](https://github.com/MateuxLucax/caparao/issues) before changing a decision. `docs/adr/` is frozen
+history and takes no new records.
 Modules: `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract` (upload
 schema). The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
+
+## Tracking
+
+GitHub Issues are the only tracker. Labels: `decision`, `data`, `feature`, `tooling`, `validation`, `infra`,
+`documentation`; one milestone per release (`0.2.0`, `0.3.0`). A new decision is an issue labelled `decision`, closed
+when implemented or superseded, and every PR links the issue it closes. Do not add new ADRs: `docs/adr/` is frozen
+history.
 
 ## Public repository
 

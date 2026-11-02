@@ -1,5 +1,10 @@
 # Architecture Decision Records
 
+> **Frozen.** These records document the decisions behind stages 0–9 and are kept as history. New decisions are
+> tracked as GitHub Issues with the [`decision`](https://github.com/MateuxLucax/caparao/labels/decision) label; the
+> live backlog is the [issue list](https://github.com/MateuxLucax/caparao/issues). A record that no longer applies gets
+> a pointer to the issue that supersedes it, and is never rewritten.
+
 Short records of the decisions behind the app (Status, Context, Decision, Consequences).
 
 | # | Decision | Status |
@@ -23,7 +28,7 @@ Short records of the decisions behind the app (Status, Context, Decision, Conseq
 | [0017](0017-local-network-permission.md) | Ask for the local network permission when the server is local | Accepted |
 | [0018](0018-recipes.md) | Recipes stored in Room, one model for espresso and filter | Accepted |
 | [0019](0019-guided-brew.md) | Guided brew: a pure step tracker driven by the readings | Accepted |
-| [0020](0020-data-export.md) | Export brews as CSV and JSON through the share sheet | Proposed |
+| [0020](0020-data-export.md) | Export brews as CSV and JSON through the share sheet | Superseded by [#76](https://github.com/MateuxLucax/caparao/issues/76) |
 | [0021](0021-brew-notes.md) | Brew metadata: coffee, grind, temperature, notes and rating | Accepted |
 | [0022](0022-compare-and-trends.md) | Compare brews and show trends on the Canvas charts | Accepted |
 | [0023](0023-watch-companion.md) | Watch companion: a Wear OS mirror fed by the phone | Accepted |

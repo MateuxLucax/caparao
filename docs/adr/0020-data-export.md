@@ -1,6 +1,6 @@
 # 20. Export brews as CSV and JSON through the share sheet
 
-Status: Proposed
+Status: Superseded by [#76](https://github.com/MateuxLucax/caparao/issues/76); kept as history.
 
 ## Context
 

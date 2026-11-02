@@ -9,6 +9,6 @@
 | [data.md](data.md) | Upload contract (files in [contract/](../contract/README.md)) and on-device data |
 | [acceptance/](acceptance/README.md) | Manual acceptance scripts and the record of each run |
 | [screenshots/](screenshots/README.md) | Every screen in English and Portuguese, light and dark |
-| [adr/](adr/README.md) | Architecture Decision Records |
+| [adr/](adr/README.md) | Architecture Decision Records (frozen history; new decisions are GitHub Issues) |
 
 All diagrams are [Mermaid](https://mermaid.js.org/) and render on GitHub.
