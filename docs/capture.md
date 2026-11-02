@@ -82,6 +82,42 @@ because Gradle does not track `CAPARAO_CAPTURE` as a test task input; without it
 This check is read-only. Review a capture for identifiers before copying it into
 `app/src/test/resources/sessions/`; only reviewed fixtures belong in the public repository.
 
+## Read the weights
+
+The file holds the Dot's raw weights: the script sends no tare, so the app's tare is only applied when the file is
+replayed, and anything the Dot zeroed at power-on is not in the numbers. This prints one weight frame per line, in
+seconds from the session start and in grams:
+
+```bash
+.venv/bin/python - spike-captures/20261102-123456-espresso-1.jsonl <<'PY' | less
+import json, sys
+
+buffer = b""
+for line in open(sys.argv[1], encoding="utf-8"):
+    row = json.loads(line)
+    if row.get("dir") != "rx":
+        continue
+    buffer += bytes.fromhex(row["hex"])
+    while len(buffer) >= 6:
+        if buffer[:2] != b"\xa5\x5a":
+            buffer = buffer[1:]  # resync
+            continue
+        length = int.from_bytes(buffer[4:6], "big")
+        end = 6 + length + 2
+        if len(buffer) < end:
+            break  # the rest arrives with the next notification
+        if (buffer[2], buffer[3], length) == (1, 1, 9):
+            grams = int.from_bytes(buffer[6:10], "big", signed=True) / 10
+            print(f"{row['t_ms'] / 1000:8.2f}  {grams:8.1f}")
+        buffer = buffer[end:]
+PY
+```
+
+`t_ms` is the notification's, so a frame split across two notifications is printed with the second one's time;
+acknowledgements, the battery and the `tx` lines are skipped. An espresso is a few hundred lines and a long pour-over
+a few thousand; `/` in `less` searches. The [recording guide](acceptance/recording.md) uses this to fill the expected
+start, end and yield of each session.
+
 ## Limitations
 
 - Passive only: no interactive tare, timer, unit or battery commands. Those interactions can be recorded when the app
