@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao
 
 import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -94,7 +95,13 @@ class EndToEndTest {
             val beforeNext = brewState()
             val beforeSemantics = semanticsSnapshot()
             compose.onRoot(useUnmergedTree = true).printToLog("E2E-before-weigh-next")
-            compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
+            val weighNext = compose.onNodeWithTag("weigh-step-next").assertIsEnabled()
+            val weighNextBounds = weighNext.fetchSemanticsNode().boundsInRoot
+            assertTrue(
+                "Weigh Next needs a visible hit target, got $weighNextBounds",
+                weighNextBounds.width > 0f && weighNextBounds.height > 0f,
+            )
+            weighNext.assertIsDisplayed().performClick()
             val afterNext = brewState()
             val afterSemantics = semanticsSnapshot()
             compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next")
