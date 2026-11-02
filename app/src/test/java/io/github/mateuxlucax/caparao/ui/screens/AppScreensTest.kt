@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.screens
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -39,6 +41,7 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.ScaleReading
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.assert
@@ -46,6 +49,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
+import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
@@ -58,6 +62,7 @@ import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -89,7 +94,14 @@ class AppScreensTest {
     private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
 
-    private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
+    /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
+    private var now = 0L
+
+    private fun factory(
+        scale: ScaleSource,
+        clock: () -> Long = SystemClock::elapsedRealtime,
+        onboardingDone: () -> Unit = {},
+    ) = viewModelFactory {
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
@@ -101,7 +113,7 @@ class AppScreensTest {
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
         initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
-        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes) }
+        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
     }
 
@@ -109,6 +121,29 @@ class AppScreensTest {
     fun tearDown() {
         scope.cancel()
         db.close()
+    }
+
+    /** [seconds] of readings at 10 Hz moving from [from] to [to] grams; the brew clock moves with them. */
+    private fun pour(scale: FakeScaleSource, from: Double, to: Double, seconds: Double) {
+        val steps = (seconds * 10).toInt()
+        repeat(steps) { i ->
+            now += 100
+            val weight = Math.round((from + (to - from) * (i + 1) / steps) * 10) / 10.0
+            scale.send(ScaleReading(weight, 0.0, 0, overload = false))
+        }
+        compose.waitForIdle()
+    }
+
+    private fun hold(scale: FakeScaleSource, weight: Double, seconds: Double) = pour(scale, weight, weight, seconds)
+
+    /** The cup, the tare, the first drops: an espresso running with [scale] driven by hand. */
+    private fun runEspressoToTheFirstDrops(scale: FakeScaleSource) {
+        pour(scale, 0.0, 150.0, 0.5) // the cup goes on
+        hold(scale, 150.0, 1.5) // it settles, the app tares
+        hold(scale, 0.0, 1.0) // the scale zeroed
+        hold(scale, 0.0, 3.0) // pump on, no drops yet
+        pour(scale, 0.0, 36.0, 5.0)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.stop)), 5_000)
     }
 
     @Test
@@ -204,6 +239,204 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
 
         compose.waitUntil(5_000) { settings.serverConfigured }
+    }
+
+    @Test
+    fun anEspressoShortcutOpensTheDoseAndIsConsumedOnce() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.ESPRESSO)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+
+        // The dose step of a free brew, before anything is weighed or started.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).assertExists()
+        assertEquals(1, consumed)
+
+        // Closed: back on the tabs, and the consumed shortcut does not open the brew again.
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aFilterShortcutWaitsForOnboardingAndThenOpensItsDose() {
+        var done = false
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test",
+                    shortcut = LauncherShortcut.FILTER,
+                    onShortcutConsumed = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
+        compose.onNodeWithText(text(R.string.get_started)).performClick()
+        compose.onNodeWithText(text(R.string.permissions_title)).assertExists()
+        compose.onNodeWithText(text(R.string.allow_bluetooth)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.server_title)).assertExists()
+        compose.onNodeWithText(text(R.string.skip)).performClick()
+
+        assertTrue(done)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_filter)).assertExists()
+    }
+
+    @Test
+    fun aBrewsShortcutOpensTheSavedBrewsTab() {
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.BREWS)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+    }
+
+    @Test
+    fun aShortcutDuringARunningBrewKeepsItAndItsReadings() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        runEspressoToTheFirstDrops(scale)
+
+        // Brews would normally close the brew, but a running one is never interrupted.
+        shortcut.value = LauncherShortcut.BREWS
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.onNodeWithText(text(R.string.stop_brew_title)).assertExists()
+        compose.onNodeWithText(text(R.string.keep_brewing)).performClick()
+
+        // The readings after the shortcut still reach the detector: the shot is saved and listed.
+        hold(scale, 36.0, 6.0)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
+        compose.onNodeWithText(text(R.string.save)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.waitUntilDoesNotExist(hasText(text(R.string.brews_empty_title)), 5_000)
+    }
+
+    @Test
+    fun aShortcutForTheOpenModeKeepsTheWeighStepAndTheScaleListener() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.weigh_beans_title)), 5_000)
+
+        shortcut.value = LauncherShortcut.ESPRESSO
+        compose.waitForIdle()
+
+        // Same screen and state, not reset to the dose.
+        compose.onNodeWithText(text(R.string.weigh_beans_title)).assertExists()
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+
+        // The same ViewModel still listens: the rest of the flow runs to the first drops.
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        runEspressoToTheFirstDrops(scale)
+    }
+
+    @Test
+    fun aShortcutForTheOpenModeOnTheDoseKeepsItListening() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+
+        shortcut.value = LauncherShortcut.ESPRESSO
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertExists()
+
+        // The ViewModel was not ended: the shot still runs from the dose to the first drops.
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        runEspressoToTheFirstDrops(scale)
+    }
+
+    @Test
+    fun aShortcutForAnotherModeEndsTheDoseAndBrewsLeavesOneThatHasNotStarted() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { shortcut.value = null },
+                )
+            }
+        }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+
+        shortcut.value = LauncherShortcut.FILTER
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_filter)), 5_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertExists()
+
+        // Nothing had started, so Brews leaves the open Filter dose.
+        shortcut.value = LauncherShortcut.BREWS
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
     }
 
     @Test

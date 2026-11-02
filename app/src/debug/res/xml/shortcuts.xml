@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The debug build's copy of src/main/res/xml/shortcuts.xml: same ids, actions and activity, only the package differs
+     (.debug, from applicationIdSuffix in app/build.gradle.kts). LauncherShortcutTest checks both copies. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="espresso"
+        android:enabled="true"
+        android:icon="@drawable/ic_coffee"
+        android:shortcutShortLabel="@string/mode_espresso"
+        android:shortcutLongLabel="@string/mode_espresso">
+        <intent
+            android:action="io.github.mateuxlucax.caparao.shortcut.ESPRESSO"
+            android:targetPackage="io.github.mateuxlucax.caparao.debug"
+            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="filter"
+        android:enabled="true"
+        android:icon="@drawable/ic_coffee_maker"
+        android:shortcutShortLabel="@string/mode_filter"
+        android:shortcutLongLabel="@string/mode_filter">
+        <intent
+            android:action="io.github.mateuxlucax.caparao.shortcut.FILTER"
+            android:targetPackage="io.github.mateuxlucax.caparao.debug"
+            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="brews"
+        android:enabled="true"
+        android:icon="@drawable/ic_receipt_long"
+        android:shortcutShortLabel="@string/tab_brews"
+        android:shortcutLongLabel="@string/tab_brews">
+        <intent
+            android:action="io.github.mateuxlucax.caparao.shortcut.BREWS"
+            android:targetPackage="io.github.mateuxlucax.caparao.debug"
+            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+    </shortcut>
+</shortcuts>

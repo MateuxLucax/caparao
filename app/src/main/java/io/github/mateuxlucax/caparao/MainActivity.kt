@@ -19,11 +19,13 @@ import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
@@ -50,12 +52,20 @@ class MainActivity : ComponentActivity() {
         localNetworkResult = null
     }
 
+    /** A launcher shortcut (#116) asked for a destination that [App] has not applied yet; null once it has. */
+    private val requestedShortcut = MutableStateFlow<LauncherShortcut?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (BuildConfig.DEBUG) {
             intent.getStringExtra(EXTRA_REPLAY)?.let { container.replay(it, intent.getLongExtra(EXTRA_REPLAY_AT_MS, 0)) }
         }
+        requestedShortcut.value = LauncherShortcut.pendingOnCreate(
+            savedId = savedInstanceState?.getString(STATE_SHORTCUT),
+            launchAction = intent.action,
+            recreated = savedInstanceState != null,
+        )
         val actions = AppActions(
             requestBluetoothPermissions = ::requestBluetoothPermissions,
             bluetoothPermissionGranted = { BLUETOOTH_PERMISSIONS.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } },
@@ -67,10 +77,37 @@ class MainActivity : ComponentActivity() {
         keepScreenOnWhileConnected()
         setContent {
             val brandColors by container.settings.brandColorsChanges.collectAsStateWithLifecycle(container.settings.brandColors)
+            val shortcut by requestedShortcut.collectAsStateWithLifecycle()
             AppTheme(BrandColor.LEAF.takeIf { brandColors }) {
-                App(container.viewModelFactory, container.scale, container.settings.onboardingDone, actions, BuildConfig.VERSION_NAME)
+                App(
+                    container.viewModelFactory,
+                    container.scale,
+                    container.settings.onboardingDone,
+                    actions,
+                    BuildConfig.VERSION_NAME,
+                    shortcut = shortcut,
+                    onShortcutConsumed = ::shortcutConsumed,
+                )
             }
         }
+    }
+
+    /** A shortcut tapped while the task is alive: MainActivity is singleTop, so the system delivers it here. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        LauncherShortcut.fromAction(intent.action)?.let { requestedShortcut.value = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // A consumed shortcut is saved as absent, so a rotation or a restored process does not apply it again.
+        outState.putString(STATE_SHORTCUT, requestedShortcut.value?.id)
+    }
+
+    private fun shortcutConsumed() {
+        requestedShortcut.value = null
+        // The launch intent outlives the activity that consumed it: drop the action so a later re-creation cannot read it.
+        intent?.action = null
     }
 
     /**
@@ -141,5 +178,8 @@ class MainActivity : ComponentActivity() {
         /** Debug builds: name of a recorded session in the assets to play instead of the scale (see [AppContainer.replay]). */
         const val EXTRA_REPLAY = "replay"
         const val EXTRA_REPLAY_AT_MS = "replay_at_ms"
+
+        /** The shortcut still pending in the saved instance state (#116). */
+        private const val STATE_SHORTCUT = "shortcut"
     }
 }
