@@ -4,9 +4,11 @@ import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -61,13 +63,9 @@ class EndToEndTest {
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 10_000)
             compose.onNodeWithText(text(R.string.free_brew)).performClick()
             compose.onNodeWithText(text(R.string.next)).performClick()
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.tare)), 10_000)
-            compose.waitForIdle()
-            // AnimatedContent can keep the outgoing DoseStep's Next semantics during its transition.
-            compose.waitUntilDoesNotExist(hasText(text(R.string.ratio_caption)), 10_000)
-            compose.waitForIdle()
+            compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             // The replay has not started, so Next keeps the planned 18 g dose.
-            compose.onNodeWithText(text(R.string.next)).performClick()
+            compose.onNodeWithTag("weigh-step-next").performClick()
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
             // Don't start the 52 s fixture until the live screen and detector are mounted.
             val liveStepError = runCatching {
