@@ -6,6 +6,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 
 /** Recipes on the phone (#102); they never leave it, only a brew's copy of the name does. */
 class RecipeRepository(private val dao: RecipeDao) {
@@ -16,6 +17,9 @@ class RecipeRepository(private val dao: RecipeDao) {
     }
 
     suspend fun get(id: String): Recipe? = dao.get(id)?.toModel(dao.steps(id))
+
+    /** Every recipe with its steps, for the export (#76). */
+    suspend fun all(): List<Recipe> = recipes.first()
 
     /** Inserts or replaces [recipe] and its steps. */
     suspend fun save(recipe: Recipe) = dao.save(recipe.toEntity(), recipe.stepEntities())

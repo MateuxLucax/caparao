@@ -48,4 +48,10 @@ Content-Type: application/json
 The exported schema is in [`app/schemas/`](../app/schemas); every version change needs a migration and a migration test.
 No scale address is stored: the app scans each time ([hardware.md](hardware.md)).
 
+## Export
+
+Settings → Export writes `cache/exports/caparao-export.zip` with `brews.json` (the upload contract, curve included),
+`brews.csv`, `recipes.csv` and, optionally, `samples.csv`. A brew's detail shares one JSON. `FileProvider` grants the
+receiving app read access, so no storage permission is needed and the export uploads nothing by itself.
+
 All of it is excluded from cloud backups and device transfers.

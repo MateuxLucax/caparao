@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The export files written to cache/exports and shared through the FileProvider (#76). -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>
