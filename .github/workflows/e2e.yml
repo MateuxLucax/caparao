@@ -69,7 +69,9 @@ jobs:
         env:
           E2E_FORCE_FAILURE: ${{ inputs.force_failure || false }}
         with:
-          api-level: 37
+          # Use API 36 for the action's stable platform setup, but exercise the app on the API 37 emulator image.
+          api-level: 36
+          system-image-api-level: 37
           target: google_apis
           arch: x86_64
           channel: canary
