@@ -49,6 +49,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: stub/go.mod
+          cache: false
 
       # Cache the system image installed by android-emulator-runner.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -71,6 +72,7 @@ jobs:
           api-level: 37
           target: google_apis
           arch: x86_64
+          channel: canary
           emulator-boot-timeout: 600
           script: |
             set -euo pipefail
