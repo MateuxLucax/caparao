@@ -23,8 +23,8 @@ Tests iterate over both directories, so adding a file adds a test case. Use exam
 - `mode`: `"filter"`, `"espresso"` or `"french_press"`.
 - `started_at_ms`, `ended_at_ms`: whole Unix epoch milliseconds, and `ended_at_ms > started_at_ms` strictly. This is
   the one rule JSON Schema cannot express; servers check it in code and `invalid/` has files for it. `started_at_ms` is
-  the first drop (espresso) or the first water (filter and French press), so `t_ms = 0` is the first drop and the curve
-  has no samples before it.
+  the first drop (espresso) or the first water (filter and French press), so `t_ms = 0` is that same moment and the
+  curve has no samples before it.
 - `dose_g`: number, `> 0` and at most 1000. Required, never null (a brew always has a dose).
 - `yield_g`: number, `>= 0` and at most 10000. An interrupted brew may have 0.
 - `time_to_first_drop_s`: number `>= 0`, or `null`. Seconds from the tare to the first drop; the key is always present
