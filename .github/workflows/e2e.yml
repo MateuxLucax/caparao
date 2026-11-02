@@ -120,26 +120,11 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/caparao-e2e-logs"
-          adb="$ANDROID_HOME/platform-tools/adb"
-          {
-            printf '\nPost-run emulator diagnostics\n'
-            devices=""
-            if devices=$(timeout --kill-after=5s 10s "$adb" devices -l 2>&1); then
-              printf '%s\n' "$devices"
-            else
-              printf '%s\n' "$devices"
-              echo "adb devices failed or timed out; continuing with available diagnostics."
-            fi
-            serial="${ANDROID_SERIAL:-$(printf '%s\n' "$devices" | awk '/^emulator-/ { print $1; exit }')}"
-            if [ -n "$serial" ]; then
-              if ! timeout --kill-after=5s 30s "$adb" -s "$serial" logcat -d -v threadtime -t 5000; then
-                echo "Post-run logcat failed or timed out."
-              fi
-            else
-              echo "No emulator serial was available for logcat."
-            fi
-          } >> "$RUNNER_TEMP/caparao-e2e-logs/emulator.log" 2>&1 || true
+          python3 scripts/e2e-diagnostics.py collect \
+            --log-dir "$RUNNER_TEMP/caparao-e2e-logs" \
+            --adb "$ANDROID_HOME/platform-tools/adb" \
+            --heading "Post-run emulator diagnostics" \
+            --append-emulator
 
       - name: Upload end-to-end failure logs
         if: failure()
