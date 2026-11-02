@@ -49,8 +49,7 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
   dynamic colors and using the existing Compose Material primitives. Respect the system motion preferences and start
   from the [official motion guidance](https://m3.material.io/styles/motion/overview).
 - A draft communicates flow and guides planning; it is not approval. Ask the user about unresolved product choices.
-  Final art and motion follow the Material language above, and finished UI evidence stays with `scripts/screenshots.sh`
-  and the table rule under Devices, not the sketch.
+- Finished UI evidence comes from `scripts/screenshots.sh` and follows the table rule under Devices, not the sketch.
 
 ## Devices
 
