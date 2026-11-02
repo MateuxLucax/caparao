@@ -4,17 +4,25 @@ import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.printToLog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.ui.brew.BrewStep
+import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
+import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -23,6 +31,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Scale to server on the emulator: the synthetic espresso is replayed as the scale, recorded by the brew screen,
@@ -54,19 +63,78 @@ class EndToEndTest {
         val intent = Intent(context, MainActivity::class.java)
             .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-espresso")
             .putExtra(MainActivity.EXTRA_REPLAY_PAUSED, true)
-        ActivityScenario.launch<MainActivity>(intent).use {
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             val replay = (context.applicationContext as CaparaoApplication).container.scale as ReplayScaleSource
+            fun brewState(): BrewUiState? {
+                val state = AtomicReference<BrewUiState?>()
+                scenario.onActivity { activity ->
+                    state.set((activity.viewModelStore.get("brew-ESPRESSO") as? BrewViewModel)?.uiState?.value)
+                }
+                return state.get()
+            }
+            fun semanticsSnapshot(): String {
+                val markers = listOf(
+                    R.string.ratio_caption,
+                    R.string.weigh_beans_title,
+                    R.string.tare,
+                    R.string.cup_on,
+                    R.string.brew_saved,
+                ).filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
+                    .map { text(it) }
+                val weighNext = compose.onAllNodes(hasTestTag("weigh-step-next")).fetchSemanticsNodes()
+                return "visible=$markers, weighNextCount=${weighNext.size}, weighNextConfig=${weighNext.joinToString { it.config.toString() }}"
+            }
             compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 10_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 10_000)
             compose.onNodeWithText(text(R.string.free_brew)).performClick()
             compose.onNodeWithText(text(R.string.next)).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             // The replay has not started, so Next keeps the planned 18 g dose.
-            compose.onNodeWithText(text(R.string.next)).performClick()
-            replay.resume()
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
-
+            val beforeNext = brewState()
+            val beforeSemantics = semanticsSnapshot()
+            compose.onRoot(useUnmergedTree = true).printToLog("E2E-before-weigh-next")
+            compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
+            val afterNext = brewState()
+            val afterSemantics = semanticsSnapshot()
+            compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next")
+            compose.waitForIdle()
+            val afterIdle = brewState()
+            compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next-idle")
+            if (afterIdle?.step != BrewStep.LIVE) {
+                throw AssertionError(
+                    "Weigh Next did not enter LIVE: before=${describe(beforeNext)} ($beforeSemantics), " +
+                        "afterClick=${describe(afterNext)} ($afterSemantics), " +
+                        "afterIdle=${describe(afterIdle)} (${semanticsSnapshot()})",
+                )
+            }
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
+            // Don't start the 52 s fixture until the live screen and detector are mounted.
+            val liveStepError = runCatching {
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 10_000)
+            }.exceptionOrNull()
+            if (liveStepError != null) {
+                val visibleSteps = listOf(R.string.ratio_caption, R.string.weigh_beans_title, R.string.tare, R.string.cup_on)
+                    .filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
+                    .map { text(it) }
+                throw AssertionError(
+                    "The live step did not appear before replay: visible=$visibleSteps, " +
+                        "scale=${replay.state.value}, reading=${replay.reading.value}",
+                    liveStepError,
+                )
+            }
+            replay.resume()
+            val savedError = runCatching {
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
+            }.exceptionOrNull()
+            if (savedError != null) {
+                val savedCount = runBlocking(Dispatchers.IO) { dao.all().size }
+                throw AssertionError(
+                    "The replay did not reach the summary: scale=${replay.state.value}, reading=${replay.reading.value}, storedBrews=$savedCount",
+                    savedError,
+                )
+            }
+
             compose.waitUntil(10_000) { runBlocking(Dispatchers.IO) { dao.all().size == 1 } }
             val (brew, sampleCount) = runBlocking(Dispatchers.IO) {
                 val saved = dao.all().single()
@@ -84,4 +152,9 @@ class EndToEndTest {
             compose.waitUntilAtLeastOneExists(hasText(synced, substring = true), 60_000)
         }
     }
+
+    private fun describe(state: BrewUiState?): String = state?.let {
+        "step=${it.step}, phase=${it.phase}, dose=${it.dose}, connected=${it.connected}, " +
+            "weight=${it.weightGrams}, saved=${it.saved != null}"
+    } ?: "missing"
 }

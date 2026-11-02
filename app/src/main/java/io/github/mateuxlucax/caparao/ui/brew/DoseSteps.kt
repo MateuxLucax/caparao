@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -207,7 +208,7 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
         Spacer(Modifier.weight(1f))
         Button(
             onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
-            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
             shapes = ButtonDefaults.shapes(),
         ) {
             Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)

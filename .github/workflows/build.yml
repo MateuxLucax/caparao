@@ -1,12 +1,23 @@
 name: Build
 
-# One lean job while the repository is private (GitHub Free minutes): unit tests, lint, the debug build and the
-# stub's contract tests, the same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (#99).
+# Keep the Release workflow's Build dependency quick: unit tests, lint, the debug build and the stub's contract tests.
+# Emulator end-to-end runs in a separate workflow (#80), so it does not gate or delay a release.
 on:
   push:
     branches: [main]
     paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run E2E on this non-main branch for validation"
+        required: false
+        default: false
+        type: boolean
+      force_e2e_failure:
+        description: "Fail after E2E passes to verify failure log uploads"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: build-${{ github.ref }}
@@ -64,3 +75,10 @@ jobs:
           name: reports
           path: app/build/reports
           retention-days: 7
+
+  # This manual validation path runs only on a selected non-main branch; main pushes skip it and never wait on E2E.
+  e2e-validation:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.run_e2e }}
+    uses: ./.github/workflows/e2e.yml
+    with:
+      force_failure: ${{ inputs.force_e2e_failure }}

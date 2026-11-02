@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -198,12 +200,34 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.ratio_caption)).assertExists()
         compose.onNodeWithText(text(R.string.next)).performClick()
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
-        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithTag("weigh-step-next").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
         // Closed before the cup went on: nothing started, so straight back home without a summary.
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
         compose.onNodeWithText(text(R.string.nothing_recorded)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aPausedEspressoReplayCanAdvanceFromWeighToLive() {
+        val replay = ReplayScaleSource(
+            scope,
+            context.assets.open("sessions/synthetic-espresso.jsonl").bufferedReader().use { it.readLines() },
+            startPaused = true,
+        )
+        compose.setContent { AppTheme { App(factory(replay), replay, onboardingDone = true, actions, "1.0-test") } }
+
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 5_000)
+
+        assertEquals(null, replay.reading.value)
+        replay.resume()
+        replay.stop()
     }
 
     @Test

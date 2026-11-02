@@ -6,6 +6,7 @@
 #   scripts/e2e.sh                       against the stub (stub/)
 #   E2E_SERVER=exporter scripts/e2e.sh   against timemore-dot-prometheus-exporter (EXPORTER_DIR, default: a sibling
 #                                        checkout) with a throwaway Prometheus in Docker; also checks the metrics
+#   E2E_LOG_DIR=/tmp/e2e-logs            keeps server and instrumentation logs for CI artifact upload
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,13 +21,38 @@ token=$(openssl rand -hex 16)
 server="${E2E_SERVER:-stub}"
 prometheus=caparao-e2e-prometheus
 prom_port="${E2E_PROMETHEUS_PORT:-19091}"
+log_dir="${E2E_LOG_DIR:-}"
 tmp=$(mktemp -d)
-cleanup() {
-  kill "$pid" 2>/dev/null || true
-  wait "$pid" 2>/dev/null || true
-  [ "$server" = exporter ] && docker rm -f "$prometheus" >/dev/null 2>&1
-  rm -rf "$tmp"
+pid=""
+capture_android_runtime_logs() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
+  else
+    "$adb" logcat -d -v threadtime AndroidRuntime:E
+  fi
 }
+cleanup() {
+  status=$?
+  trap - EXIT
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  fi
+  if [ "$server" = exporter ]; then docker rm -f "$prometheus" >/dev/null 2>&1 || true; fi
+  if [ -n "$log_dir" ]; then
+    mkdir -p "$log_dir"
+    [ ! -f "$tmp/server.log" ] || cp "$tmp/server.log" "$log_dir/server.log"
+    [ ! -f "$tmp/instrumentation.log" ] || cp "$tmp/instrumentation.log" "$log_dir/instrumentation.log"
+    if [ "$status" -ne 0 ]; then
+      capture_android_runtime_logs > "$log_dir/android-runtime.log" 2>&1 || true
+    fi
+  fi
+  rm -rf "$tmp"
+  exit "$status"
+}
+trap cleanup EXIT
 if [ "$server" = exporter ]; then
   exporter_dir="${EXPORTER_DIR:-../timemore-dot-prometheus-exporter}"
   docker rm -f "$prometheus" >/dev/null 2>&1 || true
@@ -42,7 +68,6 @@ else
   AUTH_TOKEN="$token" LISTEN_ADDR="127.0.0.1:$port" "$tmp/server" >"$tmp/server.log" 2>&1 &
 fi
 pid=$!
-trap cleanup EXIT
 for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:$port/healthz" >/dev/null && break; sleep 0.2; done
 
 ./gradlew --console=plain -q assembleDebug assembleDebugAndroidTest
@@ -51,8 +76,20 @@ for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:$port/healthz" >/dev/null &&
 # The stub is on this machine, which the emulator reaches at 10.0.2.2: a local network address on Android 17.
 "$adb" shell pm grant "$app" android.permission.ACCESS_LOCAL_NETWORK 2>/dev/null || true
 
-result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
-  -e class io.github.mateuxlucax.caparao.EndToEndTest "$app.test/androidx.test.runner.AndroidJUnitRunner")
+instrumentation_status=0
+if result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
+  -e class io.github.mateuxlucax.caparao.EndToEndTest "$app.test/androidx.test.runner.AndroidJUnitRunner"); then
+  :
+else
+  instrumentation_status=$?
+fi
+printf '%s\n' "$result" > "$tmp/instrumentation.log"
+if [ "$instrumentation_status" -ne 0 ]; then
+  echo "$result" >&2
+  echo "--- $server log" >&2
+  cat "$tmp/server.log" >&2
+  exit "$instrumentation_status"
+fi
 echo "$result" | grep -q "OK (1 test)" || { echo "$result" >&2; echo "--- $server log" >&2; cat "$tmp/server.log" >&2; exit 1; }
 
 brews=$(curl -fs -H "Authorization: Bearer $token" "http://127.0.0.1:$port/api/v1/brews")
