@@ -41,6 +41,8 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 - Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
   with Roborazzi: no emulator, it runs in the cloud too. Cloud sessions build and test with the Android SDK setup script;
   the Mac is only for the emulator and real devices.
+- PR screenshots go in a table: one row per scenario with a short description and locale, Light and Dark image columns
+  at a constrained width so each pair reads comfortably, and alt text naming state, locale and theme.
 - The emulator is for instrumented tests, `scripts/e2e.sh` and on-device checks; with the phone also plugged in, set
   `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
