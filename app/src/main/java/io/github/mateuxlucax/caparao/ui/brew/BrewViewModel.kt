@@ -37,7 +37,7 @@ import java.util.UUID
 
 /**
  * One brew in [mode]: the dose, then readings fed to the mode's [BrewDetector], which decides when it starts and ends
- * and asks for tares; the result is saved as soon as it ends (docs/adr/0006-brew-detection-in-app.md).
+ * and asks for tares; the result is saved as soon as it ends (#90).
  */
 class BrewViewModel(
     private val mode: BrewMode,
@@ -165,7 +165,7 @@ class BrewViewModel(
 
     /**
      * Saves the notes typed on the summary into the brew just saved; it is sent again with them
-     * (docs/adr/0021-brew-notes.md). Returns false when a field is invalid.
+     * (#105). Returns false when a field is invalid.
      */
     fun saveNotes(): Boolean {
         val state = _uiState.value

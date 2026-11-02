@@ -49,7 +49,7 @@ object Motion {
     }
 
     /**
-     * Shared axis X on a spring, for the showcase flows (onboarding and the brews, docs/adr/0025-material-3-expressive.md):
+     * Shared axis X on a spring, for the showcase flows (onboarding and the brews, #109):
      * the content overshoots a little as it settles.
      */
     fun springAxisX(forward: Boolean, density: Density): ContentTransform {

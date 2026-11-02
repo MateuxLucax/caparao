@@ -24,7 +24,7 @@ enum class WatchState {
 enum class WatchStepKind { BLOOM, POUR, WAIT, SWIRL }
 
 /**
- * Where the guided brew stands (docs/adr/0019-guided-brew.md): step [index] of [count] (equal to [count] once all are
+ * Where the guided brew stands (#103): step [index] of [count] (equal to [count] once all are
  * done), its cumulative [targetGrams] for a pour, [dueInMs] until it is due while it hasn't begun, and once a pour began
  * its [paceMs] against the recipe (negative is ahead).
  */

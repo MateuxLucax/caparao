@@ -26,7 +26,7 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.toPath
 
 /**
- * A Material shape behind [content] that springs into the shape of [index] (docs/adr/0025-material-3-expressive.md):
+ * A Material shape behind [content] that springs into the shape of [index] (#109):
  * from a circle when it first shows, from the previous shape when [index] changes. With animations off, it just is.
  */
 @Composable

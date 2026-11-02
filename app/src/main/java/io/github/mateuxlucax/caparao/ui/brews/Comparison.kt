@@ -3,7 +3,7 @@ package io.github.mateuxlucax.caparao.ui.brews
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 
-/** What the trends view follows: a recipe, or the brews of a mode that followed none (docs/adr/0022-compare-and-trends.md). */
+/** What the trends view follows: a recipe, or the brews of a mode that followed none (#106). */
 data class TrendKey(val mode: BrewMode, val recipeId: String?) {
     fun matches(brew: Brew) = brew.mode == mode && brew.recipeId == recipeId
 
@@ -20,7 +20,7 @@ data class TrendKey(val mode: BrewMode, val recipeId: String?) {
     }
 }
 
-/** Compare selection and trend picking, pure so they are unit tested (docs/adr/0022-compare-and-trends.md). */
+/** Compare selection and trend picking, pure so they are unit tested (#106). */
 object Comparison {
     /** Two to four brews per comparison. */
     const val MIN = 2

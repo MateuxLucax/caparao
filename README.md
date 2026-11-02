@@ -67,7 +67,8 @@ flowchart LR
   tests and Roborazzi screenshots; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
 
 More in [docs/](docs/README.md): [architecture](docs/architecture.md), the Dot's [BLE protocol](docs/hardware.md),
-the [roadmap](docs/roadmap.md) and the [ADRs](docs/adr/README.md).
+the [roadmap](docs/roadmap.md) and the [issues](https://github.com/MateuxLucax/caparao/issues), where every decision
+lives.
 
 ## Install
 

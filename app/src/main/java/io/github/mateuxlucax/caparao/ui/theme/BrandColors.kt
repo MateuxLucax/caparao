@@ -6,7 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 // Generated with Material Color Utilities (tonal spot, the scheme Android derives from a wallpaper), so the brand
-// themes read like the system's. docs/adr/0024-brand-color-option.md.
+// themes read like the system's. #108.
 
 /** A brand seed color and its light and dark schemes. */
 enum class BrandColor(val seed: Color, val light: ColorScheme, val dark: ColorScheme) {

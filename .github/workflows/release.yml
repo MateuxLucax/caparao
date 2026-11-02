@@ -1,7 +1,7 @@
 name: Release
 
 # A signed APK on GitHub Releases, automatic on every green push to main (after the Build workflow passes). It can
-# also be run from the Actions tab or by pushing a v* tag (docs/adr/0012-sideloaded-apk-releases.md).
+# also be run from the Actions tab or by pushing a v* tag (#96).
 on:
   workflow_dispatch:
   push:
@@ -75,7 +75,7 @@ jobs:
         run: |
           ./gradlew --console=plain assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER"
           cp app/build/outputs/apk/release/app-release.apk "caparao-$VERSION_NAME.apk"
-          # The watch companion, same key (docs/adr/0023-watch-companion.md).
+          # The watch companion, same key (#107).
           cp wear/build/outputs/apk/release/wear-release.apk "caparao-wear-$VERSION_NAME.apk"
           rm -f "$RUNNER_TEMP/release.jks"
 

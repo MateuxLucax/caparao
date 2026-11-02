@@ -241,7 +241,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             }
             BrewNumbers(brew)
         }
-        // Asked after the brew, never before, so the main flow stays a few taps (docs/adr/0021-brew-notes.md).
+        // Asked after the brew, never before, so the main flow stays a few taps (#105).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }

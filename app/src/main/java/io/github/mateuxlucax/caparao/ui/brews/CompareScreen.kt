@@ -44,7 +44,7 @@ private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 @Composable
 private fun curveColors(): List<Color> = with(MaterialTheme.colorScheme) { listOf(primary, tertiary, secondary, error) }
 
-/** The weight curves of two to four brews on one chart, with a summary table below (docs/adr/0022-compare-and-trends.md). */
+/** The weight curves of two to four brews on one chart, with a summary table below (#106). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompareScreen(viewModel: CompareViewModel, onClose: () -> Unit) {

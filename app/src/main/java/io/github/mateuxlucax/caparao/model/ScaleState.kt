@@ -1,6 +1,6 @@
 package io.github.mateuxlucax.caparao.model
 
-/** Where the connection to the scale stands. The scale is only connected while the app is open (docs/adr/0008-connect-while-open.md). */
+/** Where the connection to the scale stands. The scale is only connected while the app is open (#92). */
 sealed interface ScaleState {
     /** Not connected and not trying: the app is in the background, or nothing has started the connection yet. */
     data object Idle : ScaleState

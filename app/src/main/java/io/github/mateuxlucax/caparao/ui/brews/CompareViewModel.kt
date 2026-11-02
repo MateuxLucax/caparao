@@ -20,7 +20,7 @@ data class CompareUiState(
     val loading: Boolean = true,
 )
 
-/** Two to four brews of one mode, their weight curves overlaid (docs/adr/0022-compare-and-trends.md). */
+/** Two to four brews of one mode, their weight curves overlaid (#106). */
 class CompareViewModel(private val ids: List<String>, private val repository: BrewRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(CompareUiState())
     val uiState: StateFlow<CompareUiState> = _uiState.asStateFlow()

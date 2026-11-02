@@ -23,8 +23,8 @@ interface UploadQueue {
 }
 
 /**
- * Decides when brews are uploaded (docs/adr/0016-upload-jobs.md): after each save, all unsynced ones again when a
- * server is saved, and any unsynced one without a job when the app opens. Nothing is enqueued without a server (docs/adr/0003-offline-first.md).
+ * Decides when brews are uploaded (#100): after each save, all unsynced ones again when a
+ * server is saved, and any unsynced one without a job when the app opens. Nothing is enqueued without a server (#87).
  */
 class UploadScheduler(
     private val settings: SettingsStore,

@@ -13,7 +13,7 @@ import java.io.File
 
 /**
  * The guide against synthetic pour-overs (no real filter brew is recorded yet; the thresholds come from the two brews
- * on the exporter, docs/adr/0019-guided-brew.md) and the synthetic filter replay session.
+ * on the exporter, #103) and the synthetic filter replay session.
  */
 class StepTrackerTest {
     /** A V60 in four pours, fixed here so the guide's tests don't move with the built-in recipes. */

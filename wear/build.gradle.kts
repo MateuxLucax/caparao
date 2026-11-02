@@ -1,4 +1,4 @@
-// Wear OS companion: mirrors the phone's scale and brew over the Data Layer (docs/adr/0023-watch-companion.md).
+// Wear OS companion: mirrors the phone's scale and brew over the Data Layer (#107).
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")

@@ -36,7 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-/** Manual dependency injection: builds the app's long-lived objects once (docs/adr/0011-code-structure.md). */
+/** Manual dependency injection: builds the app's long-lived objects once (#95). */
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
@@ -62,7 +62,7 @@ class AppContainer(context: Context) {
      */
     private val localNetworkBlocked: suspend (String) -> Boolean = { url -> LocalNetwork.isBlocked(appContext, url) }
 
-    /** Upload jobs, one per brew, only with a server (docs/adr/0016-upload-jobs.md). */
+    /** Upload jobs, one per brew, only with a server (#100). */
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
 
     /** Used by [UploadWorker]. */
@@ -85,7 +85,7 @@ class AppContainer(context: Context) {
     /** Scale mode's timer, driven from Home and the watch. */
     private val scaleTimer = ScaleTimer { scale }
 
-    /** The paired watch, if any (docs/adr/0023-watch-companion.md); reads [scale] when it starts. */
+    /** The paired watch, if any (#107); reads [scale] when it starts. */
     val watch = WatchLink(appContext, scope, scaleTimer) { scale }
 
     /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */

@@ -26,7 +26,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
     /**
-     * The recipe chosen last time in [mode], preselected on the next brew (docs/adr/0018-recipes.md): null when none was
+     * The recipe chosen last time in [mode], preselected on the next brew (#102): null when none was
      * ever chosen, [FREE_BREW] when the last brew had no recipe.
      */
     fun lastRecipeId(mode: BrewMode): String? = prefs.getString(KEY_LAST_RECIPE + mode.name.lowercase(), null)
@@ -47,7 +47,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun setTargetRatio(mode: BrewMode, ratio: Double) =
         prefs.edit().putFloat(KEY_TARGET_RATIO + mode.name.lowercase(), ratio.toFloat()).apply()
 
-    /** Guided brew alerts (docs/adr/0019-guided-brew.md): vibration on by default, sound off. */
+    /** Guided brew alerts (#103): vibration on by default, sound off. */
     var guideVibration: Boolean
         get() = prefs.getBoolean(KEY_GUIDE_VIBRATION, true)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_VIBRATION, value).apply()
@@ -62,7 +62,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
 
-    /** Caparaó's own colors instead of the system's Material You (docs/adr/0024-brand-color-option.md); off by default. */
+    /** Caparaó's own colors instead of the system's Material You (#108); off by default. */
     var brandColors: Boolean
         get() = prefs.getBoolean(KEY_BRAND_COLORS, false)
         set(value) = prefs.edit().putBoolean(KEY_BRAND_COLORS, value).apply()
@@ -155,7 +155,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
     }
 }
 
-/** Where the guided brew vibrates (docs/adr/0023-watch-companion.md). */
+/** Where the guided brew vibrates (#107). */
 enum class VibrationTarget(val phone: Boolean, val watch: Boolean) {
     PHONE(phone = true, watch = false),
     WATCH(phone = false, watch = true),

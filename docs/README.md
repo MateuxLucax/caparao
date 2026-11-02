@@ -9,6 +9,8 @@
 | [data.md](data.md) | Upload contract (files in [contract/](../contract/README.md)) and on-device data |
 | [acceptance/](acceptance/README.md) | Manual acceptance scripts and the record of each run |
 | [screenshots/](screenshots/README.md) | Every screen in English and Portuguese, light and dark |
-| [adr/](adr/README.md) | Architecture Decision Records |
+
+Decisions live in the [issue tracker](https://github.com/MateuxLucax/caparao/issues?q=label%3Adecision), including the
+archived decisions 0001–0026 (#85–#110); there are no ADR files anymore.
 
 All diagrams are [Mermaid](https://mermaid.js.org/) and render on GitHub.

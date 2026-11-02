@@ -19,7 +19,7 @@ android {
 
     defaultConfig {
         applicationId = "io.github.mateuxlucax.caparao"
-        // Android 12+: BLUETOOTH_SCAN with neverForLocation, no location permission (docs/adr/0009-min-sdk-31.md).
+        // Android 12+: BLUETOOTH_SCAN with neverForLocation, no location permission (#93).
         minSdk = 31
         targetSdk = 37
         versionCode = appVersionCode
@@ -104,16 +104,16 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (ADR 0025).
     implementation("androidx.compose.material3:material3:1.5.0-beta01")
-    // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (docs/adr/0011-code-structure.md).
+    // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (#95).
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
-    // Brews and their curves (docs/adr/0003-offline-first.md, docs/adr/0004-minimal-dependencies.md).
+    // Brews and their curves (#87, #88).
     implementation("androidx.room:room-runtime:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
-    // One upload job per brew, with a network constraint and backoff (docs/adr/0016-upload-jobs.md).
+    // One upload job per brew, with a network constraint and backoff (#100).
     implementation("androidx.work:work-runtime:2.12.0")
 
-    // The watch companion (docs/adr/0023-watch-companion.md): Data Layer messages and opening the watch app.
+    // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
@@ -126,7 +126,7 @@ dependencies {
     testImplementation("org.json:json:20250517")
     // runTest with virtual time for the connection logic, Dispatchers.setMain for ViewModel tests.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    // Compose screens on the JVM (docs/adr/0004-minimal-dependencies.md, 2026-10-29 amendment): test-only, nothing ships.
+    // Compose screens on the JVM (#88, 2026-10-29 amendment): test-only, nothing ships.
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
@@ -143,7 +143,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-// Material 3 Expressive components (docs/adr/0025-material-3-expressive.md) are still marked experimental.
+// Material 3 Expressive components (#109) are still marked experimental.
 kotlin {
     compilerOptions {
         optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")

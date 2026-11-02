@@ -12,15 +12,15 @@ flowchart LR
     db --> push["sync every 15 min"] -->|remote write| prom[("Prometheus")] --> graf["Grafana"]
 ```
 
-- The phone is the source of truth ([ADR 0003](adr/0003-offline-first.md)). Without a server, nothing changes except
+- The phone is the source of truth ([ADR 0003](https://github.com/MateuxLucax/caparao/issues/87)). Without a server, nothing changes except
   that brews show as "local only".
 - The scale stays in its standard mode and only streams readings; brew detection (first drop, end of flow) runs in the
-  app ([ADR 0006](adr/0006-brew-detection-in-app.md)).
-- The app talks to the scale only while it is open; the screen stays on during a brew ([ADR 0008](adr/0008-connect-while-open.md)).
+  app ([ADR 0006](https://github.com/MateuxLucax/caparao/issues/90)).
+- The app talks to the scale only while it is open; the screen stays on during a brew ([ADR 0008](https://github.com/MateuxLucax/caparao/issues/92)).
 
 ## Code structure
 
-One Gradle module; packages by layer, features inside `ui/` ([ADR 0011](adr/0011-code-structure.md)). Paths are
+One Gradle module; packages by layer, features inside `ui/` ([ADR 0011](https://github.com/MateuxLucax/caparao/issues/95)). Paths are
 relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked *planned* arrive with the stage shown.
 
 | Package | Responsibility |
@@ -33,7 +33,7 @@ relative to `app/src/main/java/io/github/mateuxlucax/caparao/`. Packages marked 
 | `ui` | `App` (onboarding gate, tabs, brew and brew detail on top, scale started and stopped with the app's visibility), `theme`, `format`, `components` (logo, pour animation, scale readout ring), `onboarding`, `home`, `brew` (recipe and dose → live, guided step by step for a filter recipe with `GuidedStep` and `GuideFeedback` → saved), `recipes` (list per mode, editor with `RecipeForm` validation), `brews` (list, detail, Canvas chart, sync status), `coffees` (bag list and editor), `settings` (`ServerViewModel`, shared with the onboarding server step), `watch` (the phone half of the watch mirror) |
 
 Outside the app module: `wear/` (the Wear OS companion: one screen mirroring the phone, the guided step and pace,
-tare and timer buttons sent back, step vibration and a finish alert, [ADR 0023](adr/0023-watch-companion.md)),
+tare and timer buttons sent back, step vibration and a finish alert, [ADR 0023](https://github.com/MateuxLucax/caparao/issues/107)),
 `wearlink/` (pure Kotlin both share: `WatchSnapshot` and the Data Layer
 paths; the phone side is `WatchLink` over `ui/watch/WatchMirror`), `stub/` (Go development server)
 and `contract/` (the upload schema and the JSON files both sides test against).

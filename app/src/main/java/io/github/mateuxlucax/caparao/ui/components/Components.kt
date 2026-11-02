@@ -91,7 +91,7 @@ val BrewMode.icon: Int
 
 /**
  * One row of a grouped list: large outer corners on the first and last rows, small ones between them, so the rows read
- * as one segmented surface (docs/adr/0025-material-3-expressive.md).
+ * as one segmented surface (#109).
  */
 @Composable
 fun segmentedShape(index: Int, count: Int): Shape {

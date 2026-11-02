@@ -9,7 +9,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 
 /**
- * The recipes a new or upgraded install starts with, as ordinary editable rows (docs/adr/0018-recipes.md). They come
+ * The recipes a new or upgraded install starts with, as ordinary editable rows (#102). They come
  * from the user's recipe guide: Lance Hedrick's V60 "One and Done" and "Big Brew", Tetsu Kasuya's 4:6 in ten pours, Não Sou Barista's Melitta 102 and
  * 103, and Pirados por Café's espresso on the Oster Xpert Perfect Brew. The names are the same in every language.
  */

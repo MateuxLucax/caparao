@@ -1,7 +1,7 @@
 # Recorded sessions
 
 Real Timemore Dot sessions captured with the stage 0 probe ([docs/spike.md](../../../../../docs/spike.md)), used as
-test fixtures ([ADR 0010](../../../../../docs/adr/0010-testing-strategy.md)). One JSON object per line: a header, then
+test fixtures ([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). One JSON object per line: a header, then
 `{"t_ms", "dir": "rx"|"tx"|"event", "hex", "note"}`. `rx` lines are notifications exactly as received, so one line may
 hold several frames. No MAC address or device name is recorded.
 

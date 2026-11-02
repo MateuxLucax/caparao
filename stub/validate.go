@@ -33,7 +33,7 @@ type Brew struct {
 	FlowAvgGps       float64  `json:"flow_avg_gps"`
 	FlowPeakGps      float64  `json:"flow_peak_gps"`
 	Interrupted      bool     `json:"interrupted"`
-	// Optional brew notes (docs/adr/0021-brew-notes.md); left out of the body when unset.
+	// Optional brew notes (#105); left out of the body when unset.
 	RecipeName *string  `json:"recipe_name,omitempty"`
 	Coffee     *string  `json:"coffee,omitempty"`
 	Grind      *string  `json:"grind,omitempty"`

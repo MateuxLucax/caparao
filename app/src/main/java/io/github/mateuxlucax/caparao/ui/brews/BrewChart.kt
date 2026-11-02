@@ -40,7 +40,7 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.ui.theme.flex
 
 /**
- * Weight (left axis) and flow (right axis) over time, drawn on a Canvas (docs/adr/0013-canvas-charts.md). The axes
+ * Weight (left axis) and flow (right axis) over time, drawn on a Canvas (#97). The axes
  * come from [ChartScale].
  */
 @Composable

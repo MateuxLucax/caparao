@@ -1,8 +1,9 @@
 # Roadmap
 
 Each stage ends with something that runs, and closes only when its acceptance criteria are met
-([ADR 0015](adr/0015-acceptance-and-lean-ci.md)). Automated criteria run in `scripts/check.sh` or on the local
-emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
+([ADR 0015](https://github.com/MateuxLucax/caparao/issues/99)). Automated criteria run in `scripts/check.sh` or on the local
+emulator; device criteria are scripts in [acceptance/](acceptance/README.md). This table records what each stage
+delivered; pending work and new decisions live in the [issues](https://github.com/MateuxLucax/caparao/issues).
 
 | # | Stage | Status |
 |---|-------|--------|
@@ -14,9 +15,9 @@ emulator; device criteria are scripts in [acceptance/](acceptance/README.md).
 | 5 | Contract, stub and sync | Done in code: contract, stub, `ExporterClient`, one upload job per brew, server step in onboarding and Settings; device run of [acceptance/sync.md](acceptance/sync.md) pending |
 | 6 | Release and end-to-end test | Done: `scripts/e2e.sh` passes locally; Release runs automatically on a green `main` (v0.1.39), R8; an e2e run in CI still needs an emulator on the runner |
 | 7 | Recipes, guided brew, metadata and comparison | Done: recipes, guided brew, notes and rating, compare and trends (PRs #29–#33, #35, #38–#40, #42) |
-| 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); the exporter is already deployed on the home server, but deployment of the latest image (with samples and notes) is still to confirm |
+| 8 | Prometheus exporter | Built and released (v0.1.5) in [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter); `E2E_SERVER=exporter scripts/e2e.sh` passes (emulator → exporter → Prometheus); deployed on the home server with a brew with notes validated ([#82](https://github.com/MateuxLucax/caparao/issues/82)) |
 | 9 | Watch companion | Done: mirror, tare and timer, ongoing activity, guided step and pace, vibration (phone / watch / both), finish alert and the watch APK in every release; approved on 30/10 |
-| 10 | French press mode | Not started; ADR pending |
+| 10 | French press mode | Not started ([#81](https://github.com/MateuxLucax/caparao/issues/81)) |
 
 ## 0. Hardware spike
 
@@ -36,7 +37,7 @@ Acceptance:
 
 - Gradle project (compileSdk 37, minSdk 31), packages `model <- data <- brew <- sync <- ui <- root`, `LayerDependencyTest`.
 - Material 3 dynamic color, English and pt-BR strings with `TranslationsTest`, Home / Brews / Settings tabs, launcher icon.
-- `docs/`, ADRs 0001–0015, `scripts/check.sh`, gitleaks pre-commit hook, lean CI.
+- `docs/`, decisions 0001–0015, `scripts/check.sh`, gitleaks pre-commit hook, lean CI.
 
 Acceptance:
 - `scripts/check.sh` passes locally in under 3 minutes.
@@ -93,12 +94,12 @@ Acceptance:
 
 ## 5. Contract, stub and sync
 
-- [data.md](data.md): `POST /api/v1/brews`, Bearer token, upsert by the phone-generated `id` ([ADR 0007](adr/0007-idempotent-upload.md)).
+- [data.md](data.md): `POST /api/v1/brews`, Bearer token, upsert by the phone-generated `id` ([ADR 0007](https://github.com/MateuxLucax/caparao/issues/91)).
 - `stub/`: Go standard library only; validates, upserts in memory, logs, `GET /api/v1/brews`, `GET /healthz`, Dockerfile.
 - `ExporterClient` (`HttpURLConnection` + `org.json`), one `UploadWorker` per brew (network constraint, backoff,
-  [ADR 0016](adr/0016-upload-jobs.md)); saving a server resends every unsynced brew.
+  [ADR 0016](https://github.com/MateuxLucax/caparao/issues/100)); saving a server resends every unsynced brew.
 - Optional server step in onboarding (with Skip) and in Settings, with a connection test; local network permission only
-  for a local server ([ADR 0017](adr/0017-local-network-permission.md)). The Brews tab shows the last sync and the
+  for a local server ([ADR 0017](https://github.com/MateuxLucax/caparao/issues/101)). The Brews tab shows the last sync and the
   last error with its fix.
 
 Acceptance:
@@ -125,13 +126,13 @@ Acceptance:
 
 ## 7. Recipes, guided brew, metadata and comparison
 
-Recipes ([ADR 0018](adr/0018-recipes.md)), guided brew with full-screen steps ([ADR 0019](adr/0019-guided-brew.md)),
-more brew metadata ([ADR 0021](adr/0021-brew-notes.md)), compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)).
+Recipes ([ADR 0018](https://github.com/MateuxLucax/caparao/issues/102)), guided brew with full-screen steps ([ADR 0019](https://github.com/MateuxLucax/caparao/issues/103)),
+more brew metadata ([ADR 0021](https://github.com/MateuxLucax/caparao/issues/105)), compare and trends ([ADR 0022](https://github.com/MateuxLucax/caparao/issues/106)).
 Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Acceptance criteria are written per PR.
 
 7.1 Recipe data:
 - `Recipe` and `RecipeStep` in `model/`; Room tables `recipes` and `recipe_steps` (cascade delete) and every brew
-  metadata column of ADR 0021 on `brews`, in one migration 1 → 2, so later PRs add no schema change.
+  metadata column of decision 0021 on `brews`, in one migration 1 → 2, so later PRs add no schema change.
 - `MigrationTest` (instrumented): a version 1 database with a brew upgrades, keeps the brew and its curve, passes
   Room's schema check and gets the two built-in recipes; a fresh install gets them too.
 - `RecipeDaoTest` (instrumented): save and read back with steps in order, saving again replaces the steps, list by mode
@@ -181,7 +182,7 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   round-trips), stub `go test` (new valid and invalid files), `NotesFormTest`, `BrewViewModelTest` (suggested coffee,
   saved notes sent again, invalid temperature), `BrewDetailViewModelTest` (edit unsyncs and sends; unchanged or invalid
   sends nothing), `BrewDaoTest` (notes clear `synced_at`, coffees newest first).
-7.6 Compare and trends ([ADR 0022](adr/0022-compare-and-trends.md)):
+7.6 Compare and trends ([ADR 0022](https://github.com/MateuxLucax/caparao/issues/106)):
 - Brews: a long press picks two to four brews of one mode, then Compare overlays their weight curves on one chart with
   a table of dose, yield, ratio, time, average flow and rating.
 - Brew detail: "Compare with last" opens the brew next to the previous one of the same recipe, and Trends shows ratio
@@ -214,14 +215,14 @@ Acceptance:
 
 ## 9. Watch companion
 
-Wear OS app for the Galaxy Watch Ultra ([ADR 0023](adr/0023-watch-companion.md)). Done: one screen mirroring the phone
+Wear OS app for the Galaxy Watch Ultra ([ADR 0023](https://github.com/MateuxLucax/caparao/issues/107)). Done: one screen mirroring the phone
 (weight, timer, flow, guided step and pace, tare and timer buttons), opens by itself when a brew is ready, ongoing
 activity during a brew, vibration on step changes with the phone / watch / both toggle, a finish alert, and the watch
 APK in each release. Approved on 30/10.
 
-Open refinements from the ADR: a tile or complication, and starting a brew from the watch.
+Open refinements from the decision: a tile or complication, and starting a brew from the watch.
 
 ## 10. French press mode
 
 A recipe with steps: add the coffee, pour 100 g, wait until 1:00, pour the rest, wait until 4:00. The ratio is shown
-as water for coffee, for example 300 g of water for 20 g of coffee (1:15). Needs its own ADR before the code.
+as water for coffee, for example 300 g of water for 20 g of coffee (1:15). Needs its own issue before the code.

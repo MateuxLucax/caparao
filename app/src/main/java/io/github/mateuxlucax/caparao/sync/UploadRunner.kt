@@ -12,7 +12,7 @@ enum class UploadOutcome { SUCCESS, RETRY, FAILURE }
 
 /**
  * Uploads one brew for the worker and records the outcome in [settings]: the brew is marked synced only after a 2xx
- * (docs/adr/0007-idempotent-upload.md); errors are kept for the Brews tab and retried only when that can help.
+ * (#91); errors are kept for the Brews tab and retried only when that can help.
  */
 class UploadRunner(
     private val repository: BrewRepository,

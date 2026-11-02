@@ -25,7 +25,7 @@ import kotlinx.coroutines.tasks.await
 
 /**
  * Mirrors the scale and the open brew to a paired Wear OS watch and takes its tare and timer buttons
- * (docs/adr/0023-watch-companion.md). Runs while the app is visible, like the scale connection; with no watch it
+ * (#107). Runs while the app is visible, like the scale connection; with no watch it
  * finds no node and sends nothing.
  */
 class WatchLink(context: Context, private val scope: CoroutineScope, private val timer: ScaleTimer, private val scale: () -> ScaleSource) {
@@ -80,7 +80,7 @@ class WatchLink(context: Context, private val scope: CoroutineScope, private val
         watchNodes.forEach { node -> messages.sendMessage(node, WatchPaths.SNAPSHOT, payload) }
     }
 
-    /** Vibrates the watch for a guide moment (docs/adr/0019-guided-brew.md); nothing without a watch. */
+    /** Vibrates the watch for a guide moment (#103); nothing without a watch. */
     fun alert(event: StepEvent) {
         val payload = WatchMirror.alert(event).encode()
         watchNodes.forEach { node -> messages.sendMessage(node, WatchPaths.ALERT, payload) }

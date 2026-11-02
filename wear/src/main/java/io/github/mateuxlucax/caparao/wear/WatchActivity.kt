@@ -24,7 +24,7 @@ import kotlinx.coroutines.tasks.await
 
 /**
  * The one watch screen: what the phone sends, and tare and timer buttons sent back
- * (docs/adr/0023-watch-companion.md). Listens only while visible; the phone sends about 5 snapshots a second.
+ * (#107). Listens only while visible; the phone sends about 5 snapshots a second.
  */
 class WatchActivity : ComponentActivity() {
     private val messages by lazy { Wearable.getMessageClient(this) }

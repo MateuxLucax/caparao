@@ -84,7 +84,7 @@ fun ScaleReadout(
         timerColor ?: if (timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "timer",
     )
-    // Roboto Flex's axes carry the state (docs/adr/0025-material-3-expressive.md): the weight is light until the scale
+    // Roboto Flex's axes carry the state (#109): the weight is light until the scale
     // connects, heavy and wide while it counts, and pulses to the heaviest the moment the ratio is reached.
     var pulse by remember { mutableStateOf(false) }
     LaunchedEffect(ratio?.onTarget) {
@@ -185,7 +185,7 @@ fun ScaleReadout(
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
-                // One thick open ring with round ends on a neutral track (docs/adr/0025-material-3-expressive.md).
+                // One thick open ring with round ends on a neutral track (#109).
                 val outer = 20.dp.toPx()
                 val o = outer / 2
                 val outerSize = Size(size.width - outer, size.height - outer)

@@ -180,7 +180,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("recipe-editor")
     }
 
-    /** The coffees screen from Settings, with an open bag and a finished one (docs/adr/0026-coffee-bags.md). */
+    /** The coffees screen from Settings, with an open bag and a finished one (#110). */
     @Test
     fun coffees() {
         val day = 86_400_000L
@@ -197,7 +197,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("coffees")
     }
 
-    /** The home tab in each brand color (docs/adr/0024-brand-color-option.md). */
+    /** The home tab in each brand color (#108). */
     @Test
     fun brandColors() {
         var brand by mutableStateOf<BrandColor?>(null)

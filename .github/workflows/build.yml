@@ -1,7 +1,7 @@
 name: Build
 
 # One lean job while the repository is private (GitHub Free minutes): unit tests, lint, the debug build and the
-# stub's contract tests, the same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (docs/adr/0015-acceptance-and-lean-ci.md).
+# stub's contract tests, the same as scripts/check.sh. Instrumented and end-to-end tests run on a local emulator (#99).
 on:
   push:
     branches: [main]

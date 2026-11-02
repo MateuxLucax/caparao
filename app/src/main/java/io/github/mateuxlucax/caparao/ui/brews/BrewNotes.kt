@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.Brew
 
-/** A brew's notes as typed (docs/adr/0021-brew-notes.md), on the save screen and in the brew detail. */
+/** A brew's notes as typed (#105), on the save screen and in the brew detail. */
 data class NotesForm(
     val coffee: String = "",
     val grind: String = "",
