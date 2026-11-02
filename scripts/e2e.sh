@@ -24,6 +24,15 @@ prom_port="${E2E_PROMETHEUS_PORT:-19091}"
 log_dir="${E2E_LOG_DIR:-}"
 tmp=$(mktemp -d)
 pid=""
+capture_android_runtime_logs() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout --kill-after=5s 30s "$adb" logcat -d -v threadtime AndroidRuntime:E
+  else
+    "$adb" logcat -d -v threadtime AndroidRuntime:E
+  fi
+}
 cleanup() {
   status=$?
   trap - EXIT
@@ -37,7 +46,7 @@ cleanup() {
     [ ! -f "$tmp/server.log" ] || cp "$tmp/server.log" "$log_dir/server.log"
     [ ! -f "$tmp/instrumentation.log" ] || cp "$tmp/instrumentation.log" "$log_dir/instrumentation.log"
     if [ "$status" -ne 0 ]; then
-      "$adb" logcat -d -v threadtime AndroidRuntime:E > "$log_dir/android-runtime.log" 2>&1 || true
+      capture_android_runtime_logs > "$log_dir/android-runtime.log" 2>&1 || true
     fi
   fi
   rm -rf "$tmp"

@@ -9,14 +9,23 @@ adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 
 capture_emulator_logs() {
   local status=$?
+  local devices=""
+  local serial=""
   trap - EXIT
   {
     printf '\nE2E runner exit status: %s\n' "$status"
     if [ -x "$adb" ]; then
-      "$adb" devices -l
-      local serial="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
+      if devices=$(timeout --kill-after=5s 10s "$adb" devices -l 2>&1); then
+        printf '%s\n' "$devices"
+      else
+        printf '%s\n' "$devices"
+        echo "adb devices failed or timed out; continuing with available diagnostics."
+      fi
+      serial="${ANDROID_SERIAL:-$(printf '%s\n' "$devices" | awk '/^emulator-/ { print $1; exit }')}"
       if [ -n "$serial" ]; then
-        "$adb" -s "$serial" logcat -d -v threadtime -t 5000
+        if ! timeout --kill-after=5s 30s "$adb" -s "$serial" logcat -d -v threadtime -t 5000; then
+          echo "Emulator logcat failed or timed out."
+        fi
       else
         echo "No emulator serial was available for logcat."
       fi
