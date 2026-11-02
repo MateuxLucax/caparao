@@ -1,0 +1,37 @@
+name: Assign
+
+# Metadata-only assignment for new and reopened issues and PRs (#142). pull_request_target runs in the base repository,
+# and this workflow never checks out or runs code from the PR, so fork PRs are safe.
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, reopened]
+
+# Only the two APIs this workflow uses: no contents access, checkout or PR code.
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        with:
+          script: |
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+              core.setFailed(`Invalid issue number: ${process.env.ISSUE_NUMBER}`);
+              return;
+            }
+            // Adding an existing assignee is idempotent, and the API preserves every other assignee.
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              assignees: ['MateuxLucax'],
+            });
