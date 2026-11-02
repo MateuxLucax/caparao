@@ -18,14 +18,6 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/widget_weekly_estimates"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:textColor="@color/widget_secondary_text"
-        android:textSize="10sp" />
-
     <FrameLayout
         android:id="@+id/widget_weekly_body"
         android:layout_width="match_parent"
@@ -85,24 +77,28 @@
                     android:layout_height="32dp"
                     android:orientation="horizontal">
 
-                    <LinearLayout style="@style/BrewWidgetStat">
+                    <LinearLayout
+                        style="@style/BrewWidgetStat"
+                        android:layout_weight="4">
+                        <TextView
+                            android:id="@+id/widget_weekly_brews_value"
+                            style="@style/BrewWidgetStatValue" />
                         <TextView
                             android:id="@+id/widget_weekly_brews_label"
                             style="@style/BrewWidgetStatLabel"
                             android:text="@string/widget_weekly_brews" />
-                        <TextView
-                            android:id="@+id/widget_weekly_brews_value"
-                            style="@style/BrewWidgetStatValue" />
                     </LinearLayout>
 
-                    <LinearLayout style="@style/BrewWidgetStat">
+                    <LinearLayout
+                        style="@style/BrewWidgetStat"
+                        android:layout_weight="6">
+                        <TextView
+                            android:id="@+id/widget_weekly_beverage_value"
+                            style="@style/BrewWidgetStatValue" />
                         <TextView
                             android:id="@+id/widget_weekly_beverage_label"
                             style="@style/BrewWidgetStatLabel"
                             android:text="@string/widget_weekly_beverage" />
-                        <TextView
-                            android:id="@+id/widget_weekly_beverage_value"
-                            style="@style/BrewWidgetStatValue" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -111,24 +107,28 @@
                     android:layout_height="32dp"
                     android:orientation="horizontal">
 
-                    <LinearLayout style="@style/BrewWidgetStat">
+                    <LinearLayout
+                        style="@style/BrewWidgetStat"
+                        android:layout_weight="4">
+                        <TextView
+                            android:id="@+id/widget_weekly_dose_value"
+                            style="@style/BrewWidgetStatValue" />
                         <TextView
                             android:id="@+id/widget_weekly_dose_label"
                             style="@style/BrewWidgetStatLabel"
                             android:text="@string/widget_weekly_dose" />
-                        <TextView
-                            android:id="@+id/widget_weekly_dose_value"
-                            style="@style/BrewWidgetStatValue" />
                     </LinearLayout>
 
-                    <LinearLayout style="@style/BrewWidgetStat">
+                    <LinearLayout
+                        style="@style/BrewWidgetStat"
+                        android:layout_weight="6">
+                        <TextView
+                            android:id="@+id/widget_weekly_caffeine_value"
+                            style="@style/BrewWidgetStatValue" />
                         <TextView
                             android:id="@+id/widget_weekly_caffeine_label"
                             style="@style/BrewWidgetStatLabel"
                             android:text="@string/widget_weekly_caffeine" />
-                        <TextView
-                            android:id="@+id/widget_weekly_caffeine_value"
-                            style="@style/BrewWidgetStatValue" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

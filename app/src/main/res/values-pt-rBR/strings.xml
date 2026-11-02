@@ -23,7 +23,6 @@
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_coffee">Passar um café</string>
     <string name="widget_weekly_title">Últimos 7 dias</string>
-    <string name="widget_weekly_estimates">Estimativas da bebida preparada e da cafeína</string>
     <string name="widget_weekly_empty">Nenhum preparo nesta semana</string>
     <string name="widget_weekly_brews">Preparos</string>
     <string name="widget_weekly_beverage">Bebida</string>
@@ -31,6 +30,7 @@
     <string name="widget_weekly_caffeine">Cafeína</string>
     <string name="widget_weekly_chart_description">Preparos por dia: %1$s</string>
     <string name="widget_amount_with_unit">%1$s %2$s</string>
+    <string name="widget_approximate_amount">≈ %1$s</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>

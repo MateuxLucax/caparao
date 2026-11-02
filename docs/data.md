@@ -69,15 +69,22 @@ query reads `brews` only, not `brew_samples`.
   espresso, or × 11 mg/g for filter. The app does not know coffee variety, roast, decaf status or extraction. These
   product factors assume regular coffee and vary from brew to brew.
 - The caffeine factors are estimates, not universal measurements. Arabica espresso studies report roughly 8.4–9.5 mg/g
-  of dose; filter results vary by method, roughly 8.4–12.8 mg/g, with V60 around 10.2 mg/g. The 7 mg/g espresso value is
-  a conservative product choice; 11 mg/g is a rough central filter estimate. Robusta can be about twice the Arabica
-  caffeine per gram in a brewed serving. Angeloni et al.'s French-press preparation measured about 6.9 mg/g, supporting
-  a separate rounded 7 mg/g estimate when that mode lands. It was one recipe, not a universal French-press factor.
-- For Angeloni et al.'s espresso comparison, the beverage concentration × beverage mass is used: its Table 4 mg/g
-  entries conflict with those values, while the V60 and French-press results are internally consistent.
-- The 2 g/g retention assumption is approximate: a drip-brewing model uses about 2.1 g/g, while a full-immersion
-  mass-balance study measured 2.48 ± 0.19 g/g. The 2 g/g value is a reasonable estimate, not an exact per-brew
-  measurement. French press will use the same 2 g/g volume retention once its mode is added.
+  of dose ([Ludwig et al. (2014)](https://doi.org/10.1039/c4fo00290c); [Caporaso et al. (2014)](https://doi.org/10.1016/j.foodres.2014.01.020));
+  filter results vary by method, roughly 8.4–12.8 mg/g ([Ludwig et al. (2012)](https://doi.org/10.1016/j.foodres.2012.02.023);
+  [Angeloni et al. (2019)](https://doi.org/10.1016/j.foodres.2018.10.022)); that Angeloni et al. study reports V60 around
+  10.2 mg/g.
+  The 7 mg/g espresso value is a conservative product choice; 11 mg/g is a rough central filter estimate. Robusta can
+  have about twice the Arabica caffeine per gram in a brewed serving ([Ludwig et al. (2014)](https://doi.org/10.1039/c4fo00290c)).
+  [Angeloni et al. (2019)](https://doi.org/10.1016/j.foodres.2018.10.022) measured about 6.9 mg/g for its French-press
+  preparation, supporting a separate rounded 7 mg/g estimate when that mode lands. It was one recipe, not a universal
+  French-press factor.
+- For [Angeloni et al.'s (2019)](https://doi.org/10.1016/j.foodres.2018.10.022) espresso comparison, beverage concentration
+  × beverage mass is used: its Table 4 mg/g entries conflict with those values, while the V60 and French-press results
+  are internally consistent.
+- The 2 g/g retention assumption is approximate: a drip-brewing model uses about 2.1 g/g ([Guinard et al. (2023)](https://doi.org/10.1111/1750-3841.16531)),
+  while a full-immersion mass-balance study measured 2.48 ± 0.19 g/g ([Liang et al. (2021)](https://doi.org/10.1038/s41598-021-85787-1)).
+  The 2 g/g value is a reasonable estimate, not an exact per-brew measurement. French press will use the same 2 g/g
+  volume retention once its mode is added.
 
 Primary sources:
 

@@ -13,16 +13,23 @@ internal object BrewWidgetFormat {
 
     fun dose(context: Context, grams: Double): String = amount(context, grams, R.string.unit_grams, 0)
 
-    fun caffeine(context: Context, milligrams: Double): String = amount(context, milligrams, R.string.unit_mg, 0)
+    fun caffeine(context: Context, milligrams: Double): String = estimated(
+        context,
+        amount(context, milligrams, R.string.unit_mg, 0),
+    )
 
     fun beverageVolume(context: Context, milliliters: Double): String {
         val roundedMl = milliliters.roundToLong().coerceAtLeast(0)
-        return if (roundedMl >= 1_000) {
+        val amount = if (roundedMl >= 1_000) {
             amount(context, roundedMl / 1_000.0, R.string.unit_l, 1)
         } else {
             amount(context, roundedMl.toDouble(), R.string.unit_ml, 0)
         }
+        return estimated(context, amount)
     }
+
+    private fun estimated(context: Context, amount: String): String =
+        context.getString(R.string.widget_approximate_amount, amount)
 
     private fun amount(context: Context, value: Double, unit: Int, maximumFractionDigits: Int): String =
         context.getString(

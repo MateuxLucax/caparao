@@ -14,7 +14,7 @@ import kotlin.math.sqrt
 internal object BrewWidgetChart {
     const val MAX_BITMAP_BYTES = 256 * 1024
 
-    private const val BYTES_PER_PIXEL = 4
+    private const val BYTES_PER_PIXEL = 1
     private const val MAX_BITMAP_DIMENSION_PX = 4_096
     private const val LABEL_TEXT_SIZE_DP = 10f
     private const val BAR_GAP_DP = 2f
@@ -27,21 +27,23 @@ internal object BrewWidgetChart {
         widthPx: Int,
         heightPx: Int,
         density: Float,
+        maxBitmapBytes: Int = MAX_BITMAP_BYTES,
     ): Bitmap {
         require(counts.size == 7) { "The weekly widget chart needs seven day buckets" }
         require(countLabels.size == counts.size) { "Each chart bar needs a localized count label" }
+        require(maxBitmapBytes >= 4) { "A chart bitmap needs at least one aligned pixel" }
 
         val sourceWidth = widthPx.coerceAtLeast(1).coerceAtMost(MAX_BITMAP_DIMENSION_PX)
         val sourceHeight = heightPx.coerceAtLeast(1).coerceAtMost(MAX_BITMAP_DIMENSION_PX)
-        val maximumPixels = MAX_BITMAP_BYTES / BYTES_PER_PIXEL
+        val maximumPixels = maxBitmapBytes / BYTES_PER_PIXEL
         val downsample = min(1.0, sqrt(maximumPixels.toDouble() / (sourceWidth.toLong() * sourceHeight)))
         var bitmapWidth = max(1, (sourceWidth * downsample).roundToInt()).coerceAtMost(sourceWidth)
         var bitmapHeight = max(1, (sourceHeight * downsample).roundToInt()).coerceAtMost(sourceHeight)
-        while (bitmapWidth.toLong() * bitmapHeight > maximumPixels) {
+        while (allocationBytes(bitmapWidth, bitmapHeight) > maxBitmapBytes) {
             if (bitmapWidth >= bitmapHeight) bitmapWidth-- else bitmapHeight--
         }
 
-        val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ALPHA_8)
         val canvas = Canvas(bitmap).apply {
             scale(bitmapWidth.toFloat() / sourceWidth, bitmapHeight.toFloat() / sourceHeight)
         }
@@ -83,5 +85,10 @@ internal object BrewWidgetChart {
             }
         }
         return bitmap
+    }
+
+    private fun allocationBytes(width: Int, height: Int): Long {
+        val rowBytes = ((width * BYTES_PER_PIXEL + 3) / 4) * 4
+        return rowBytes.toLong() * height
     }
 }

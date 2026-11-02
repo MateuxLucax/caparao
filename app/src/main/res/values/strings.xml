@@ -27,7 +27,6 @@
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
     <string name="widget_weekly_title">Last 7 days</string>
-    <string name="widget_weekly_estimates">Brewed beverage and caffeine estimates</string>
     <string name="widget_weekly_empty">No brews this week</string>
     <string name="widget_weekly_brews">Brews</string>
     <string name="widget_weekly_beverage">Beverage</string>
@@ -35,6 +34,7 @@
     <string name="widget_weekly_caffeine">Caffeine</string>
     <string name="widget_weekly_chart_description">Brews per day: %1$s</string>
     <string name="widget_amount_with_unit">%1$s %2$s</string>
+    <string name="widget_approximate_amount">≈ %1$s</string>
 
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>

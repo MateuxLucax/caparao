@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** Home-screen view of the latest saved brew, refreshed after writes and by the system periodically. */
 class BrewWidgetProvider : AppWidgetProvider() {
@@ -40,7 +41,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
         super.onAppWidgetOptionsChanged(context, manager, appWidgetId, newOptions)
-        refresh(context, manager, intArrayOf(appWidgetId))
+        refresh(context, manager, intArrayOf(appWidgetId), mapOf(appWidgetId to newOptions))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -52,7 +53,12 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun refresh(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
+    private fun refresh(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetIds: IntArray,
+        optionsByWidgetId: Map<Int, Bundle> = emptyMap(),
+    ) {
         if (appWidgetIds.isEmpty()) return
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -70,7 +76,11 @@ class BrewWidgetProvider : AppWidgetProvider() {
                     },
                     publish = { content ->
                         appWidgetIds.forEach { id ->
-                            manager.updateAppWidget(id, responsiveViews(context, id, content.latest, content.week))
+                            val options = optionsByWidgetId[id] ?: manager.getAppWidgetOptions(id)
+                            manager.updateAppWidget(
+                                id,
+                                responsiveViews(context, id, content.latest, content.week, options),
+                            )
                         }
                     },
                 )
@@ -128,7 +138,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
     }
 
     /** Android 12+ chooses the largest responsive layout that fits the widget's current size. */
-    internal fun responsiveViews(context: Context, appWidgetId: Int, latest: Brew?, week: BrewWidgetWeek): RemoteViews {
+    internal fun responsiveViews(
+        context: Context,
+        appWidgetId: Int,
+        latest: Brew?,
+        week: BrewWidgetWeek,
+        options: Bundle = Bundle(),
+    ): RemoteViews {
         val density = context.resources.displayMetrics.density
         val compactSize = SizeF(
             context.resources.getDimension(R.dimen.widget_min_width) / density,
@@ -138,30 +154,42 @@ class BrewWidgetProvider : AppWidgetProvider() {
             context.resources.getDimension(R.dimen.widget_weekly_min_width) / density,
             context.resources.getDimension(R.dimen.widget_weekly_min_height) / density,
         )
-        return RemoteViews(
-            mapOf(
-                compactSize to views(context, appWidgetId, latest),
-                weeklySize to weeklyViews(context, appWidgetId, latest?.mode, week),
-            ),
-        )
+        val weeklySizes = weeklyWidgetSizeVariants(options, weeklySize)
+        val bitmapBudgetPerVariant = BrewWidgetChart.MAX_BITMAP_BYTES / weeklySizes.size
+        val layouts = mutableMapOf(compactSize to views(context, appWidgetId, latest))
+        weeklySizes.forEach { size ->
+            layouts[size] = weeklyViews(
+                context = context,
+                appWidgetId = appWidgetId,
+                latestMode = latest?.mode,
+                week = week,
+                chartWidthPx = chartWidthPx(context, size.width),
+                chartBitmapMaxBytes = bitmapBudgetPerVariant,
+            )
+        }
+        return RemoteViews(layouts)
     }
 
     /** The expanded widget shows estimates for the last seven local dates; the compact layout remains unchanged. */
-    internal fun weeklyViews(context: Context, appWidgetId: Int, latestMode: BrewMode?, week: BrewWidgetWeek): RemoteViews {
+    internal fun weeklyViews(
+        context: Context,
+        appWidgetId: Int,
+        latestMode: BrewMode?,
+        week: BrewWidgetWeek,
+        chartWidthPx: Int = minimumWeeklyChartWidthPx(context),
+        chartBitmapMaxBytes: Int = BrewWidgetChart.MAX_BITMAP_BYTES,
+    ): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_brew_weekly)
         views.setTextViewText(R.id.widget_weekly_title, context.getString(R.string.widget_weekly_title))
         views.setOnClickPendingIntent(R.id.widget_weekly_root, pendingIntent(context, appWidgetId, shortcutForWidget(latestMode)))
 
         if (week.isEmpty) {
             views.setTextViewText(R.id.widget_weekly_empty, context.getString(R.string.widget_weekly_empty))
-            views.setViewVisibility(R.id.widget_weekly_estimates, View.GONE)
             views.setViewVisibility(R.id.widget_weekly_empty, View.VISIBLE)
             views.setViewVisibility(R.id.widget_weekly_content, View.GONE)
             return views
         }
 
-        views.setTextViewText(R.id.widget_weekly_estimates, context.getString(R.string.widget_weekly_estimates))
-        views.setViewVisibility(R.id.widget_weekly_estimates, View.VISIBLE)
         views.setViewVisibility(R.id.widget_weekly_empty, View.GONE)
         views.setViewVisibility(R.id.widget_weekly_content, View.VISIBLE)
         views.setTextViewText(R.id.widget_weekly_brews_value, BrewWidgetFormat.count(context, week.brewCount))
@@ -182,8 +210,6 @@ class BrewWidgetProvider : AppWidgetProvider() {
             R.id.widget_weekly_chart,
             context.getString(R.string.widget_weekly_chart_description, chartDescription),
         )
-        val chartWidthPx = context.resources.getDimensionPixelSize(R.dimen.widget_weekly_min_width) -
-            2 * context.resources.getDimensionPixelSize(R.dimen.widget_weekly_padding)
         val chartHeightPx = context.resources.getDimensionPixelSize(R.dimen.widget_weekly_chart_height)
         val bitmap = BrewWidgetChart.render(
             counts = week.buckets.map { it.brewCount },
@@ -191,6 +217,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
             widthPx = chartWidthPx,
             heightPx = chartHeightPx,
             density = context.resources.displayMetrics.density,
+            maxBitmapBytes = chartBitmapMaxBytes,
         )
         views.setImageViewBitmap(R.id.widget_weekly_chart, bitmap)
         return views
@@ -214,6 +241,16 @@ class BrewWidgetProvider : AppWidgetProvider() {
         else -> R.string.widget_brew_espresso
     }
 
+    private fun chartWidthPx(context: Context, widgetWidthDp: Float): Int {
+        val widthPx = (widgetWidthDp * context.resources.displayMetrics.density).roundToInt()
+        val horizontalPaddingPx = 2 * context.resources.getDimensionPixelSize(R.dimen.widget_weekly_padding)
+        return (widthPx - horizontalPaddingPx).coerceAtLeast(1)
+    }
+
+    private fun minimumWeeklyChartWidthPx(context: Context): Int =
+        context.resources.getDimensionPixelSize(R.dimen.widget_weekly_min_width) -
+            2 * context.resources.getDimensionPixelSize(R.dimen.widget_weekly_padding)
+
     companion object {
         private const val TAG = "BrewWidget"
         private const val ACTION_REFRESH = "io.github.mateuxlucax.caparao.widget.REFRESH"
@@ -236,4 +273,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
     }
 
     private data class BrewWidgetContent(val latest: Brew?, val week: BrewWidgetWeek)
+}
+
+internal fun weeklyWidgetSizeVariants(options: Bundle, minimum: SizeF): List<SizeF> {
+    @Suppress("DEPRECATION")
+    val supportedSizes = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+        .orEmpty()
+        .filter { it.width >= minimum.width && it.height >= minimum.height }
+        .distinct()
+    return supportedSizes.ifEmpty { listOf(minimum) }
 }
