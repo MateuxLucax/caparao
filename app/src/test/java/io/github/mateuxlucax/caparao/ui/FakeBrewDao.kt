@@ -21,6 +21,8 @@ class FakeBrewDao : BrewDao {
     }
 
     override fun observeAll() = brews.map { list -> list.sortedByDescending { it.startedAt } }
+    override suspend fun all() = brews.value.sortedBy { it.startedAt }
+    override suspend fun allSamples() = samples.values.flatten().sortedBy { it.atMs }
     override suspend fun get(id: String) = brews.value.find { it.id == id }
     override suspend fun samples(brewId: String) = samples[brewId].orEmpty()
     override suspend fun unsynced() = brews.value.filter { it.syncedAt == null }.sortedBy { it.startedAt }
