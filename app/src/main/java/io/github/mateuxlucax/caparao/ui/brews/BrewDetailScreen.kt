@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
+import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 
@@ -51,6 +52,7 @@ fun BrewDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
+    ShareFile(state.share, viewModel::shared)
     BackHandler(onBack = onClose)
     Scaffold(
         topBar = {
@@ -60,7 +62,10 @@ fun BrewDetailScreen(
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
                 },
                 actions = {
-                    if (state.brew != null) TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                    if (state.brew != null) {
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::share) { Text(stringResource(R.string.share)) }
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                    }
                 },
             )
         },
@@ -99,6 +104,9 @@ fun BrewDetailScreen(
                     OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }
                 }
                 OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onTrends(TrendKey.of(brew)) }) { Text(stringResource(R.string.trends)) }
+            }
+            if (state.shareFailed) {
+                Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
     }

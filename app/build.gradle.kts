@@ -101,6 +101,8 @@ ksp {
 
 dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
+    // FileProvider for the export files shared through the share sheet (#76).
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (#109).
     implementation("androidx.compose.material3:material3:1.5.0-beta01")

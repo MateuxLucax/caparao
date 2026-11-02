@@ -25,6 +25,7 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -51,6 +52,7 @@ import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
@@ -92,6 +94,7 @@ class AppScreensTest {
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
+            initializer { ExportViewModel(BrewExportFiles(context, brews)) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }

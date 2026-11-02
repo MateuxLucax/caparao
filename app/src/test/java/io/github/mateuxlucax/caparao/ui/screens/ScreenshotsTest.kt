@@ -23,6 +23,7 @@ import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -57,6 +58,7 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
@@ -125,6 +127,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             initializer { OnboardingViewModel(scale) {} }
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
+            initializer { ExportViewModel(BrewExportFiles(context, brews)) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }

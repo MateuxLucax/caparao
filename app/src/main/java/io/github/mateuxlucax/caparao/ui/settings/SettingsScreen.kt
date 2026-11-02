@@ -54,6 +54,7 @@ import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SectionCard
 import io.github.mateuxlucax.caparao.ui.components.ServerForm
+import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.StatusLine
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
@@ -66,6 +67,7 @@ fun SettingsScreen(
     server: ServerViewModel,
     scale: ScaleStatusViewModel,
     targets: TargetRatioViewModel,
+    export: ExportViewModel,
     coffees: CoffeeBagsViewModel,
     onCoffees: () -> Unit,
     actions: AppActions, versionName: String,
@@ -80,6 +82,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
+        SectionCard(stringResource(R.string.section_data)) { DataSection(export) }
         SectionCard(stringResource(R.string.section_colors)) { ColorsSection(targets) }
         Text(
             stringResource(R.string.version, versionName),
@@ -186,6 +189,26 @@ private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
         )
     }
     SwitchRow(stringResource(R.string.guide_sound), sound) { sound = it; viewModel.guideSound = it }
+}
+
+/** The whole history in a zip: contract JSON, `brews.csv` and, when asked, `samples.csv` (#76). */
+@Composable
+private fun DataSection(viewModel: ExportViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var includeSamples by rememberSaveable { mutableStateOf(true) }
+    BodyText(stringResource(R.string.section_data_text))
+    SwitchRow(stringResource(R.string.export_include_samples), includeSamples) { includeSamples = it }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        if (state.failed) {
+            Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        } else {
+            Spacer(Modifier.width(1.dp))
+        }
+        Button(shapes = ButtonDefaults.shapes(), onClick = { viewModel.export(includeSamples) }, enabled = !state.working) {
+            Text(stringResource(if (state.working) R.string.export_working else R.string.export))
+        }
+    }
+    ShareFile(state.file, viewModel::shared)
 }
 
 /** System colors (Material You) or Caparaó's green; the theme follows the choice at once. */

@@ -210,6 +210,14 @@
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
     <string name="section_colors">Colors</string>
+    <string name="section_data">Data</string>
+    <string name="section_data_text">Every brew in one zip: JSON in the upload format and CSV for spreadsheets. The file opens in the share sheet; nothing is uploaded.</string>
+    <string name="export">Export</string>
+    <string name="export_include_samples">Include the samples CSV</string>
+    <string name="export_working">Preparing…</string>
+    <string name="export_failed">Could not export. Try again.</string>
+    <string name="share">Share</string>
+    <string name="share_export">Share export</string>
     <string name="colors_system">System</string>
     <string name="colors_brand" translatable="false">Caparaó</string>
     <string name="section_guide_alerts">Guide alerts</string>

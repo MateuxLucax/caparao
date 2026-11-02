@@ -204,6 +204,14 @@
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
     <string name="section_colors">Cores</string>
+    <string name="section_data">Dados</string>
+    <string name="section_data_text">Todos os preparos em um zip: JSON no formato de envio e CSV para planilhas. O arquivo abre no compartilhamento; nada é enviado.</string>
+    <string name="export">Exportar</string>
+    <string name="export_include_samples">Incluir o CSV das amostras</string>
+    <string name="export_working">Preparando…</string>
+    <string name="export_failed">Não foi possível exportar. Tente de novo.</string>
+    <string name="share">Compartilhar</string>
+    <string name="share_export">Compartilhar exportação</string>
     <string name="colors_system">Sistema</string>
     <string name="section_guide_alerts">Alertas do guia</string>
     <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
