@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" viewBox="0 0 1200 1000" role="img" aria-labelledby="title desc">
+<title id="title">Weigh step · 320 × 640 dp</title>
+<desc id="desc">A compact espresso weigh screen with an adaptive dose ring, a standard Tare control, and a full-width 56 dp Next button above the bottom inset.</desc>
+<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#26332d" flood-opacity=".12"/></filter></defs>
+<rect width="1200" height="1000" fill="#edf2ee"/>
+<text x="72" y="66" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#26332d">Weigh step · 320 × 640 dp</text>
+<text x="72" y="102" font-family="Arial,sans-serif" font-size="18" fill="#65746b">Short viewport · planned dose remains visible before the live brew</text>
+<rect x="258" y="116" width="404" height="768" rx="38" fill="#ffffff" stroke="#52645a" stroke-width="3" filter="url(#shadow)"/>
+<rect x="280" y="138" width="360" height="720" rx="24" fill="#f6faf6" stroke="#bac9be"/>
+<text x="299" y="162" font-family="Arial,sans-serif" font-size="12" fill="#26332d">9:41</text><text x="572" y="162" font-family="Arial,sans-serif" font-size="12" fill="#26332d">●  ▰</text>
+<text x="300" y="197" font-family="Arial,sans-serif" font-size="23" fill="#26332d">‹  Espresso</text>
+<text x="300" y="224" font-family="Arial,sans-serif" font-size="15" fill="#65746b">Espresso Oster</text>
+<g rx="3"><rect x="300" y="240" width="36" height="6" rx="3" fill="#28684e"/><rect x="344" y="240" width="36" height="6" rx="3" fill="#28684e"/><rect x="388" y="240" width="36" height="6" rx="3" fill="#e5eee7"/><rect x="432" y="240" width="36" height="6" rx="3" fill="#e5eee7"/><rect x="476" y="240" width="36" height="6" rx="3" fill="#e5eee7"/><rect x="520" y="240" width="36" height="6" rx="3" fill="#e5eee7"/><rect x="564" y="240" width="36" height="6" rx="3" fill="#e5eee7"/></g>
+<text x="300" y="273" font-family="Arial,sans-serif" font-size="16" fill="#65746b">Step 2 of 7 · Weigh the beans</text>
+<circle cx="460" cy="427" r="100" fill="none" stroke="#d9e4dc" stroke-width="14"/>
+<text x="460" y="421" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="700" fill="#26332d">0.0 g</text>
+<text x="460" y="454" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#65746b">of 18.0 g</text>
+<text x="460" y="584" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="700" fill="#26332d">Weigh the beans</text>
+<text x="460" y="615" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#65746b">Tare the container, then add the beans.</text>
+<rect x="396" y="648" width="128" height="56" rx="28" fill="#cfe9d8"/><text x="460" y="683" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#234638">↓  Tare</text>
+<rect x="300" y="760" width="320" height="56" rx="28" fill="#28684e"/><text x="460" y="795" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="600" fill="#ffffff">Next</text>
+<rect x="426" y="840" width="68" height="4" rx="2" fill="#85928a"/>
+<path d="M662 788H700" stroke="#52645a" stroke-width="2"/><path d="M692 781l8 7-8 7" fill="none" stroke="#52645a" stroke-width="2"/>
+<rect x="706" y="508" width="350" height="182" rx="24" fill="#e6f0e9" stroke="#9ab6a2"/>
+<g font-family="Arial,sans-serif" font-size="18" fill="#26332d">
+<text x="730" y="548">The dose ring adapts to the</text>
+<text x="730" y="574">available height.</text>
+<text x="730" y="605">Tare remains full-size.</text>
+<text x="730" y="636">Next stays 56 dp tall,</text>
+<text x="730" y="662">clear of the bottom inset.</text>
+</g>
+<text x="706" y="734" font-family="Arial,sans-serif" font-size="16" fill="#65746b">Material 3 tonal colors · existing copy</text>
+</svg>
