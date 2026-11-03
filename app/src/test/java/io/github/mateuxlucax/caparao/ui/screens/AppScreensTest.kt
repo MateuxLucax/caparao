@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
@@ -335,7 +336,10 @@ class AppScreensTest {
         }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
-        compose.onNode(hasText("French press") and isSelectable()).assertIsSelected()
+        // Room emits the recipe list before the view model applies its preselected recipe.
+        val selectedFrenchPressRecipe = hasText("French press") and isSelectable() and isSelected()
+        compose.waitUntilAtLeastOneExists(selectedFrenchPressRecipe, 5_000)
+        compose.onNode(selectedFrenchPressRecipe).assertIsSelected()
         compose.onNodeWithText(text(R.string.next)).assertExists()
         assertEquals(1, consumed)
     }

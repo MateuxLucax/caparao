@@ -85,9 +85,10 @@ abstract class BrewModeGroupTest(
         labels.drop(1).forEach { label ->
             assertEquals("short labels keep one shared line height at ${fontScale}× text", lineHeight, label.height, 0.5f)
         }
-        if (fontScale > 1f) {
-            assertTrue("labels remain at least 13sp after system scaling", selectedFontSizeSp.get() * fontScale >= 13f)
-        }
+        assertTrue(
+            "labels remain at least 13 rendered sp at ${fontScale}× text",
+            selectedFontSizeSp.get() * fontScale >= 13f,
+        )
         labels.forEachIndexed { index, label ->
             assertTrue("label stays inside its segment", label.left >= buttons[index].boundsInRoot.left - 0.5f)
             assertTrue("label stays inside its segment", label.right <= buttons[index].boundsInRoot.right + 0.5f)

@@ -36,9 +36,9 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** The largest label the selectors use, and the floor that still reads on a 320 dp phone at 2× text. */
-internal val ModeLabelMaxSize = 11.sp
-internal val ModeLabelMinSize = 7.sp
+/** The largest label size and the minimum rendered size for every supported system font scale. */
+internal val ModeLabelMaxSize = 13.sp
+internal val ModeLabelMinRenderedSize = 13.sp
 private val ModeLabelStep = 0.5.sp
 
 /**
@@ -51,9 +51,9 @@ internal fun rememberModeLabelSize(labels: List<String>, maxWidth: Dp, style: Te
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val widthPx = with(density) { maxWidth.toPx() }
-    return remember(labels, widthPx, style, measurer) {
-        var size = ModeLabelMaxSize
-        while (size > ModeLabelMinSize) {
+    val minimumSize = (ModeLabelMinRenderedSize.value / density.fontScale).sp
+    return remember(labels, widthPx, style, measurer, density.fontScale) {
+        fun fits(size: TextUnit): Boolean {
             val widest = labels.maxOf { label ->
                 measurer.measure(
                     AnnotatedString(label),
@@ -62,10 +62,19 @@ internal fun rememberModeLabelSize(labels: List<String>, maxWidth: Dp, style: Te
                     softWrap = false,
                 ).size.width
             }
-            if (widest <= widthPx) break
-            size = (size.value - ModeLabelStep.value).sp
+            return widest <= widthPx
         }
-        size
+
+        var size = ModeLabelMaxSize
+        while (size > minimumSize) {
+            if (fits(size)) return@remember size
+            size = (size.value - ModeLabelStep.value).coerceAtLeast(minimumSize.value).sp
+        }
+        check(fits(minimumSize)) {
+            "Mode labels cannot fit one line at the 13 sp rendered minimum " +
+                "(width=${maxWidth.value} dp, fontScale=${density.fontScale}, labels=$labels)"
+        }
+        minimumSize
     }
 }
 
@@ -86,6 +95,7 @@ internal fun ModeToggleButton(
     shapes: ToggleButtonShapes,
 ) {
     val spoken = stringResource(spokenName)
+    val minimumFontSize = (ModeLabelMinRenderedSize.value / LocalDensity.current.fontScale).sp
     ToggleButton(
         checked = checked,
         onCheckedChange = onCheckedChange,
@@ -109,7 +119,7 @@ internal fun ModeToggleButton(
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
                 autoSize = TextAutoSize.StepBased(
-                    minFontSize = if (labelSize < ModeLabelMinSize) labelSize else ModeLabelMinSize,
+                    minFontSize = minimumFontSize,
                     maxFontSize = labelSize,
                     stepSize = ModeLabelStep,
                 ),
