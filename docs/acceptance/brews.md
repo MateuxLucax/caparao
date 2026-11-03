@@ -27,4 +27,10 @@ Real espresso and filter recordings are still needed to tune the thresholds; see
 
 ## Runs
 
-No device run yet.
+### Real French press — 2026-11-03
+
+The user reported a successful real French press brew on the Galaxy S23 and confirmed the phone/watch steps in #127. The installed app version was not captured. Minor UI/flow refinements are deferred; no follow-up UI or code issues were opened.
+
+| Date | Result | Dose | Water | Ratio | Duration | Samples | Stored weight | Mode / flags | Server |
+|---|---|---:|---:|---:|---:|---:|---|---|---|
+| 2026-11-03 | User-reported success | 20.3 g | 323.4 g | 1:15.93 | 242.333 s | 1,615 ordered | Last and maximum 323.4 g | `french_press`; first drop `null`; not interrupted | Prometheus readback matched dose, yield and duration; no first-drop series. Metrics are in Grafana's Prometheus data source; the panel was not visually inspected. |
