@@ -362,6 +362,55 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFrenchPressDeadlineAlertsBelowTheFinalWaterTargetAndDoneKeepsMeasuredWater() = kotlinx.coroutines.test.runTest {
+        val frenchPress = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        recipes.save(frenchPress)
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            vm.alerts.collect(alerts::add)
+        }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 45.0)
+        pour(100.0, 180.0, 8.0)
+        hold(180.0, 200.0)
+        collecting.cancel()
+
+        val finishAlerts = alerts.filter { it.event == StepEvent.AllDone }
+        assertEquals(1, finishAlerts.size)
+        assertTrue(finishAlerts.single().vibrate)
+        assertFalse(finishAlerts.single().sound)
+        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertTrue(vm.uiState.value.elapsedMs >= 240_000L)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(180.0, vm.uiState.value.weightGrams, 0.5)
+        assertFalse(vm.uiState.value.frenchPressRemoved)
+        assertNull(vm.uiState.value.saved)
+
+        pour(180.0, -400.0, 0.4)
+        hold(-400.0, 10.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(180.0, vm.uiState.value.weightGrams, 0.5)
+        assertTrue(vm.uiState.value.frenchPressRemoved)
+        assertNull(vm.uiState.value.saved)
+
+        vm.stop()
+        val brew = vm.uiState.value.saved!!
+        assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
+        assertEquals(180.0, brew.yieldGrams, 0.5)
+        assertNull(brew.timeToFirstDropMs)
+        assertFalse(brew.interrupted)
+        val curve = dao.samples.getValue("brew-1")
+        assertTrue("the off-scale weight is not a curve sample", curve.all { it.weightGrams > 0.0 })
+        assertEquals(180.0, curve.last().weightGrams, 0.5)
+    }
+
+    @Test
     fun noAlertsWhenBothAreOffButTheGuideStillRuns() {
         settings.guideVibration = false
         val (vm, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }

@@ -71,6 +71,12 @@ class StepTracker(private val steps: List<RecipeStep>) {
     /** Feeds the next reading; returns what happened, in order. */
     fun update(elapsedMs: Long, weightGrams: Double, flowGramsPerSecond: Double): List<StepEvent> {
         val events = mutableListOf<StepEvent>()
+        val terminalPress = steps.lastOrNull()?.takeIf { it.kind == StepKind.PRESS }
+        if (terminalPress != null && index < steps.size && elapsedMs >= terminalPress.targetAtMs) {
+            // The terminal deadline is measured from first water, so an unfinished pour cannot delay the alert.
+            index = steps.lastIndex
+            advance(elapsedMs, events)
+        }
         while (index < steps.size) {
             val step = steps[index]
             val target = step.targetWeightGrams

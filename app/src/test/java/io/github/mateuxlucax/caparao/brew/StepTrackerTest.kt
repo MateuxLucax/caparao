@@ -6,6 +6,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -171,6 +172,57 @@ class StepTrackerTest {
         assertEquals(listOf(StepEvent.AllDone), tracker.update(240_000, 300.0, 0.0))
         assertTrue(tracker.state.allDone(steps.size))
         assertTrue(tracker.update(241_000, 300.0, 0.0).isEmpty())
+    }
+
+    @Test
+    fun terminalPressDeadlineEndsAnUnderTargetPourAtFourMinutes() {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 100.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 300.0, 60_000),
+            RecipeStep(StepKind.PRESS, null, 240_000),
+        )
+        val tracker = StepTracker(steps)
+        tracker.update(10_000, 100.0, 0.0)
+        tracker.update(60_000, 100.0, 0.0)
+
+        val events = tracker.update(240_000, 180.0, 0.0)
+
+        assertEquals(listOf(StepEvent.AllDone), events)
+        assertTrue(tracker.state.allDone(steps.size))
+        assertNull(tracker.state.dueInMs)
+    }
+
+    @Test
+    fun terminalPressDeadlineCatchesUpAfterLateIntermediateReadings() {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 100.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 300.0, 60_000),
+            RecipeStep(StepKind.PRESS, null, 240_000),
+        )
+        val tracker = StepTracker(steps)
+        tracker.update(0, 0.0, 0.0)
+
+        val lateEvents = tracker.update(245_000, 180.0, 0.0)
+
+        assertEquals(listOf(StepEvent.AllDone), lateEvents)
+        assertTrue(tracker.state.allDone(steps.size))
+        assertTrue(tracker.update(246_000, 180.0, 0.0).isEmpty())
+    }
+
+    @Test
+    fun aFilterFinalPourStillWaitsForItsWeightTargetAfterItsScheduledTime() {
+        val tracker = StepTracker(v60)
+        tracker.update(10_000, 52.0, 0.0)
+        tracker.update(55_000, 100.0, 0.0)
+        tracker.update(95_000, 150.0, 0.0)
+
+        val events = tracker.update(240_000, 180.0, 0.0)
+
+        assertTrue(events.none { it == StepEvent.AllDone })
+        assertEquals(3, tracker.state.index)
+        assertFalse(tracker.state.allDone(v60.size))
     }
 
     /**
