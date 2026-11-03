@@ -14,6 +14,7 @@ import argparse
 import os
 import re
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -30,6 +31,9 @@ DEFAULT_LINE_LIMIT = 1000
 DEFAULT_BYTE_LIMIT = 512 * 1024
 DEFAULT_FILE_LIMIT = 1024 * 1024
 DEVICES_BYTE_LIMIT = 64 * 1024
+DEFAULT_CONSOLE_BYTE_LIMIT = 64 * 1024
+DEFAULT_CONSOLE_LINE_LIMIT = 16 * 1024
+CONSOLE_MARKER_RESERVE = 128
 
 DEVICE_STATES = (
     "device",
@@ -92,6 +96,39 @@ class Inventory:
     sanitized: str
 
 
+class BoundedOutput:
+    """Keeps the first and last parts of sanitized child output under a byte limit."""
+
+    def __init__(self, limit: int) -> None:
+        self.payload_limit = max(0, limit - CONSOLE_MARKER_RESERVE)
+        self.head_limit = self.payload_limit // 3
+        self.tail_limit = self.payload_limit - self.head_limit
+        self.head = bytearray()
+        self.tail = bytearray()
+        self.total = 0
+
+    def add(self, data: bytes) -> None:
+        self.total += len(data)
+        head_room = self.head_limit - len(self.head)
+        if head_room > 0:
+            take = min(head_room, len(data))
+            self.head.extend(data[:take])
+            data = data[take:]
+        if data and self.tail_limit:
+            self.tail.extend(data)
+            if len(self.tail) > self.tail_limit:
+                del self.tail[: len(self.tail) - self.tail_limit]
+
+    def render(self) -> bytes:
+        if self.total <= self.payload_limit:
+            return bytes(self.head + self.tail)
+        marker = (
+            f"\n[E2E output truncated: retained first and last sections of "
+            f"{self.total} sanitized bytes]\n"
+        ).encode("utf-8")
+        return bytes(self.head) + marker + bytes(self.tail)
+
+
 class Redactor:
     """Removes known device identifiers and identifier-shaped text from diagnostics."""
 
@@ -109,7 +146,12 @@ class Redactor:
     def redact(self, text: str) -> str:
         result = str(text)
         for value in self._sensitive:
-            result = re.sub(re.escape(value), REDACTED, result, flags=re.IGNORECASE)
+            escaped = re.escape(value)
+            if value.isdigit():
+                pattern = rf"(?<![A-Za-z0-9_.]){escaped}(?![A-Za-z0-9_.])"
+            else:
+                pattern = escaped
+            result = re.sub(pattern, REDACTED, result, flags=re.IGNORECASE)
         result = _DASH_S.sub("-s " + REDACTED, result)
         result = _QUOTED_DEVICE.sub(r"\1" + REDACTED + r"\3", result)
         result = _EMULATOR_SERIAL.sub(REDACTED, result)
@@ -123,8 +165,6 @@ class Redactor:
 
 def _useful_identifier(value: str) -> bool:
     if len(value) < 4:
-        return False
-    if value.isdigit():
         return False
     return value.lower() not in IGNORED_IDENTIFIERS
 
@@ -412,28 +452,43 @@ def read_bounded(path: Path, limit: int) -> Tuple[bytes, bool]:
     return head + marker + tail, True
 
 
-def sanitize_file(path: Path, redactor: Redactor, limit: int) -> bool:
-    raw, _ = read_bounded(path, limit)
+def sanitize_file(source: Path, destination: Path, redactor: Redactor, limit: int) -> None:
+    raw, _ = read_bounded(source, limit)
     text = raw.decode("utf-8", "replace")
     clean = sanitize_text(text, redactor)
     clean, _ = cap_text(clean, limit)
-    if clean == text:
-        return False
+    with destination.open("w", encoding="utf-8") as handle:
+        handle.write(clean)
 
-    mode = stat.S_IMODE(path.stat().st_mode)
-    descriptor, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(clean)
-        os.chmod(temp_name, mode)
-        os.replace(temp_name, path)
-    except Exception:
-        try:
-            os.unlink(temp_name)
-        except OSError:
-            pass
-        raise
-    return True
+
+def _safe_io_error(exc: OSError) -> str:
+    if exc.errno is None:
+        return "I/O error"
+    return f"{os.strerror(exc.errno)} (errno {exc.errno})"
+
+
+def _write_emulator_log(
+    log_dir: Path,
+    redactor: Redactor,
+    args: argparse.Namespace,
+    device_result: CommandResult,
+    inventory: Inventory,
+    logcat_text: Optional[str],
+) -> None:
+    with (log_dir / "emulator.log").open("a", encoding="utf-8") as handle:
+        handle.write(f"\n{redactor.redact(args.heading)}\n")
+        if args.status is not None:
+            handle.write(f"E2E runner exit status: {args.status}\n")
+        handle.write("\n".join(_device_lines(device_result, inventory)) + "\n")
+        if logcat_text:
+            handle.write(logcat_text)
+
+
+def _write_runtime_log(log_dir: Path, args: argparse.Namespace, logcat_text: Optional[str]) -> None:
+    with (log_dir / "android-runtime.log").open("w", encoding="utf-8") as handle:
+        if args.status is not None:
+            handle.write(f"E2E diagnostics for status {args.status}\n")
+        handle.write(logcat_text or "")
 
 
 def _device_lines(result: CommandResult, inventory: Inventory) -> List[str]:
@@ -454,20 +509,205 @@ def _device_lines(result: CommandResult, inventory: Inventory) -> List[str]:
     return lines
 
 
-def collect(args: argparse.Namespace) -> int:
-    log_dir = Path(args.log_dir)
-    try:
-        log_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        print(f"warning: cannot create {log_dir}: {exc}", file=sys.stderr)
-        return 0
+def run_child(args: argparse.Namespace) -> int:
+    command = list(args.child_command)
+    if command and command[0] == "--":
+        command.pop(0)
+    if not command:
+        print("error: no E2E command was provided", file=sys.stderr)
+        return 2
 
+    child_env = os.environ.copy()
+    sensitive_token = child_env.get("E2E_AUTH_TOKEN", "")
     device_result = run_bounded(
         [args.adb, "devices", "-l"], DEFAULT_DEVICE_TIMEOUT, DEVICES_BYTE_LIMIT
     )
     inventory = parse_inventory(device_result.output)
     redactor = Redactor(inventory.identifiers)
-    redactor.add(args.serial, *args.sensitive)
+    redactor.add(args.serial, sensitive_token)
+
+    try:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=child_env,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        print(f"error: E2E command could not start: {_safe_io_error(exc)}", file=sys.stderr)
+        return 127
+
+    output = BoundedOutput(args.byte_limit)
+    line_buffer = bytearray()
+    dropping_line = False
+    previous_cr = False
+
+    def emit_line() -> None:
+        nonlocal dropping_line
+        if dropping_line:
+            text = f"[E2E output line omitted: exceeded {args.line_limit} bytes]\n"
+        else:
+            text = line_buffer.decode("utf-8", "replace") + "\n"
+            text = sanitize_text(text, redactor)
+        output.add(text.encode("utf-8"))
+        line_buffer.clear()
+        dropping_line = False
+
+    read_error: Optional[OSError] = None
+    assert proc.stdout is not None
+    try:
+        fd = proc.stdout.fileno()
+        while True:
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                break
+            for byte in chunk:
+                if previous_cr:
+                    previous_cr = False
+                    if byte == 10:
+                        continue
+                if byte in (10, 13):
+                    emit_line()
+                    previous_cr = byte == 13
+                elif not dropping_line:
+                    if len(line_buffer) >= args.line_limit:
+                        line_buffer.clear()
+                        dropping_line = True
+                    else:
+                        line_buffer.append(byte)
+    except KeyboardInterrupt:
+        _terminate(proc)
+        proc.wait()
+        return 130
+    except OSError as exc:
+        read_error = exc
+        _terminate(proc)
+    finally:
+        proc.stdout.close()
+
+    if line_buffer or dropping_line:
+        emit_line()
+    child_status = proc.wait()
+    rendered = output.render()
+
+    try:
+        log_path = Path(args.log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_bytes(rendered)
+    except OSError as exc:
+        print(
+            f"warning: sanitized E2E console log could not be saved: {_safe_io_error(exc)}",
+            file=sys.stderr,
+        )
+    if read_error is not None:
+        print(
+            f"warning: E2E command output capture was interrupted: {_safe_io_error(read_error)}",
+            file=sys.stderr,
+        )
+
+    try:
+        sys.stdout.buffer.write(rendered)
+        sys.stdout.buffer.flush()
+    except OSError:
+        pass
+    return child_status if child_status >= 0 else 128 + abs(child_status)
+
+
+def _managed_output_target(log_dir: Path, root_dir: Path) -> Path:
+    root = root_dir.resolve()
+    parent = log_dir.parent.resolve()
+    if root == Path(root.anchor) or parent != root or log_dir.name != "caparao-e2e-logs":
+        raise ValueError("output path is not the managed E2E artifact directory")
+    return root / "caparao-e2e-logs"
+
+
+def _quarantine_managed_output(log_dir: Path, raw_dir: Path) -> Optional[Path]:
+    if not os.path.lexists(log_dir):
+        return None
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    descriptor, quarantine_name = tempfile.mkstemp(prefix="stale-artifacts-", dir=str(raw_dir))
+    os.close(descriptor)
+    os.unlink(quarantine_name)
+    quarantine_path = Path(quarantine_name)
+    try:
+        os.replace(log_dir, quarantine_path)
+    except Exception:
+        try:
+            quarantine_path.unlink()
+        except OSError:
+            pass
+        raise
+    return quarantine_path
+
+
+def prepare_output(args: argparse.Namespace) -> int:
+    log_dir = Path(args.log_dir)
+    raw_dir = Path(args.raw_dir)
+    try:
+        target = _managed_output_target(log_dir, Path(args.managed_output_root))
+        raw_resolved = raw_dir.resolve()
+        if raw_resolved == target or raw_resolved in target.parents or target in raw_resolved.parents:
+            raise ValueError("raw logs and artifact output must be separate")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _quarantine_managed_output(target, raw_dir)
+    except ValueError as exc:
+        print(f"error: cannot prepare E2E artifact output: {exc}", file=sys.stderr)
+        return 1
+    except OSError as exc:
+        print(
+            f"error: cannot prepare E2E artifact output: {_safe_io_error(exc)}",
+            file=sys.stderr,
+        )
+        return 1
+    print("E2E artifact output is ready.")
+    return 0
+
+
+def collect(args: argparse.Namespace) -> int:
+    log_dir = Path(args.log_dir)
+    raw_dir = Path(args.raw_dir) if args.raw_dir else None
+
+    if args.only_file and raw_dir is None:
+        print("error: --only-file requires --raw-dir", file=sys.stderr)
+        return 1
+    if raw_dir is not None and args.existing_safe_logs:
+        print("error: --existing-safe-logs cannot be combined with --raw-dir", file=sys.stderr)
+        return 1
+    managed_output_root = getattr(args, "managed_output_root", "")
+    if managed_output_root and raw_dir is None:
+        print("error: --managed-output-root requires --raw-dir", file=sys.stderr)
+        return 1
+    if raw_dir is not None:
+        try:
+            if managed_output_root:
+                log_dir = _managed_output_target(log_dir, Path(managed_output_root))
+            raw_path = raw_dir.resolve()
+            output_path = log_dir.resolve()
+        except OSError as exc:
+            print(
+                f"error: diagnostic paths could not be checked: {_safe_io_error(exc)}",
+                file=sys.stderr,
+            )
+            return 1
+        except ValueError as exc:
+            print(f"error: diagnostic paths could not be checked: {exc}", file=sys.stderr)
+            return 1
+        if (
+            raw_path == output_path
+            or raw_path in output_path.parents
+            or output_path in raw_path.parents
+        ):
+            print("error: --raw-dir and --log-dir must be separate directories", file=sys.stderr)
+            return 1
+
+    sensitive_token = os.environ.pop("E2E_DIAGNOSTICS_SENSITIVE", "")
+    device_result = run_bounded(
+        [args.adb, "devices", "-l"], DEFAULT_DEVICE_TIMEOUT, DEVICES_BYTE_LIMIT
+    )
+    inventory = parse_inventory(device_result.output)
+    redactor = Redactor(inventory.identifiers)
+    redactor.add(args.serial, sensitive_token)
 
     logcat_text: Optional[str] = None
     if args.append_emulator or args.runtime_log:
@@ -481,47 +721,108 @@ def collect(args: argparse.Namespace) -> int:
             args.timeout,
         )
 
-    if args.append_emulator:
-        with (log_dir / "emulator.log").open("a", encoding="utf-8") as handle:
-            handle.write(f"\n{redactor.redact(args.heading)}\n")
-            if args.status is not None:
-                handle.write(f"E2E runner exit status: {args.status}\n")
-            handle.write("\n".join(_device_lines(device_result, inventory)) + "\n")
-            if logcat_text:
-                handle.write(logcat_text)
+    staging_dir: Optional[Path] = None
+    current_file: Optional[str] = None
+    try:
+        if raw_dir is not None:
+            log_dir.parent.mkdir(parents=True, exist_ok=True)
+            if managed_output_root:
+                _quarantine_managed_output(log_dir, raw_dir)
+            elif log_dir.exists():
+                if not log_dir.is_dir() or any(log_dir.iterdir()):
+                    raise FileExistsError("output directory is not empty")
+                log_dir.rmdir()
+            staging_dir = Path(
+                tempfile.mkdtemp(prefix=f".{log_dir.name}.", dir=str(log_dir.parent))
+            )
+            destination_dir = staging_dir
+            try:
+                raw_mode = raw_dir.stat().st_mode
+            except FileNotFoundError:
+                paths = []
+            else:
+                if not stat.S_ISDIR(raw_mode):
+                    raise NotADirectoryError("raw log path is not a directory")
+                if args.only_file:
+                    paths = [raw_dir / name for name in args.only_file]
+                else:
+                    with os.scandir(raw_dir) as entries:
+                        paths = sorted(
+                            raw_dir / entry.name
+                            for entry in entries
+                            if entry.name.endswith(".log") and entry.is_file()
+                        )
+            for source in paths:
+                try:
+                    source_mode = source.stat().st_mode
+                except FileNotFoundError:
+                    continue
+                if not stat.S_ISREG(source_mode):
+                    continue
+                current_file = source.name
+                sanitize_file(
+                    source,
+                    destination_dir / source.name,
+                    redactor,
+                    args.file_limit,
+                )
+            current_file = None
+        else:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            if not args.existing_safe_logs and any(log_dir.glob("*.log")):
+                raise FileExistsError("existing logs require --raw-dir or --existing-safe-logs")
+            destination_dir = log_dir
 
-    if args.runtime_log:
-        with (log_dir / "android-runtime.log").open("w", encoding="utf-8") as handle:
-            if args.status is not None:
-                handle.write(f"E2E diagnostics for status {args.status}\n")
-            handle.write(logcat_text or "")
+        if args.append_emulator:
+            _write_emulator_log(
+                destination_dir, redactor, args, device_result, inventory, logcat_text
+            )
+        if args.runtime_log:
+            _write_runtime_log(destination_dir, args, logcat_text)
 
-    if args.only_file:
-        paths = [log_dir / name for name in args.only_file]
-    else:
-        paths = sorted(log_dir.glob("*.log"))
-    changed = 0
-    for path in paths:
-        if not path.is_file():
-            continue
-        try:
-            if sanitize_file(path, redactor, args.file_limit):
-                changed += 1
-        except OSError as exc:
-            print(f"warning: could not sanitize {path}: {exc}", file=sys.stderr)
+        if staging_dir is not None:
+            os.replace(staging_dir, log_dir)
+            staging_dir = None
+    except OSError as exc:
+        subject = (
+            f"could not sanitize {current_file}"
+            if current_file
+            else "diagnostic output or publication"
+        )
+        print(f"error: {subject} failed: {_safe_io_error(exc)}", file=sys.stderr)
+        return 1
+    finally:
+        if staging_dir is not None:
+            try:
+                shutil.rmtree(staging_dir)
+            except OSError:
+                pass
 
     print(
         f"E2E diagnostics: {len(inventory.entries)} device(s) visible, "
-        f"{changed} log file(s) sanitized in {log_dir}"
+        f"safe logs written to {log_dir}"
     )
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bound and sanitize Caparaó E2E diagnostics.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="action", required=True)
     collect_parser = subparsers.add_parser("collect", help="collect and sanitize E2E diagnostics")
-    collect_parser.add_argument("--log-dir", required=True, help="directory holding the uploaded logs")
+    collect_parser.add_argument("--log-dir", required=True, help="directory receiving safe logs")
+    collect_parser.add_argument(
+        "--raw-dir",
+        help="private directory containing raw logs; files are published only after all are sanitized",
+    )
+    collect_parser.add_argument(
+        "--existing-safe-logs",
+        action="store_true",
+        help="append generated diagnostics to an output directory whose existing logs are already sanitized",
+    )
+    collect_parser.add_argument(
+        "--managed-output-root",
+        help="runner temp root; with --raw-dir only its caparao-e2e-logs child can be replaced",
+    )
     collect_parser.add_argument("--adb", required=True, help="path to adb")
     collect_parser.add_argument("--serial", default="", help="device serial to use for logcat")
     collect_parser.add_argument("--status", type=int, help="E2E exit status to record")
@@ -540,13 +841,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--only-file",
         action="append",
         default=[],
-        help="sanitize only this file in log-dir (repeatable; default: every *.log)",
-    )
-    collect_parser.add_argument(
-        "--sensitive",
-        action="append",
-        default=[],
-        help="an extra value to redact, such as the run token (repeatable)",
+        help="sanitize only this file from raw-dir (repeatable; default: every *.log)",
     )
     collect_parser.add_argument("--line-limit", type=int, default=DEFAULT_LINE_LIMIT)
     collect_parser.add_argument("--byte-limit", type=int, default=DEFAULT_BYTE_LIMIT)
@@ -557,13 +852,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_LOGCAT_TIMEOUT,
         help="seconds before adb logcat is killed",
     )
+    prepare_parser = subparsers.add_parser(
+        "prepare-output", help="quarantine stale files from the exact managed artifact directory"
+    )
+    prepare_parser.add_argument("--log-dir", required=True)
+    prepare_parser.add_argument("--raw-dir", required=True)
+    prepare_parser.add_argument("--managed-output-root", required=True)
+
+    run_parser = subparsers.add_parser(
+        "run", help="run a child, drain combined output, and print only bounded sanitized text"
+    )
+    run_parser.add_argument("--log-file", required=True, help="private path for bounded sanitized child output")
+    run_parser.add_argument("--adb", required=True, help="path to adb used to learn visible device identifiers")
+    run_parser.add_argument("--serial", default="", help="device serial to redact in child output")
+    run_parser.add_argument("--byte-limit", type=int, default=DEFAULT_CONSOLE_BYTE_LIMIT)
+    run_parser.add_argument("--line-limit", type=int, default=DEFAULT_CONSOLE_LINE_LIMIT)
+    run_parser.add_argument("child_command", nargs=argparse.REMAINDER)
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command == "collect":
+    if args.action == "collect":
         return collect(args)
+    if args.action == "prepare-output":
+        return prepare_output(args)
+    if args.action == "run":
+        return run_child(args)
     return 2
 
 

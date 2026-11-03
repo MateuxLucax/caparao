@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -176,45 +177,50 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
 
 /**
  * Weighing the beans before grinding: a ring fills toward the dose around the live weight.
- * Next takes what was weighed, or the planned dose when the scale shows nothing.
+ * The ring and gaps adapt on short screens so Next stays reachable. It takes what was weighed, or the planned dose when
+ * the scale shows nothing.
  */
 @Composable
 fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val dose = state.dose ?: 0.0
     val progress by animateFloatAsState(if (dose > 0) (state.weightGrams / dose).coerceIn(0.0, 1.0).toFloat() else 0f, Motion.standard(), label = "beans")
-    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.weight(1f))
-        Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 18.dp,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                strokeCap = StrokeCap.Round,
-                gapSize = 0.dp,
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
-                    style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800)),
-                    color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+    BoxWithConstraints(Modifier.fillMaxSize().padding(24.dp)) {
+        val compact = maxHeight < 500.dp
+        val ringSize = minOf(260.dp, maxHeight * 0.4f)
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 18.dp,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    strokeCap = StrokeCap.Round,
+                    gapSize = 0.dp,
                 )
-                Text(stringResource(R.string.weigh_of, Format.grams(dose, locale)), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)}",
+                        style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800)),
+                        color = if (state.connected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(stringResource(R.string.weigh_of, Format.grams(dose, locale)), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-        }
-        GuideHeader(GuideStage.BEANS, Modifier.padding(top = 32.dp))
-        FilledTonalButton(onClick = onTare, Modifier.padding(top = 16.dp).height(56.dp), enabled = state.connected) {
-            Icon(painterResource(R.drawable.ic_tare), null, Modifier.padding(end = 8.dp))
-            Text(stringResource(R.string.tare))
-        }
-        Spacer(Modifier.weight(1f))
-        Button(
-            onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
-            modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
-            shapes = ButtonDefaults.shapes(),
-        ) {
-            Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
+            GuideHeader(GuideStage.BEANS, Modifier.padding(top = if (compact) 16.dp else 32.dp))
+            FilledTonalButton(onClick = onTare, Modifier.padding(top = if (compact) 8.dp else 16.dp).height(56.dp), enabled = state.connected) {
+                Icon(painterResource(R.drawable.ic_tare), null, Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.tare))
+            }
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
+                modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }

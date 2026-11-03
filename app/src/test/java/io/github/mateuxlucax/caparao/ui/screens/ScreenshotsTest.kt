@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isSelectable
@@ -85,6 +87,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
@@ -103,9 +106,12 @@ import java.time.ZoneId
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-abstract class ScreenshotsTest(private val lang: String, private val theme: String) {
+abstract class ScreenshotsTest(private val lang: String, private val theme: String, private val compactOnly: Boolean = false) {
     @get:Rule
     val compose = createComposeRule()
+
+    @get:Rule
+    val testName = TestName()
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val actions = AppActions(requestBluetoothPermissions = { true }, bluetoothPermissionGranted = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
@@ -118,6 +124,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     @Before
     fun setUp() {
         assumeTrue("screenshots run only from scripts/screenshots.sh", System.getProperty("roborazzi.test.record") == "true")
+        if (compactOnly) assumeTrue("compact screenshot variant only", testName.methodName == "smallScreenWeigh")
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -349,6 +356,35 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("brew-detail")
     }
 
+    /** The 320dp runner width from #145: keep the weigh action in the rendered viewport. */
+    @Test
+    fun smallScreenWeigh() {
+        assumeTrue(
+            "small-screen screenshot variant only",
+            context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640,
+        )
+        open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        click(R.string.free_brew)
+        click(R.string.next)
+        val appBarClose = hasContentDescription(text(R.string.close))
+        val espressoTitle = hasText(text(R.string.mode_espresso))
+        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 7, text(R.string.stage_beans)))
+        val nextAction = hasTestTag("weigh-step-next")
+        compose.waitUntilAtLeastOneExists(appBarClose, 5_000)
+        compose.waitUntilAtLeastOneExists(espressoTitle, 5_000)
+        compose.waitUntilAtLeastOneExists(weighProgress, 5_000)
+        compose.waitUntilAtLeastOneExists(nextAction, 5_000)
+        // The screen enters through a shared-axis transition; wait for Compose to settle before recording the frame.
+        compose.waitForIdle()
+        compose.onNode(appBarClose).assertIsDisplayed()
+        compose.onNode(espressoTitle).assertIsDisplayed()
+        compose.onNode(weighProgress).assertIsDisplayed()
+        compose.onNode(nextAction).assertIsDisplayed()
+        capture("brew-weigh-320")
+    }
+
     /** The espresso guide's steps before the shot: cup, taring, waiting for the first drop. */
     @Test
     fun espressoGuide() {
@@ -526,3 +562,15 @@ class ScreenshotsPtBrLightTest : ScreenshotsTest("pt-BR", "light")
 
 @Config(qualifiers = "pt-rBR-$SIZE-night-xxhdpi")
 class ScreenshotsPtBrDarkTest : ScreenshotsTest("pt-BR", "dark")
+
+@Config(qualifiers = "en-w320dp-h640dp-notnight-xxhdpi")
+class ScreenshotsSmallEnLightTest : ScreenshotsTest("en", "light", compactOnly = true)
+
+@Config(qualifiers = "en-w320dp-h640dp-night-xxhdpi")
+class ScreenshotsSmallEnDarkTest : ScreenshotsTest("en", "dark", compactOnly = true)
+
+@Config(qualifiers = "pt-rBR-w320dp-h640dp-notnight-xxhdpi")
+class ScreenshotsSmallPtBrLightTest : ScreenshotsTest("pt-BR", "light", compactOnly = true)
+
+@Config(qualifiers = "pt-rBR-w320dp-h640dp-night-xxhdpi")
+class ScreenshotsSmallPtBrDarkTest : ScreenshotsTest("pt-BR", "dark", compactOnly = true)
