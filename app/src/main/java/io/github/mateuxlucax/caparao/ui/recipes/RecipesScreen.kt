@@ -47,7 +47,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp), icons = true)
+            BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp))
             val recipes = all?.get(mode) ?: return@Column
             if (recipes.isEmpty()) {
                 EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), stringResource(R.string.no_recipes_text), Modifier.padding(top = 48.dp))

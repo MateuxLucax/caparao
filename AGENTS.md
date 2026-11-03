@@ -41,10 +41,10 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 ## UI design
 
 - Every UI task, including a new screen and any change to an existing screen or widget, starts from an editable
-  Excalidraw draft, created or updated before implementation. Commit the source under `docs/wireframes/`, link it from
-  the originating issue, and attach the exported illustration with a short scenario description to that issue (a
-  readable table with one row per scenario when there are several). Use the Orca Excalidraw editor when available, keep
-  the draft and issue export current with user feedback, and link the PR to the issue's design reference.
+  Excalidraw draft, created or updated before implementation and kept in the originating GitHub issue together with its
+  exported illustration and a short scenario description (a readable table with one row per scenario when there are
+  several). Use the Orca Excalidraw editor when available, keep the draft and issue export current with user feedback,
+  and have the PR link the issue's design reference. The issue is the only home for drafts and their SVG/PNG exports.
 - Motion and transitions follow Material You / Material 3 Expressive patterns, consistent with the app's theme and
   dynamic colors and using the existing Compose Material primitives. Respect the system motion preferences and start
   from the [official motion guidance](https://m3.material.io/styles/motion/overview).

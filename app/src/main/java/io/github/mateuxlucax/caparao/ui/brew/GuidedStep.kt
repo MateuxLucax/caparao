@@ -116,8 +116,10 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         tween(500, easing = Motion.Standard),
         label = "kind",
     )
+    // A French press steeps until its deadline: say so instead of naming the press still to come.
+    val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
     Text(
-        "${stringResource(step.kind.label)} · ${stringResource(R.string.step_of, index + 1, count)}",
+        "${stringResource(stage)} · ${stringResource(R.string.step_of, index + 1, count)}",
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
@@ -135,7 +137,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
                 )
             }
         }
-        Text(stringResource(R.string.guide_press_at, Format.timer((step.targetAtMs / 1000).toInt())), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         CupToTarget(fill, color)

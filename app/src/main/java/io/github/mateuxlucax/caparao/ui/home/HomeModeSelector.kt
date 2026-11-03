@@ -3,37 +3,25 @@ package io.github.mateuxlucax.caparao.ui.home
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.ModeToggleButton
+import io.github.mateuxlucax.caparao.ui.components.rememberModeLabelSize
 
 private data class HomeModeOption(
     val mode: BrewMode?,
@@ -49,41 +37,36 @@ private val homeModeOptions = listOf(
     HomeModeOption(BrewMode.FRENCH_PRESS, R.drawable.ic_french_press, R.string.mode_french_press_short, R.string.mode_french_press),
 )
 
-/** Four compact Home shortcuts; Manual is the scale screen, while the other three start brew modes. */
+/**
+ * Four fixed Home shortcuts, one row of equal buttons: Manual is the scale screen, the other three start a brew mode.
+ * Each is an icon above a one-line label and the selected one is a full capsule; the full method name stays spoken.
+ */
 @Composable
 internal fun HomeModeSelector(connected: Boolean, onBrew: (BrewMode) -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 68.dp).height(IntrinsicSize.Max).selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-    ) {
-        homeModeOptions.forEachIndexed { index, option ->
-            val spokenName = stringResource(option.spokenName)
-            ToggleButton(
-                checked = option.mode == null,
-                onCheckedChange = { option.mode?.let { if (connected) onBrew(it) } },
-                modifier = Modifier.weight(1f).fillMaxHeight().semantics {
-                    role = Role.RadioButton
-                    selected = option.mode == null
-                    contentDescription = spokenName
-                },
-                enabled = option.mode == null || connected,
-                shapes = when (index) {
-                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    homeModeOptions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                },
-                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp),
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(painterResource(option.icon), contentDescription = null, Modifier.size(20.dp))
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        stringResource(option.label),
-                        style = MaterialTheme.typography.labelSmall,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                    )
-                }
+    val labels = homeModeOptions.map { stringResource(it.label) }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val textWidth = ((maxWidth - ButtonGroupDefaults.ConnectedSpaceBetween * (homeModeOptions.size - 1)) / homeModeOptions.size) - 2.dp
+        val labelSize = rememberModeLabelSize(labels, textWidth, MaterialTheme.typography.labelSmall)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 68.dp).height(IntrinsicSize.Max).selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        ) {
+            homeModeOptions.forEachIndexed { index, option ->
+                ModeToggleButton(
+                    checked = option.mode == null,
+                    onCheckedChange = { option.mode?.let { if (connected) onBrew(it) } },
+                    icon = option.icon,
+                    label = option.label,
+                    spokenName = option.spokenName,
+                    labelSize = labelSize,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    enabled = option.mode == null || connected,
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes(checkedShape = CircleShape)
+                        homeModeOptions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes(checkedShape = CircleShape)
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes(checkedShape = CircleShape)
+                    },
+                )
             }
         }
     }

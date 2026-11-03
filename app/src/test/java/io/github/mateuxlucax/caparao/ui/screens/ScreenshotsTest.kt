@@ -210,7 +210,36 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         // The built-in V60 recipe in the editor: its name, then its method on the card.
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
+        // The recipe loads from the database off the main thread; capture once the form is there.
+        waitFor(R.string.recipe_name)
         capture("recipe-editor")
+    }
+
+    /** Home with the Manual scale action selected and the existing controls visible. */
+    @Test
+    fun homeModeSelector() {
+        open("press-ramp", 38_300)
+        capture("home")
+    }
+
+    /** The three real brew modes at the top of Recipes. */
+    @Test
+    fun recipesModeSelector() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60"), 5_000)
+        capture("recipes")
+    }
+
+    /** The new-recipe editor, where the brew mode is chosen once (#125); an existing recipe does not show it. */
+    @Test
+    fun newRecipeEditor() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        waitFor(R.string.mode_espresso)
+        capture("recipe-editor-new")
     }
 
     /** The home-screen widget in docs/screenshots/widget: saved and empty at the declared 180x176 dp minimum. */
@@ -491,8 +520,10 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     fun frenchPressRecipeSelector() {
         open("press-ramp", 38_300)
         click(R.string.tab_recipes)
-        click(R.string.mode_french_press)
-        waitFor(R.string.mode_french_press)
+        // The visible label is short; the full method name is the button's accessible name. The built-in recipe is
+        // named "French press" in both languages, so its card confirms the mode switch.
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press"), 5_000)
         capture("recipes-french-press")
     }
 

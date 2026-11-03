@@ -231,7 +231,8 @@
     <string name="guide_flow">Flow %1$s g/s · aim for %2$s</string>
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
-    <string name="guide_press_at">Press the plunger at %1$s</string>
+    <string name="guide_steep">Steep</string>
+    <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>
     <string name="guide_press_serve">Press and serve</string>
     <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
