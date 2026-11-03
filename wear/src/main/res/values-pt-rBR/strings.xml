@@ -26,5 +26,5 @@
     <string name="pace_on_time">No tempo</string>
     <string name="finish_title">Hora de finalizar</string>
     <string name="finish_channel">Avisos do preparo</string>
-    <string name="finish_text">Última etapa feita. Hora de finalizar o preparo.</string>
+    <string name="finish_text">Última etapa finalizada.</string>
 </resources>

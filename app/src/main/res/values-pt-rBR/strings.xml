@@ -4,7 +4,7 @@
     <!-- Navegação -->
     <string name="tab_home">Início</string>
     <string name="tab_brews">Preparos</string>
-    <string name="tab_settings">Config</string>
+    <string name="tab_settings">Configurações</string>
 
     <!-- Início -->
     <string name="scale_disconnected">Balança desconectada</string>
@@ -25,7 +25,7 @@
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_french_press">Preparar prensa francesa</string>
-    <string name="widget_brew_coffee">Passar um café</string>
+    <string name="widget_brew_coffee">Preparar um café</string>
     <string name="widget_weekly_title">Últimos 7 dias</string>
     <string name="widget_weekly_empty">Nenhum preparo nesta semana</string>
     <string name="widget_weekly_brews">Preparos</string>
@@ -40,15 +40,15 @@
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
     <string name="brews_empty_title">Nenhum preparo ainda</string>
-    <string name="brews_empty_text">Os preparos que você registrar aparecem aqui, separados em filtrado, espresso e prensa francesa.</string>
+    <string name="brews_empty_text">Os preparos que você registrar aparecem aqui.</string>
 
     <!-- Config -->
     <string name="section_server">Servidor</string>
-    <string name="section_server_text">Opcional. Se configurar um, cada preparo é enviado depois de salvo.</string>
+    <string name="section_server_text">Opcional* Caso queira sincronizar automaticamente os dados dos seus preparos.</string>
     <string name="section_permissions">Permissões</string>
-    <string name="section_permissions_text">Bluetooth, só para achar a balança.</string>
+    <string name="section_permissions_text">Bluetooth, utilizado para comunicar com a balança.</string>
     <string name="section_scale">Balança</string>
-    <string name="section_scale_text">Pareie uma Timemore Dot. Se ela estiver pareada em outro celular, segure o botão até a luz piscar rápido.</string>
+    <string name="section_scale_text">Pareie a sua Timemore Dot. Se ela estiver pareada em outro dispositivo, segure o botão até a luz piscar rápido.</string>
     <string name="version">Versão %1$s</string>
 
     <!-- Conexão com a balança -->
@@ -79,14 +79,14 @@
     <string name="skip">Pular</string>
     <string name="finish">Concluir</string>
     <string name="get_started">Começar</string>
-    <string name="welcome_title">Uma tela para a Dot</string>
-    <string name="welcome_text">Veja peso, fluxo e tempo ao vivo. Registre seus preparos e guarde no celular.</string>
+    <string name="welcome_title">Desbloqueie todo o potencial da sua Timemore Dot</string>
+    <string name="welcome_text">Veja peso, fluxo e tempo ao vivo. Crie receitas e registre seus preparos.</string>
     <string name="permissions_title">Bluetooth</string>
-    <string name="permissions_text">O Bluetooth só serve para achar a balança. No Android aparece como Dispositivos por perto.</string>
+    <string name="permissions_text">Necessário para comunicar com a balança.</string>
     <string name="allow_bluetooth">Permitir Bluetooth</string>
     <string name="connect_scale_title">Conecte a balança</string>
     <string name="connect_scale_text">Ligue a Dot e deixe perto do celular.</string>
-    <string name="connect_scale_live">Coloque algo na balança. O peso acima deve mudar.</string>
+    <string name="connect_scale_live">Coloque algo na balança e verifique que o peso alterou.</string>
     <string name="copy_log">Copiar log de debug</string>
     <string name="log_copied">Log copiado</string>
 
@@ -95,20 +95,20 @@
     <string name="dose_field">Dose em gramas</string>
     <string name="next">Continuar</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
-    <string name="espresso_place_cup_text">Ela tara sozinha quando a xícara parar.</string>
+    <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
     <string name="cup_on">Coloquei a xícara</string>
     <string name="taring">Tarando…</string>
-    <string name="brewing_filter_text">Despeje no seu ritmo. Tire o dripper ou toque em Pronto para terminar.</string>
+    <string name="brewing_filter_text">Despeje no seu ritmo. Tire o coador ou toque em Pronto para terminar.</string>
     <string name="french_press_brewing_text">O timer começa com a primeira água. Toque em Pronto para terminar.</string>
     <string name="step_of">Etapa %1$d de %2$d</string>
     <string name="espresso_ready">Pode extrair</string>
     <string name="espresso_ready_text">O timer começa na primeira gota e para quando o fluxo para.</string>
     <string name="filter_ready">Pode despejar</string>
-    <string name="filter_ready_text">O timer começa com a primeira água.</string>
+    <string name="filter_ready_text">O timer começa com o primeiro despejo.</string>
     <string name="stop">Parar</string>
     <string name="done">Pronto</string>
     <string name="brew_saved">Salvo</string>
-    <string name="brew_interrupted">A balança desconectou. O que foi registrado está salvo.</string>
+    <string name="brew_interrupted">A balança desconectou. O progresso atual está salvo.</string>
     <string name="nothing_recorded">Nada foi registrado.</string>
     <string name="discard">Descartar</string>
     <string name="stop_brew_title">Parar a extração?</string>
@@ -138,32 +138,32 @@
     <string name="brewing_espresso">Extraindo</string>
     <string name="brewing_filter">Passando</string>
     <!-- Servidor e envios -->
-    <string name="nothing_synced_yet">Servidor configurado. Nada enviado ainda.</string>
+    <string name="nothing_synced_yet">Servidor configurado. Nada sincronizado ainda.</string>
     <string name="server_title">Seu servidor</string>
-    <string name="server_text">Opcional. Cada preparo salvo é enviado para o seu servidor. Sem ele, os preparos ficam só neste celular.</string>
+    <string name="server_text">Opcional. Cada preparo salvo é enviado para o seu servidor.</string>
     <string name="server_url">Endereço do servidor</string>
     <string name="server_token">Token de acesso</string>
     <string name="show_token">Mostrar</string>
     <string name="hide_token">Ocultar</string>
     <string name="test_connection">Testar conexão</string>
     <string name="test_running">Testando…</string>
-    <string name="test_ok">Conectado. O servidor aceitou o token.</string>
+    <string name="test_ok">Conectado.</string>
     <string name="save">Salvar</string>
-    <string name="server_saved">Salvo. Os preparos ainda não enviados vão agora.</string>
+    <string name="server_saved">Salvo.</string>
     <string name="remove_server">Remover servidor</string>
     <string name="server_settings">Configurar servidor</string>
-    <string name="url_cleartext_warning">Sem https o token trafega sem criptografia. Use http só na sua própria rede.</string>
-    <string name="local_network_needed">Este servidor está na sua rede local. O Android pede permissão antes de o app acessá-lo.</string>
+    <string name="url_cleartext_warning">Sem HTTPS o token trafega sem criptografia. Use HTTP somente na sua própria rede.</string>
+    <string name="local_network_needed">Este servidor está na sua rede local. Aprove a permissão de acesso a rede local.</string>
     <string name="local_network_allow">Permitir rede local</string>
     <string name="local_network_denied">Rede local não permitida. Permita nas configurações do app.</string>
     <string name="error_unauthorized">O servidor recusou o token.</string>
     <string name="error_rejected">O servidor recusou o pedido.</string>
-    <string name="error_redirected">O servidor respondeu com um redirecionamento. Confira o endereço; talvez precise de https.</string>
-    <string name="error_server">O servidor teve um erro. O app tenta de novo mais tarde.</string>
-    <string name="error_network">Não foi possível acessar o servidor. O app tenta de novo mais tarde.</string>
+    <string name="error_redirected">O servidor respondeu com um redirecionamento. Confira o endereço; talvez precise de HTTPS.</string>
+    <string name="error_server">O servidor teve um erro.</string>
+    <string name="error_network">Não foi possível acessar o servidor.</string>
     <string name="error_invalid_url">Use um endereço que comece com http:// ou https://</string>
-    <string name="error_local_network">O Android bloqueou a rede local. Permita para enviar os preparos.</string>
-    <string name="error_other">O envio falhou. O app tenta de novo mais tarde.</string>
+    <string name="error_local_network">Acesso a rede local bloqueado. Permita para enviar os preparos.</string>
+    <string name="error_other">O envio falhou.</string>
     <string name="permission_granted">Bluetooth permitido</string>
     <string name="reconnect">Reconectar</string>
 
@@ -172,7 +172,7 @@
     <string name="new_recipe">Nova receita</string>
     <string name="edit_recipe">Editar receita</string>
     <string name="no_recipes_title">Nenhuma receita ainda</string>
-    <string name="no_recipes_text">As receitas que você criar aparecem aqui. Comece um preparo por uma delas para seguir a dose e a razão.</string>
+    <string name="no_recipes_text">Nenhuma receita registrada.</string>
     <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g de água</string>
     <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
     <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
@@ -233,16 +233,16 @@
     <string name="guide_window">Alvo %1$s–%2$s s</string>
     <string name="section_colors">Cores</string>
     <string name="section_data">Dados</string>
-    <string name="section_data_text">Exporte receitas e preparos em CSV, ou preparos em JSON para reenviar a um servidor.</string>
+    <string name="section_data_text">Exporte suas receitas e preparos em CSV e JSON.</string>
     <string name="export">Exportar</string>
     <string name="export_include_samples">Incluir o CSV das amostras</string>
     <string name="export_working">Preparando…</string>
-    <string name="export_failed">Não foi possível exportar. Tente de novo.</string>
+    <string name="export_failed">Não foi possível exportar. Tente novamente.</string>
     <string name="share">Compartilhar</string>
     <string name="share_export">Compartilhar exportação</string>
     <string name="colors_system">Sistema</string>
-    <string name="section_guide_alerts">Alertas do guia</string>
-    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. A tela sempre mostra.</string>
+    <string name="section_guide_alerts">Alertas da receita</string>
+    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima.</string>
     <string name="guide_vibration">Vibrar</string>
     <string name="guide_sound">Som</string>
     <string name="vibrate_on_phone">Celular</string>
@@ -285,7 +285,7 @@
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Cafés</string>
-    <string name="coffees_empty">Adicione os pacotes que você tem para ver quanto resta e há quantos dias foram torrados. Escolha um como café depois de uma extração.</string>
+    <string name="coffees_empty">Adicione os pacotes que você tem para acompanhar quanto resta e há quantos dias foram torrados.</string>
     <string name="coffee_add">Adicionar café</string>
     <string name="coffee_edit">Editar café</string>
     <string name="coffee_name">Café</string>

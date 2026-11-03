@@ -44,15 +44,15 @@
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
     <string name="brews_empty_title">No brews yet</string>
-    <string name="brews_empty_text">Brews you record show up here, split into filter, espresso and French press.</string>
+    <string name="brews_empty_text">Brews you record show up here.</string>
 
     <!-- Settings -->
     <string name="section_server">Server</string>
-    <string name="section_server_text">Optional. If you set one, each brew is sent to it after it is saved.</string>
+    <string name="section_server_text">Optional. Sync your brew data automatically.</string>
     <string name="section_permissions">Permissions</string>
-    <string name="section_permissions_text">Bluetooth, only to find the scale.</string>
+    <string name="section_permissions_text">Bluetooth lets the app communicate with the scale.</string>
     <string name="section_scale">Scale</string>
-    <string name="section_scale_text">Pair a Timemore Dot. If it is paired to another phone, hold its button until the light blinks fast.</string>
+    <string name="section_scale_text">Pair your Timemore Dot. If it is paired with another device, hold its button until the light blinks quickly.</string>
     <string name="version">Version %1$s</string>
 
     <!-- Scale connection -->
@@ -83,14 +83,14 @@
     <string name="skip">Skip</string>
     <string name="finish">Finish</string>
     <string name="get_started">Start</string>
-    <string name="welcome_title">A screen for your Dot</string>
-    <string name="welcome_text">See weight, flow and time live. Record your brews and keep them on your phone.</string>
+    <string name="welcome_title">Unlock the full potential of your Timemore Dot</string>
+    <string name="welcome_text">See weight, flow and time live. Create recipes and record your brews.</string>
     <string name="permissions_title">Bluetooth</string>
-    <string name="permissions_text">Bluetooth is only used to find the scale. Android calls it Nearby devices.</string>
+    <string name="permissions_text">Bluetooth lets the app communicate with the scale.</string>
     <string name="allow_bluetooth">Allow Bluetooth</string>
     <string name="connect_scale_title">Connect the scale</string>
     <string name="connect_scale_text">Turn the Dot on and keep it near the phone.</string>
-    <string name="connect_scale_live">Put something on the scale. The weight above should change.</string>
+    <string name="connect_scale_live">Put something on the scale and check that the weight changes.</string>
     <string name="copy_log">Copy debug log</string>
     <string name="log_copied">Log copied</string>
 
@@ -99,20 +99,20 @@
     <string name="dose_field">Dose in grams</string>
     <string name="next">Next</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
-    <string name="espresso_place_cup_text">It tares by itself once the cup is still.</string>
+    <string name="espresso_place_cup_text">The scale tares once the cup is steady.</string>
     <string name="cup_on">Cup\'s on</string>
     <string name="taring">Taring…</string>
-    <string name="brewing_filter_text">Pour at your pace. Lift the dripper or tap Done to finish.</string>
+    <string name="brewing_filter_text">Pour at your pace. Remove the dripper or tap Done to finish.</string>
     <string name="french_press_brewing_text">The timer starts with the first water. Tap Done to finish.</string>
     <string name="step_of">Step %1$d of %2$d</string>
     <string name="espresso_ready">Start the shot</string>
     <string name="espresso_ready_text">The timer starts with the first drop and stops when the flow does.</string>
     <string name="filter_ready">Start pouring</string>
-    <string name="filter_ready_text">The timer starts with the first water.</string>
+    <string name="filter_ready_text">The timer starts with the first pour.</string>
     <string name="stop">Stop</string>
     <string name="done">Done</string>
     <string name="brew_saved">Saved</string>
-    <string name="brew_interrupted">The scale disconnected. What was recorded is saved.</string>
+    <string name="brew_interrupted">The scale disconnected. Your progress is saved.</string>
     <string name="nothing_recorded">Nothing was recorded.</string>
     <string name="discard">Discard</string>
     <string name="stop_brew_title">Stop the shot?</string>
@@ -142,32 +142,32 @@
     <string name="brewing_espresso">Extracting</string>
     <string name="brewing_filter">Brewing</string>
     <!-- Server and uploads -->
-    <string name="nothing_synced_yet">Server set. Nothing sent yet.</string>
+    <string name="nothing_synced_yet">Server set. Nothing synced yet.</string>
     <string name="server_title">Your server</string>
-    <string name="server_text">Optional. Each brew you save is sent to your server. Without one, brews stay on this phone.</string>
+    <string name="server_text">Optional. Each saved brew is sent to your server.</string>
     <string name="server_url">Server URL</string>
     <string name="server_token">Access token</string>
     <string name="show_token">Show</string>
     <string name="hide_token">Hide</string>
     <string name="test_connection">Test connection</string>
     <string name="test_running">Testing…</string>
-    <string name="test_ok">Connected. The server accepted the token.</string>
+    <string name="test_ok">Connected.</string>
     <string name="save">Save</string>
-    <string name="server_saved">Saved. Brews not sent yet go now.</string>
+    <string name="server_saved">Saved.</string>
     <string name="remove_server">Remove server</string>
     <string name="server_settings">Server settings</string>
-    <string name="url_cleartext_warning">Without https the token travels unencrypted. Use http only on your own network.</string>
-    <string name="local_network_needed">This server is on your local network. Android asks before the app can reach it.</string>
+    <string name="url_cleartext_warning">Without HTTPS, the token travels unencrypted. Use HTTP only on your own network.</string>
+    <string name="local_network_needed">This server is on your local network. Allow local network access.</string>
     <string name="local_network_allow">Allow local network</string>
     <string name="local_network_denied">Local network not allowed. Allow it in the app settings.</string>
     <string name="error_unauthorized">The server refused the token.</string>
     <string name="error_rejected">The server refused the request.</string>
-    <string name="error_redirected">The server sent a redirect. Check the URL; it may need https.</string>
-    <string name="error_server">The server had an error. The app tries again later.</string>
-    <string name="error_network">Couldn\'t reach the server. The app tries again later.</string>
+    <string name="error_redirected">The server sent a redirect. Check the URL; it may need HTTPS.</string>
+    <string name="error_server">The server encountered an error.</string>
+    <string name="error_network">Couldn\'t reach the server.</string>
     <string name="error_invalid_url">Use a URL that starts with http:// or https://</string>
-    <string name="error_local_network">Android blocked the local network. Allow it to send brews.</string>
-    <string name="error_other">Sending failed. The app tries again later.</string>
+    <string name="error_local_network">Local network access is blocked. Allow it to send brews.</string>
+    <string name="error_other">Sending failed.</string>
     <string name="permission_granted">Bluetooth allowed</string>
     <string name="reconnect">Reconnect</string>
 
@@ -176,7 +176,7 @@
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet</string>
-    <string name="no_recipes_text">Recipes you create show up here. Start a brew from one to follow its dose and ratio.</string>
+    <string name="no_recipes_text">Create a recipe to get started.</string>
     <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g of water</string>
     <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
     <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
@@ -239,7 +239,7 @@
     <string name="guide_window">Target %1$s–%2$s s</string>
     <string name="section_colors">Colors</string>
     <string name="section_data">Data</string>
-    <string name="section_data_text">Export recipes and brews as CSV, or brews as JSON to re-post to a server.</string>
+    <string name="section_data_text">Export brews and recipes as CSV, or brews as JSON.</string>
     <string name="export">Export</string>
     <string name="export_include_samples">Include the samples CSV</string>
     <string name="export_working">Preparing…</string>
@@ -248,8 +248,8 @@
     <string name="share_export">Share export</string>
     <string name="colors_system">System</string>
     <string name="colors_brand" translatable="false">Caparaó</string>
-    <string name="section_guide_alerts">Guide alerts</string>
-    <string name="guide_alerts_text">On each step, near the target and in the last 5 seconds before the next one. The screen always shows them.</string>
+    <string name="section_guide_alerts">Recipe alerts</string>
+    <string name="guide_alerts_text">The guide alerts you when a step starts, near its target, and in the last 5 seconds before the next step.</string>
     <string name="guide_vibration">Vibrate</string>
     <string name="guide_sound">Sound</string>
     <string name="vibrate_on_phone">Phone</string>
@@ -292,7 +292,7 @@
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Coffees</string>
-    <string name="coffees_empty">Add the bags on your shelf to see how much is left and how many days since the roast. Pick one as the coffee after a brew.</string>
+    <string name="coffees_empty">Add your coffee bags to track how much is left and how many days ago they were roasted.</string>
     <string name="coffee_add">Add coffee</string>
     <string name="coffee_edit">Edit coffee</string>
     <string name="coffee_name">Coffee</string>
