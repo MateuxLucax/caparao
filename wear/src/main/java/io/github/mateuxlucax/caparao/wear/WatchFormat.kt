@@ -4,7 +4,9 @@ import java.util.Locale
 
 /** Numbers on the watch, formatted like the phone's: one decimal in the locale's style, time as m:ss. */
 object WatchFormat {
-    fun grams(value: Float, locale: Locale = Locale.getDefault()): String = String.format(locale, "%.1f g", value.normalized())
+    fun weight(value: Float, locale: Locale = Locale.getDefault()): String = String.format(locale, "%.1f", value.normalized())
+
+    fun grams(value: Float, locale: Locale = Locale.getDefault()): String = "${weight(value, locale)} g"
 
     fun flow(value: Float, locale: Locale = Locale.getDefault()): String = String.format(locale, "%.1f g/s", value.normalized())
 

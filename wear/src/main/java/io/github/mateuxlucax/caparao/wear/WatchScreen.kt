@@ -3,10 +3,12 @@ package io.github.mateuxlucax.caparao.wear
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,11 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,8 +119,17 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
             WatchState.DONE -> stringResource(R.string.state_done)
             else -> snapshot.guide?.let { stepLabel(it) } ?: WatchFormat.flow(snapshot.flowGramsPerSecond)
         }
-        if (label != null) Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(WatchFormat.grams(snapshot.weightGrams), fontSize = 52.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        if (label != null) {
+            Text(
+                label,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+            )
+        }
+        WeightReadout(snapshot.weightGrams)
         val time = WatchFormat.time(snapshot.elapsedMs)
         val timeStyle = MaterialTheme.typography.titleLarge
         if (snapshot.state == WatchState.SCALE) {
@@ -145,6 +159,40 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
         val due = snapshot.guide?.dueInMs?.takeIf { snapshot.state == WatchState.BREWING && it > 0 }
         if (due != null) {
             Text(stringResource(R.string.guide_due_in, WatchFormat.seconds(due)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Keeps the localized number and unit together inside the round screen's safe width. */
+@Composable
+private fun WeightReadout(weightGrams: Float) {
+    val number = WatchFormat.weight(weightGrams)
+    val unit = stringResource(R.string.unit_grams)
+    val spokenWeight = stringResource(R.string.weight_grams, number, unit)
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val numberStyle = MaterialTheme.typography.displayLarge.copy(
+            fontSize = MAX_WEIGHT_SP.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        val unitStyle = MaterialTheme.typography.titleLarge
+        val numberWidth = textMeasurer.measure(number, style = numberStyle, maxLines = 1, softWrap = false).size.width
+        val unitWidth = textMeasurer.measure(unit, style = unitStyle, maxLines = 1, softWrap = false).size.width
+        val availableNumberWidth = with(density) { maxWidth.toPx() - 6.dp.toPx() } - unitWidth
+        val fontSize = (MAX_WEIGHT_SP * availableNumberWidth / numberWidth).coerceIn(MIN_WEIGHT_SP, MAX_WEIGHT_SP)
+        Row(
+            Modifier.semantics(mergeDescendants = true) { contentDescription = spokenWeight },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                number,
+                style = numberStyle.copy(fontSize = fontSize.sp),
+                maxLines = 1,
+                softWrap = false,
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(unit, style = MaterialTheme.typography.titleLarge)
         }
     }
 }
@@ -190,3 +238,5 @@ private fun paceColor(pace: Long?): Color = when {
 private val AHEAD = Color(0xFFFFB300)
 
 private const val ON_TIME_MS = 5_000L
+private const val MIN_WEIGHT_SP = 36f
+private const val MAX_WEIGHT_SP = 52f

@@ -8,6 +8,8 @@
     <string name="timer_reset">Zerar timer</string>
     <string name="state_ready">Aguardando</string>
     <string name="state_done">Pronto</string>
+    <string name="unit_grams">g</string>
+    <string name="weight_grams">%1$s %2$s</string>
     <string name="brew_channel">Preparo</string>
     <string name="brew_ongoing">Preparo em andamento</string>
     <string name="step_bloom">Bloom</string>
