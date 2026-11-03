@@ -38,6 +38,8 @@ Use these and only these. Adding a term means adding it here.
 | Brewing method: filter | Filter | Filtrado | |
 | Brewing method: espresso | Espresso | Espresso | Not "expresso" |
 | Brewing method: French press | French press | Prensa francesa | |
+| Home selector, French press short label | Press | Prensa | Full names stay available to accessibility. |
+| Home selector, manual scale accessible name | Manual scale | Balança manual | Manual stays the scale screen, not a brew mode. |
 | Ground coffee weight | dose | dose | |
 | Liquid out (espresso) | yield | bebida | |
 | Water poured (filter) | water | água | |

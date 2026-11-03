@@ -124,7 +124,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     @Before
     fun setUp() {
         assumeTrue("screenshots run only from scripts/screenshots.sh", System.getProperty("roborazzi.test.record") == "true")
-        if (compactOnly) assumeTrue("compact screenshot variant only", testName.methodName == "smallScreenWeigh")
+        if (compactOnly) assumeTrue("compact screenshot variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -145,7 +145,12 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
 
-    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true, brand: () -> BrandColor? = { BrandColor.LEAF }): SessionScale {
+    private fun open(
+        session: String,
+        atMs: Long,
+        onboardingDone: Boolean = true,
+        brand: () -> BrandColor? = { BrandColor.LEAF },
+    ): SessionScale {
         val scale = SessionScale(context.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() })
         val factory = viewModelFactory {
             initializer { HomeViewModel(scale) }
@@ -385,6 +390,20 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("brew-weigh-320")
     }
 
+    /** The full Home selector and manual scale entry at compact 320 dp phone width. */
+    @Test
+    fun smallScreenHome() {
+        assumeTrue(
+            "small-screen screenshot variant only",
+            context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640,
+        )
+        open("press-ramp", 38_300)
+        listOf(R.string.mode_manual, R.string.mode_filter, R.string.mode_espresso, R.string.mode_french_press_short).forEach {
+            compose.onNodeWithText(text(it)).assertIsDisplayed()
+        }
+        capture("home-320")
+    }
+
     /** The espresso guide's steps before the shot: cup, taring, waiting for the first drop. */
     @Test
     fun espressoGuide() {
@@ -481,7 +500,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     @Test
     fun frenchPressGuide() {
         val scale = open("synthetic-french-press", 0)
-        click(R.string.mode_french_press)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
         click(R.string.next)
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)

@@ -17,8 +17,10 @@
     <string name="tare">Tare</string>
     <string name="mode_filter">Filter</string>
     <string name="mode_manual">Manual</string>
+    <string name="home_mode_manual_accessibility">Manual scale</string>
     <string name="mode_espresso">Espresso</string>
     <string name="mode_french_press">French press</string>
+    <string name="mode_french_press_short">Press</string>
 
     <!-- Home-screen widget -->
     <string name="widget_description">Last brew or a 7-day summary</string>

@@ -13,8 +13,10 @@
     <string name="tare">Tara</string>
     <string name="mode_filter">Filtrado</string>
     <string name="mode_manual">Manual</string>
+    <string name="home_mode_manual_accessibility">Balança manual</string>
     <string name="mode_espresso">Espresso</string>
     <string name="mode_french_press">Prensa francesa</string>
+    <string name="mode_french_press_short">Prensa</string>
 
     <!-- Widget da tela inicial -->
     <string name="widget_description">Último preparo ou resumo dos últimos 7 dias</string>
