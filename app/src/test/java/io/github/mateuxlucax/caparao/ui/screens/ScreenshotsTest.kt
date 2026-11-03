@@ -12,7 +12,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -365,7 +367,20 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
         click(R.string.free_brew)
         click(R.string.next)
-        compose.onNodeWithTag("weigh-step-next").assertIsDisplayed()
+        val appBarClose = hasContentDescription(text(R.string.close))
+        val espressoTitle = hasText(text(R.string.mode_espresso))
+        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 7, text(R.string.stage_beans)))
+        val nextAction = hasTestTag("weigh-step-next")
+        compose.waitUntilAtLeastOneExists(appBarClose, 5_000)
+        compose.waitUntilAtLeastOneExists(espressoTitle, 5_000)
+        compose.waitUntilAtLeastOneExists(weighProgress, 5_000)
+        compose.waitUntilAtLeastOneExists(nextAction, 5_000)
+        // The screen enters through a shared-axis transition; wait for Compose to settle before recording the frame.
+        compose.waitForIdle()
+        compose.onNode(appBarClose).assertIsDisplayed()
+        compose.onNode(espressoTitle).assertIsDisplayed()
+        compose.onNode(weighProgress).assertIsDisplayed()
+        compose.onNode(nextAction).assertIsDisplayed()
         capture("brew-weigh-320")
     }
 
