@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticIncompleteReason
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -68,6 +70,7 @@ fun SettingsScreen(
     scale: ScaleStatusViewModel,
     targets: TargetRatioViewModel,
     export: ExportViewModel,
+    diagnostics: DiagnosticsViewModel,
     coffees: CoffeeBagsViewModel,
     onCoffees: () -> Unit,
     actions: AppActions, versionName: String,
@@ -81,6 +84,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
+        SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
         SectionCard(stringResource(R.string.section_data)) { DataSection(export) }
         SectionCard(stringResource(R.string.section_colors)) { ColorsSection(targets) }
@@ -209,6 +213,77 @@ private fun DataSection(viewModel: ExportViewModel) {
         }
     }
     ShareFile(state.file, viewModel::shared)
+}
+
+/** Opt-in capture of the live BLE link, kept locally until the user shares the file. */
+@Composable
+private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val recorder = state.recorder
+    val status = if (state.starting) R.string.diagnostics_starting else when (recorder) {
+        DiagnosticRecorderState.Idle -> null
+        DiagnosticRecorderState.Starting -> R.string.diagnostics_starting
+        is DiagnosticRecorderState.Recording -> R.string.diagnostics_recording
+        is DiagnosticRecorderState.Finalizing -> R.string.diagnostics_saving
+        is DiagnosticRecorderState.Ready -> if (recorder.complete) R.string.diagnostics_ready else R.string.diagnostics_incomplete
+        is DiagnosticRecorderState.Failed -> R.string.diagnostics_start_failed
+    }
+    if (status != null) {
+        Text(
+            stringResource(status),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (recorder is DiagnosticRecorderState.Failed || recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+    if (recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+        Text(
+            stringResource(incompleteReasonString(recorder.reason)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    if (state.startFailed && recorder !is DiagnosticRecorderState.Failed) {
+        Text(stringResource(R.string.diagnostics_start_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+    }
+    if (state.stopFailed) {
+        Text(stringResource(R.string.diagnostics_stop_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+    }
+    if (state.shareFailed) {
+        Text(stringResource(R.string.diagnostics_share_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (!state.starting) {
+            when (recorder) {
+                is DiagnosticRecorderState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
+                    Text(stringResource(R.string.diagnostics_stop))
+                }
+                DiagnosticRecorderState.Starting, is DiagnosticRecorderState.Finalizing -> Unit
+                else -> {
+                    Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::start) {
+                        Text(stringResource(R.string.diagnostics_start))
+                    }
+                    if (recorder is DiagnosticRecorderState.Ready) {
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::share) {
+                            Text(stringResource(R.string.diagnostics_share))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ShareFile(state.shareFile, viewModel::shared, title = R.string.diagnostics_share_title)
+}
+
+private fun incompleteReasonString(reason: DiagnosticIncompleteReason?): Int = when (reason) {
+    DiagnosticIncompleteReason.SCALE_DISCONNECTED -> R.string.diagnostics_reason_disconnected
+    DiagnosticIncompleteReason.SESSION_SIZE_LIMIT -> R.string.diagnostics_reason_size_limit
+    DiagnosticIncompleteReason.WRITER_OVERRUN -> R.string.diagnostics_reason_writer_overrun
+    DiagnosticIncompleteReason.STORAGE_ERROR -> R.string.diagnostics_reason_storage
+    DiagnosticIncompleteReason.PROCESS_INTERRUPTED, null -> R.string.diagnostics_reason_interrupted
 }
 
 /** System colors (Material You) or Caparaó's green; the theme follows the choice at once. */

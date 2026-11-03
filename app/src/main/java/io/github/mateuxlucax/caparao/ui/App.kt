@@ -290,6 +290,7 @@ private fun Tabs(
                     viewModel(factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
                     onCoffees,
                     actions,
                     versionName,

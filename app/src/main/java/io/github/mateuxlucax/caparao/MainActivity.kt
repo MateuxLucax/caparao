@@ -16,6 +16,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
@@ -139,10 +140,12 @@ class MainActivity : ComponentActivity() {
     // The watch mirrors the phone only while the app is visible, like the scale connection (#92).
     override fun onStart() {
         super.onStart()
+        container.diagnostics.recordEvent(DiagnosticEvent.AppForeground)
         container.watch.start()
     }
 
     override fun onStop() {
+        container.diagnostics.recordEvent(DiagnosticEvent.AppBackground)
         container.watch.stop()
         super.onStop()
     }

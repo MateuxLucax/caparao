@@ -1,12 +1,19 @@
 package io.github.mateuxlucax.caparao.data.scale
 
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.model.ScaleBattery
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
@@ -15,6 +22,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
+import java.io.File
+import java.nio.file.Files
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScaleClientTest {
@@ -26,6 +36,7 @@ class ScaleClientTest {
         val calls = mutableListOf<String>()
         val scanTimes = mutableListOf<Long>()
         val writes = mutableListOf<Pair<Long, List<Byte>>>()
+        var failNextWrite = false
         lateinit var now: () -> Long
         override val events = MutableSharedFlow<BleEvent>(extraBufferCapacity = 64)
 
@@ -43,6 +54,10 @@ class ScaleClientTest {
         }
 
         override suspend fun write(frame: ByteArray) {
+            if (failNextWrite) {
+                failNextWrite = false
+                throw BleException(BleException.Reason.FAILED, "private write failure")
+            }
             writes += now() to frame.toList()
         }
 
@@ -60,9 +75,9 @@ class ScaleClientTest {
     private val refused = BleException(BleException.Reason.PAIRING_REFUSED, "refused")
     private val failed = BleException(BleException.Reason.FAILED, "gatt 133")
 
-    private fun TestScope.client(transport: FakeTransport): ScaleClient {
+    private fun TestScope.client(transport: FakeTransport, diagnostics: DiagnosticRecorder? = null): ScaleClient {
         transport.now = { currentTime }
-        return ScaleClient(transport, backgroundScope) { currentTime }
+        return ScaleClient(transport, backgroundScope, diagnostics) { currentTime }
     }
 
     @Test
@@ -235,6 +250,47 @@ class ScaleClientTest {
     }
 
     @Test
+    fun liveLinkRecordsWholeNotificationChunksAndOnlySuccessfulWrites() = runTest {
+        val directory = Files.createTempDirectory("caparao-scale-diagnostics-").toFile()
+        val recorder = DiagnosticRecorder(
+            directory,
+            backgroundScope,
+            monotonicNanos = { currentTime * 1_000_000L },
+            wallClockMillis = { 1_700_000_000_000L },
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        assertTrue(recorder.start())
+        val transport = FakeTransport()
+        val client = client(transport, recorder)
+        client.start()
+        advanceTimeBy(701)
+
+        val readings = async(UnconfinedTestDispatcher(testScheduler)) { client.readings.take(2).toList() }
+        val originalChunk = weight47 + weight47
+        transport.events.emit(BleEvent.Notification(originalChunk))
+        runCurrent()
+        client.tare()
+        runCurrent()
+        transport.failNextWrite = true
+        client.timer(TimerAction.START)
+        runCurrent()
+        assertEquals(listOf(ScaleReading(47.4, 0.0, 0, false), ScaleReading(47.4, 0.0, 0, false)), readings.await())
+
+        val saved = recorder.stop() as DiagnosticRecorderState.Ready
+        val rows = saved.file.readLines().drop(1).map(::JSONObject)
+        val received = rows.filter { it.getString("dir") == "rx" }
+        assertEquals(listOf(originalChunk.toHex()), received.map { it.getString("hex") })
+        val sent = rows.filter { it.getString("dir") == "tx" }
+        assertEquals(
+            listOf(DotProtocol.unitGrams(), DotProtocol.standardMode(), DotProtocol.readBattery(), DotProtocol.tare()).map { it.toHex() },
+            sent.map { it.getString("hex") },
+        )
+        assertTrue(rows.any { it.getString("note") == "scale_connected" })
+        assertTrue(saved.complete)
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun theDebugLogNeverHoldsTheAddress() = runTest {
         val transport = FakeTransport().apply { scans = mutableListOf("AA:BB:CC:DD:EE:FF") }
         val client = client(transport)
@@ -243,4 +299,6 @@ class ScaleClientTest {
         assertTrue(client.log.value.isNotEmpty())
         assertTrue(client.log.value.none { "AA:BB" in it })
     }
+
+    private fun ByteArray.toHex() = joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
 }

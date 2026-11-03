@@ -17,6 +17,10 @@ import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepTracker
 import io.github.mateuxlucax.caparao.brew.TimedReading
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.recordBrewPhase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -60,6 +64,8 @@ class BrewViewModel(
     private val onWatchAlert: (StepEvent) -> Unit = {},
     /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
     private val onLive: (BrewUiState?) -> Unit = {},
+    /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
+    private val diagnostics: DiagnosticRecorder? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -84,11 +90,13 @@ class BrewViewModel(
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
+    private var lastDiagnosticPhase: BrewPhase? = null
 
     /** The brew screen opened: start from the dose, listening to the scale. Does nothing while a brew is open. */
     fun begin() {
         if (job?.isActive == true) return
         reset()
+        diagnostics?.recordEvent(DiagnosticEvent.BrewScreenOpened)
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
             launch { _uiState.collect(onLive) }
@@ -99,6 +107,7 @@ class BrewViewModel(
 
     /** The screen closed: stop listening; the next [begin] starts over. */
     fun end() {
+        diagnostics?.recordEvent(DiagnosticEvent.BrewScreenClosed)
         job?.cancel()
         job = null
         reset()
@@ -148,6 +157,8 @@ class BrewViewModel(
         }
         detector = new
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
+        diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
+        recordDiagnosticPhase(new.phase)
         // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
         scale.reading.value?.let(::onReading)
     }
@@ -163,7 +174,9 @@ class BrewViewModel(
     fun stop() {
         val current = detector ?: return
         if (current.phase == BrewPhase.DONE) return
+        diagnostics?.recordEvent(DiagnosticEvent.BrewStopRequested)
         current.stop(clock())
+        recordDiagnosticPhase(current.phase)
         finish(current)
     }
 
@@ -208,6 +221,7 @@ class BrewViewModel(
         val timed = TimedReading(clock(), reading)
         if (readings.size < MAX_READINGS) readings += timed
         current.onReading(timed)?.let(::send)
+        recordDiagnosticPhase(current.phase)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
             brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
             smoother.reset()
@@ -276,7 +290,9 @@ class BrewViewModel(
         val current = detector ?: return
         // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
         if (state is ScaleState.Failed && current.phase == BrewPhase.BREWING) {
+            diagnostics?.recordEvent(DiagnosticEvent.BrewInterrupted)
             current.interrupt(clock())
+            recordDiagnosticPhase(current.phase)
             finish(current)
         }
     }
@@ -299,6 +315,7 @@ class BrewViewModel(
             _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = null) }
             return
         }
+        diagnostics?.recordEvent(DiagnosticEvent.BrewResultReady)
         val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
         val summaryReadings = if (mode == BrewMode.FRENCH_PRESS) {
             var highestWater = 0.0
@@ -342,6 +359,7 @@ class BrewViewModel(
         tracker = null
         frenchPressFinishTracker = null
         recipeChosen = false
+        lastDiagnosticPhase = null
         _uiState.value = BrewUiState(
             mode,
             dose = settings.lastDose(mode),
@@ -349,6 +367,19 @@ class BrewViewModel(
             connected = scale.state.value is ScaleState.Connected,
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
+    }
+
+    private fun recordDiagnosticPhase(phase: BrewPhase) {
+        if (phase == lastDiagnosticPhase) return
+        lastDiagnosticPhase = phase
+        val diagnosticPhase = when (phase) {
+            BrewPhase.WAITING_FOR_CUP -> DiagnosticBrewPhase.WAITING_FOR_CUP
+            BrewPhase.TARING -> DiagnosticBrewPhase.TARING
+            BrewPhase.READY -> DiagnosticBrewPhase.READY
+            BrewPhase.BREWING -> DiagnosticBrewPhase.BREWING
+            BrewPhase.DONE -> DiagnosticBrewPhase.DONE
+        }
+        diagnostics?.recordBrewPhase(mode, diagnosticPhase)
     }
 
     companion object {

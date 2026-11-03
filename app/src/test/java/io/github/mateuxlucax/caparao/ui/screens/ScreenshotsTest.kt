@@ -39,6 +39,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -61,6 +62,8 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
@@ -76,6 +79,7 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
+import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
@@ -119,6 +123,11 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     private val brews = BrewRepository(db.brews())
     private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("screenshots", Context.MODE_PRIVATE))
+    private val diagnosticScope = MainScope()
+    private val diagnostics = DiagnosticRecorder(
+        context.cacheDir.resolve("diagnostic-screenshots/$lang-$theme-${System.nanoTime()}"),
+        diagnosticScope,
+    )
     private val locale get() = context.resources.configuration.locales[0]
 
     @Before
@@ -132,7 +141,11 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     }
 
     @After
-    fun tearDown() = db.close()
+    fun tearDown() {
+        runBlocking { diagnostics.stop() }
+        diagnosticScope.cancel()
+        db.close()
+    }
 
     private fun capture(name: String) {
         compose.waitForIdle()
@@ -158,6 +171,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
+            initializer { DiagnosticsViewModel(context, diagnostics) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
@@ -188,6 +202,55 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
             play(scale, scale.nowMs + 100)
             compose.waitForIdle()
         }
+    }
+
+    private fun openDiagnosticsCard() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        compose.waitForIdle()
+    }
+
+    private fun diagnosticsAction(id: Int) {
+        compose.onNodeWithText(text(id)).performScrollTo().performClick()
+    }
+
+    @Test
+    fun diagnosticsIdle() {
+        openDiagnosticsCard()
+        compose.onNodeWithText(text(R.string.diagnostics_start)).performScrollTo()
+        capture("settings-diagnostics-idle")
+    }
+
+    @Test
+    fun diagnosticsRecording() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.diagnostics_start)
+        waitFor(R.string.diagnostics_recording)
+        compose.onNodeWithText(text(R.string.diagnostics_stop)).performScrollTo()
+        capture("settings-diagnostics-recording")
+    }
+
+    @Test
+    fun diagnosticsReadyToShare() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.diagnostics_start)
+        waitFor(R.string.diagnostics_recording)
+        diagnosticsAction(R.string.diagnostics_stop)
+        waitFor(R.string.diagnostics_ready)
+        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo()
+        capture("settings-diagnostics-ready")
+    }
+
+    @Test
+    fun diagnosticsIncomplete() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.diagnostics_start)
+        waitFor(R.string.diagnostics_recording)
+        diagnostics.recordDisconnect()
+        waitFor(R.string.diagnostics_incomplete)
+        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo()
+        capture("settings-diagnostics-incomplete")
     }
 
     @Test

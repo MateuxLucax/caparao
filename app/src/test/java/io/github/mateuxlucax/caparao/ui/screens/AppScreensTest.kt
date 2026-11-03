@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -60,6 +61,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
+import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
@@ -96,6 +98,7 @@ class AppScreensTest {
     private val brews = BrewRepository(db.brews())
     private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
+    private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
 
     /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
     private var now = 0L
@@ -110,6 +113,7 @@ class AppScreensTest {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
+            initializer { DiagnosticsViewModel(context, diagnostics) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
@@ -188,6 +192,26 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
+    }
+
+    @Test
+    fun diagnosticsCaptureRequiresStartAndCanBeSharedAfterStop() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.diagnostics_start)).performScrollTo().assertExists().assertIsEnabled().performClick()
+        compose.waitUntil(5_000) { diagnostics.state.value is io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState.Recording }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.diagnostics_recording)), 5_000)
+        compose.onNodeWithText(text(R.string.diagnostics_share)).assertDoesNotExist()
+
+        compose.onNodeWithText(text(R.string.diagnostics_stop)).performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.diagnostics_ready)), 5_000)
+        compose.onNodeWithText(text(R.string.diagnostics_start)).assertExists()
+        compose.onNodeWithText(text(R.string.diagnostics_share)).assertExists()
     }
 
     @Test

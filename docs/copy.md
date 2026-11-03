@@ -8,6 +8,9 @@ the voice a native speaker would use.
 
 - **Direct and useful.** Give each line one job: name a status, give an instruction, or provide context the user needs
   to decide or act. Keep only details that help with that job.
+- **Essential.** Use text only when it changes what the user understands or needs to do. Omit default subtitles,
+  explanations of obvious controls, repeated confirmations, and internal process details. Keep instructions needed for
+  the current task, actionable errors, and consequential confirmations; put technical how and why in docs.
 - **Calm.** The user may be holding a kettle or portafilter. Use short sentences and one idea at a time.
 - **Warm.** Onboarding can open with a welcoming, benefit-led headline. Keep routine statuses and instructions
   understated; use playfulness only when it sounds natural.
