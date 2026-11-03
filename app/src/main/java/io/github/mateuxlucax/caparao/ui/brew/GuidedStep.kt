@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -75,7 +76,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepProgress(steps.size, guide.index)
+        StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -123,9 +124,18 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g") }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
-        CountdownRing(guide.progress, color)
+        CountdownRing(guide.progress, color) {
+            guide.dueInMs?.let {
+                Text(
+                    Format.timer(seconds(it)),
+                    style = MaterialTheme.typography.displaySmall.merge(Tabular),
+                    color = color,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
         Text(stringResource(R.string.guide_press_at, Format.timer((step.targetAtMs / 1000).toInt())), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        guide.dueInMs?.let { Text(Format.timer(seconds(it)), style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color) }
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         CupToTarget(fill, color)
@@ -249,7 +259,17 @@ private fun FrenchPressPlungerAnimation() {
                 cornerRadius = CornerRadius(7f, 7f),
                 style = Stroke(width = 3f),
             )
-            drawLine(colors.outline, Offset(right, 42f), Offset(100f, 50f), strokeWidth = 3f, cap = StrokeCap.Round)
+            val handle = Path().apply {
+                moveTo(right, 40f)
+                cubicTo(101f, 40f, 109f, 44f, 109f, 53f)
+                lineTo(109f, 77f)
+                cubicTo(109f, 86f, 101f, 90f, right, 90f)
+            }
+            drawPath(
+                handle,
+                colors.outline,
+                style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
             val plateY = 42f + 42f * progress.value
             drawLine(colors.primary, Offset(60f, 8f), Offset(60f, plateY), strokeWidth = 4f, cap = StrokeCap.Round)
             drawLine(colors.primary, Offset(42f, plateY), Offset(78f, plateY), strokeWidth = 6f, cap = StrokeCap.Round)
@@ -275,11 +295,11 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
 /** How far through the steps: a wave up to the current one. */
 @Composable
-private fun StepProgress(count: Int, current: Int) {
-    val progress by animateFloatAsState((current + 1f) / count, Motion.standard(), label = "steps")
+private fun StepProgress(progress: Float) {
+    val shown by animateFloatAsState(progress, Motion.standard(), label = "steps")
     // Only the wave, always moving: no track and no stop dot after it.
     LinearWavyProgressIndicator(
-        progress = { progress },
+        progress = { shown },
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         trackColor = Color.Transparent,
         stopSize = 0.dp,
@@ -326,16 +346,19 @@ private fun CupToTarget(fill: Float, color: Color) {
 
 /** A wavy ring that empties as the wait runs out. */
 @Composable
-private fun CountdownRing(progress: Float, color: Color) {
+private fun CountdownRing(progress: Float, color: Color, centerContent: @Composable () -> Unit = {}) {
     val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    CircularWavyProgressIndicator(
-        progress = { 1f - shown },
-        modifier = Modifier.size(160.dp),
-        color = color,
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-        trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-    )
+    Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
+        CircularWavyProgressIndicator(
+            progress = { 1f - shown },
+            modifier = Modifier.fillMaxSize(),
+            color = color,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+            trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+        )
+        centerContent()
+    }
 }
 
 @Composable
