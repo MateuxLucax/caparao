@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="580" viewBox="0 0 1120 580">
+  <rect width="1120" height="580" fill="#f1f3f5"/>
+  <g font-family="Roboto, Arial, sans-serif" fill="#25332d">
+    <text x="40" y="55" font-size="28" font-weight="700">Brew mode selector · #125</text>
+    <text x="40" y="96" font-size="16" fill="#596b62">Keep all three connected choices visible, readable, and the same height as labels wrap.</text>
+  </g>
+  <g fill="#fbfaf7" stroke="#bac9bd" stroke-width="2">
+    <rect x="40" y="132" width="500" height="300" rx="22"/>
+    <rect x="580" y="132" width="500" height="300" rx="22"/>
+  </g>
+  <g font-family="Roboto, Arial, sans-serif" fill="#25332d">
+    <text x="68" y="184" font-size="20" font-weight="600">English · 411 dp</text>
+    <text x="608" y="184" font-size="20" font-weight="600">pt-BR · 320 dp · text scale 1.3×</text>
+  </g>
+  <g stroke="#bac9bd" stroke-width="2">
+    <rect x="68" y="218" width="146" height="82" rx="20" fill="#e7eee8"/>
+    <rect x="216" y="218" width="146" height="82" rx="20" fill="#e7eee8"/>
+    <rect x="364" y="218" width="146" height="82" rx="20" fill="#2f6d50" stroke="#2f6d50"/>
+    <rect x="608" y="218" width="146" height="112" rx="20" fill="#e7eee8"/>
+    <rect x="756" y="218" width="146" height="112" rx="20" fill="#e7eee8"/>
+    <rect x="904" y="218" width="146" height="112" rx="20" fill="#2f6d50" stroke="#2f6d50"/>
+  </g>
+  <g font-family="Roboto, Arial, sans-serif" text-anchor="middle" fill="#25332d">
+    <text x="141" y="268" font-size="18">Filter</text>
+    <text x="289" y="268" font-size="18">Espresso</text>
+    <text x="437" y="248" font-size="18" fill="#fff">French</text>
+    <text x="437" y="272" font-size="18" fill="#fff">press</text>
+    <text x="681" y="280" font-size="18">Filtrado</text>
+    <text x="829" y="280" font-size="18">Espresso</text>
+    <text x="977" y="264" font-size="18" fill="#fff">Prensa</text>
+    <text x="977" y="288" font-size="18" fill="#fff">francesa</text>
+  </g>
+  <g font-family="Roboto, Arial, sans-serif" fill="#596b62" font-size="16">
+    <text x="68" y="354">The longest label wraps at its word boundary.</text>
+    <text x="68" y="382">Every segment fills the tallest natural height.</text>
+    <text x="608" y="360">Natural wrapping adapts the group height;</text>
+    <text x="608" y="388">no label shrinks, clips, or scrolls away.</text>
+  </g>
+  <g font-family="Roboto, Arial, sans-serif" fill="#25332d">
+    <text x="40" y="480" font-size="18" font-weight="600">Layout rule: equal-width Material 3 ToggleButtons share the row’s tallest wrapped-label height.</text>
+    <text x="40" y="518" font-size="16" fill="#596b62">The selector keeps its existing theme tokens and touch targets; font scaling and available width determine</text>
+    <text x="40" y="544" font-size="16" fill="#596b62">the row height, while all modes remain visible in one connected group.</text>
+  </g>
+</svg>
