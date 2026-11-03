@@ -1,9 +1,12 @@
 package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
@@ -21,16 +24,19 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.github.mateuxlucax.caparao.model.BrewMode
 
-/** The brew type, espresso or filter, as a connected button group (#109). */
+/** The brew type as a connected, equal-height button group (#109, #125). */
 @Composable
 fun BrewModeGroup(selected: BrewMode, onSelect: (BrewMode) -> Unit, modifier: Modifier = Modifier, icons: Boolean = false) {
     val last = BrewMode.entries.lastIndex
-    Row(modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+    Row(
+        modifier.fillMaxWidth().height(IntrinsicSize.Max).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
         BrewMode.entries.forEachIndexed { index, mode ->
             ToggleButton(
                 checked = selected == mode,
                 onCheckedChange = { onSelect(mode) },
-                modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
+                modifier = Modifier.weight(1f).fillMaxHeight().semantics { role = Role.RadioButton },
                 shapes = when (index) {
                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                     last -> ButtonGroupDefaults.connectedTrailingButtonShapes()
