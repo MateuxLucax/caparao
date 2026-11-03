@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -35,6 +36,7 @@ import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
+import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +49,13 @@ class AppContainer(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     val settings = SettingsStore(SettingsStore.open(appContext))
+
+    /** Opt-in BLE and brew lifecycle capture, retained privately and only shared on request. */
+    val diagnostics = DiagnosticRecorder(
+        directory = appContext.filesDir.resolve("diagnostics"),
+        scope = scope,
+        monotonicNanos = SystemClock::elapsedRealtimeNanos,
+    )
 
     /** Public for the screenshot test, which empties it between runs. */
     val database = BrewDatabase.open(appContext)
@@ -75,7 +84,7 @@ class AppContainer(context: Context) {
     val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked)
 
     /** The real Dot over Bluetooth, or a recording after [replay]. */
-    var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope)
+    var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope, diagnostics = diagnostics)
         private set
 
     /**
@@ -107,6 +116,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
+        initializer { DiagnosticsViewModel(appContext, diagnostics) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
@@ -120,7 +130,7 @@ class AppContainer(context: Context) {
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 clock = { (scale as? ReplayScaleSource)?.nowMs ?: SystemClock.elapsedRealtime() },
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
-                onWatchAlert = watch::alert,
+                onWatchAlert = watch::alert, diagnostics = diagnostics,
             )
         }
     }

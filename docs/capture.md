@@ -1,13 +1,53 @@
 # Recording a Dot session
 
-`scripts/capture-session.py` scans for the Timemore Dot, runs the handshake from [hardware.md](hardware.md) and records
-every FFF1 notification until Ctrl+C. The JSONL is compatible with `ReplayScaleSource` and `RecordedSessionTest`, so a
-capture can be inspected before it becomes a fixture. The repository is public: raw captures stay in the git-ignored
-`spike-captures/` until reviewed.
+Caparaó can record a local diagnostic session while it uses its existing BLE connection. Use this for annotated everyday
+brews; the file includes the pre-brew scale baseline, each raw notification chunk, successful commands, safe connection
+events and brew detector phases. Start recording in **Settings → Diagnostics**, brew normally, then return to Settings
+and stop recording. Sharing is a separate action from the finished session.
 
-The script is external to the app, not a recorder inside it. **It owns the BLE link**, so Caparaó and every other app
-must be disconnected while it runs. The Dot also remembers one bonded device: connecting from the Mac may require
-holding the Dot's button until its LED blinks fast, and after the capture the phone may need to pair again.
+The recorder is off by default. It writes to app-private storage, outside Android backups, and never sends data to the
+exporter or another service. A file leaves the app only after the user chooses **Share file**. Recording does not change
+scale readings or wait for disk writes on the BLE or brew-detection path.
+
+Retention is bounded to 10 sessions and 32 MiB total; each session stops at 8 MiB. Before a new session, the oldest
+files are removed as needed to reserve room. The asynchronous writer holds at most 128 records. A full queue, size cap,
+write failure or lost BLE link ends the capture as incomplete with a fixed reason in its footer when storage still works.
+The app continues brewing if recording stops. A file without a completion footer is treated as incomplete after the
+app process ends unexpectedly.
+
+## In-app format
+
+In-app files use version 1 of `caparao-diagnostic-jsonl`. They keep the same first-line header and `rx`/`tx`/`event`
+records used by `ReplayScaleSource`; existing replay ignores the extra `seq`, `complete` and `reason` fields.
+
+```json
+{"format":"caparao-diagnostic-jsonl","format_version":1,"app":"Caparaó","started_at":"2026-11-03T20:00:00Z"}
+{"t_ms":0,"seq":0,"dir":"event","hex":"","note":"session_started"}
+{"t_ms":245,"seq":1,"dir":"rx","hex":"A5 5A 01 01 00 09 00 00 00 00 00 00 00 00 00 00 00","note":"notification"}
+{"t_ms":246,"seq":2,"dir":"tx","hex":"A5 5A 03 0D 00 00 64 D1","note":"command"}
+{"t_ms":800,"seq":3,"dir":"event","hex":"","note":"brew_espresso_brewing"}
+{"t_ms":900,"seq":4,"dir":"event","hex":"","note":"session_end","complete":true}
+```
+
+`t_ms` is elapsed monotonic time from capture start. `seq` preserves order when two records share a millisecond. Each
+`rx` row is one original BLE notification, including chunks that contain several frames or a partial frame; `tx` rows
+contain only successful writes. Event notes come from a fixed vocabulary and contain no recipe, coffee, device or error
+text. The header has no device label. A disconnected or interrupted session ends with `session_incomplete`,
+`complete:false` and a fixed `reason`; successful files end with `session_end`, `complete:true`.
+
+Complete in-app files can be used directly with `ReplayScaleSource` or `RecordedSessionTest`: preserve the first header
+line and all rows, and let replay consume only `rx`. Review a file before promoting it to a public fixture. Incomplete
+files are evidence of a capture failure or disconnect and must not be presented as a complete session.
+
+## External protocol capture
+
+[`scripts/capture-session.py`](../scripts/capture-session.py) remains available for protocol work. It scans for the
+Timemore Dot, runs the handshake from [hardware.md](hardware.md) and records every FFF1 notification until Ctrl+C. It
+uses the same replay-compatible JSONL rows, and its raw files stay in the git-ignored `spike-captures/` until reviewed.
+
+The external script owns the BLE link. Caparaó and every other app must be disconnected while it runs. The Dot also
+remembers one bonded device: connecting from the Mac may require holding the Dot's button until its LED blinks fast, and
+after the capture the phone may need to pair again.
 
 ## Setup (macOS)
 

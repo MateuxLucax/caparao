@@ -2,6 +2,8 @@ package io.github.mateuxlucax.caparao.ui.brew
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -19,12 +21,19 @@ import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.io.File
+import java.nio.file.Files
 
 /** A whole brew through the ViewModel: fake scale in, saved brew out. The detectors' edge cases are in brew/. */
 class BrewViewModelTest {
@@ -43,11 +52,11 @@ class BrewViewModelTest {
     /** What the watch was asked to vibrate for. */
     private val watchAlerts = mutableListOf<StepEvent>()
 
-    private fun viewModel(mode: BrewMode) = BrewViewModel(
+    private fun viewModel(mode: BrewMode, diagnostics: DiagnosticRecorder? = null) = BrewViewModel(
         mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
         onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
         onDiscarded = { id -> uploads += "discarded $id" },
-        onWatchAlert = { watchAlerts += it },
+        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics,
     )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
@@ -166,6 +175,34 @@ class BrewViewModelTest {
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
         assertNull(vm.uiState.value.saved)
         assertTrue(dao.brews.value.isEmpty())
+    }
+
+    @Test
+    fun diagnosticsKeepFalseStartsAsPhasesWithoutInventingACompletedBrew() {
+        val directory = Files.createTempDirectory("caparao-brew-diagnostics-").toFile()
+        val recorderJob = SupervisorJob()
+        val recorderScope = CoroutineScope(recorderJob + Dispatchers.IO)
+        val diagnostics = DiagnosticRecorder(File(directory, "sessions"), recorderScope)
+        assertTrue(runBlocking { diagnostics.start() })
+
+        val vm = viewModel(BrewMode.ESPRESSO, diagnostics)
+        vm.begin()
+        vm.setDose(18.0)
+        hold(0.0, 10.0) // a quiet false start: no cup or first drop was detected
+        assertEquals(BrewPhase.WAITING_FOR_CUP, vm.uiState.value.phase)
+        vm.stop()
+        vm.end()
+
+        val saved = runBlocking { diagnostics.stop() } as DiagnosticRecorderState.Ready
+        assertTrue(saved.complete)
+        val rows = saved.file.readLines().drop(1).map(::JSONObject)
+        val notes = rows.map { it.getString("note") }
+        assertTrue("brew_espresso_waiting_for_cup" in notes)
+        assertTrue("brew_stop_requested" in notes)
+        assertFalse("brew_result_ready" in notes)
+        assertFalse(saved.file.readText().contains("recipe"))
+        recorderJob.cancel()
+        directory.deleteRecursively()
     }
 
     @Test

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The export files written to cache/exports and shared through the FileProvider (#76). -->
+<!-- The export files and explicitly shared diagnostic sessions. -->
 <paths>
     <cache-path name="exports" path="exports/" />
+    <files-path name="diagnostics" path="diagnostics/" />
 </paths>

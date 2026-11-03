@@ -10,9 +10,9 @@ import io.github.mateuxlucax.caparao.data.export.ExportedFile
 
 /** Opens the share sheet for [file] once, then calls [onShared]. */
 @Composable
-fun ShareFile(file: ExportedFile?, onShared: () -> Unit) {
+fun ShareFile(file: ExportedFile?, onShared: () -> Unit, title: Int = R.string.share_export) {
     val context = LocalContext.current
-    val title = stringResource(R.string.share_export)
+    val chooserTitle = stringResource(title)
     LaunchedEffect(file) {
         val exported = file ?: return@LaunchedEffect
         val send = Intent(Intent.ACTION_SEND).apply {
@@ -20,7 +20,7 @@ fun ShareFile(file: ExportedFile?, onShared: () -> Unit) {
             putExtra(Intent.EXTRA_STREAM, exported.uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(send, title))
+        context.startActivity(Intent.createChooser(send, chooserTitle))
         onShared()
     }
 }

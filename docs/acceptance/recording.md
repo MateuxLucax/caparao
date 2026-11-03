@@ -4,37 +4,40 @@ Stages 2, 3 and 5 are done in code but have no dated run on the phone, and the d
 Both gaps need the user at the coffee machine: real sessions for the detectors
 ([#79](https://github.com/MateuxLucax/caparao/issues/79)) and the app scripts on the phone
 ([#78](https://github.com/MateuxLucax/caparao/issues/78)). This page lists the sessions and the order of the runs; the
-capture tool, its setup and the format of a file are in [capture.md](../capture.md).
+in-app recorder, the external capture tool and file formats are in [capture.md](../capture.md).
 
-**A coffee is either a recording or an app run, never both.** `scripts/capture-session.py` owns the Bluetooth link while
-it runs, so Caparaó cannot be connected to the same brew. Record on one set of coffees and run the app scripts on
-another.
+Use Caparaó's **Settings → Diagnostics** card for these everyday sessions. It records through the app's existing BLE
+connection, so the scale readout, detector and normal brew flow keep working. The external
+`scripts/capture-session.py` remains available for protocol work; it owns the BLE link and requires Caparaó to be
+disconnected while it runs.
 
-## Before the first capture
+## Before the first in-app capture
 
-Close or force-stop Caparaó and the Timemore app before every capture: the script takes the link, and the Dot accepts
-one connection. The [setup](../capture.md#setup-macos) (the virtual environment and the Bluetooth permission) is done
-once, and the steps around the script are in [Record](../capture.md#record).
+Open Settings and start recording before placing the cup or dripper, so the file contains an empty scale baseline. Then
+return to the brew screen and make the espresso or pour-over as usual. After the summary appears, close the brew screen,
+return to Settings and stop recording. The completed session stays on the phone until you choose **Share file**.
 
-Nothing shows the weight while a capture runs: the Dot has no display and the app is closed. Weigh the dose and set the
-grind before you start, brew by time as you usually do, and read the numbers from the file afterwards.
+Record the coffee label, dose, grind, pump or pour timing, expected start/end/yield and anything unusual in the table
+below or on issue #79. Those annotations are separate from the app's detector result. Use the raw trace for context,
+and mark an event uncertain when its timing or meaning is unclear. In particular, do not call ambiguous water-only
+activity a proven negative.
 
-Do the recordings in one sitting if you can, with the app closed: the Dot stays bonded to the Mac between captures and
-the phone only needs to pair again for the app run.
+Recording has a bounded queue and file size. If it stops early, the Settings card marks the file incomplete with the
+reason; keep that reason with the session row and do not use it as a complete fixture. Sharing the file is optional and
+explicit.
 
 ## Sessions
 
-Thirteen captures in total: five espressos, five pour-overs and three false starts. Each session is one capture with
-the label from its row: `.venv/bin/python scripts/capture-session.py "<label>"`. Labels are lowercase words so they
-survive in the file name; keep them, so a file can be matched to its row. One capture covers one coffee: a dropped link
-ends the file instead of reconnecting.
+Thirteen captures in total: five espressos, five pour-overs and three false starts. Start and stop one diagnostic file
+per row. The generated filename has a timestamp, not the row label; copy the filename into the table so it can be
+matched to your independent notes. Keep coffee labels and notes in the guide or issue, never in the diagnostic file.
 
 ### Espresso
 
-Put the cup on the scale once the script prints `connected; recording until Ctrl+C`, and leave it there while you finish
-the puck. Stop the pump by time and leave the cup on the scale for 10 s before Ctrl+C: the app ends the brew 4 s after
-the last drip, so those seconds have to be in the file. `espresso-3` is the exception: lift the cup within 4 s of the
-last drip, so the file has the lift before the flat window, then Ctrl+C after 5 s.
+Start the diagnostic recording, open an espresso brew and place the cup when the brew screen asks. Make the shot as
+usual. Keep the cup on the scale after the last drip until the app shows its summary; for `espresso-3`, lift it within
+4 s of the last drip so the capture contains the lift before the flat window. Close the brew screen, return to Settings
+and stop recording.
 
 The reference grind is your everyday espresso setting; finer and coarser are whole steps on your grinder. What matters
 is that the five shots differ, not the exact numbers.
@@ -49,10 +52,9 @@ is that the five shots differ, not the exact numbers.
 
 ### Filter
 
-Put the dripper and server on the scale before the capture starts, so the file has them from the first reading;
-replayed, the app tares them off. Pour your usual recipe and time the pours with a stopwatch, since the Dot's weight
-cannot be watched. End every session by lifting the dripper and server off the scale: a capture cannot record the Done
-tap. Wait 5 s after the lift before Ctrl+C.
+Start the diagnostic recording, return to the scale screen, then put the dripper and server on the scale and open a
+filter brew. The file includes the empty baseline, the dripper/server and the app's tare command. Pour your usual recipe
+and time the pours with a stopwatch. Tap Done when finished, close the summary, return to Settings and stop recording.
 
 The ratio is the plan, not a number you can watch. Pour the way you normally do and the file records what landed.
 
@@ -66,8 +68,9 @@ The ratio is the plan, not a number you can watch. Pour the way you normally do 
 
 ### False starts
 
-These three are negatives: no coffee on the scale, and nothing should be saved. Note when the event happened in the
-`What happened` column, so the replay can be checked at that moment.
+These three are false-start cases with no coffee. Start recording before the event, open the matching brew mode, perform
+the action, then close the brew screen and stop from Settings. Record what happened and when. If a water-only case is
+ambiguous, mark it uncertain; do not label it a proven negative.
 
 | Label | Setup | Event |
 |-------|-------|-------|
@@ -77,8 +80,9 @@ These three are negatives: no coffee on the scale, and nothing should be saved. 
 
 ## Fill one row per session
 
-The expected values are the brew as the scale recorded it, not what the app computed. Read them from the file with
-[Read the weights](../capture.md#read-the-weights), then:
+Record expected values from your independent observation of the brew, not from the app's detector result. The raw file
+can be inspected with [Read the weights](../capture.md#read-the-weights) to add context, but keep the detector's result
+out of the expected columns. If you cannot tell when an event occurred, write `uncertain` instead of guessing, then:
 
 - **Baseline (g)**: the steady weight in the file just before the brew — the cup, or the dripper and server.
 - **Start (s)**: the first reading where the weight leaves the baseline and stays above it: the first drop, or the first
