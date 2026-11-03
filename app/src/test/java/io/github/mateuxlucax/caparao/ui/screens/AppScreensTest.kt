@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
@@ -316,6 +317,31 @@ class AppScreensTest {
         assertTrue(done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
         compose.onNodeWithText(text(R.string.mode_filter)).assertExists()
+    }
+
+    @Test
+    fun aFrenchPressShortcutOpensItsPreselectedRecipeAtTheDoseStep() {
+        runBlocking { recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)) }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val shortcut = mutableStateOf<LauncherShortcut?>(LauncherShortcut.FRENCH_PRESS)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        // Room emits the recipe list before the view model applies its preselected recipe.
+        val selectedFrenchPressRecipe = hasText("French press") and isSelectable() and isSelected()
+        compose.waitUntilAtLeastOneExists(selectedFrenchPressRecipe, 5_000)
+        compose.onNode(selectedFrenchPressRecipe).assertIsSelected()
+        compose.onNodeWithText(text(R.string.next)).assertExists()
+        assertEquals(1, consumed)
     }
 
     @Test

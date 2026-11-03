@@ -47,7 +47,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp), icons = true)
+            BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp))
             val recipes = all?.get(mode) ?: return@Column
             if (recipes.isEmpty()) {
                 EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), stringResource(R.string.no_recipes_text), Modifier.padding(top = 48.dp))
@@ -86,7 +86,7 @@ fun recipeSummary(recipe: Recipe): String {
     val dose = Format.grams(recipe.doseGrams, locale)
     val target = Format.grams(recipe.targetYieldGrams, locale)
     return when (recipe.mode) {
-        BrewMode.FILTER -> stringResource(R.string.recipe_summary_filter, dose, Format.ratio(recipe.targetRatio, locale), target)
+        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> stringResource(R.string.recipe_summary_filter, dose, Format.ratio(recipe.targetRatio, locale), target)
         BrewMode.ESPRESSO -> {
             val min = recipe.targetMinMs
             val max = recipe.targetMaxMs

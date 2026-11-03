@@ -68,7 +68,10 @@ import java.util.Locale
 @Composable
 fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) -> Unit, onDose: (Double) -> Unit, onNext: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
-    val step = if (state.mode == BrewMode.ESPRESSO) 0.1 else 0.5
+    val step = when (state.mode) {
+        BrewMode.ESPRESSO -> 0.1
+        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
+    }
     var editing by rememberSaveable { mutableStateOf<Editing?>(null) }
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.recipes.isNotEmpty()) RecipeChips(state, onRecipe)

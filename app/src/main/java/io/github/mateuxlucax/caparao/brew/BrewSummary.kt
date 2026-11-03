@@ -8,7 +8,7 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 data class BrewSummary(
     val durationMs: Long,
     val yieldGrams: Double,
-    /** Espresso only, from tare to first drop; null for filter or when the tare time is unknown. */
+    /** Espresso only, from tare to first drop; null for filter or French press, or when the tare time is unknown. */
     val timeToFirstDropMs: Long?,
     /** Yield over duration. */
     val flowAvgGramsPerSecond: Double,
@@ -59,7 +59,10 @@ data class BrewSummary(
             return BrewSummary(
                 durationMs = durationMs,
                 yieldGrams = result.yieldGrams,
-                timeToFirstDropMs = if (mode == BrewMode.ESPRESSO) result.taredAtMs?.let { start - it } else null,
+                timeToFirstDropMs = when (mode) {
+                    BrewMode.ESPRESSO -> result.taredAtMs?.let { start - it }
+                    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+                },
                 flowAvgGramsPerSecond = if (durationMs > 0) result.yieldGrams / (durationMs / 1000.0) else 0.0,
                 flowPeakGramsPerSecond = peak,
                 curve = curve,

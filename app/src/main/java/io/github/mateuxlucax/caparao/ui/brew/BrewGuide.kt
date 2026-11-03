@@ -64,6 +64,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
     POUR(R.string.filter_ready, R.string.filter_ready_text, R.string.stage_pour),
     BREWING_ESPRESSO(R.string.brewing_espresso, null, R.string.stage_extracting),
     BREWING_FILTER(R.string.brewing_filter, R.string.brewing_filter_text, R.string.stage_brewing),
+    BREWING_FRENCH_PRESS(R.string.brewing_filter, R.string.french_press_brewing_text, R.string.stage_brewing),
     DONE(R.string.brew_saved, null, R.string.stage_done),
 }
 
@@ -71,6 +72,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
 fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
     BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
     BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
+    BrewMode.FRENCH_PRESS -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.DONE)
 }
 
 /** Where the screen stands, from its step and the detector's phase. */
@@ -81,8 +83,15 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
     BrewStep.LIVE -> when (phase) {
         BrewPhase.WAITING_FOR_CUP -> GuideStage.CUP
         BrewPhase.TARING -> GuideStage.TARE
-        BrewPhase.READY -> if (mode == BrewMode.ESPRESSO) GuideStage.FIRST_DROP else GuideStage.POUR
-        BrewPhase.BREWING, BrewPhase.DONE -> if (mode == BrewMode.ESPRESSO) GuideStage.BREWING_ESPRESSO else GuideStage.BREWING_FILTER
+        BrewPhase.READY -> when (mode) {
+            BrewMode.ESPRESSO -> GuideStage.FIRST_DROP
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> GuideStage.POUR
+        }
+        BrewPhase.BREWING, BrewPhase.DONE -> when (mode) {
+            BrewMode.ESPRESSO -> GuideStage.BREWING_ESPRESSO
+            BrewMode.FILTER -> GuideStage.BREWING_FILTER
+            BrewMode.FRENCH_PRESS -> GuideStage.BREWING_FRENCH_PRESS
+        }
     }
 }
 

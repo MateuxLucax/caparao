@@ -128,7 +128,7 @@ Acceptance:
 
 Recipes ([ADR 0018](https://github.com/MateuxLucax/caparao/issues/102)), guided brew with full-screen steps ([ADR 0019](https://github.com/MateuxLucax/caparao/issues/103)),
 more brew metadata ([ADR 0021](https://github.com/MateuxLucax/caparao/issues/105)), compare and trends ([ADR 0022](https://github.com/MateuxLucax/caparao/issues/106)).
-Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Acceptance criteria are written per PR.
+Design drafts and exported illustrations live in the originating issues; acceptance criteria are written per PR.
 
 7.1 Recipe data:
 - `Recipe` and `RecipeStep` in `model/`; Room tables `recipes` and `recipe_steps` (cascade delete) and every brew
@@ -139,8 +139,8 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   then name, deleting a recipe deletes its steps and keeps the brews that used it.
 
 7.2 Recipe screens:
-- A Recipes tab (wireframe 1): Espresso and Filter, one card per recipe (dose, ratio, water or yield, shot window), New
-  recipe. The editor (wireframe 2): name, method with suggestions, dose, ratio and the water or yield it gives, grind,
+- A Recipes tab: Espresso and Filter, one card per recipe (dose, ratio, water or yield, shot window), New
+  recipe. The editor: name, method with suggestions, dose, ratio and the water or yield it gives, grind,
   temperature, notes; filter steps (kind, cumulative weight, start as m:ss), the espresso time window; delete with
   confirmation.
 - The brew's dose step picks a recipe or a free brew; the last choice per mode is preselected (the first recipe when
@@ -161,7 +161,7 @@ Wireframes: [`wireframes/stage-7.excalidraw`](wireframes/stage-7.excalidraw). Ac
   decoded frame by frame, runs ahead of the V60. No real filter brew is recorded yet: the curves are synthetic.
 
 7.4 Guided brew:
-- A filter brew from a recipe with steps shows one full-screen step at a time (wireframes 3a–3e): the step's colour,
+- A filter brew from a recipe with steps shows one full-screen step at a time: the step's colour,
   the cup filling to the dashed target line, "x / y g", the countdown before a pour, the pace once it begins (late turns
   the error colour), an overshoot hint, a countdown ring for waits and swirls, a check on each reached target, then
   "Let it drain" with Done. An espresso from a recipe colours the shot time inside and past its window.

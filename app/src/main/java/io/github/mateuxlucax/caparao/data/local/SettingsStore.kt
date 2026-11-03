@@ -139,16 +139,18 @@ class SettingsStore(private val prefs: SharedPreferences) {
         /** [lastRecipeId] after a brew without a recipe. */
         const val FREE_BREW = ""
 
-        /** 1:2 for espresso, 1:16 for filter: common starting points at the bar. */
+        /** 1:2 for espresso, 1:16 for filter and 1:15 for French press: common starting points at the bar. */
         fun defaultTargetRatio(mode: BrewMode): Double = when (mode) {
             BrewMode.ESPRESSO -> 2.0
             BrewMode.FILTER -> 16.0
+            BrewMode.FRENCH_PRESS -> 15.0
         }
 
-        /** 18 g for espresso, 20 g for filter, until a free brew sets its own. */
+        /** 18 g for espresso, 20 g for filter or French press, until a free brew sets its own. */
         fun defaultDose(mode: BrewMode): Double = when (mode) {
             BrewMode.ESPRESSO -> 18.0
             BrewMode.FILTER -> 20.0
+            BrewMode.FRENCH_PRESS -> 20.0
         }
 
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)

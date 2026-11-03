@@ -32,6 +32,11 @@ class BrewSummaryTest {
     }
 
     @Test
+    fun frenchPressHasNoTimeToFirstDrop() {
+        assertNull(BrewSummary.of(BrewMode.FRENCH_PRESS, readings, result).timeToFirstDropMs)
+    }
+
+    @Test
     fun espressoWithoutTareTimeHasNoTimeToFirstDrop() {
         assertNull(BrewSummary.of(BrewMode.ESPRESSO, readings, result.copy(taredAtMs = null)).timeToFirstDropMs)
     }

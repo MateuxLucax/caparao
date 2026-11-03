@@ -95,6 +95,6 @@ Primary sources:
 - [Guinard et al. (2023), *A new Coffee Brewing Control Chart relating sensory properties and consumer liking to brew strength, extraction yield, and brew ratio*](https://doi.org/10.1111/1750-3841.16531)
 - [Liang et al. (2021), *An equilibrium desorption model for the strength and extraction yield of full immersion brewed coffee*](https://doi.org/10.1038/s41598-021-85787-1)
 
-French press is still out of scope until [#125](https://github.com/MateuxLucax/caparao/issues/125) adds the mode. When it
-does, use its own exhaustive per-mode rule: 7 mg/g caffeine and 2 g/g retained water per gram of dose. This supersedes
-the earlier #136 wording that French press counts like filter; do not add the mode as part of #136.
+French press uses its own exhaustive per-mode rule: 7 mg/g caffeine and 2 g/g retained water per gram of dose, as added
+with the mode in [#125](https://github.com/MateuxLucax/caparao/issues/125). This supersedes the earlier #136 wording
+that French press counts like filter; do not fold it into the weekly-widget change.

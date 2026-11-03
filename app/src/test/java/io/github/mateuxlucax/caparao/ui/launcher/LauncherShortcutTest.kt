@@ -14,13 +14,15 @@ class LauncherShortcutTest {
     private val appId = "io.github.mateuxlucax.caparao"
 
     @Test
-    fun espressoAndFilterOpenTheirBrewAtTheDoseAndBrewsOpensTheTab() {
+    fun brewShortcutsOpenTheirDoseStepAndBrewsOpensTheTab() {
         assertEquals(ShortcutDestination.Brew(BrewMode.ESPRESSO), LauncherShortcut.ESPRESSO.destination)
         assertEquals(ShortcutDestination.Brew(BrewMode.FILTER), LauncherShortcut.FILTER.destination)
+        assertEquals(ShortcutDestination.Brew(BrewMode.FRENCH_PRESS), LauncherShortcut.FRENCH_PRESS.destination)
         assertEquals(ShortcutDestination.Brews, LauncherShortcut.BREWS.destination)
         assertEquals(ShortcutDestination.Home, LauncherShortcut.WIDGET_HOME.destination)
         assertEquals(LauncherShortcut.ESPRESSO, LauncherShortcut.forMode(BrewMode.ESPRESSO))
         assertEquals(LauncherShortcut.FILTER, LauncherShortcut.forMode(BrewMode.FILTER))
+        assertEquals(LauncherShortcut.FRENCH_PRESS, LauncherShortcut.forMode(BrewMode.FRENCH_PRESS))
     }
 
     @Test
@@ -35,9 +37,8 @@ class LauncherShortcutTest {
     fun unknownActionsAndIdsOpenTheAppNormally() {
         assertNull(LauncherShortcut.fromAction(null))
         assertNull(LauncherShortcut.fromAction("android.intent.action.MAIN"))
-        assertNull(LauncherShortcut.fromAction("io.github.mateuxlucax.caparao.shortcut.FRENCH_PRESS"))
         assertNull(LauncherShortcut.fromId(null))
-        assertNull(LauncherShortcut.fromId("french-press"))
+        assertNull(LauncherShortcut.fromId("unknown"))
     }
 
     @Test

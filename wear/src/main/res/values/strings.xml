@@ -9,12 +9,16 @@
     <string name="timer_reset">Reset timer</string>
     <string name="state_ready">Waiting</string>
     <string name="state_done">Done</string>
+    <string name="unit_grams">g</string>
+    <string name="weight_grams">%1$s %2$s</string>
     <string name="brew_channel">Brew</string>
     <string name="brew_ongoing">Brew in progress</string>
     <string name="step_bloom">Bloom</string>
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
+    <string name="guide_remove_press">Remove the press</string>
+    <string name="guide_press_serve">Press and serve</string>
     <string name="step_of">%1$d/%2$d · %3$s</string>
     <string name="guide_all_done">Last pour done</string>
     <string name="guide_due_in">Next in %d s</string>

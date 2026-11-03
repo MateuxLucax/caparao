@@ -4,9 +4,11 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 
-/** The widget alternates Espresso and Filter; any future mode (including French press) suggests Espresso. */
-internal fun suggestedModeAfter(latestMode: BrewMode): BrewMode =
-    if (latestMode == BrewMode.ESPRESSO) BrewMode.FILTER else BrewMode.ESPRESSO
+/** Espresso suggests Filter; both water-based methods suggest Espresso. French press is never suggested. */
+internal fun suggestedModeAfter(latestMode: BrewMode): BrewMode = when (latestMode) {
+    BrewMode.ESPRESSO -> BrewMode.FILTER
+    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> BrewMode.ESPRESSO
+}
 
 /** The action icon matches the suggested mode; the empty widget opens the chooser and has no method icon. */
 internal fun actionIconForWidget(latestMode: BrewMode?): Int? =

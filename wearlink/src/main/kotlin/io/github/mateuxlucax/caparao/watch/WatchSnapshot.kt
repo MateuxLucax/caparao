@@ -20,13 +20,14 @@ enum class WatchState {
     DONE,
 }
 
-/** A filter recipe step's kind, as the watch names it (the phone's `StepKind`). */
+/** A filter or French press recipe step's kind, as the watch names it (the phone's `StepKind`). */
 enum class WatchStepKind { BLOOM, POUR, WAIT, SWIRL }
 
 /**
- * Where the guided brew stands (#103): step [index] of [count] (equal to [count] once all are
- * done), its cumulative [targetGrams] for a pour, [dueInMs] until it is due while it hasn't begun, and once a pour began
- * its [paceMs] against the recipe (negative is ahead).
+ * Where the guided brew stands (#103): step [index] of [count] (equal to [count] once timed steps are done), its
+ * cumulative [targetGrams] for a pour, [dueInMs] until it is due while it hasn't begun, and once a pour began its
+ * [paceMs] against the recipe (negative is ahead). French press uses the existing WAIT wire kind for its post-timer
+ * prompts and zero pace as a serve-phase marker, preserving the v2 layout and ordinals for older watches.
  */
 data class WatchGuide(
     val index: Int,
@@ -47,7 +48,7 @@ data class WatchSnapshot(
     val flowGramsPerSecond: Float,
     val elapsedMs: Long,
     val timerRunning: Boolean,
-    /** Set while a filter brew follows a recipe's steps. */
+    /** Set while a filter or French press brew follows a recipe's steps. */
     val guide: WatchGuide? = null,
 ) {
     /**

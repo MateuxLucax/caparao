@@ -31,7 +31,15 @@ class ReplayScaleSource(
     private val startAtMs: Long = 0,
     /** Hold playback until [resume] so an end-to-end test can finish UI navigation first. */
     startPaused: Boolean = false,
+    /** Play the recorded timeline faster while keeping its captured timestamps for the brew detector. */
+    private val playbackSpeed: Double = 1.0,
+    /** Keep the last reading instead of looping to the beginning of the session. */
+    private val repeat: Boolean = true,
 ) : ScaleSource {
+    init {
+        require(playbackSpeed.isFinite() && playbackSpeed > 0.0)
+    }
+
     private val notifications: List<Pair<Long, ByteArray>> = lines.drop(1).map(::JSONObject)
         .filter { it.getString("dir") == "rx" }
         .map { it.getLong("t_ms") to hex(it.getString("hex")) }
@@ -55,6 +63,9 @@ class ReplayScaleSource(
     override val log: StateFlow<List<String>> = _log.asStateFlow()
 
     private var job: Job? = null
+    /** Monotonic session time, exposed to the debug replay's detector clock. */
+    var nowMs: Long = startAtMs
+        private set
     private var tareOffset = 0.0
     private var lastRawWeight = 0.0
     private var timerRunning = false
@@ -74,15 +85,20 @@ class ReplayScaleSource(
         job = scope.launch {
             val decoder = FrameDecoder()
             var from = notifications.indexOfFirst { it.first >= startAtMs }.coerceAtLeast(0)
+            var timeOffsetMs = 0L
             _state.value = ScaleState.Connected(battery = null)
             playbackGate.await()
             while (true) {
                 for (i in from until notifications.size) {
                     val gap = if (i == from) 0 else notifications[i].first - notifications[i - 1].first
-                    delay(gap)
+                    delay((gap / playbackSpeed).toLong())
                     if (timerRunning) timerMs += gap
+                    nowMs = timeOffsetMs + notifications[i].first
                     decoder.feed(notifications[i].second).forEach(::handle)
                 }
+                if (!repeat || notifications.isEmpty()) break
+                val sessionSpan = notifications.last().first - notifications.first().first
+                timeOffsetMs += sessionSpan.coerceAtLeast(1) + 1
                 from = 0
             }
         }

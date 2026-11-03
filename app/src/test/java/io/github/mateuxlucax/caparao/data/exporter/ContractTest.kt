@@ -31,7 +31,7 @@ class ContractTest {
         val started = json.getLong("started_at_ms")
         val brew = Brew(
             id = json.getString("id"),
-            mode = if (json.getString("mode") == "espresso") BrewMode.ESPRESSO else BrewMode.FILTER,
+            mode = BrewMode.entries.single { it.toContractValue() == json.getString("mode") },
             startedAt = started,
             durationMs = json.getLong("ended_at_ms") - started,
             doseGrams = json.getDouble("dose_g"),

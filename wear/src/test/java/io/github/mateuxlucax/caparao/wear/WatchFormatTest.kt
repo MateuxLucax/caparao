@@ -11,6 +11,8 @@ class WatchFormatTest {
     fun weightAndFlowUseTheLocale() {
         assertEquals("36.4 g", WatchFormat.grams(36.43f, Locale.US))
         assertEquals("36,4 g", WatchFormat.grams(36.43f, brazil))
+        assertEquals("36.4", WatchFormat.weight(36.43f, Locale.US))
+        assertEquals("36,4", WatchFormat.weight(36.43f, brazil))
         assertEquals("1,8 g/s", WatchFormat.flow(1.8f, brazil))
         assertEquals("0.0 g", WatchFormat.grams(-0.04f, Locale.US))
         assertEquals("-0.3 g", WatchFormat.grams(-0.3f, Locale.US))

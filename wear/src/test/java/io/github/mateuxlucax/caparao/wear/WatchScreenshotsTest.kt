@@ -9,7 +9,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.wear.compose.material3.TimeSource
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -19,6 +21,7 @@ import io.github.mateuxlucax.caparao.watch.WatchState
 import io.github.mateuxlucax.caparao.watch.WatchStepKind
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertTrue
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -39,6 +42,22 @@ abstract class WatchScreenshotsTest(private val lang: String) {
         ),
     )
 
+    @Test fun frenchPressRemove() = shot(
+        "french-press-remove",
+        WatchSnapshot(
+            WatchState.BREWING, 300f, 0f, 240_000, timerRunning = false,
+            guide = WatchGuide(index = 4, count = 4, kind = WatchStepKind.WAIT, targetGrams = null, dueInMs = null, paceMs = null),
+        ),
+    )
+
+    @Test fun frenchPressServe() = shot(
+        "french-press-serve",
+        WatchSnapshot(
+            WatchState.BREWING, 300f, 0f, 250_000, timerRunning = false,
+            guide = WatchGuide(index = 4, count = 4, kind = WatchStepKind.WAIT, targetGrams = null, dueInMs = null, paceMs = 0),
+        ),
+    )
+
     @Test fun disconnected() = shot("disconnected", WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false))
 
     private fun shot(name: String, snapshot: WatchSnapshot) {
@@ -47,6 +66,14 @@ abstract class WatchScreenshotsTest(private val lang: String) {
             Box(Modifier.fillMaxSize().background(Color.White).clip(CircleShape)) {
                 WatchScreen(snapshot, onTare = {}, onTimer = {}, onReset = {}, timeSource = FixedTime)
             }
+        }
+        if (snapshot.state != WatchState.DISCONNECTED) {
+            val weightNode = compose.onNodeWithContentDescription(WatchFormat.grams(snapshot.weightGrams))
+            weightNode.assertExists()
+            assertTrue(
+                "weight number and unit stay within the round screen safe width",
+                weightNode.fetchSemanticsNode().boundsInRoot.width <= with(compose.density) { 171.dp.toPx() },
+            )
         }
         compose.onRoot().captureRoboImage("../docs/screenshots/watch/$lang/$name.png")
     }

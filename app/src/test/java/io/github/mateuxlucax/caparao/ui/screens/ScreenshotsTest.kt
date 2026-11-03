@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -123,7 +124,7 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
     @Before
     fun setUp() {
         assumeTrue("screenshots run only from scripts/screenshots.sh", System.getProperty("roborazzi.test.record") == "true")
-        if (compactOnly) assumeTrue("compact screenshot variant only", testName.methodName == "smallScreenWeigh")
+        if (compactOnly) assumeTrue("compact screenshot variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -144,7 +145,12 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
 
-    private fun open(session: String, atMs: Long, onboardingDone: Boolean = true, brand: () -> BrandColor? = { BrandColor.LEAF }): SessionScale {
+    private fun open(
+        session: String,
+        atMs: Long,
+        onboardingDone: Boolean = true,
+        brand: () -> BrandColor? = { BrandColor.LEAF },
+    ): SessionScale {
         val scale = SessionScale(context.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() })
         val factory = viewModelFactory {
             initializer { HomeViewModel(scale) }
@@ -204,7 +210,36 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         // The built-in V60 recipe in the editor: its name, then its method on the card.
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
+        // The recipe loads from the database off the main thread; capture once the form is there.
+        waitFor(R.string.recipe_name)
         capture("recipe-editor")
+    }
+
+    /** Home with the Manual scale action selected and the existing controls visible. */
+    @Test
+    fun homeModeSelector() {
+        open("press-ramp", 38_300)
+        capture("home")
+    }
+
+    /** The three real brew modes at the top of Recipes. */
+    @Test
+    fun recipesModeSelector() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60"), 5_000)
+        capture("recipes")
+    }
+
+    /** The new-recipe editor, where the brew mode is chosen once (#125); an existing recipe does not show it. */
+    @Test
+    fun newRecipeEditor() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        waitFor(R.string.mode_espresso)
+        capture("recipe-editor-new")
     }
 
     /** The home-screen widget in docs/screenshots/widget: saved and empty at the declared 180x176 dp minimum. */
@@ -384,6 +419,20 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("brew-weigh-320")
     }
 
+    /** The full Home selector and manual scale entry at compact 320 dp phone width. */
+    @Test
+    fun smallScreenHome() {
+        assumeTrue(
+            "small-screen screenshot variant only",
+            context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640,
+        )
+        open("press-ramp", 38_300)
+        listOf(R.string.mode_manual, R.string.mode_filter, R.string.mode_espresso, R.string.mode_french_press_short).forEach {
+            compose.onNodeWithText(text(it)).assertIsDisplayed()
+        }
+        capture("home-320")
+    }
+
     /** The espresso guide's steps before the shot: cup, taring, waiting for the first drop. */
     @Test
     fun espressoGuide() {
@@ -464,6 +513,38 @@ abstract class ScreenshotsTest(private val lang: String, private val theme: Stri
         capture("guide-countdown")
         play(scale, 89_500)
         capture("guide-drawdown")
+    }
+
+    /** The third mode selector and its preselected built-in French press recipe. */
+    @Test
+    fun frenchPressRecipeSelector() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        // The visible label is short; the full method name is the button's accessible name. The built-in recipe is
+        // named "French press" in both languages, so its card confirms the mode switch.
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press"), 5_000)
+        capture("recipes-french-press")
+    }
+
+    /** The timer, post-timer removal prompt and plunger-only serve animation (#126). */
+    @Test
+    fun frenchPressGuide() {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+
+        play(scale, 80_000)
+        capture("french-press-steep")
+        play(scale, 241_100)
+        waitFor(R.string.guide_remove_press)
+        capture("french-press-remove")
+        play(scale, 255_000)
+        waitFor(R.string.guide_press_serve)
+        capture("french-press-serve")
     }
 
     /**

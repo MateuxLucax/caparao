@@ -33,11 +33,8 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
-import io.github.mateuxlucax.caparao.ui.components.icon
-import io.github.mateuxlucax.caparao.ui.components.label
 
 /** The brew modes on top, then the live scale readout and its controls (Home wireframe); a mode opens once the scale is connected. */
 @Composable
@@ -49,7 +46,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: AppActions, onBrew: (BrewMode)
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ModeSelector(connected, onBrew)
+        HomeModeSelector(connected, onBrew)
         // Say why the modes are off; a failure already explains itself in the card below.
         if (!connected && state.scale !is ScaleState.Failed) {
             Text(stringResource(R.string.scale_needed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -111,20 +108,4 @@ private fun RoundAction(@DrawableRes icon: Int, label: String, size: Dp, enabled
         // The button already carries the label for screen readers.
         Text(label, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-/**
- * Scale (this screen, no mode) or a brew mode. Home always shows Scale selected: picking a mode opens its brew on top,
- * and closing the brew comes back here. The modes wait for the scale.
- */
-@Composable
-private fun ModeSelector(connected: Boolean, onBrew: (BrewMode) -> Unit) {
-    val options = listOf<BrewMode?>(null) + BrewMode.entries
-    ChoiceGroup(
-        options,
-        selected = null,
-        onSelect = { if (it != null) onBrew(it) },
-        label = { stringResource(it?.label ?: R.string.mode_manual) },
-        enabled = { it == null || connected },
-    )
 }

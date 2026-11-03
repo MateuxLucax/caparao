@@ -25,6 +25,17 @@
             android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
     </shortcut>
     <shortcut
+        android:shortcutId="french-press"
+        android:enabled="true"
+        android:icon="@drawable/ic_coffee"
+        android:shortcutShortLabel="@string/mode_french_press"
+        android:shortcutLongLabel="@string/mode_french_press">
+        <intent
+            android:action="io.github.mateuxlucax.caparao.shortcut.FRENCH_PRESS"
+            android:targetPackage="io.github.mateuxlucax.caparao"
+            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+    </shortcut>
+    <shortcut
         android:shortcutId="brews"
         android:enabled="true"
         android:icon="@drawable/ic_receipt_long"

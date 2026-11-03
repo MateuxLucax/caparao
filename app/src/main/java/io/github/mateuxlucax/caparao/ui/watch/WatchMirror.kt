@@ -2,8 +2,10 @@ package io.github.mateuxlucax.caparao.ui.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
+import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.watch.WatchAlert
@@ -49,16 +51,32 @@ object WatchMirror {
         StepEvent.AllDone -> WatchAlert.ALL_DONE
     }
 
-    /** The guide's current step, for a filter brew following a recipe; null otherwise. */
+    /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */
     fun guide(brew: BrewUiState): WatchGuide? {
         val state = brew.guide ?: return null
         val steps = brew.steps
         if (steps.isEmpty()) return null
+        if (brew.mode == BrewMode.FRENCH_PRESS && state.allDone(steps.size)) {
+            return WatchGuide(
+                index = steps.size,
+                count = steps.size,
+                kind = WatchStepKind.WAIT,
+                targetGrams = null,
+                dueInMs = null,
+                paceMs = if (brew.frenchPressRemoved) 0 else null,
+            )
+        }
         val step = steps.getOrNull(state.index)
         return WatchGuide(
             index = state.index,
             count = steps.size,
-            kind = step?.kind?.let { WatchStepKind.valueOf(it.name) },
+            // WatchSnapshot v2 already ships to older watches. Keep PRESS on the existing WAIT wire ordinal.
+            kind = step?.kind?.let { kind ->
+                when (kind) {
+                    StepKind.PRESS -> WatchStepKind.WAIT
+                    else -> WatchStepKind.valueOf(kind.name)
+                }
+            },
             targetGrams = step?.targetWeightGrams?.toFloat(),
             dueInMs = state.dueInMs,
             paceMs = state.paceMs,

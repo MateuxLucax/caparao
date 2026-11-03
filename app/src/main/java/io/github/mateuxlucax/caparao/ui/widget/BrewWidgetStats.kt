@@ -10,6 +10,8 @@ import kotlin.math.max
 private const val ESPRESSO_CAFFEINE_MG_PER_DOSE_GRAM = 7.0
 private const val FILTER_CAFFEINE_MG_PER_DOSE_GRAM = 11.0
 private const val FILTER_RETAINED_WATER_GRAMS_PER_DOSE_GRAM = 2.0
+private const val FRENCH_PRESS_CAFFEINE_MG_PER_DOSE_GRAM = 7.0
+private const val FRENCH_PRESS_RETAINED_WATER_GRAMS_PER_DOSE_GRAM = 2.0
 
 internal data class BrewWidgetDayBucket(val date: LocalDate, val brewCount: Int)
 
@@ -74,6 +76,11 @@ internal fun estimateBrewWidgetBrew(brew: Brew): BrewWidgetBrewEstimate = when (
         beverageMl = max(brew.yieldGrams - brew.doseGrams * FILTER_RETAINED_WATER_GRAMS_PER_DOSE_GRAM, 0.0),
         doseGrams = brew.doseGrams,
         caffeineMg = brew.doseGrams * FILTER_CAFFEINE_MG_PER_DOSE_GRAM,
+    )
+    BrewMode.FRENCH_PRESS -> BrewWidgetBrewEstimate(
+        beverageMl = max(brew.yieldGrams - brew.doseGrams * FRENCH_PRESS_RETAINED_WATER_GRAMS_PER_DOSE_GRAM, 0.0),
+        doseGrams = brew.doseGrams,
+        caffeineMg = brew.doseGrams * FRENCH_PRESS_CAFFEINE_MG_PER_DOSE_GRAM,
     )
 }
 

@@ -16,11 +16,13 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class BrewWidgetBehaviorTest {
     @Test
-    fun alternatesBetweenEspressoAndFilterAndReusesLauncherActions() {
+    fun suggestsEspressoAfterFrenchPressAndNeverSuggestsFrenchPress() {
         assertEquals(BrewMode.FILTER, suggestedModeAfter(BrewMode.ESPRESSO))
         assertEquals(BrewMode.ESPRESSO, suggestedModeAfter(BrewMode.FILTER))
+        assertEquals(BrewMode.ESPRESSO, suggestedModeAfter(BrewMode.FRENCH_PRESS))
         assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.ESPRESSO))
         assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.FILTER))
+        assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.FRENCH_PRESS))
         assertEquals(LauncherShortcut.WIDGET_HOME, shortcutForWidget(null))
         assertEquals(LauncherShortcut.FILTER, LauncherShortcut.fromAction(shortcutForWidget(BrewMode.ESPRESSO).action))
     }
@@ -29,6 +31,7 @@ class BrewWidgetBehaviorTest {
     fun actionIconMatchesSuggestedModeAndIsAbsentForTheMethodChooser() {
         assertEquals(R.drawable.ic_coffee_maker, actionIconForWidget(BrewMode.ESPRESSO))
         assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.FILTER))
+        assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.FRENCH_PRESS))
         assertNull(actionIconForWidget(null))
     }
 

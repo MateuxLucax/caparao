@@ -68,6 +68,40 @@ class WatchMirrorTest {
     }
 
     @Test
+    fun aFrenchPressDeadlineUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
+        val recipe = Recipe(
+            "press", "French press", BrewMode.FRENCH_PRESS, "French press", 20.0, 15.0,
+            steps = listOf(RecipeStep(StepKind.PRESS, null, 240_000)), createdAt = 0, updatedAt = 0,
+        )
+        val brew = BrewUiState(
+            BrewMode.FRENCH_PRESS,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = 300.0,
+            elapsedMs = 180_000,
+            recipe = recipe,
+            guide = StepState(0, 0.75f, 60_000, null, null, null),
+        )
+
+        val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
+
+        assertEquals(WatchGuide(0, 1, WatchStepKind.WAIT, null, 60_000, null), snapshot.guide)
+        assertEquals(WatchStepKind.WAIT.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
+        assertEquals(2, WatchStepKind.WAIT.ordinal)
+
+        val afterTimer = brew.copy(guide = StepState(1, 1f, null, null, null, null))
+        assertEquals(
+            WatchGuide(1, 1, WatchStepKind.WAIT, null, null, null),
+            WatchMirror.guide(afterTimer),
+        )
+        val afterRemoval = afterTimer.copy(frenchPressRemoved = true)
+        val serving = WatchMirror.snapshot(connected, reading, afterRemoval, timerRunning = false)
+        assertEquals(WatchGuide(1, 1, WatchStepKind.WAIT, null, null, 0), serving.guide)
+        assertEquals("the watch keeps the measured water after serving", 300f, serving.weightGrams)
+        assertEquals(0L, WatchSnapshot.decode(serving.encode())?.guide?.paceMs)
+    }
+
+    @Test
     fun throttleSendsFiveASecondButStateChangesAtOnce() {
         val throttle = SnapshotThrottle(intervalMs = 200)
         val scale = WatchSnapshot(WatchState.SCALE, 1f, 0f, 0, false)

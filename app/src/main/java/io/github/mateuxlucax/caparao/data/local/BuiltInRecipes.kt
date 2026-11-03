@@ -20,11 +20,13 @@ object BuiltInRecipes {
     const val V60_BIG_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0004"
     const val MELITTA_LITER_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0005"
     const val V60_FOUR_SIX_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0006"
+    const val FRENCH_PRESS_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0007"
 
     /** The ids the first set of built-ins used; [MIGRATION_2_3] replaces those the user never edited. */
     val FIRST_IDS = listOf(ESPRESSO_ID, V60_ID, MELITTA_ID)
 
-    fun all(now: Long) = listOf(
+    /** Built-ins already present before the French press mode was introduced in database version 5. */
+    fun beforeFrenchPress(now: Long) = listOf(
         Recipe(
             id = ESPRESSO_ID, name = "Espresso Oster", mode = BrewMode.ESPRESSO, method = "Espresso",
             doseGrams = 19.0, targetRatio = 2.2, grind = "10", waterTempCelsius = 92, targetMinMs = 27_000, targetMaxMs = 33_000,
@@ -85,9 +87,32 @@ object BuiltInRecipes {
         ),
     )
 
+    fun frenchPress(now: Long) = Recipe(
+        id = FRENCH_PRESS_ID,
+        name = "French press",
+        mode = BrewMode.FRENCH_PRESS,
+        method = "French press",
+        doseGrams = 20.0,
+        targetRatio = 15.0,
+        steps = listOf(
+            RecipeStep(StepKind.BLOOM, 100.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 300.0, 60_000),
+            RecipeStep(StepKind.PRESS, null, 240_000),
+        ),
+        createdAt = now,
+        updatedAt = now,
+    )
+
+    /** Current built-ins, including French press for fresh installs. */
+    fun all(now: Long) = beforeFrenchPress(now) + frenchPress(now)
+
     /** Raw inserts: runs inside the migration and the create callback, before any DAO exists. */
-    fun insert(db: SupportSQLiteDatabase, now: Long) {
-        for (recipe in all(now)) {
+    fun insert(db: SupportSQLiteDatabase, now: Long) = insert(db, all(now))
+
+    /** Inserts exactly [recipes]; callers upgrading an old database must not restore earlier built-ins the user deleted. */
+    fun insert(db: SupportSQLiteDatabase, recipes: List<Recipe>) {
+        for (recipe in recipes) {
             val row = recipe.toEntity()
             db.insert("recipes", SQLiteDatabase.CONFLICT_IGNORE, ContentValues().apply {
                 put("id", row.id)

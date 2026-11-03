@@ -36,11 +36,12 @@ class BrewWidgetLayoutTest {
         val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
         val minimumActionHeight = (48 * base.resources.displayMetrics.density).roundToInt()
         val brew = Brew("layout", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false)
+        val frenchPress = brew.copy(id = "french-press", mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
 
         for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
             for (night in listOf(false, true)) {
                 val context = configured(base, locale, night)
-                for (latest in listOf(brew, null)) {
+                for (latest in listOf(brew, frenchPress, null)) {
                     assertContrast(context)
                     val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
                     root.measure(
@@ -95,6 +96,10 @@ class BrewWidgetLayoutTest {
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
+                        if (latest.mode == BrewMode.FRENCH_PRESS) {
+                            assertEquals(context.getString(R.string.mode_french_press), root.findViewById<TextView>(R.id.widget_method).text)
+                            assertEquals(context.getString(R.string.widget_brew_espresso), root.findViewById<TextView>(R.id.widget_action_label).text)
+                        }
                     }
                 }
             }

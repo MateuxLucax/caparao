@@ -17,7 +17,10 @@
     <string name="tare">Tare</string>
     <string name="mode_filter">Filter</string>
     <string name="mode_manual">Manual</string>
+    <string name="home_mode_manual_accessibility">Manual scale</string>
     <string name="mode_espresso">Espresso</string>
+    <string name="mode_french_press">French press</string>
+    <string name="mode_french_press_short">Press</string>
 
     <!-- Home-screen widget -->
     <string name="widget_description">Last brew or a 7-day summary</string>
@@ -25,6 +28,7 @@
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
+    <string name="widget_brew_french_press">Brew French press</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
     <string name="widget_weekly_title">Last 7 days</string>
     <string name="widget_weekly_empty">No brews this week</string>
@@ -40,7 +44,7 @@
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
     <string name="brews_empty_title">No brews yet</string>
-    <string name="brews_empty_text">Brews you record show up here, split into filter and espresso.</string>
+    <string name="brews_empty_text">Brews you record show up here, split into filter, espresso and French press.</string>
 
     <!-- Settings -->
     <string name="section_server">Server</string>
@@ -99,6 +103,7 @@
     <string name="cup_on">Cup\'s on</string>
     <string name="taring">Taring…</string>
     <string name="brewing_filter_text">Pour at your pace. Lift the dripper or tap Done to finish.</string>
+    <string name="french_press_brewing_text">The timer starts with the first water. Tap Done to finish.</string>
     <string name="step_of">Step %1$d of %2$d</string>
     <string name="espresso_ready">Start the shot</string>
     <string name="espresso_ready_text">The timer starts with the first drop and stops when the flow does.</string>
@@ -195,6 +200,7 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
+    <string name="step_press">Press</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
     <string name="add_step">Add step</string>
@@ -225,6 +231,11 @@
     <string name="guide_flow">Flow %1$s g/s · aim for %2$s</string>
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
+    <string name="guide_steep">Steep</string>
+    <string name="guide_steep_text">Let it steep</string>
+    <string name="guide_remove_press">Remove the press from the scale.</string>
+    <string name="guide_press_serve">Press and serve</string>
+    <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
     <string name="section_colors">Colors</string>
     <string name="section_data">Data</string>

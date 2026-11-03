@@ -13,6 +13,7 @@ import android.view.View
 import android.widget.RemoteViews
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetChart
@@ -96,10 +97,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.widget_brew)
         val mode = latest?.mode
         val suggestedMode = mode?.let(::suggestedModeAfter)
-        val icon = when (mode) {
-            BrewMode.FILTER -> R.drawable.ic_coffee_maker
-            BrewMode.ESPRESSO, null -> R.drawable.ic_coffee
-        }
+        val icon = mode?.icon ?: R.drawable.ic_coffee
         views.setImageViewResource(R.id.widget_method_icon, icon)
         val shortcut = shortcutForWidget(mode)
         if (latest == null) {
@@ -235,10 +233,11 @@ class BrewWidgetProvider : AppWidgetProvider() {
         )
     }
 
-    private fun actionLabel(mode: BrewMode?): Int = when {
-        mode == null -> R.string.widget_brew_coffee
-        mode == BrewMode.FILTER -> R.string.widget_brew_filter
-        else -> R.string.widget_brew_espresso
+    private fun actionLabel(mode: BrewMode?): Int = when (mode) {
+        null -> R.string.widget_brew_coffee
+        BrewMode.ESPRESSO -> R.string.widget_brew_espresso
+        BrewMode.FILTER -> R.string.widget_brew_filter
+        BrewMode.FRENCH_PRESS -> R.string.widget_brew_french_press
     }
 
     private fun chartWidthPx(context: Context, widgetWidthDp: Float): Int {

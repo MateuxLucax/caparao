@@ -1,6 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
+import android.animation.ValueAnimator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -33,8 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -43,7 +45,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -53,6 +54,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.brew.PourRate
 import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -74,7 +76,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepProgress(steps.size, guide.index)
+        StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -86,7 +88,11 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
             val live = state.guide.takeIf { it.index == index } ?: guide
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
                 val previous = steps.take(index).lastOrNull { it.kind.pours }?.targetWeightGrams
-                if (step == null) Drawdown(state) else Step(step, index, steps.size, live, state, previous)
+                if (step == null) {
+                    if (state.mode == BrewMode.FRENCH_PRESS) FrenchPressReady(state) else Drawdown(state)
+                } else {
+                    Step(step, index, steps.size, live, state, previous)
+                }
             }
         }
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
@@ -110,14 +116,29 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         tween(500, easing = Motion.Standard),
         label = "kind",
     )
+    // A French press steeps until its deadline: say so instead of naming the press still to come.
+    val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
     Text(
-        "${stringResource(step.kind.label)} · ${stringResource(R.string.step_of, index + 1, count)}",
+        "${stringResource(stage)} · ${stringResource(R.string.step_of, index + 1, count)}",
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
     previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g") }
     val target = step.targetWeightGrams
-    if (step.kind.pours && target != null) {
+    if (step.kind == StepKind.PRESS) {
+        CountdownRing(guide.progress, color) {
+            guide.dueInMs?.let {
+                Text(
+                    Format.timer(seconds(it)),
+                    style = MaterialTheme.typography.displaySmall.merge(Tabular),
+                    color = color,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         CupToTarget(fill, color)
         Text(
@@ -192,6 +213,72 @@ private fun Drawdown(state: BrewUiState) {
     Note(stringResource(R.string.guide_drawdown_text))
 }
 
+/** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
+@Composable
+private fun FrenchPressReady(state: BrewUiState) {
+    Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
+    if (state.frenchPressRemoved) {
+        Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Note(stringResource(R.string.guide_press_serve_text))
+        FrenchPressPlungerAnimation()
+    } else {
+        Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    }
+}
+
+/** The carafe stays still; only the plunger lowers, after the user has removed the press from the scale. */
+@Composable
+private fun FrenchPressPlungerAnimation() {
+    val still = stillAnimations()
+    val progress = remember { Animatable(if (still) 1f else 0f) }
+    val spatialMotion = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(still) {
+        if (!still) progress.animateTo(1f, spatialMotion)
+    }
+    val colors = MaterialTheme.colorScheme
+    Canvas(Modifier.size(160.dp)) {
+        scale(size.width / 120f, pivot = Offset.Zero) {
+            val left = 31f
+            val right = 89f
+            val top = 28f
+            val bottom = 105f
+            val press = Rect(left, top, right, bottom)
+            drawRoundRect(
+                color = colors.surfaceContainerHighest,
+                topLeft = Offset(press.left, press.top),
+                size = Size(press.width, press.height),
+                cornerRadius = CornerRadius(7f, 7f),
+            )
+            drawRect(
+                colors.tertiary.copy(alpha = 0.45f),
+                topLeft = Offset(left + 4f, 70f),
+                size = Size(right - left - 8f, bottom - 74f),
+            )
+            drawRoundRect(
+                color = colors.outline,
+                topLeft = Offset(press.left, press.top),
+                size = Size(press.width, press.height),
+                cornerRadius = CornerRadius(7f, 7f),
+                style = Stroke(width = 3f),
+            )
+            val handle = Path().apply {
+                moveTo(right, 40f)
+                cubicTo(101f, 40f, 109f, 44f, 109f, 53f)
+                lineTo(109f, 77f)
+                cubicTo(109f, 86f, 101f, 90f, right, 90f)
+            }
+            drawPath(
+                handle,
+                colors.outline,
+                style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
+            val plateY = 42f + 42f * progress.value
+            drawLine(colors.primary, Offset(60f, 8f), Offset(60f, plateY), strokeWidth = 4f, cap = StrokeCap.Round)
+            drawLine(colors.primary, Offset(42f, plateY), Offset(78f, plateY), strokeWidth = 6f, cap = StrokeCap.Round)
+        }
+    }
+}
+
 @Composable
 private fun Note(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
     Text(text, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color, textAlign = TextAlign.Center)
@@ -210,11 +297,11 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
 /** How far through the steps: a wave up to the current one. */
 @Composable
-private fun StepProgress(count: Int, current: Int) {
-    val progress by animateFloatAsState((current + 1f) / count, Motion.standard(), label = "steps")
+private fun StepProgress(progress: Float) {
+    val shown by animateFloatAsState(progress, Motion.standard(), label = "steps")
     // Only the wave, always moving: no track and no stop dot after it.
     LinearWavyProgressIndicator(
-        progress = { progress },
+        progress = { shown },
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         trackColor = Color.Transparent,
         stopSize = 0.dp,
@@ -261,20 +348,22 @@ private fun CupToTarget(fill: Float, color: Color) {
 
 /** A wavy ring that empties as the wait runs out. */
 @Composable
-private fun CountdownRing(progress: Float, color: Color) {
+private fun CountdownRing(progress: Float, color: Color, centerContent: @Composable () -> Unit = {}) {
     val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    CircularWavyProgressIndicator(
-        progress = { 1f - shown },
-        modifier = Modifier.size(160.dp),
-        color = color,
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-        trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-    )
+    Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
+        CircularWavyProgressIndicator(
+            progress = { 1f - shown },
+            modifier = Modifier.fillMaxSize(),
+            color = color,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+            trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
+        )
+        centerContent()
+    }
 }
 
 @Composable
 private fun stillAnimations(): Boolean {
-    val context = LocalContext.current
-    return remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    return remember { !ValueAnimator.areAnimatorsEnabled() }
 }

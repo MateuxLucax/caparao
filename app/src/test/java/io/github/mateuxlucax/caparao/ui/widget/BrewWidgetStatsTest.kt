@@ -113,6 +113,21 @@ class BrewWidgetStatsTest {
         assertEquals(165.0, lowYieldFilter.caffeineMg, 0.0)
     }
 
+    @Test
+    fun frenchPressUsesItsApprovedFactorsAndClampsBeverageVolumeAtZero() {
+        val press = estimateBrewWidgetBrew(
+            brewEndingAt("french-press", 1_000, BrewMode.FRENCH_PRESS, doseGrams = 20.0, yieldGrams = 300.0),
+        )
+        val lowYieldPress = estimateBrewWidgetBrew(
+            brewEndingAt("low-yield-press", 1_000, BrewMode.FRENCH_PRESS, doseGrams = 20.0, yieldGrams = 20.0),
+        )
+
+        assertEquals(260.0, press.beverageMl, 0.0)
+        assertEquals(140.0, press.caffeineMg, 0.0)
+        assertEquals(0.0, lowYieldPress.beverageMl, 0.0)
+        assertEquals(140.0, lowYieldPress.caffeineMg, 0.0)
+    }
+
     private fun brewEndingAt(
         id: String,
         endedAt: Long,

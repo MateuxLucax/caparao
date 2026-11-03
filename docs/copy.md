@@ -37,6 +37,10 @@ Use these and only these. Adding a term means adding it here.
 | One recorded extraction | brew | preparo | Not "shot" in lists; "shot" only in espresso instructions |
 | Brewing method: filter | Filter | Filtrado | |
 | Brewing method: espresso | Espresso | Espresso | Not "expresso" |
+| Brewing method: French press | French press | Prensa francesa | |
+| Mode selector, short labels | Manual · Filter · Espresso · Press | Manual · Filtrado · Espresso · Prensa | One line under the icon in Home, Recipes and the editor; the full method names stay available to accessibility. |
+| Home selector, manual scale accessible name | Manual scale | Balança manual | Manual stays the scale screen, not a brew mode. |
+| French press steeping stage | Steep · Let it steep | Infusão · Deixe em infusão | No press instruction before the deadline: remove first, then press and serve. |
 | Ground coffee weight | dose | dose | |
 | Liquid out (espresso) | yield | bebida | |
 | Water poured (filter) | water | água | |

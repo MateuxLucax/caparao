@@ -112,7 +112,13 @@ private fun CompareTable(brews: List<ComparedBrew>) {
     val mode = brews.firstOrNull()?.brew?.mode
     val rows = listOf<Pair<String, (ComparedBrew) -> String>>(
         stringResource(R.string.label_dose) to { "${Format.grams(it.brew.doseGrams, locale)} $g" },
-        stringResource(if (mode == BrewMode.FILTER) R.string.label_water else R.string.label_yield) to
+        stringResource(
+            when (mode) {
+                BrewMode.ESPRESSO -> R.string.label_yield
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.label_water
+                null -> R.string.label_yield
+            },
+        ) to
             { "${Format.grams(it.brew.yieldGrams, locale)} $g" },
         stringResource(R.string.label_ratio) to { Format.ratio(it.brew.ratio, locale).let { r -> "1:$r" } },
         stringResource(R.string.label_time) to { Format.timer((it.brew.durationMs / 1000).toInt()) },
