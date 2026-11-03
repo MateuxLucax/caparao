@@ -78,6 +78,17 @@ browser or file manager when Android asks). Each release lists the APK signer's 
 installing: `apksigner verify --print-certs caparao-<version>.apk`. Newer versions install over older ones and keep
 your brews.
 
+### Install on a Wear OS watch over Wi-Fi
+
+Install GitHub CLI (`gh`) and Android platform-tools (`adb`), then connect the watch and computer to the same Wi-Fi. Enable Developer options and Wireless debugging on the watch. For first-time pairing, choose **Pair device with pairing code** in Wireless debugging and run `adb pair <watch-ip>:<pairing-port>`; enter the code when prompted. The pairing port differs from the connection port. Then use the connection port shown on the Wireless debugging screen:
+
+```bash
+scripts/install-watch.sh 192.0.2.10:37123
+# or: scripts/install-watch.sh 192.0.2.10 37123
+```
+
+The script downloads the exact Wear APK from the latest published release and updates the app while preserving its data.
+
 On first launch the app asks for **Nearby devices** (Bluetooth, only to find the scale), connects to the Dot, and
 optionally asks for your server's URL and token.
 
