@@ -44,7 +44,7 @@ class BrewWidgetBehaviorTest {
         assertEquals("You haven't made coffee yet", english.getString(R.string.widget_empty_title))
         assertEquals("Você ainda não fez café", portuguese.getString(R.string.widget_empty_title))
         assertEquals("Brew a coffee", english.getString(R.string.widget_brew_coffee))
-        assertEquals("Passar um café", portuguese.getString(R.string.widget_brew_coffee))
+        assertEquals("Preparar um café", portuguese.getString(R.string.widget_brew_coffee))
     }
 
     private fun localized(context: Context, locale: Locale): Context =
