@@ -95,6 +95,13 @@ same comment.
   `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
 - Debug builds are `io.github.mateuxlucax.caparao.debug` ("Caparaó dev") and install next to releases.
+- Scripted scale: use JSON scenarios for dose-matched screens, connection errors and rare scale states; replay
+  fixtures in `app/src/test/resources/sessions/` remain the detector regression check. Start the debug API with
+  `adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --ez scripted_api true`
+  and forward it with `adb forward tcp:18765 tcp:8765`. Scenarios are in `app/src/test/resources/scenarios/` (CSV
+  headers `t_ms,weight_g,event`, optional `flow_gps`); `/event` uses `connection_failed` with an error, `drop` and
+  `overload`. Endpoint and capture usage is in the README Development notes and `scripts/capture/capture-scenarios.py`;
+  scripted scenarios do not replace real-Dot validation.
 
 ## Release
 

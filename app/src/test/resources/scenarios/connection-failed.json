@@ -1,0 +1,25 @@
+{
+  "name": "connection-failed",
+  "captures": [
+    {
+      "at_ms": 0,
+      "name": "searching"
+    },
+    {
+      "at_ms": 300,
+      "name": "connection-failed"
+    }
+  ],
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "searching"
+    },
+    {
+      "at_ms": 300,
+      "type": "connection_failed",
+      "error": "NOT_FOUND",
+      "retrying": false
+    }
+  ]
+}

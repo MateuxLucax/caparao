@@ -34,4 +34,9 @@ interface ScaleSource {
     fun timer(action: TimerAction)
 }
 
+/** Monotonic time exposed by deterministic scale sources for brew detection. */
+interface ScaleClock {
+    val nowMs: Long
+}
+
 enum class TimerAction { START, PAUSE, RESET }

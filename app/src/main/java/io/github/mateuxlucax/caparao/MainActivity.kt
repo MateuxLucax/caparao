@@ -69,6 +69,11 @@ class MainActivity : ComponentActivity() {
                     intent.getBooleanExtra(EXTRA_REPLAY_REPEAT, true),
                 )
             }
+            if (savedInstanceState == null && (intent.hasExtra(EXTRA_SCRIPTED) || intent.getBooleanExtra(EXTRA_SCRIPTED_API, false))) {
+                Class.forName("io.github.mateuxlucax.caparao.data.scale.DebugScaleSourceFactory")
+                    .getMethod("install", MainActivity::class.java, AppContainer::class.java, Intent::class.java)
+                    .invoke(null, this, container, intent)
+            }
         }
         requestedShortcut.value = LauncherShortcut.pendingOnCreate(
             savedId = savedInstanceState?.getString(STATE_SHORTCUT),
@@ -195,6 +200,8 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_REPLAY_SPEED = "replay_speed"
         /** Whether a debug replay loops after its final frame. */
         const val EXTRA_REPLAY_REPEAT = "replay_repeat"
+        const val EXTRA_SCRIPTED = "scripted"
+        const val EXTRA_SCRIPTED_API = "scripted_api"
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"

@@ -1,0 +1,81 @@
+{
+  "name": "french-press",
+  "dose_g": 20,
+  "ratio": 15,
+  "captures": [
+    {
+      "at_ms": 0,
+      "name": "connected"
+    },
+    {
+      "at_ms": 2000,
+      "name": "first-pour"
+    },
+    {
+      "at_ms": 120000,
+      "name": "steep"
+    },
+    {
+      "at_ms": 255000,
+      "name": "press-and-serve"
+    }
+  ],
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "connected",
+      "battery": {
+        "bars": 3,
+        "percent": 80
+      }
+    },
+    {
+      "at_ms": 0,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 500,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 1000,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 1500,
+      "type": "ramp",
+      "from_g": 0,
+      "to_g": 5,
+      "relative_to": "dose",
+      "step_g": 0.5,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 60000,
+      "type": "ramp",
+      "from_g": 5,
+      "to_g": 15,
+      "relative_to": "dose",
+      "step_g": 0.5,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 240000,
+      "type": "weight",
+      "grams": 300
+    },
+    {
+      "at_ms": 250000,
+      "type": "lift",
+      "grams": 0
+    },
+    {
+      "at_ms": 255000,
+      "type": "weight",
+      "grams": 0
+    }
+  ]
+}
