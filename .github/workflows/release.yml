@@ -105,6 +105,8 @@ jobs:
 
   release:
     needs: sign
+    # validate is a skipped ancestor on workflow_run; bypass implicit success() so a successful sign can publish.
+    if: ${{ always() && needs.sign.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
