@@ -1,0 +1,102 @@
+{
+  "name": "espresso",
+  "mode": "ESPRESSO",
+  "dose_g": 18,
+  "ratio": 2,
+  "captures": [
+    {
+      "at_ms": 0,
+      "name": "connected"
+    },
+    {
+      "at_ms": 2100,
+      "name": "cup-on-scale"
+    },
+    {
+      "at_ms": 4500,
+      "name": "first-drop"
+    },
+    {
+      "at_ms": 14000,
+      "name": "extracting"
+    },
+    {
+      "at_ms": 24000,
+      "name": "finished"
+    }
+  ],
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "connected",
+      "battery": {
+        "bars": 3,
+        "percent": 80
+      }
+    },
+    {
+      "at_ms": 0,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 1000,
+      "type": "weight",
+      "grams": 250
+    },
+    {
+      "at_ms": 2100,
+      "type": "weight",
+      "grams": 250
+    },
+    {
+      "at_ms": 2600,
+      "type": "weight",
+      "grams": 250
+    },
+    {
+      "at_ms": 3000,
+      "type": "weight",
+      "grams": 250
+    },
+    {
+      "at_ms": 3100,
+      "type": "weight",
+      "grams": 250
+    },
+    {
+      "at_ms": 3400,
+      "type": "first_drop",
+      "grams": 250.4
+    },
+    {
+      "at_ms": 3500,
+      "type": "weight",
+      "grams": 250.4
+    },
+    {
+      "at_ms": 4000,
+      "type": "ramp",
+      "from_g": 0.02,
+      "to_g": 2,
+      "relative_to": "dose",
+      "offset_g": 250,
+      "step_g": 0.25,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 18300,
+      "type": "hold",
+      "grams": 2,
+      "relative_to": "dose",
+      "offset_g": 250,
+      "until_ms": 23000,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 24000,
+      "type": "flow_stop",
+      "grams": 286
+    }
+  ]
+}

@@ -11,22 +11,20 @@ It shows weight, flow and timer live, guides espresso and filter recipes step by
 curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to Prometheus
 and Grafana.
 
-<p align="center"><img src="assets/promo.gif" width="720" alt="Caparaó in 40 seconds"></p>
-
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+, Wear OS 3+.
 
 ## Features
 
 <table>
 <tr>
-<td width="33%" align="center"><img src="assets/demo/home-live.gif" width="220" alt="Home with weight, timer and flow ticking up"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
-<td width="33%" align="center"><img src="assets/demo/dose.gif" width="220" alt="Ratio step and bean weighing"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
-<td width="33%" align="center"><img src="assets/demo/guide-pour.gif" width="220" alt="V60 guide counting down and filling the cup"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
+<td width="33%" align="center"><img src="assets/demo/home-live.png" width="220" alt="Home showing the current brew weight, timer and flow"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
+<td width="33%" align="center"><img src="assets/demo/dose.png" width="220" alt="Dose entry with the planned water amount"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
+<td width="33%" align="center"><img src="assets/demo/guide-pour.png" width="220" alt="Guided filter pour showing the current step and weight"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
 </tr>
 <tr>
-<td align="center"><img src="assets/demo/espresso-live.gif" width="220" alt="Espresso recorded live and saved"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
-<td align="center"><img src="assets/demo/data.gif" width="220" alt="Brew detail chart, compare and trends"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
-<td align="center"><img src="assets/demo/recipes.gif" width="220" alt="Recipe list and editor"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
+<td align="center"><img src="assets/demo/espresso-live.png" width="220" alt="Espresso extracting with its current yield, ratio and timer"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
+<td align="center"><img src="assets/demo/data.png" width="220" alt="Saved brew details with the weight and flow chart"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
+<td align="center"><img src="assets/demo/recipes.png" width="220" alt="Recipe list with espresso and filter recipes"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
 </tr>
 </table>
 
@@ -40,8 +38,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 - **Export:** recipes and brews as CSV, or brews as JSON in the upload format, in a zip through the share sheet.
 - **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
 
-The clips above are real recordings from the emulator, with a replayed scale session standing in for the Dot; the
-full-length clips are in [assets/demo](assets/demo).
+The screens above are emulator captures with a scripted scale standing in for the Dot.
 
 ## Architecture
 
@@ -119,13 +116,14 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Purpose | Entry point |
 |---|---|
 | Fast local and CI gate (tests, lint, debug build) | `scripts/check.sh` |
-| Emulator end-to-end (replayed brews against the pinned exporter) | `scripts/e2e.sh` |
+| Emulator end-to-end (scripted brews against the pinned exporter) | `scripts/e2e.sh` |
 | Build and run the pinned development exporter | `scripts/exporter.sh` |
 | Install the Wear OS app over Wi-Fi | `scripts/install-watch.sh` |
 | Install git hooks and the secret scan | `scripts/setup-hooks.sh` |
 | Create the release key, or build a signed release APK | `scripts/release-key.sh`, `scripts/release-apk.sh` |
 | CI internals: emulator E2E wrapper and bounded, sanitized diagnostics | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`) |
 | Record a scale session and its Python dependencies | `scripts/capture/` (`capture-session.py`, `requirements-capture.txt`) |
+| Capture scripted scale scenarios on an emulator | `scripts/capture/capture-scenarios.py` |
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
 
@@ -145,7 +143,26 @@ data_dir="$(mktemp -d)"
 AUTH_TOKEN=dev-token EXPORTER_PORT=8099 scripts/exporter.sh start "$data_dir"
 ```
 
-`scripts/e2e.sh` starts its own exporter and runs replayed espresso and French press brews through the app on an
+The debug-only scripted scale is controlled by a loopback HTTP API. It starts only when launched with `scripted_api`;
+forward a host port to its `127.0.0.1` socket to use it:
+
+```bash
+adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --ez scripted_api true --ez script_paused true
+adb forward tcp:18765 tcp:8765
+curl -sS http://127.0.0.1:18765/state
+curl -sS -X POST -H 'Content-Type: application/json' --data-binary @app/src/test/resources/scenarios/filter.json http://127.0.0.1:18765/scenario
+curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"overload"}' http://127.0.0.1:18765/event
+curl -sS -X POST -H 'Content-Type: application/json' -d '{"action":"pause"}' http://127.0.0.1:18765/clock
+```
+
+`/scenario` accepts JSON or CSV; `/reading` sends one sample; `/event` injects tare, connection or scale events; `/clock`
+pauses, advances or changes playback speed; `/state` returns the connection, reading and scenario position. To capture
+the named checkpoints, attach `Pixel_10_Pro_XL`, set `ANDROID_SERIAL` to its emulator serial, then run
+`scripts/capture/capture-scenarios.py`. It writes one PNG per state under the git-ignored `captures/scripted-scale/`.
+Scenario JSON files live in `app/src/test/resources/scenarios/`; JVM and instrumented tests load those same files and
+drive the virtual clock without HTTP.
+
+`scripts/e2e.sh` starts its own exporter and runs the scripted espresso and French press scenarios through the app on an
 emulator, then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
 lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
 

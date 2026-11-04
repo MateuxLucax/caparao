@@ -103,6 +103,12 @@ class AppContainer(context: Context) {
         scale = ReplayScaleSource(scope, lines, startAtMs, startPaused, playbackSpeed, repeat)
     }
 
+    /** Installs a debug-only source created by the debug source set. */
+    fun installDebugScaleSource(source: ScaleSource) {
+        scale.stop()
+        scale = source
+    }
+
     /** Scale mode's timer, driven from Home and the watch. */
     private val scaleTimer = ScaleTimer { scale }
 
@@ -128,10 +134,15 @@ class AppContainer(context: Context) {
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
-                clock = { (scale as? ReplayScaleSource)?.nowMs ?: SystemClock.elapsedRealtime() },
+                clock = { (scale as? ReplayScaleSource)?.nowMs ?: debugScaleClock(scale) ?: SystemClock.elapsedRealtime() },
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
                 onWatchAlert = watch::alert, diagnostics = diagnostics,
             )
         }
     }
+
+    /** Keeps debug-only scale sources out of the release source set. */
+    private fun debugScaleClock(source: ScaleSource): Long? = runCatching {
+        source.javaClass.getMethod("getNowMs").invoke(source) as Long
+    }.getOrNull()
 }

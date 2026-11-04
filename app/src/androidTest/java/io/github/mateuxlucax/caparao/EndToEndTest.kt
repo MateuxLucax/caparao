@@ -21,7 +21,7 @@ import androidx.compose.ui.test.printToLog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
-import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.data.scale.ScriptedScaleSource
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.model.BrewMode
@@ -47,7 +47,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Scale to server on the emulator: the synthetic espresso is replayed as the scale, recorded by the brew screen,
+ * Scale to server on the emulator: the scripted espresso is played as the scale, recorded by the brew screen,
  * saved, and uploaded by WorkManager to the server given in the `server_url` and `token` arguments. Run by
  * scripts/e2e.sh, which starts the pinned exporter and then checks what it received; skipped otherwise.
  */
@@ -70,12 +70,11 @@ class EndToEndTest {
         prepareServer(serverUrl!!, token!!)
 
         val intent = Intent(context, MainActivity::class.java)
-            .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-espresso")
-            .putExtra(MainActivity.EXTRA_REPLAY_PAUSED, true)
-            .putExtra(MainActivity.EXTRA_REPLAY_SPEED, 8.0)
-            .putExtra(MainActivity.EXTRA_REPLAY_REPEAT, false)
+            .putExtra(MainActivity.EXTRA_SCRIPTED, "espresso")
+            .putExtra("script_paused", true)
+            .putExtra("script_speed", 4.0)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            val replay = (context.applicationContext as CaparaoApplication).container.scale as ReplayScaleSource
+            val scale = (context.applicationContext as CaparaoApplication).container.scale as ScriptedScaleSource
             fun brewState(): BrewUiState? {
                 val state = AtomicReference<BrewUiState?>()
                 scenario.onActivity { activity ->
@@ -101,7 +100,7 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.free_brew)).performClick()
             compose.onNodeWithText(text(R.string.next)).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
-            // The replay has not started, so Next keeps the planned 18 g dose.
+            // The scenario has not started, so Next keeps the planned 18 g dose.
             val beforeNext = brewState()
             val beforeSemantics = semanticsSnapshot()
             compose.onRoot(useUnmergedTree = true).printToLog("E2E-before-weigh-next")
@@ -126,7 +125,7 @@ class EndToEndTest {
                 )
             }
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
-            // Don't start the 52 s fixture until the live screen and detector are mounted.
+            // Don't start the scenario until the live screen and detector are mounted.
             val liveStepError = runCatching {
                 compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 10_000)
             }.exceptionOrNull()
@@ -135,19 +134,19 @@ class EndToEndTest {
                     .filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
                     .map { text(it) }
                 throw AssertionError(
-                    "The live step did not appear before replay: visible=$visibleSteps, " +
-                        "scale=${replay.state.value}, reading=${replay.reading.value}",
+                    "The live step did not appear before the scenario: visible=$visibleSteps, " +
+                        "scale=${scale.state.value}, reading=${scale.reading.value}",
                     liveStepError,
                 )
             }
-            replay.resume()
+            scale.resume()
             val savedError = runCatching {
                 compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 60_000)
             }.exceptionOrNull()
             if (savedError != null) {
                 val savedCount = runBlocking(Dispatchers.IO) { dao.all().size }
                 throw AssertionError(
-                    "The replay did not reach the summary: scale=${replay.state.value}, reading=${replay.reading.value}, storedBrews=$savedCount",
+                    "The scenario did not reach the summary: scale=${scale.state.value}, reading=${scale.reading.value}, storedBrews=$savedCount",
                     savedError,
                 )
             }
@@ -160,7 +159,7 @@ class EndToEndTest {
             assertEquals(18.0, brew.doseGrams, 1e-9)
             assertEquals(36.0, brew.yieldGrams, 0.5)
             assertTrue("expected a full curve, got $sampleCount samples", sampleCount > 100)
-            assertFalse("the replayed shot should finish normally", brew.interrupted)
+            assertFalse("the scripted shot should finish normally", brew.interrupted)
 
             compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.tab_brews)).performClick()
@@ -180,13 +179,12 @@ class EndToEndTest {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             .setAction(LauncherShortcut.FRENCH_PRESS.action)
-            .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-french-press")
-            .putExtra(MainActivity.EXTRA_REPLAY_PAUSED, true)
-            .putExtra(MainActivity.EXTRA_REPLAY_SPEED, 8.0)
-            .putExtra(MainActivity.EXTRA_REPLAY_REPEAT, false)
+            .putExtra(MainActivity.EXTRA_SCRIPTED, "french-press")
+            .putExtra("script_paused", true)
+            .putExtra("script_speed", 8.0)
         val activity = InstrumentationRegistry.getInstrumentation().startActivitySync(intent) as MainActivity
         val container = (context.applicationContext as CaparaoApplication).container
-        val replay = container.scale as ReplayScaleSource
+        val scale = container.scale as ScriptedScaleSource
         val alerts = CopyOnWriteArrayList<GuideAlert>()
         val alertScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
         val viewModel = AtomicReference<BrewViewModel?>()
@@ -201,15 +199,15 @@ class EndToEndTest {
             compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
             compose.waitUntil(10_000) { viewModel.get()?.uiState?.value?.step == BrewStep.LIVE }
 
-            replay.resume()
+            scale.resume()
             val removalGuideError = runCatching {
                 compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_remove_press)), 60_000)
             }.exceptionOrNull()
             if (removalGuideError != null) {
                 val state = viewModel.get()?.uiState?.value
                 throw AssertionError(
-                    "French press removal guide did not appear: replayMs=${replay.nowMs}, " +
-                        "scale=${replay.state.value}, reading=${replay.reading.value}, " +
+                    "French press removal guide did not appear: scenarioMs=${scale.nowMs}, " +
+                        "scale=${scale.state.value}, reading=${scale.reading.value}, " +
                         "step=${state?.step}, phase=${state?.phase}, elapsedMs=${state?.elapsedMs}, " +
                         "recipe=${state?.recipe?.name}, recipeSteps=${state?.recipe?.steps}, " +
                         "guide=${state?.guide}, saved=${state?.saved != null}",
@@ -221,7 +219,7 @@ class EndToEndTest {
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 60_000)
             compose.waitUntil(10_000) { viewModel.get()?.uiState?.value?.frenchPressRemoved == true }
             // The synthetic lift is still present ten seconds after removal; neither timer nor lift finishes it.
-            compose.waitUntil(10_000) { replay.nowMs >= 251_200L }
+            compose.waitUntil(10_000) { scale.nowMs >= 251_200L }
             assertEquals(BrewStep.LIVE, viewModel.get()?.uiState?.value?.step)
             assertEquals(BrewPhase.BREWING, viewModel.get()?.uiState?.value?.phase)
             assertEquals(300.0, viewModel.get()?.uiState?.value?.weightGrams ?: 0.0, 0.5)

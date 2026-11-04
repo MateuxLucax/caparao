@@ -1,0 +1,81 @@
+{
+  "name": "filter",
+  "mode": "FILTER",
+  "dose_g": 20,
+  "ratio": 15,
+  "captures": [
+    {
+      "at_ms": 0,
+      "name": "connected"
+    },
+    {
+      "at_ms": 2500,
+      "name": "first-pour"
+    },
+    {
+      "at_ms": 40000,
+      "name": "pouring"
+    },
+    {
+      "at_ms": 82500,
+      "name": "lifted"
+    },
+    {
+      "at_ms": 87500,
+      "name": "summary"
+    }
+  ],
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "connected",
+      "battery": {
+        "bars": 3,
+        "percent": 80
+      }
+    },
+    {
+      "at_ms": 0,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 500,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 1000,
+      "type": "weight",
+      "grams": 0
+    },
+    {
+      "at_ms": 1500,
+      "type": "ramp",
+      "from_g": 0,
+      "to_g": 2,
+      "relative_to": "dose",
+      "step_g": 0.5,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 30000,
+      "type": "ramp",
+      "from_g": 2,
+      "to_g": 15,
+      "relative_to": "dose",
+      "step_g": 0.5,
+      "every_ms": 100
+    },
+    {
+      "at_ms": 82500,
+      "type": "lift",
+      "grams": 250
+    },
+    {
+      "at_ms": 87500,
+      "type": "weight",
+      "grams": 250
+    }
+  ]
+}
