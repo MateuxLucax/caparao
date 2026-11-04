@@ -17,7 +17,7 @@ import java.io.IOException
 import java.net.ServerSocket
 import java.net.SocketTimeoutException
 
-/** The client against a real HTTP server on 127.0.0.1: the responses and client behavior table of contract/README.md. */
+/** The client against a local HTTP server; its response expectations follow the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md). */
 class ExporterClientTest {
     private val server = LocalServer()
     private val client = ExporterClient(connectTimeoutMs = 1_000, readTimeoutMs = 300)

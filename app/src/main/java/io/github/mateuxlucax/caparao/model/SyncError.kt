@@ -6,7 +6,7 @@ package io.github.mateuxlucax.caparao.model
  */
 data class SyncError(val kind: Kind, val detail: String? = null) {
 
-    /** [retry] says whether trying again later can help (the response table in contract/README.md). */
+    /** [retry] says whether trying again later can help (see the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)). */
     enum class Kind(val retry: Boolean) {
         /** 401: the token is wrong. */
         UNAUTHORIZED(false),

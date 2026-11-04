@@ -9,7 +9,7 @@ import java.net.ConnectException
 import java.net.MalformedURLException
 import java.net.SocketTimeoutException
 
-/** Maps the exceptions of an upload or a connection test to a [SyncError], following contract/README.md. */
+/** Maps upload or connection-test exceptions to [SyncError] using the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md). */
 object SyncErrors {
     fun of(e: Exception): SyncError = when (e) {
         is HttpStatusException -> when {

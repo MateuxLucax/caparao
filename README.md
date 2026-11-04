@@ -35,7 +35,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 - **Coffee bags:** name, roaster, origin and process, roast date, weight, notes and a finished flag; the brew notes
   suggest open bags first.
 - **Offline-first:** no account and no server needed. Sync is an add-on.
-- **Your data:** brews go to any server that follows the [contract](contract/README.md), such as
+- **Your data:** brews go to any server that follows the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).
 - **Export:** recipes and brews as CSV, or brews as JSON in the upload format, in a zip through the share sheet.
 - **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
@@ -51,7 +51,7 @@ flowchart LR
     app -->|"tare, timer, battery"| dot
     app <-->|"Data Layer"| watch["Wear OS<br/>companion"]
     app --> room[("Room<br/>brews, curves, recipes")]
-    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(stub or exporter)"]
+    room -.->|"optional: POST /api/v1/brews"| srv["your server<br/>(exporter)"]
     srv -.-> prom[("Prometheus")] -.-> graf["Grafana"]
 ```
 
@@ -61,10 +61,9 @@ flowchart LR
   - `brew`: pure brew logic fed with timed readings: espresso and filter detectors, flow smoothing, recipe step tracking.
   - `sync`: WorkManager uploads with retries and readable errors.
   - `ui`: onboarding, home, guided brew, recipes, brews and settings.
-- **Modules:** `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server) and `contract`
-  (upload schema).
+- **Modules:** `app` (phone), `wear` (watch) and `wearlink` (shared watch snapshot).
 - **Tested against real data:** detectors replay sessions recorded from a real Dot; screens are covered by Robolectric
-  tests; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
+  tests; `scripts/e2e.sh` runs the app against the pinned exporter on an emulator.
 
 Decisions and pending work live in the [issues](https://github.com/MateuxLucax/caparao/issues), where every decision
 lives.
@@ -112,7 +111,7 @@ JDK 17+ and the Android SDK (platform 37). On macOS with Android Studio installe
 ```bash
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
 scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install gitleaks)
-scripts/check.sh         # unit tests, lint, debug build, secret scan
+scripts/check.sh         # JVM tests, lint, debug build and instrumented-test compilation
 ```
 
 Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. Debug builds can replay a recorded session instead of the scale
@@ -122,19 +121,30 @@ Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroid
 adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --es replay press-ramp --el replay_at_ms 38300
 ```
 
-The stub server (`stub/`, Go) implements the upload [contract](contract/README.md) for development:
-`cd stub && AUTH_TOKEN=dev-token go run .`. `scripts/e2e.sh` runs the whole chain on the emulator: a replayed
-espresso is recorded, saved and uploaded to the stub, and the script checks what the stub received.
-`E2E_SERVER=exporter scripts/e2e.sh` does the same against the real exporter (a sibling checkout) and Prometheus in
-Docker.
+The pinned real exporter is the development server. To run it directly, build it and start it with a disposable data
+directory:
 
-Nothing secret lives in the repository: the server token is typed into the app. `scripts/check.sh` and the pre-commit hook run [gitleaks](https://github.com/gitleaks/gitleaks).
+```bash
+scripts/exporter.sh build
+data_dir="$(mktemp -d)"
+AUTH_TOKEN=dev-token EXPORTER_PORT=8099 scripts/exporter.sh start "$data_dir"
+```
+
+`scripts/e2e.sh` starts its own exporter and runs replayed espresso and French press brews through the app on an
+emulator, then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
+lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
+
+Pull requests with build-relevant changes run Build checks and E2E (asset-, documentation- and license-only changes are
+filtered out). A green Build on `main` triggers the release for that same commit; manual and `v*` tag releases run Build
+and E2E before signing. Gitleaks runs locally when installed and is not part of CI.
+
+Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 
 ## Server
 
 Brews can be sent to [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter),
-which keeps them in SQLite and writes the summaries and curves to Prometheus for Grafana. Any server that follows
-[contract/](contract/README.md) works.
+which keeps them in SQLite and writes summaries and curves to Prometheus for Grafana. Any server that follows the
+[upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md) works.
 
 ## License
 
