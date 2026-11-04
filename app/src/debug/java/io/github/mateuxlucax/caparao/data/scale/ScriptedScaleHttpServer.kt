@@ -65,11 +65,7 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
                 200 to state().put("loaded", json.optString("name", "scenario"))
             }
             path == "/reading" -> {
-                val data = JSONObject(body)
-                source.reading(
-                    weightGrams = data.optionalDouble("weight_g"),
-                    flowGramsPerSecond = data.optionalDouble("flow_gps"),
-                )
+                source.reading(JSONObject(body).getDouble("weight_g"))
                 200 to state()
             }
             path == "/event" -> {

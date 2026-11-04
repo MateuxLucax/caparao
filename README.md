@@ -157,7 +157,7 @@ curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"overload","we
 curl -sS -X POST -H 'Content-Type: application/json' -d '{"action":"pause"}' http://127.0.0.1:18765/clock
 ```
 
-`/scenario` accepts JSON or CSV; `/reading` sends one weight or flow sample; `/event` injects tare, connection_failed (with
+`/scenario` accepts JSON or CSV; `/reading` sends one weight sample; `/event` injects tare, connection_failed (with
 an error), drop, overload or lift; `/clock`
 pauses, advances or changes playback speed; `/state` returns the connection, reading and scenario position. To capture
 the named checkpoints, attach `Pixel_10_Pro_XL`, set `ANDROID_SERIAL` to its emulator serial, then run

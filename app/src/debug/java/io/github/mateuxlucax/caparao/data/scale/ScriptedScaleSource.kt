@@ -8,6 +8,7 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -166,12 +167,10 @@ class ScriptedScaleSource(
     }
 
     @Synchronized
-    fun reading(weightGrams: Double?, flowGramsPerSecond: Double?) {
-        require((weightGrams == null) xor (flowGramsPerSecond == null)) { "provide weight_g or flow_gps, not both" }
+    fun reading(weightGrams: Double) {
         clockMs = nowMs
         startedAtMs = monotonicMs()
-        val grams = weightGrams ?: lastRawWeight
-        weight(grams, timerSeconds(), overload = false, flowOverride = flowGramsPerSecond)
+        weight(weightGrams, timerSeconds(), overload = false)
     }
 
     /** Injects a named exceptional event, such as `drop`, `overload`, or `connection_failed`. */
@@ -183,19 +182,25 @@ class ScriptedScaleSource(
     private fun startPlayback() {
         if (!autoRun || job?.isActive == true) return
         job = scope.launch {
-            while (nextEvent < events.size) {
+            while (isActive) {
                 while (paused) delay(25)
-                val event = events[nextEvent]
+                val event = events.getOrNull(nextEvent) ?: break
                 while (true) {
                     while (paused) delay(25)
                     val remaining = event.atMs - nowMs
                     if (remaining <= 0) break
                     delay((remaining / playbackSpeed).toLong().coerceIn(1L, 25L))
                 }
-                clockMs = event.atMs
-                startedAtMs = monotonicMs()
-                apply(event)
-                nextEvent++
+                // Never hold the lock across delay. An API call may have applied this event while we waited,
+                // and loadScenario may have replaced the scenario, so check both under the lock.
+                synchronized(this@ScriptedScaleSource) {
+                    if (isActive && events.getOrNull(nextEvent) === event) {
+                        clockMs = event.atMs
+                        startedAtMs = monotonicMs()
+                        apply(event)
+                        nextEvent++
+                    }
+                }
             }
         }
     }
@@ -225,9 +230,9 @@ class ScriptedScaleSource(
         }
     }
 
-    private fun weight(grams: Double, timer: Int, overload: Boolean, flowOverride: Double? = null) {
+    private fun weight(grams: Double, timer: Int, overload: Boolean) {
         val previousAtMs = lastFrameAtMs
-        val flow = flowOverride ?: previousAtMs?.let { ((grams - lastRawWeight) * 1000.0 / (clockMs - it).coerceAtLeast(1L)).coerceIn(-99.9, 99.9) } ?: 0.0
+        val flow = previousAtMs?.let { ((grams - lastRawWeight) * 1000.0 / (clockMs - it).coerceAtLeast(1L)).coerceIn(-99.9, 99.9) } ?: 0.0
         feed(weightFrame(grams, flow, timer, overload))
         lastFrameAtMs = clockMs
     }
