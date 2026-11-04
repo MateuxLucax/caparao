@@ -11,7 +11,7 @@ It shows weight, flow and timer live, guides espresso and filter recipes step by
 curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to Prometheus
 and Grafana.
 
-<p align="center"><a href="docs/promo.mp4"><img src="docs/promo.gif" width="720" alt="Caparaó in 40 seconds"></a></p>
+<p align="center"><img src="assets/promo.gif" width="720" alt="Caparaó in 40 seconds"></p>
 
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+, Wear OS 3+.
 
@@ -19,14 +19,14 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 
 <table>
 <tr>
-<td width="33%" align="center"><img src="docs/demo/home-live.gif" width="220" alt="Home with weight, timer and flow ticking up"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
-<td width="33%" align="center"><img src="docs/demo/dose.gif" width="220" alt="Ratio step and bean weighing"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
-<td width="33%" align="center"><img src="docs/demo/guide-pour.gif" width="220" alt="V60 guide counting down and filling the cup"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
+<td width="33%" align="center"><img src="assets/demo/home-live.gif" width="220" alt="Home with weight, timer and flow ticking up"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
+<td width="33%" align="center"><img src="assets/demo/dose.gif" width="220" alt="Ratio step and bean weighing"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
+<td width="33%" align="center"><img src="assets/demo/guide-pour.gif" width="220" alt="V60 guide counting down and filling the cup"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
 </tr>
 <tr>
-<td align="center"><img src="docs/demo/espresso-live.gif" width="220" alt="Espresso recorded live and saved"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
-<td align="center"><img src="docs/demo/data.gif" width="220" alt="Brew detail chart, compare and trends"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
-<td align="center"><img src="docs/demo/recipes.gif" width="220" alt="Recipe list and editor"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
+<td align="center"><img src="assets/demo/espresso-live.gif" width="220" alt="Espresso recorded live and saved"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
+<td align="center"><img src="assets/demo/data.gif" width="220" alt="Brew detail chart, compare and trends"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
+<td align="center"><img src="assets/demo/recipes.gif" width="220" alt="Recipe list and editor"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
 </tr>
 </table>
 
@@ -41,8 +41,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 - **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
 
 The clips above are real recordings from the emulator, with a replayed scale session standing in for the Dot; the
-full-length MP4s are in [docs/demo](docs/demo). Static screenshots of every screen, in English and Portuguese, light and
-dark, are in [docs/screenshots](docs/screenshots/README.md), rendered on the JVM by `scripts/screenshots.sh`.
+full-length clips are in [assets/demo](assets/demo).
 
 ## Architecture
 
@@ -65,10 +64,9 @@ flowchart LR
 - **Modules:** `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server) and `contract`
   (upload schema).
 - **Tested against real data:** detectors replay sessions recorded from a real Dot; screens are covered by Robolectric
-  tests and Roborazzi screenshots; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
+  tests; `scripts/e2e.sh` runs scale, app and server end to end on the emulator.
 
-More in [docs/](docs/README.md): [architecture](docs/architecture.md), the Dot's [BLE protocol](docs/hardware.md),
-the [roadmap](docs/roadmap.md) and the [issues](https://github.com/MateuxLucax/caparao/issues), where every decision
+Decisions and pending work live in the [issues](https://github.com/MateuxLucax/caparao/issues), where every decision
 lives.
 
 ## Install
@@ -117,7 +115,6 @@ scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install 
 scripts/check.sh         # unit tests, lint, debug build, secret scan
 ```
 
-`scripts/screenshots.sh` refreshes the screenshots on the JVM, no emulator needed (`ONLY=Espresso` renders one test).
 Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. Debug builds can replay a recorded session instead of the scale
 (the emulator has no Bluetooth):
 

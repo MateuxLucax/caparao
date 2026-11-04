@@ -28,7 +28,7 @@ sealed class ScaleMessage {
 /**
  * Turns the scale's notification chunks into messages. A notification may hold several frames and a frame may be split
  * across two, so bytes are buffered; after garbage or an absurd length the decoder resyncs on the next `A5 5A`.
- * The incoming CRC is never checked: the Dot sends `00 00` (docs/hardware.md). Not thread-safe; feed it from one
+ * The incoming CRC is never checked: the Dot sends `00 00`. Not thread-safe; feed it from one
  * thread, in order.
  */
 class FrameDecoder {
@@ -99,7 +99,7 @@ class FrameDecoder {
                     overload = p.size > 8 && p[8].toInt() != 0,
                 ),
             )
-        // The reply to a battery read, and the push the Dot sends on its own about every 30 s (docs/hardware.md).
+        // The reply to a battery read, and the push the Dot sends on its own.
         (type == DotProtocol.TYPE_READ || type == DotProtocol.TYPE_NOTIFY) && cmd == DotProtocol.CMD_BATTERY && p.size >= 2 ->
             ScaleMessage.Battery(ScaleBattery(percent = p[1].toInt() and 0xFF, bars = p[0].toInt() and 0xFF))
         type == DotProtocol.TYPE_READ && cmd == DotProtocol.CMD_MODEL ->

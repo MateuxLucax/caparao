@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The scale as the screens see it: the real Dot over Bluetooth ([ScaleClient]) or a recorded session
- * ([ReplayScaleSource], for the emulator, tests and screenshots).
+ * ([ReplayScaleSource], for the emulator and tests).
  */
 interface ScaleSource {
     val state: StateFlow<ScaleState>

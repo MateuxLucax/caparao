@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Material 3 motion tokens (m3.material.io/styles/motion/easing-and-duration/tokens-specs) and the transition patterns
- * built from them, so every screen moves the same way (docs/material3-review.md).
+ * built from them, so every screen moves the same way.
  */
 object Motion {
     val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)

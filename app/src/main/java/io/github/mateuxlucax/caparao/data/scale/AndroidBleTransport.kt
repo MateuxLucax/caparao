@@ -36,7 +36,7 @@ import kotlin.coroutines.resumeWithException
 
 /**
  * [BleTransport] on the platform [BluetoothGatt] API, without a library (#86). The flow mirrors
- * the stage 0 probe that ran against a real Dot (docs/hardware.md "Connection").
+ * the probe that ran against a real Dot.
  *
  * Why it is shaped this way: Android allows one GATT operation in flight and reports each result on a binder thread.
  * Every step therefore sets a single [pending] slot, starts the operation, and suspends until its callback completes
@@ -401,7 +401,7 @@ class AndroidBleTransport(context: Context) : BleTransport {
         // Value of linkDown after a deliberate close().
         const val CLOSED = -3
 
-        // HCI reasons the Dot uses when it is bonded to another phone (docs/hardware.md "Device").
+        // HCI reasons the Dot uses when it is bonded to another phone.
         const val HCI_CONNECTION_FAILED = 0x3E
         const val HCI_REMOTE_TERMINATED = 0x13
 

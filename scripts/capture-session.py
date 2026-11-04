@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Records a Timemore Dot BLE session as JSONL compatible with ReplayScaleSource.
 
-The script scans for the Dot, runs the application-level handshake from docs/hardware.md and then records every FFF1
+The script scans for the Dot, runs the application-level handshake (grams, standard mode) and then records every FFF1
 notification until Ctrl+C. It owns the BLE link while running, so the app must be disconnected.
 
 Privacy is part of the format: this repository is public. The scale's address and advertised names are used to scan

@@ -1,8 +1,8 @@
 package io.github.mateuxlucax.caparao.brew
 
 /**
- * Flow in g/s computed from weights, because the scale's own flow saturates at 99.9 on sudden loads
- * (docs/hardware.md). It is the least-squares slope of weight over time across the last [windowMs]: with ~10 readings
+ * Flow in g/s computed from weights, because the scale's own flow saturates at 99.9 on sudden loads.
+ * It is the least-squares slope of weight over time across the last [windowMs]: with ~10 readings
  * per second that averages out the 0.1 g quantisation far better than an end-to-end difference, which jumps by
  * 0.1 g/s whenever one endpoint ticks. Never negative (a falling weight is a lift, not a flow), and 0 until it has
  * [minSpanMs] of data. Feed readings in order.

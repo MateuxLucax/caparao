@@ -1,8 +1,7 @@
 # Caparaó
 
-Android app for the Timemore Dot scale (Kotlin, Compose). Start from `docs/roadmap.md` for what is done and pending,
-`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings
-and the [issues](https://github.com/MateuxLucax/caparao/issues) before changing a decision.
+Android app for the Timemore Dot scale (Kotlin, Compose). The README is the project overview; the
+[issues](https://github.com/MateuxLucax/caparao/issues) are the only tracker and decision log.
 Modules: `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract` (upload
 schema). The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
 
@@ -49,15 +48,12 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
   dynamic colors and using the existing Compose Material primitives. Respect the system motion preferences and start
   from the [official motion guidance](https://m3.material.io/styles/motion/overview).
 - A draft communicates flow and guides planning; it is not approval. Ask the user about unresolved product choices.
-- Finished UI evidence comes from `scripts/screenshots.sh` and follows the table rule under Devices, not the sketch.
 
 ## Devices
 
-- Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
-  with Roborazzi: no emulator, it runs in the cloud too. Cloud sessions build and test with the Android SDK setup script;
-  the Mac is only for the emulator and real devices.
-- PR screenshots go in a table: one row per scenario with a short description and locale, Light and Dark image columns
-  at a constrained width so each pair reads comfortably, and alt text naming state, locale and theme.
+- Screen flows are covered by JVM Robolectric tests (`ScreenTests`, `WatchTests`): no emulator, they run in the cloud too.
+  Cloud sessions build and test with the Android SDK setup script; the Mac is only for the emulator and real devices.
+- PRs do not require a screenshot table. If a change is visual, attach evidence from a device or emulator run when useful.
 - The emulator is for instrumented tests, `scripts/e2e.sh` and on-device checks; with the phone also plugged in, set
   `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.

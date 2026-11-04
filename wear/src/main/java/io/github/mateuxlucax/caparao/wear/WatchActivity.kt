@@ -45,7 +45,7 @@ class WatchActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Debug builds: a fixed brew for screenshots on an emulator with no phone paired.
+        // Debug builds: a fixed brew for demo on an emulator with no phone paired.
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val demo = if (debuggable) intent.getStringExtra(EXTRA_DEMO)?.let { name -> WatchState.entries.find { it.name == name } } else null
         if (demo != null) snapshot.value = DEMOS.getValue(demo)
