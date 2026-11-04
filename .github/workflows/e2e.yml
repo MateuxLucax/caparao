@@ -4,7 +4,7 @@ name: End-to-end
 on:
   push:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
+    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
     inputs:
       force_failure:
@@ -48,7 +48,7 @@ jobs:
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: stub/go.mod
+          go-version: "1.27.x"
           cache: false
 
       # Cache the system image installed by android-emulator-runner.

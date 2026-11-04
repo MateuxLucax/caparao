@@ -12,7 +12,8 @@ import java.io.File
 import kotlin.math.roundToLong
 
 /**
- * The body [ExporterClient] builds against the shared files in contract/ (the same ones the stub's `go test` posts):
+ * The body [ExporterClient] builds against the shared files in contract/ (the same ones
+ * scripts/exporter-contract-test.sh posts to the pinned exporter):
  * a brew equal to each valid example must serialize to that example, and the keys must be the schema's.
  */
 class ContractTest {
