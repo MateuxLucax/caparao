@@ -17,8 +17,8 @@ object ScriptedScenarioParser {
         val points = lines.drop(1).map { row ->
             require(row.size == columns.size) { "CSV row has ${row.size} columns; expected ${columns.size}" }
             val time: Long = row[timeIndex].toLongOrNull() ?: throw IllegalArgumentException("t_ms must be an integer")
-            val weight = row[weightIndex].takeIf(String::isNotEmpty)?.toDoubleOrNull()
-            val flow = if (flowIndex >= 0) row[flowIndex].takeIf(String::isNotEmpty)?.toDoubleOrNull() else null
+            val weight = row[weightIndex].numberOrNull("weight_g")
+            val flow = if (flowIndex >= 0) row[flowIndex].numberOrNull("flow_gps") else null
             require(!(weight != null && flow != null)) { "CSV row cannot contain both weight_g and flow_gps" }
             require(weight != null || flow != null || row[eventIndex].isNotEmpty()) { "CSV row needs a weight, flow, or event" }
             CsvPoint(time, weight, flow, row[eventIndex])
@@ -56,6 +56,13 @@ object ScriptedScenarioParser {
     }
 
     private data class CsvPoint(val atMs: Long, val weight: Double?, val flow: Double?, val event: String)
+
+    private fun String.numberOrNull(column: String): Double? {
+        if (isEmpty()) return null
+        val value = toDoubleOrNull() ?: throw IllegalArgumentException("$column must be a number")
+        require(value.isFinite()) { "$column must be a finite number" }
+        return value
+    }
 
     private const val SAMPLE_PERIOD_MS = 100L
 }

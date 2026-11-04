@@ -67,10 +67,8 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
             path == "/reading" -> {
                 val data = JSONObject(body)
                 source.reading(
-                    atMs = data.optLong("at_ms", source.nowMs),
                     weightGrams = data.optionalDouble("weight_g"),
                     flowGramsPerSecond = data.optionalDouble("flow_gps"),
-                    overload = data.optBoolean("overload", false),
                 )
                 200 to state()
             }
@@ -79,14 +77,9 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
                 val name = data.getString("event")
                 val payload = JSONObject(data.toString())
                 payload.remove("event")
-                val type = when (name) {
-                    "failure" -> "connection_failed"
-                    "scale_drop" -> "drop"
-                    else -> name
-                }
-                if (type == "connection_failed") payload.put("error", data.optString("error", "NOT_FOUND"))
-                if (type == "overload") payload.put("grams", data.optDouble("weight_g", 1300.0))
-                source.inject(type, payload)
+                if (name == "connection_failed") require(data.has("error")) { "connection_failed needs error" }
+                if (name == "overload") payload.put("grams", data.optDouble("weight_g", 1300.0))
+                source.inject(name, payload)
                 200 to state()
             }
             path == "/clock" -> {
@@ -97,15 +90,12 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
                 when (action) {
                     "pause" -> source.pause()
                     "resume" -> source.resume()
-                    "advance" -> if (data.has("at_ms")) source.advanceTo(data.getLong("at_ms")) else source.advance(data.optLong("ms", 0L))
-                    else -> Unit
+                    "advance" -> source.advance(data.optLong("ms", 0L))
                 }
                 200 to state()
             }
             else -> 404 to error("unknown endpoint")
         }
-    } catch (failure: IllegalArgumentException) {
-        400 to error(failure.message ?: "invalid request")
     } catch (failure: Exception) {
         400 to error(failure.message ?: "invalid request")
     }
@@ -159,6 +149,5 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
     companion object {
         const val PORT = 8765
         private const val MAX_BODY_BYTES = 1_000_000
-        private const val SAMPLE_PERIOD_MS = 100L
     }
 }

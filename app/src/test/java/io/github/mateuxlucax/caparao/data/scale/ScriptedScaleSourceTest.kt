@@ -76,6 +76,18 @@ class ScriptedScaleSourceTest {
     }
 
     @Test
+    fun `CSV parser rejects non-numeric measurements even when a row has an event`() {
+        listOf(
+            "t_ms,weight_g,event\n0,not-a-number,connected",
+            "t_ms,weight_g,event,flow_gps\n0,,connected,not-a-number",
+        ).forEach { csv ->
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                ScriptedScenarioParser.fromCsv(csv)
+            }
+        }
+    }
+
+    @Test
     fun `hold events emit repeated decoded frames`() {
         val source = ScriptedScaleSource(
             CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher()),

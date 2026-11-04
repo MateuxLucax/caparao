@@ -116,7 +116,7 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Purpose | Entry point |
 |---|---|
 | Fast local and CI gate (tests, lint, debug build) | `scripts/check.sh` |
-| Emulator end-to-end (scripted brews against the pinned exporter) | `scripts/e2e.sh` |
+| Emulator end-to-end (replayed brews against the pinned exporter) | `scripts/e2e.sh` |
 | Build and run the pinned development exporter | `scripts/exporter.sh` |
 | Install the Wear OS app over Wi-Fi | `scripts/install-watch.sh` |
 | Install git hooks and the secret scan | `scripts/setup-hooks.sh` |
@@ -151,19 +151,22 @@ adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.
 adb forward tcp:18765 tcp:8765
 curl -sS http://127.0.0.1:18765/state
 curl -sS -X POST -H 'Content-Type: application/json' --data-binary @app/src/test/resources/scenarios/filter.json http://127.0.0.1:18765/scenario
-curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"overload"}' http://127.0.0.1:18765/event
+curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"connection_failed","error":"NOT_FOUND"}' http://127.0.0.1:18765/event
+curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"drop"}' http://127.0.0.1:18765/event
+curl -sS -X POST -H 'Content-Type: application/json' -d '{"event":"overload","weight_g":1300}' http://127.0.0.1:18765/event
 curl -sS -X POST -H 'Content-Type: application/json' -d '{"action":"pause"}' http://127.0.0.1:18765/clock
 ```
 
-`/scenario` accepts JSON or CSV; `/reading` sends one sample; `/event` injects tare, connection or scale events; `/clock`
+`/scenario` accepts JSON or CSV; `/reading` sends one weight or flow sample; `/event` injects tare, connection_failed (with
+an error), drop, overload or lift; `/clock`
 pauses, advances or changes playback speed; `/state` returns the connection, reading and scenario position. To capture
 the named checkpoints, attach `Pixel_10_Pro_XL`, set `ANDROID_SERIAL` to its emulator serial, then run
 `scripts/capture/capture-scenarios.py`. It writes one PNG per state under the git-ignored `captures/scripted-scale/`.
 Scenario JSON files live in `app/src/test/resources/scenarios/`; JVM and instrumented tests load those same files and
 drive the virtual clock without HTTP.
 
-`scripts/e2e.sh` starts its own exporter and runs the scripted espresso and French press scenarios through the app on an
-emulator, then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
+`scripts/e2e.sh` starts its own exporter and replays espresso and French press sessions through the app on an emulator,
+then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
 lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
 
 Pull requests with build-relevant changes run Build checks and E2E (asset-, documentation- and license-only changes are

@@ -35,7 +35,7 @@ class ReplayScaleSource(
     private val playbackSpeed: Double = 1.0,
     /** Keep the last reading instead of looping to the beginning of the session. */
     private val repeat: Boolean = true,
-) : ScaleSource {
+) : ScaleSource, ScaleClock {
     init {
         require(playbackSpeed.isFinite() && playbackSpeed > 0.0)
     }
@@ -64,7 +64,7 @@ class ReplayScaleSource(
 
     private var job: Job? = null
     /** Monotonic session time, exposed to the debug replay's detector clock. */
-    var nowMs: Long = startAtMs
+    override var nowMs: Long = startAtMs
         private set
     private var tareOffset = 0.0
     private var lastRawWeight = 0.0

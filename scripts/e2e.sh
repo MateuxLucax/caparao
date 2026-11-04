@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end test on the local emulator (#166): a pinned real exporter
-# (scripts/exporter.sh) runs on this machine, the app records scripted
-# espresso and French press scenarios and uploads them, then this script checks what
+# (scripts/exporter.sh) runs on this machine, the app records a replayed
+# espresso and French press and uploads them, then this script checks what
 # SQLite holds (list + curves). Never touches a phone: it picks the running
 # emulator (or ANDROID_SERIAL). Needs Go and a running emulator.
 #

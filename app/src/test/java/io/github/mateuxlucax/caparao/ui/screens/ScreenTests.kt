@@ -42,10 +42,8 @@ import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SeedBuiltInRecipes
-import io.github.mateuxlucax.caparao.data.scale.ScriptedScaleSource
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
-import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
@@ -62,9 +60,6 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
@@ -708,27 +703,6 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 255_000)
         waitFor(R.string.guide_press_serve)
         compose.waitForIdle()
-    }
-
-    /** Scenario JSON uses the same parser and virtual clock in JVM tests without starting the HTTP server. */
-    @Test
-    fun scriptedScenariosAdvanceOnVirtualTime() {
-        assumeTrue("scripted scenario JVM check runs in one full-size English variant", lang == "en" && theme == "dark" && !compactOnly)
-        listOf(
-            Triple("filter", 10_000L, 40.0),
-            Triple("espresso", 24_000L, 286.0),
-            Triple("french-press", 120_000L, 300.0),
-        ).forEach { (name, atMs, expectedRawGrams) ->
-            val json = requireNotNull(javaClass.getResourceAsStream("/scenarios/$name.json"))
-                .bufferedReader().use { it.readText() }
-            val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
-            val scale = ScriptedScaleSource(scope, json, autoRun = false, monotonicMs = { 0L })
-            scale.advanceTo(0)
-            assertTrue("$name starts connected", scale.state.value is ScaleState.Connected)
-            scale.advanceTo(atMs)
-            assertEquals(expectedRawGrams, scale.reading.value?.weightGrams ?: 0.0, 0.5)
-            scope.cancel()
-        }
     }
 
     /**

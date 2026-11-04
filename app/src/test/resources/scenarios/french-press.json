@@ -1,6 +1,5 @@
 {
   "name": "french-press",
-  "mode": "FRENCH_PRESS",
   "dose_g": 20,
   "ratio": 15,
   "captures": [

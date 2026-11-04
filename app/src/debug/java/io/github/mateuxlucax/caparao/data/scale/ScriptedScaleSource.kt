@@ -27,7 +27,7 @@ class ScriptedScaleSource(
     startPaused: Boolean = false,
     private val autoRun: Boolean = true,
     private val monotonicMs: () -> Long = SystemClock::elapsedRealtime,
-) : ScaleSource {
+) : ScaleSource, ScaleClock {
     init {
         require(speed.isFinite() && speed > 0.0)
     }
@@ -58,7 +58,7 @@ class ScriptedScaleSource(
     private var timerStartedAtMs = 0L
 
     /** Scenario time for the detector; follows the virtual clock in tests and device time during playback. */
-    val nowMs: Long
+    override val nowMs: Long
         get() = if (autoRun && started && !paused) clockMs + ((monotonicMs() - startedAtMs) * playbackSpeed).toLong() else clockMs
 
     val position: JSONObject
@@ -117,11 +117,10 @@ class ScriptedScaleSource(
         startedAtMs = monotonicMs()
     }
 
-    /** Advance to the next event, or by [deltaMs] when supplied. */
+    /** Advance virtual time by [deltaMs]. */
     @Synchronized
-    fun advance(deltaMs: Long? = null) {
-        val target = deltaMs?.let { nowMs + it } ?: events.getOrNull(nextEvent)?.atMs ?: nowMs
-        advanceTo(target)
+    fun advance(deltaMs: Long) {
+        advanceTo(nowMs + deltaMs)
     }
 
     @Synchronized
@@ -167,12 +166,12 @@ class ScriptedScaleSource(
     }
 
     @Synchronized
-    fun reading(atMs: Long, weightGrams: Double?, flowGramsPerSecond: Double?, overload: Boolean = false) {
+    fun reading(weightGrams: Double?, flowGramsPerSecond: Double?) {
         require((weightGrams == null) xor (flowGramsPerSecond == null)) { "provide weight_g or flow_gps, not both" }
-        require(atMs >= clockMs) { "reading time cannot move backwards" }
-        val grams = weightGrams ?: (lastRawWeight + requireNotNull(flowGramsPerSecond) * ((atMs - clockMs) / 1000.0))
-        clockMs = atMs
-        weight(grams, timerSeconds(), overload)
+        clockMs = nowMs
+        startedAtMs = monotonicMs()
+        val grams = weightGrams ?: lastRawWeight
+        weight(grams, timerSeconds(), overload = false, flowOverride = flowGramsPerSecond)
     }
 
     /** Injects a named exceptional event, such as `drop`, `overload`, or `connection_failed`. */
@@ -204,36 +203,31 @@ class ScriptedScaleSource(
     private fun apply(event: ScenarioEvent) {
         when (event.type) {
             "searching" -> _state.value = ScaleState.Searching
-            "connecting" -> _state.value = ScaleState.Connecting
             "connected" -> {
                 _state.value = ScaleState.Connected(null)
                 event.data.optJSONObject("battery")?.let { battery ->
                     feed(batteryFrame(DotProtocol.TYPE_READ, battery.optInt("bars", 3), battery.optInt("percent", 80)))
                 }
             }
-            "connection_failed", "not_found" -> _state.value = ScaleState.Failed(
-                if (event.type == "not_found") ScaleError.NOT_FOUND else ScaleError.valueOf(event.data.optString("error", "CONNECTION_LOST")),
+            "connection_failed" -> _state.value = ScaleState.Failed(
+                ScaleError.valueOf(event.data.getString("error")),
                 event.data.optBoolean("retrying", false),
             )
             "drop" -> _state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, event.data.optBoolean("retrying", true))
-            "reconnect" -> _state.value = ScaleState.Connected(null)
             "battery" -> feed(batteryFrame(if (event.data.optString("delivery", "read") == "push") DotProtocol.TYPE_NOTIFY else DotProtocol.TYPE_READ,
                 event.data.optInt("bars", 3), event.data.optInt("percent", 80)))
             "negative_boot" -> weight(-2.0, 0, false)
-            "weight" -> weight(event.data.optDouble("grams", event.data.optDouble("weight_g")), event.data.optInt("timer", timerSeconds()), event.data.optBoolean("overload", false))
-            "overload" -> weight(event.data.optDouble("grams", 1300.0), event.data.optInt("timer", 0), true)
+            "weight" -> weight(event.data.optDouble("grams", event.data.optDouble("weight_g")), timerSeconds(), event.data.optBoolean("overload", false))
+            "overload" -> weight(event.data.optDouble("grams", 1300.0), timerSeconds(), true)
             "tare" -> tare()
-            "lift" -> weight(event.data.optDouble("grams", 0.0), event.data.optInt("timer", timerSeconds()), false)
-            "first_drop" -> weight(event.data.optDouble("grams", lastRawWeight + 1.0), event.data.optInt("timer", timerSeconds()), false)
-            "flow_stop" -> weight(event.data.optDouble("grams", lastRawWeight), event.data.optInt("timer", timerSeconds()), false)
-            "noop" -> Unit
+            "lift" -> weight(event.data.optDouble("grams", 0.0), timerSeconds(), false)
             else -> error("Unknown scripted scale event: ${event.type}")
         }
     }
 
-    private fun weight(grams: Double, timer: Int, overload: Boolean) {
+    private fun weight(grams: Double, timer: Int, overload: Boolean, flowOverride: Double? = null) {
         val previousAtMs = lastFrameAtMs
-        val flow = previousAtMs?.let { ((grams - lastRawWeight) * 1000.0 / (clockMs - it).coerceAtLeast(1L)).coerceIn(-99.9, 99.9) } ?: 0.0
+        val flow = flowOverride ?: previousAtMs?.let { ((grams - lastRawWeight) * 1000.0 / (clockMs - it).coerceAtLeast(1L)).coerceIn(-99.9, 99.9) } ?: 0.0
         feed(weightFrame(grams, flow, timer, overload))
         lastFrameAtMs = clockMs
     }

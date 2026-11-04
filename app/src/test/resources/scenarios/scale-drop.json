@@ -26,7 +26,7 @@
     },
     {
       "at_ms": 2500,
-      "type": "reconnect"
+      "type": "connected"
     }
   ]
 }

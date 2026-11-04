@@ -69,12 +69,10 @@ class MainActivity : ComponentActivity() {
                     intent.getBooleanExtra(EXTRA_REPLAY_REPEAT, true),
                 )
             }
-            if (intent.hasExtra(EXTRA_SCRIPTED) || intent.getBooleanExtra(EXTRA_SCRIPTED_API, false)) {
-                runCatching {
-                    Class.forName("io.github.mateuxlucax.caparao.data.scale.DebugScaleSourceFactory")
-                        .getMethod("install", MainActivity::class.java, AppContainer::class.java, Intent::class.java)
-                        .invoke(null, this, container, intent)
-                }.onFailure { throw IllegalStateException("Could not install scripted scale source", it) }
+            if (savedInstanceState == null && (intent.hasExtra(EXTRA_SCRIPTED) || intent.getBooleanExtra(EXTRA_SCRIPTED_API, false))) {
+                Class.forName("io.github.mateuxlucax.caparao.data.scale.DebugScaleSourceFactory")
+                    .getMethod("install", MainActivity::class.java, AppContainer::class.java, Intent::class.java)
+                    .invoke(null, this, container, intent)
             }
         }
         requestedShortcut.value = LauncherShortcut.pendingOnCreate(

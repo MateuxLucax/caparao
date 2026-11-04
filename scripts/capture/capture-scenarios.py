@@ -29,7 +29,7 @@ def scenario_plan(path: Path) -> list[tuple[int, str]]:
     data = json.loads(path.read_text())
     captures = [(int(item["at_ms"]), str(item["name"])) for item in data.get("captures", [])]
     if not captures:
-        captures = [(int(event.get("at_ms", 0)), f"state-{index:03d}") for index, event in enumerate(data["events"])]
+        raise ValueError(f"scenario has no named capture checkpoints: {path.name}")
     if any(at < 0 for at, _ in captures) or captures != sorted(captures):
         raise ValueError(f"capture times must be non-negative and ordered in {path.name}")
     if len({name for _, name in captures}) != len(captures):
@@ -109,9 +109,9 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
     def advance_clock(delta_ms: int) -> None:
         remaining = delta_ms
         while remaining > 0:
-            step = min(100, remaining)
+            step = min(20, remaining)
             api("POST", "/clock", {"action": "advance", "ms": step})
-            time.sleep(0.01)
+            time.sleep(0.03)
             remaining -= step
 
     try:

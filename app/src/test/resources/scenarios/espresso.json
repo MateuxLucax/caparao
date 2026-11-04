@@ -1,6 +1,5 @@
 {
   "name": "espresso",
-  "mode": "ESPRESSO",
   "dose_g": 18,
   "ratio": 2,
   "captures": [
@@ -66,7 +65,7 @@
     },
     {
       "at_ms": 3400,
-      "type": "first_drop",
+      "type": "weight",
       "grams": 250.4
     },
     {
@@ -95,7 +94,7 @@
     },
     {
       "at_ms": 24000,
-      "type": "flow_stop",
+      "type": "weight",
       "grams": 286
     }
   ]

@@ -1,6 +1,5 @@
 {
   "name": "filter",
-  "mode": "FILTER",
   "dose_g": 20,
   "ratio": 15,
   "captures": [
@@ -55,8 +54,8 @@
       "from_g": 0,
       "to_g": 2,
       "relative_to": "dose",
-      "step_g": 0.5,
-      "every_ms": 100
+      "step_g": 0.1,
+      "every_ms": 20
     },
     {
       "at_ms": 30000,
@@ -64,8 +63,8 @@
       "from_g": 2,
       "to_g": 15,
       "relative_to": "dose",
-      "step_g": 0.5,
-      "every_ms": 100
+      "step_g": 0.1,
+      "every_ms": 20
     },
     {
       "at_ms": 82500,
