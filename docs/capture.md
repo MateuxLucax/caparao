@@ -122,6 +122,15 @@ because Gradle does not track `CAPARAO_CAPTURE` as a test task input; without it
 This check is read-only. Review a capture for identifiers before copying it into
 `app/src/test/resources/sessions/`; only reviewed fixtures belong in the public repository.
 
+## Prometheus-derived curve fixtures
+
+Some regression fixtures under `app/src/test/resources/sessions/` are not captures from this script: they are
+weight/time samples copied from the exporter's stored Prometheus range vector for user-reviewed brews. They contain no
+BLE frames, scale commands or pre-detection readings, are never produced or verified by `capture-session.py` or
+`RecordedSessionTest`, and are not raw protocol recordings. See the
+[sessions README](../app/src/test/resources/sessions/README.md) for their provenance and the explicit detector setup
+used before replaying them.
+
 ## Read the weights
 
 The file holds the Dot's raw weights: the script sends no tare, so the app's tare is only applied when the file is
