@@ -3,6 +3,8 @@ package io.github.mateuxlucax.caparao.ui.screens
 import android.content.Context
 import android.os.Looper
 import android.provider.Settings
+import android.view.View
+import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -84,6 +86,7 @@ import androidx.compose.runtime.setValue
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -143,6 +146,25 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     private fun text(id: Int) = context.getString(id)
+
+    /** The rendered text of a TextView [id] in an applied widget's view tree. */
+    private fun widgetText(root: View, id: Int): String {
+        val view = root.findViewById<TextView>(id)
+        assertNotNull("missing TextView $id in the applied widget view tree", view)
+        return view!!.text.toString()
+    }
+
+    /** Asserts the rendered text of a TextView [id], so a blank or missing widget fails. */
+    private fun assertWidgetText(root: View, id: Int, expected: String) {
+        assertEquals(expected, widgetText(root, id))
+    }
+
+    /** Asserts a view [id]'s visibility in an applied widget's view tree. */
+    private fun assertWidgetVisibility(root: View, id: Int, visibility: Int) {
+        val view = root.findViewById<View>(id)
+        assertNotNull("missing view $id in the applied widget view tree", view)
+        assertEquals(visibility, view!!.visibility)
+    }
 
     private fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
 
@@ -306,7 +328,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
-    /** The home-screen widget: saved and empty at the declared 180x176 dp minimum. */
+    /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
     @Test
     fun widget() {
         var latest by mutableStateOf<Brew?>(
@@ -314,11 +336,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         )
         // A neutral home screen behind the widget, so its rounded shape reads in both themes.
         val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
+        var rendered: View? = null
         compose.setContent {
             Box(Modifier.background(wallpaper)) {
                 key(latest) {
                     AndroidView(
-                        factory = { BrewWidgetProvider().views(context, 1, latest).apply(context, null) },
+                        // The RemoteViews the provider builds, applied to a real view as on a home screen.
+                        factory = { BrewWidgetProvider().views(context, 1, latest).apply(context, null).also { rendered = it } },
                         modifier = Modifier.size(180.dp, 176.dp).testTag("widget"),
                     )
                 }
@@ -326,10 +350,28 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         compose.waitForIdle()
         compose.onNodeWithTag("widget").assertExists()
-        assertEquals(text(R.string.widget_last_brew_title), context.getString(R.string.widget_last_brew_title))
+
+        // The saved state shows the last brew: title, method label, and the suggested action.
+        val saved = rendered
+        assertNotNull("the applied widget view was not created", saved)
+        assertWidgetText(saved!!, R.id.widget_title, text(R.string.widget_last_brew_title))
+        assertWidgetVisibility(saved, R.id.widget_last_brew, View.VISIBLE)
+        assertWidgetVisibility(saved, R.id.widget_empty_content, View.GONE)
+        assertWidgetText(saved, R.id.widget_method, text(R.string.mode_espresso))
+        assertWidgetText(saved, R.id.widget_action_label, text(R.string.widget_brew_filter))
+
         latest = null
         compose.waitForIdle()
         compose.onNodeWithTag("widget").assertExists()
+
+        // The empty state shows the empty title and the coffee action.
+        val empty = rendered
+        assertNotNull("the applied widget view was not created", empty)
+        assertWidgetVisibility(empty!!, R.id.widget_title, View.GONE)
+        assertWidgetVisibility(empty, R.id.widget_last_brew, View.GONE)
+        assertWidgetVisibility(empty, R.id.widget_empty_content, View.VISIBLE)
+        assertWidgetText(empty, R.id.widget_empty_title, text(R.string.widget_empty_title))
+        assertWidgetText(empty, R.id.widget_action_label, text(R.string.widget_brew_coffee))
     }
 
     /** The expanded widget's estimates and neutral empty-week state, rendered at its 260×210 dp breakpoint. */
@@ -376,11 +418,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
         val widthDp = context.resources.getDimension(R.dimen.widget_weekly_min_width) / context.resources.displayMetrics.density
         val heightDp = context.resources.getDimension(R.dimen.widget_weekly_min_height) / context.resources.displayMetrics.density
+        var rendered: View? = null
         compose.setContent {
             Box(Modifier.background(wallpaper)) {
                 key(week) {
                     AndroidView(
-                        factory = { BrewWidgetProvider().weeklyViews(context, 1, BrewMode.FILTER, week).apply(context, null) },
+                        // The RemoteViews the provider builds, applied to a real view as on a home screen.
+                        factory = { BrewWidgetProvider().weeklyViews(context, 1, BrewMode.FILTER, week).apply(context, null).also { rendered = it } },
                         modifier = Modifier.size(widthDp.dp, heightDp.dp).testTag("weekly-widget"),
                     )
                 }
@@ -388,16 +432,51 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         compose.waitForIdle()
         compose.onNodeWithTag("weekly-widget").assertExists()
+
+        // The rendered week: title, brew count, and the estimate values as shown (not just the format strings).
+        val savedView = rendered
+        assertNotNull("the applied widget view was not created", savedView)
+        assertWidgetText(savedView!!, R.id.widget_weekly_title, text(R.string.widget_weekly_title))
+        assertWidgetVisibility(savedView, R.id.widget_weekly_content, View.VISIBLE)
+        assertWidgetVisibility(savedView, R.id.widget_weekly_empty, View.GONE)
+        assertWidgetText(
+            savedView,
+            R.id.widget_weekly_brews_value,
+            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.count(context, week.brewCount),
+        )
+        assertWidgetText(
+            savedView,
+            R.id.widget_weekly_beverage_value,
+            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.beverageVolume(context, week.estimatedBeverageMl),
+        )
+        assertWidgetText(
+            savedView,
+            R.id.widget_weekly_dose_value,
+            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.dose(context, week.doseGrams),
+        )
+        assertWidgetText(
+            savedView,
+            R.id.widget_weekly_caffeine_value,
+            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.caffeine(context, week.estimatedCaffeineMg),
+        )
         // The rendered estimates: beverage and caffeine carry ≈, dose is recorded and has none.
-        val beverage = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.beverageVolume(context, week.estimatedBeverageMl)
-        val caffeine = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.caffeine(context, week.estimatedCaffeineMg)
-        val dose = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.dose(context, week.doseGrams)
+        val beverage = widgetText(savedView, R.id.widget_weekly_beverage_value)
+        val caffeine = widgetText(savedView, R.id.widget_weekly_caffeine_value)
+        val dose = widgetText(savedView, R.id.widget_weekly_dose_value)
         assertTrue(beverage.startsWith("≈ "))
         assertTrue(caffeine.startsWith("≈ "))
         assertFalse(dose.startsWith("≈"))
+
         week = emptyWeek
         compose.waitForIdle()
         compose.onNodeWithTag("weekly-widget").assertExists()
+
+        // The rendered empty week: the neutral message, no stats row.
+        val emptyView = rendered
+        assertNotNull("the applied widget view was not created", emptyView)
+        assertWidgetText(emptyView!!, R.id.widget_weekly_empty, text(R.string.widget_weekly_empty))
+        assertWidgetVisibility(emptyView, R.id.widget_weekly_empty, View.VISIBLE)
+        assertWidgetVisibility(emptyView, R.id.widget_weekly_content, View.GONE)
     }
 
     /** The coffees screen from Settings, with an open bag and a finished one (#110). */
