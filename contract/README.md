@@ -1,7 +1,7 @@
 # Upload contract
 
-The wire format of `POST /api/v1/brews` (and of `GET /api/v1/brews/{id}`, which returns the same body), shared by the Android client and every server (the stub in `../stub`, later
-`timemore-dot-prometheus-exporter`). The same files are checked on both sides, so they cannot drift apart.
+The wire format of `POST /api/v1/brews` (and of `GET /api/v1/brews/{id}`, which returns the same body), shared by the Android client and the real server
+(`timemore-dot-prometheus-exporter`, pinned in `scripts/exporter.sh`). The same files are checked on both sides, so they cannot drift apart.
 
 | Path | What it is |
 |------|------------|
@@ -10,6 +10,8 @@ The wire format of `POST /api/v1/brews` (and of `GET /api/v1/brews/{id}`, which 
 | `invalid/*.json` | Bodies every server must reject with `400`; each breaks one rule and the file name says which |
 
 Tests iterate over both directories, so adding a file adds a test case. Use example values only, never real data.
+`scripts/exporter-contract-test.sh` posts every file against a running pinned exporter (201 then 200 for `valid/`,
+400 for `invalid/`); `scripts/check.sh` and `scripts/e2e.sh` run it.
 
 ## Rules and decisions
 

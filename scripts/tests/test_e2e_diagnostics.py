@@ -722,29 +722,29 @@ class E2EDiagnosticsTest(unittest.TestCase):
         scripts.mkdir(parents=True)
         shutil.copy2(REPO_ROOT / "scripts" / "e2e.sh", scripts / "e2e.sh")
         shutil.copy2(REPO_ROOT / "scripts" / "e2e-diagnostics.py", scripts / "e2e-diagnostics.py")
-        (repo / "stub").mkdir()
+        shutil.copy2(REPO_ROOT / "scripts" / "exporter.sh", scripts / "exporter.sh")
+        shutil.copy2(REPO_ROOT / "scripts" / "exporter-contract-test.sh", scripts / "exporter-contract-test.sh")
+        (repo / "contract").mkdir()
         logs = repo / "safe-logs"
         gradlew = repo / "gradlew"
         gradlew.write_text("#!/bin/sh\necho 'intentional fake build failure' >&2\nexit 23\n", encoding="utf-8")
         gradlew.chmod(0o755)
 
-        bin_dir = repo / "bin"
-        bin_dir.mkdir()
-        fake_go = bin_dir / "go"
-        fake_go.write_text(
-            "#!/bin/sh\n"
-            "output=''\n"
-            "while [ $# -gt 0 ]; do\n"
-            "  if [ \"$1\" = '-o' ]; then shift; output=$1; fi\n"
-            "  shift\n"
-            "done\n"
-            "cat > \"$output\" <<'SERVER'\n"
-            "#!/bin/sh\nexec sleep 60\n"
-            "SERVER\n"
-            "chmod +x \"$output\"\n",
+        (scripts / "exporter.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "if [ \"$1\" = build ]; then exit 0; fi\n"
+            "out=\"$2\"\n"
+            "printf 'exporter listening token=%s\\n' \"$AUTH_TOKEN\" > \"$out/server.log\"\n"
+            "exec sleep 60\n",
             encoding="utf-8",
         )
-        fake_go.chmod(0o755)
+        (scripts / "exporter.sh").chmod(0o755)
+        (scripts / "exporter-contract-test.sh").write_text(
+            "#!/usr/bin/env bash\nexit 0\n", encoding="utf-8"
+        )
+        (scripts / "exporter-contract-test.sh").chmod(0o755)
+        bin_dir = repo / "bin"
+        bin_dir.mkdir()
         fake_curl = bin_dir / "curl"
         fake_curl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         fake_curl.chmod(0o755)
@@ -796,6 +796,11 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn('grep -q "OK (2 tests)"', e2e)
         self.assertIn("assert len(brews) == 2", e2e)
         self.assertIn('set(by_mode) == {"espresso", "french_press"}', e2e)
+        self.assertIn("scripts/exporter.sh", e2e)
+        self.assertNotIn("scripts/exporter-contract-test.sh", e2e)
+        self.assertNotIn("stub", e2e)
+        self.assertNotIn("E2E_PROMETHEUS_PORT", e2e)
+        self.assertNotIn("docker", e2e)
         self.assertIn("--runtime-log", e2e)
 
         e2e_ci = (REPO_ROOT / "scripts" / "e2e-ci.sh").read_text(encoding="utf-8")

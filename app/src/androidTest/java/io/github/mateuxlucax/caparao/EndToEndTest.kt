@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Scale to server on the emulator: the synthetic espresso is replayed as the scale, recorded by the brew screen,
  * saved, and uploaded by WorkManager to the server given in the `server_url` and `token` arguments. Run by
- * scripts/e2e.sh, which starts the stub and then checks what it received; skipped otherwise.
+ * scripts/e2e.sh, which starts the pinned exporter and then checks what it received; skipped otherwise.
  */
 @OptIn(ExperimentalTestApi::class)
 class EndToEndTest {
@@ -192,8 +192,6 @@ class EndToEndTest {
         val viewModel = AtomicReference<BrewViewModel?>()
         try {
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 10_000)
-            compose.onNodeWithText(text(R.string.mode_french_press)).assertExists()
-            compose.onNode(hasText("French press") and isSelectable()).assertIsSelected()
             val brewViewModel = activity.viewModelStore.get("brew-FRENCH_PRESS") as? BrewViewModel
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }

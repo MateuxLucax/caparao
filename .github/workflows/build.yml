@@ -1,11 +1,11 @@
 name: Build
 
-# Keep the Release workflow's Build dependency quick: unit tests, lint, the debug build and the stub's contract tests.
-# Emulator end-to-end runs in a separate workflow (#80), so it does not gate or delay a release.
+# Keep the Release workflow's Build dependency quick: unit tests, lint, the debug build and the contract fixtures
+# against the pinned exporter. Emulator end-to-end runs in a separate workflow (#80), so it does not gate or delay a release.
 on:
   push:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
+    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
     inputs:
       run_e2e:
@@ -52,11 +52,19 @@ jobs:
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: stub/go.mod
+          go-version: "1.27.x"
 
-      - name: Stub tests against contract/
-        working-directory: stub
-        run: go vet ./... && go test -coverprofile=coverage.out ./...
+      - name: Contract fixtures against the pinned exporter
+        run: |
+          token="contract-check-$$-$(date +%s)"
+          tmp=$(mktemp -d)
+          scripts/exporter.sh build
+          AUTH_TOKEN="$token" EXPORTER_PORT=8098 scripts/exporter.sh start "$tmp" &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$tmp"' EXIT
+          for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:8098/healthz" >/dev/null && break; sleep 0.2; done
+          curl -fs "http://127.0.0.1:8098/healthz" >/dev/null || { echo "exporter did not become ready" >&2; cat "$tmp/server.log" >&2; exit 1; }
+          scripts/exporter-contract-test.sh "http://127.0.0.1:8098" "$token"
 
       # Picked up by the nightly SonarQube scan on the homeserver (sonar-project.properties).
       - name: Upload coverage
@@ -65,7 +73,6 @@ jobs:
           name: coverage
           path: |
             app/build/reports/coverage/test/debug/report.xml
-            stub/coverage.out
           retention-days: 7
 
       - name: Upload test and lint reports
