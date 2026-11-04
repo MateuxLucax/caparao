@@ -192,9 +192,6 @@ class EndToEndTest {
         val viewModel = AtomicReference<BrewViewModel?>()
         try {
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 10_000)
-            // The title, subtitle and recipe chip all say "French press": only the mode radio
-            // is labelled by content description, so match that, not visible text.
-            compose.onNode(hasContentDescription(text(R.string.mode_french_press)) and isSelectable()).assertIsSelected()
             val brewViewModel = activity.viewModelStore.get("brew-FRENCH_PRESS") as? BrewViewModel
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }

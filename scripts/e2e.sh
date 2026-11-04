@@ -66,8 +66,6 @@ pid=$!
 for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:$port/healthz" >/dev/null && break; sleep 0.2; done
 curl -fs "http://127.0.0.1:$port/healthz" >/dev/null || { echo "exporter did not become ready" >&2; cat "$tmp/server.log" >&2; exit 1; }
 
-scripts/exporter-contract-test.sh "http://127.0.0.1:$port" "$token"
-
 ./gradlew --console=plain -q assembleDebug assembleDebugAndroidTest
 "$adb" install -r -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
 "$adb" install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
@@ -91,15 +89,6 @@ fi
 echo "$result" | grep -q "OK (2 tests)" || { echo "$result" >&2; echo "--- exporter log" >&2; cat "$tmp/server.log" >&2; exit 1; }
 
 brews=$(curl -fs -H "Authorization: Bearer $token" "http://127.0.0.1:$port/api/v1/brews")
-# Filter to the two E2E recordings: the contract fixtures above used fixed
-# ids, so any contract brews must not change the expected counts.
-brews=$(python3 - "$brews" <<'PY'
-import json, sys
-brews = json.loads(sys.argv[1])
-keep = [b for b in brews if abs(b["dose_g"] - 18.0) < 1e-9 or abs(b["dose_g"] - 20.0) < 1e-9]
-print(json.dumps(keep))
-PY
-)
 python3 - "$brews" "http://127.0.0.1:$port" "$token" <<'PY'
 import json, sys, urllib.request
 

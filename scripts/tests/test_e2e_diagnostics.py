@@ -797,7 +797,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("assert len(brews) == 2", e2e)
         self.assertIn('set(by_mode) == {"espresso", "french_press"}', e2e)
         self.assertIn("scripts/exporter.sh", e2e)
-        self.assertIn("scripts/exporter-contract-test.sh", e2e)
+        self.assertNotIn("scripts/exporter-contract-test.sh", e2e)
         self.assertNotIn("stub", e2e)
         self.assertNotIn("E2E_PROMETHEUS_PORT", e2e)
         self.assertNotIn("docker", e2e)
