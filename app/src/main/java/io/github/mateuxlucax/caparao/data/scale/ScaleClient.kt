@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Keeps a Timemore Dot connected while started: scan, open (3 attempts), the handshake from docs/hardware.md, readings
+ * Keeps a Timemore Dot connected while started: scan, open (3 attempts), the handshake (grams, standard mode), readings
  * and battery, and reconnecting with backoff (1 s doubling up to 10 s) when anything fails.
  *
  * It scans every time instead of remembering an address: the Dot answers a scan in under 100 ms (recorded), and a
@@ -193,7 +193,7 @@ class ScaleClient(
         write(DotProtocol.readBattery())
         _state.value = ScaleState.Connected(battery = null)
         note("connected")
-        // The Dot's own battery push is not reliable (docs/hardware.md), so ask for it.
+        // The Dot's own battery push is not reliable, so ask for it.
         launch {
             while (true) {
                 delay(BATTERY_POLL_MS)

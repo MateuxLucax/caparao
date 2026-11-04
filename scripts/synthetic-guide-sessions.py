@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes two made-up sessions for the brew guide screenshots (ScreenshotsTest), in the probe's format.
+"""Writes two made-up sessions for the brew guide tests (ScreenTests), in the probe's format.
 
 Not recordings, never used to tune the detectors:
 - synthetic-espresso-guide.jsonl: empty scale for 8 s (time to set the dose and see the cup step), cup (150 g) placed
@@ -63,7 +63,7 @@ def write(name, label, weight_at, seconds, noisy):
     print(f"wrote {name} ({len(lines) - 1} frames)")
 
 
-write("synthetic-espresso-guide.jsonl", "SYNTHETIC espresso for the guide screenshots, not a recording", espresso, 60,
+write("synthetic-espresso-guide.jsonl", "SYNTHETIC espresso for the guide tests, not a recording", espresso, 60,
       lambda t, g: t > 8.5)
 write("synthetic-filter-lift.jsonl", "SYNTHETIC filter with the server lifted, not a recording", filter_lift, 110,
       lambda t, g: g > 0)

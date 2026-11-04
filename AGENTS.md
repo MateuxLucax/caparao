@@ -1,8 +1,7 @@
 # Caparaó
 
-Android app for the Timemore Dot scale (Kotlin, Compose). Start from `docs/roadmap.md` for what is done and pending,
-`docs/architecture.md` for the layers, `docs/hardware.md` for the BLE protocol, `docs/copy.md` before writing app strings
-and the [issues](https://github.com/MateuxLucax/caparao/issues) before changing a decision.
+Android app for the Timemore Dot scale (Kotlin, Compose). The README is the project overview; the
+[issues](https://github.com/MateuxLucax/caparao/issues) are the only tracker and decision log.
 Modules: `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract` (upload
 schema). The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
 
@@ -38,6 +37,40 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
 `coffee.example.com` and `dev-token`; the real domain and token live only in the user's homeserver `private/` copy.
 `scripts/check.sh` (tests, lint, build, gitleaks) runs locally before every push and mirrors CI.
 
+## App copy
+
+Every string lives in `values/strings.xml` (English, default) and `values-pt-rBR/strings.xml`
+(Portuguese, Brazil). Write both locales together, in the voice a native speaker would use;
+`TranslationsTest` keeps the keys and format arguments in sync. A new key goes in both files under the
+same comment.
+
+- Voice: direct and useful (one job per line); essential (only text that changes what the user does
+  next — no default subtitles, no explanations of obvious controls, no repeated confirmations); calm
+  (short sentences, one idea at a time); warm on onboarding, understated elsewhere; plain — familiar
+  words, bar coffee terms, Android's own permission names.
+- Honest about data: say where brews are stored and whether they are synced when it matters
+  (`Only on this phone`); distinguish saved, sent and synced.
+- Mechanics: sentence case everywhere including titles and buttons. Use `…` for ongoing states
+  (`Connecting…`); full sentences end with a period, titles/labels/buttons do not. Formatting comes
+  from code; units are `g` and `g/s`; pt-BR decimal comma comes from the locale. Ratio is `1:%1$s`.
+  Address is "you"/imperative in EN, "você"/imperative (`Ligue`, `Segure`) in pt-BR. Natural EN
+  contractions. `Caparaó` is never translated. Say "the scale" in instructions, "the Dot" when the
+  model matters; pt-BR: "a balança" / "a Dot".
+- Vocabulary (EN / pt-BR): brew/preparo, dose, yield/bebida, water/água, ratio/razão, flow/fluxo,
+  tare/tara, first drop/primeira gota, send/enviar (upload action) vs sync/sincronizar (status),
+  recipe/receita, step/etapa, pour/despejo, wait/espera, grind/moagem, coffee/café, rating/nota.
+  French press: steep → Infusão. "Shot" only in espresso instructions. French-press guide order:
+  no press instruction before the deadline — remove first, then press and serve.
+- Patterns: buttons name the action in one or two words (`Tare`, `Save`, `Retry`); pt-BR uses the
+  infinitive (`Salvar`, `Descartar`). Errors are title (problem, no blame, no period) plus hint
+  (the action, ending with that action). Empty states are one short line, no subtitle.
+  Ongoing states are a present participle + `…`; finished states a short past participle (`Saved`).
+  Confirmations put the question in the title (`Delete this brew?`) with `Delete`/`Cancel`.
+  Widget: estimates (beverage and caffeine) are prefixed `≈`; dose is recorded and has no `≈`.
+  Brewed amounts only, never consumption. Explain why Bluetooth/local-network access is needed
+  before asking. Keep device addresses, device names and real server details out of public
+  examples; use `coffee.example.com`.
+
 ## UI design
 
 - Every UI task, including a new screen and any change to an existing screen or widget, starts from an editable
@@ -49,15 +82,12 @@ names and serials stay out (`ScaleClient` never logs the address). Servers and t
   dynamic colors and using the existing Compose Material primitives. Respect the system motion preferences and start
   from the [official motion guidance](https://m3.material.io/styles/motion/overview).
 - A draft communicates flow and guides planning; it is not approval. Ask the user about unresolved product choices.
-- Finished UI evidence comes from `scripts/screenshots.sh` and follows the table rule under Devices, not the sketch.
 
 ## Devices
 
-- Screenshots (docs/screenshots and PR descriptions) come from `scripts/screenshots.sh`, which renders them on the JVM
-  with Roborazzi: no emulator, it runs in the cloud too. Cloud sessions build and test with the Android SDK setup script;
-  the Mac is only for the emulator and real devices.
-- PR screenshots go in a table: one row per scenario with a short description and locale, Light and Dark image columns
-  at a constrained width so each pair reads comfortably, and alt text naming state, locale and theme.
+- Screen flows are covered by JVM Robolectric tests (`ScreenTests`, `WatchTests`): no emulator, they run in the cloud too.
+  Cloud sessions build and test with the Android SDK setup script; the Mac is only for the emulator and real devices.
+- PRs do not require a screenshot table. If a change is visual, attach evidence from a device or emulator run when useful.
 - The emulator is for instrumented tests, `scripts/e2e.sh` and on-device checks; with the phone also plugged in, set
   `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.
@@ -75,6 +105,49 @@ the Release workflow (`gh workflow run release.yml`); `scripts/release-apk.sh --
 a `StateFlow` would swallow. Detector changes are checked against the replay sessions in
 `app/src/test/resources/sessions/`; raw captures that are not fixtures stay in the
 git-ignored `spike-captures/`.
+
+## BLE
+
+Wire format, GATT identifiers, connection order and the frame layout live in
+`DotProtocol.kt` (KDoc). Match `TIMEMORE_Dot` / `TES017` only, never a bare "dot". The Dot bonds to one
+phone (HCI 0x3E); MTU 247 → bond → notify → grams + standard mode is the connection order. Confirmed
+on a real Dot: the raw flow saturates at 99.9 and brew logic does not rely on it (flow is derived from
+weight in `FlowSmoother`); the overload flag
+is payload byte 8; weight reads negative at power-on once removed; no stability flag exists
+(stability is computed in the app). No keep-alive is needed; battery arrives as a read reply or an
+unreliable push — poll and accept either.
+
+## Data
+
+- Layers go one way: `model ← data ← brew ← sync ← ui` (`LayerDependencyTest` enforces it; only
+  `ui` and the root use `R`/`BuildConfig`). The phone is the source of truth; the scale stays in
+  standard mode and brew detection runs in the app. The app talks to the scale only while open; the
+  screen stays on during a brew.
+- Room sources are in `app/schemas/`; every version change needs a migration and a migration test.
+  Tables `brews` and `brew_samples` (curve, ≤10 Hz, deleted with its brew) cover the brews; the
+  exported schema keeps compatibility guarantees.
+- Upload contract (`contract/`): `POST /api/v1/brews` with a Bearer token; every field required,
+  unknown ones rejected; `id` is a phone UUID the server upserts (retries never duplicate); `201`
+  new / `200` resent; 4xx never retried, 5xx/timeouts retried. One WorkManager job per brew, only
+  while a server is set. A contract change starts in `contract/` first.
+- App data is excluded from cloud backups and device transfers (`data_extraction_rules.xml`); the
+  token is never logged, put in an error, or sent to another location: redirects are never followed.
+  Limits stay in `contract/README.md`.
+
+## Validation
+
+Automated: `scripts/check.sh` (JVM tests incl. `RecordedSessionTest` replay and `ScreenTests`,
+lint, debug build, `compileDebugAndroidTestKotlin`, Go contract tests) and `./gradlew
+connectedDebugAndroidTest` on the emulator. Manual runs need the real Dot and are recorded against
+the issue tracker (date, app version, phone, Android version, pass/fail per step), never as repo
+prose:
+
+- Scale: pair from scratch < 30 s, ±0.1 g against a reference, tare < 1 s, reconnect after power
+  loss and after returning from background, re-pair reset hint, no address/name in the debug log.
+- Brews: real espresso and filter saved with observed numbers (yield ±0.3 g, start ±0.5 s, end
+  ±1 s), screen stays on, lift/disconnect handled as documented.
+- Sync: airplane-mode brew uploads on reconnect without opening the app; wrong-token and local-
+  network-denied errors show their fix; no upload without a server.
 
 ## Related repositories
 

@@ -3,8 +3,30 @@ package io.github.mateuxlucax.caparao.data.scale
 import java.util.UUID
 
 /**
- * Wire format of the Timemore Dot (docs/hardware.md): GATT identifiers, frame types, command ids and the encoders for
+ * Wire format of the Timemore Dot: GATT identifiers, frame types, command ids and the encoders for
  * what the app sends. Pure Kotlin so it runs on the JVM with recorded frames (#86).
+ *
+ * Device: model `TES017`, advertised name `TIMEMORE_Dot` (matched by name or model only, never a bare "dot").
+ * No display; one power button under the scale and an LED. Remembers one bonded phone and drops other
+ * connections (HCI 0x3E); to pair another phone hold the button until the LED blinks fast.
+ *
+ * GATT: service `0000fff0-…`, notify `0000fff1-…` (scale → app), write without response `0000fff2-…` (app → scale).
+ * Connection: connect (up to 3 attempts), request MTU 247, bond (required: the Dot streams only on an encrypted
+ * link), enable notifications on FFF1, then grams (`03 06 [00]`) and standard mode (`03 08 [01 00]`); battery
+ * is polled every 60 s (`02 05`).
+ *
+ * Frame layout: `A5 5A <type> <cmd> <len_hi> <len_lo> <payload…> <crc_hi> <crc_lo>`. `type` is `01` notification,
+ * `02` read, `03` write (and its acknowledgement as `03 <cmd> 00 01 01`). Outgoing CRC is CRC-16/MODBUS
+ * (init `0xFFFF`, reflected poly `0xA001`) over every byte before it, big-endian. Incoming CRC is `00 00` and
+ * is never validated. One notification may hold several frames and a frame may be split across two; the decoder
+ * buffers and resyncs on `A5 5A`, dropping any declared length above 64.
+ *
+ * Known quirks (confirmed on a real Dot): the scale's raw flow saturates at 99.9 on sudden loads and brew
+ * logic does not rely on it; flow is derived from weight in `FlowSmoother` (the display clamps the raw value
+ * for the readout). The overload flag is payload byte 8 (set ~1300 g). Weight at power-on reads negative once
+ * removed (the Dot zeroes itself at boot). No stability flag is provided — stability is computed in the app.
+ * No keep-alive is needed: 5 min 42 s connected and idle saw no drop. Battery sometimes arrives as a push
+ * (`01 05`) and sometimes only as a read reply (`02 05`); the app polls and takes either.
  */
 object DotProtocol {
     val SERVICE_UUID: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")

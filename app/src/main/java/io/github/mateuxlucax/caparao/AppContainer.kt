@@ -57,7 +57,7 @@ class AppContainer(context: Context) {
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
     )
 
-    /** Public for the screenshot test, which empties it between runs. */
+    /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)
 
     val brews = BrewRepository(database.brews()) { BrewWidgetProvider.requestRefresh(appContext) }

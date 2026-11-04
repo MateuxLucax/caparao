@@ -20,7 +20,7 @@ import org.json.JSONObject
 /**
  * Plays a session recorded from a real Dot (the probe's JSONL, src/test/resources/sessions) as if the scale were
  * connected: the notifications go through the same [FrameDecoder] at their recorded pace, looping. Used on the
- * emulator, which has no Bluetooth, for screenshots and end-to-end tests (#94).
+ * emulator, which has no Bluetooth, for end-to-end tests (#94).
  *
  * Tare and the timer are applied here, since there is no scale to obey them.
  */

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes app/src/test/resources/sessions/synthetic-espresso.jsonl: a made-up espresso in the probe's format.
 
-Not a recording: it exists so the emulator can replay a whole espresso (screenshots, UI tests) until real ones are
+Not a recording: it exists so the emulator can replay a whole espresso (UI tests) until real ones are
 recorded. Timeline: empty scale, cup (150 g) placed at 2 s and left still until 14 s (time to set the dose), a 26 s shot to 36 g with the flow
 easing off at the end, the cup left on the scale, then lifted. Weights are raw (the replay applies the app's tare).
 """
