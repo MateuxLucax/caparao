@@ -88,7 +88,7 @@ jobs:
           raw_log_dir="$RUNNER_TEMP/caparao-e2e-raw-logs"
           rm -f "$RUNNER_TEMP/caparao-e2e-artifacts-ready"
           mkdir -p "$raw_log_dir"
-          python3 scripts/e2e-diagnostics.py prepare-output \
+          python3 scripts/ci/e2e-diagnostics.py prepare-output \
             --log-dir "$RUNNER_TEMP/caparao-e2e-logs" \
             --raw-dir "$raw_log_dir" \
             --managed-output-root "$RUNNER_TEMP"
@@ -109,14 +109,14 @@ jobs:
           emulator-boot-timeout: 300
           disable-linux-hw-accel: false
           # The action runs its script through sh -c; invoke the pipefail wrapper explicitly with Bash.
-          script: bash scripts/e2e-ci.sh
+          script: bash scripts/ci/e2e-ci.sh
 
       - name: Capture emulator diagnostics
         if: always()
         continue-on-error: true
         shell: bash
         run: |
-          python3 scripts/e2e-diagnostics.py collect \
+          python3 scripts/ci/e2e-diagnostics.py collect \
             --log-dir "$RUNNER_TEMP/caparao-e2e-logs" \
             --adb "$ANDROID_HOME/platform-tools/adb" \
             --heading "Post-run emulator diagnostics" \

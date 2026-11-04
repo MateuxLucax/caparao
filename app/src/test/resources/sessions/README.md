@@ -1,7 +1,7 @@
 # Recorded sessions
 
 Real Timemore Dot sessions captured with the removed stage 0 probe or with
-[`scripts/capture-session.py`](../../../../scripts/capture-session.py), used as test fixtures
+[`scripts/capture/capture-session.py`](../../../../scripts/capture/capture-session.py), used as test fixtures
 ([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). One JSON object per line: a header, then
 `{"t_ms", "dir": "rx"|"tx"|"event", "hex", "note"}`. `rx` lines are notifications exactly as received, so one line may
 hold several frames. No MAC address or device name is recorded. Raw captures stay in the ignored `spike-captures/`
@@ -12,9 +12,9 @@ until reviewed.
 | `press-ramp.jsonl` | SM-S916B, Android 17 | Connect and handshake; ~34 s empty; pressing the platform harder by hand up to ~1300 g (flow saturates at 99.9, overload flag on), release back to 0. Battery pushed twice as `01 05`. |
 | `idle-5min.jsonl` | SM-S916B, Android 17 | Connect and handshake; 5 min 42 s with nothing on the scale and no commands sent: no drop, no gap over 237 ms, no battery push. |
 
-| `synthetic-espresso.jsonl` | none | **Synthetic**, written by `scripts/synthetic-session.py`: cup placed at 2 s, a 26 s shot to 36 g from 14 s, cup lifted at 49 s. For replaying a whole espresso on the emulator (UI tests); never used to tune the detectors. |
-| `synthetic-espresso-guide.jsonl` | none | **Synthetic**, written by `scripts/synthetic-guide-sessions.py`: empty for 8 s, cup at 8 s, a 25 s shot from 18 s. For the brew guide tests. |
-| `synthetic-filter-lift.jsonl` | none | **Synthetic**, written by `scripts/synthetic-guide-sessions.py`: a 255 g pour over dripper and server from 20 s, everything lifted at 90 s. For the filter tests. |
+| `synthetic-espresso.jsonl` | none | **Synthetic**, written by `scripts/fixtures/synthetic-session.py`: cup placed at 2 s, a 26 s shot to 36 g from 14 s, cup lifted at 49 s. For replaying a whole espresso on the emulator (UI tests); never used to tune the detectors. |
+| `synthetic-espresso-guide.jsonl` | none | **Synthetic**, written by `scripts/fixtures/synthetic-guide-sessions.py`: empty for 8 s, cup at 8 s, a 25 s shot from 18 s. For the brew guide tests. |
+| `synthetic-filter-lift.jsonl` | none | **Synthetic**, written by `scripts/fixtures/synthetic-guide-sessions.py`: a 255 g pour over dripper and server from 20 s, everything lifted at 90 s. For the filter tests. |
 
 ## Prometheus-derived partial regression curves
 

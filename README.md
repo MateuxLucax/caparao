@@ -114,6 +114,21 @@ scripts/setup-hooks.sh   # secret scan before every commit (needs: brew install 
 scripts/check.sh         # JVM tests, lint, debug build and instrumented-test compilation
 ```
 
+### Scripts
+
+| Purpose | Entry point |
+|---|---|
+| Fast local and CI gate (tests, lint, debug build) | `scripts/check.sh` |
+| Emulator end-to-end (replayed brews against the pinned exporter) | `scripts/e2e.sh` |
+| Build and run the pinned development exporter | `scripts/exporter.sh` |
+| Install the Wear OS app over Wi-Fi | `scripts/install-watch.sh` |
+| Install git hooks and the secret scan | `scripts/setup-hooks.sh` |
+| Create the release key, or build a signed release APK | `scripts/release-key.sh`, `scripts/release-apk.sh` |
+| CI internals: emulator E2E wrapper and bounded, sanitized diagnostics | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`) |
+| Record a scale session and its Python dependencies | `scripts/capture/` (`capture-session.py`, `requirements-capture.txt`) |
+| Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
+| Script tests | `scripts/tests/` |
+
 Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. Debug builds can replay a recorded session instead of the scale
 (the emulator has no Bluetooth):
 

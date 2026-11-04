@@ -1,9 +1,9 @@
-"""Focused tests for scripts/e2e-diagnostics.py and the E2E diagnostic wrappers.
+"""Focused tests for scripts/ci/e2e-diagnostics.py and the E2E diagnostic wrappers.
 
 Every device identifier here is fake. A stub adb records its argv and emits a multi-device inventory plus
 logcat lines containing fake serials, model names, a locally administered MAC address and a fake token.
 The tests verify the AndroidRuntime filter, line/byte bounds, sanitization of every visible device and both
-the success and failure paths of scripts/e2e-ci.sh without a real emulator or phone.
+the success and failure paths of scripts/ci/e2e-ci.sh without a real emulator or phone.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "e2e-diagnostics.py"
+SCRIPT = REPO_ROOT / "scripts" / "ci" / "e2e-diagnostics.py"
 SPEC = importlib.util.spec_from_file_location("e2e_diagnostics", SCRIPT)
 diagnostics = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -525,8 +525,10 @@ class E2EDiagnosticsTest(unittest.TestCase):
         repo = self.temp_dir / "repo"
         scripts = repo / "scripts"
         scripts.mkdir(parents=True)
-        shutil.copy2(REPO_ROOT / "scripts" / "e2e-ci.sh", scripts / "e2e-ci.sh")
-        shutil.copy2(REPO_ROOT / "scripts" / "e2e-diagnostics.py", scripts / "e2e-diagnostics.py")
+        ci = scripts / "ci"
+        ci.mkdir(parents=True)
+        shutil.copy2(REPO_ROOT / "scripts" / "ci" / "e2e-ci.sh", ci / "e2e-ci.sh")
+        shutil.copy2(REPO_ROOT / "scripts" / "ci" / "e2e-diagnostics.py", ci / "e2e-diagnostics.py")
         fake_e2e = scripts / "e2e.sh"
         fake_e2e.write_text(FAKE_E2E, encoding="utf-8")
         fake_e2e.chmod(0o755)
@@ -554,7 +556,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         python_wrapper = bin_dir / "python3"
         python_wrapper.write_text(
             "#!/bin/sh\n"
-            'if [ "${1:-}" = "scripts/e2e-diagnostics.py" ]; then\n'
+            'if [ "${1:-}" = "scripts/ci/e2e-diagnostics.py" ]; then\n'
             '  printf \'%s\\n\' "$*" >> "$E2E_HELPER_ARGS_LOG"\n'
             "fi\n"
             f"exec {shlex.quote(sys.executable)} \"$@\"\n",
@@ -608,7 +610,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         if force:
             env["E2E_FORCE_FAILURE"] = "true"
         result = subprocess.run(
-            ["bash", str(repo / "scripts" / "e2e-ci.sh")],
+            ["bash", str(repo / "scripts" / "ci" / "e2e-ci.sh")],
             cwd=str(repo),
             env=env,
             capture_output=True,
@@ -720,8 +722,10 @@ class E2EDiagnosticsTest(unittest.TestCase):
         repo = self.temp_dir / "actual-e2e"
         scripts = repo / "scripts"
         scripts.mkdir(parents=True)
+        ci = scripts / "ci"
+        ci.mkdir(parents=True)
         shutil.copy2(REPO_ROOT / "scripts" / "e2e.sh", scripts / "e2e.sh")
-        shutil.copy2(REPO_ROOT / "scripts" / "e2e-diagnostics.py", scripts / "e2e-diagnostics.py")
+        shutil.copy2(REPO_ROOT / "scripts" / "ci" / "e2e-diagnostics.py", ci / "e2e-diagnostics.py")
         shutil.copy2(REPO_ROOT / "scripts" / "exporter.sh", scripts / "exporter.sh")
         logs = repo / "safe-logs"
         exporter_pid_file = repo / "exporter.pid"
@@ -804,7 +808,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertFalse(logs.exists())
 
     def test_shell_scripts_parse_and_keep_the_real_assertions(self) -> None:
-        for script in ("e2e.sh", "e2e-ci.sh"):
+        for script in (Path("e2e.sh"), Path("ci") / "e2e-ci.sh"):
             completed = subprocess.run(
                 ["bash", "-n", str(REPO_ROOT / "scripts" / script)],
                 capture_output=True,
@@ -822,7 +826,7 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertNotIn("docker", e2e)
         self.assertIn("--runtime-log", e2e)
 
-        e2e_ci = (REPO_ROOT / "scripts" / "e2e-ci.sh").read_text(encoding="utf-8")
+        e2e_ci = (REPO_ROOT / "scripts" / "ci" / "e2e-ci.sh").read_text(encoding="utf-8")
         self.assertIn("--append-emulator", e2e_ci)
 
 

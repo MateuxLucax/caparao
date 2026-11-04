@@ -10,7 +10,7 @@ Weights are raw (the replay applies the app's tare).
 """
 import json, random, pathlib
 
-sessions = pathlib.Path(__file__).resolve().parent.parent / "app/src/test/resources/sessions"
+sessions = pathlib.Path(__file__).resolve().parent.parent.parent / "app/src/test/resources/sessions"
 
 
 def frame(grams, flow):

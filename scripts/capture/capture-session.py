@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CAPTURE_DIR = REPO_ROOT / "spike-captures"
 
 DOT_NAME = "TIMEMORE_Dot"
@@ -519,7 +519,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except ModuleNotFoundError:
         print(
             f"bleak is not installed; run: {sys.executable} -m pip install "
-            "-r scripts/requirements-capture.txt",
+            "-r scripts/capture/requirements-capture.txt",
             file=sys.stderr,
         )
         return 2
