@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 log_dir="$runner_temp/caparao-e2e-logs"
@@ -11,7 +11,7 @@ rm -f "$artifact_ready"
 mkdir -p "$raw_log_dir"
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 token=$(openssl rand -hex 16)
-python3 scripts/e2e-diagnostics.py prepare-output \
+python3 scripts/ci/e2e-diagnostics.py prepare-output \
   --log-dir "$log_dir" \
   --raw-dir "$raw_log_dir" \
   --managed-output-root "$runner_temp"
@@ -34,7 +34,7 @@ capture_emulator_logs() {
   if [ "$status" -ne 0 ]; then
     diagnostic_args+=(--runtime-log)
   fi
-  if ! E2E_DIAGNOSTICS_SENSITIVE="$token" python3 scripts/e2e-diagnostics.py "${diagnostic_args[@]}"; then
+  if ! E2E_DIAGNOSTICS_SENSITIVE="$token" python3 scripts/ci/e2e-diagnostics.py "${diagnostic_args[@]}"; then
     echo "warning: E2E diagnostic sanitization failed; no raw logs were published" >&2
   fi
   unset token
@@ -43,7 +43,7 @@ capture_emulator_logs() {
 trap capture_emulator_logs EXIT
 
 E2E_AUTH_TOKEN="$token" E2E_RAW_LOG_DIR="$raw_log_dir" E2E_PORT="${E2E_PORT:-8099}" \
-  python3 scripts/e2e-diagnostics.py run \
+  python3 scripts/ci/e2e-diagnostics.py run \
     --log-file "$raw_log_dir/e2e.log" \
     --adb "$adb" \
     --serial "${ANDROID_SERIAL:-}" \

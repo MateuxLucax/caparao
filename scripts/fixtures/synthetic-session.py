@@ -8,7 +8,7 @@ easing off at the end, the cup left on the scale, then lifted. Weights are raw (
 import json, math, random, pathlib
 
 random.seed(7)
-out = pathlib.Path(__file__).resolve().parent.parent / "app/src/test/resources/sessions/synthetic-espresso.jsonl"
+out = pathlib.Path(__file__).resolve().parent.parent.parent / "app/src/test/resources/sessions/synthetic-espresso.jsonl"
 
 
 def frame(grams, flow):
@@ -37,7 +37,7 @@ def weight_at(t):
     return 0.0
 
 
-lines = [json.dumps({"label": "SYNTHETIC espresso (scripts/synthetic-session.py), not a recording", "app": "script"})]
+lines = [json.dumps({"label": "SYNTHETIC espresso (scripts/fixtures/synthetic-session.py), not a recording", "app": "script"})]
 prev = 0.0
 for i in range(0, 520):
     t = i / 10

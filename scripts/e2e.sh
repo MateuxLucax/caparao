@@ -12,7 +12,7 @@
 # suite; this script validates the app-facing API and persistence only.
 #
 # Failure diagnostics are filtered to AndroidRuntime:E (all other tags silent), bounded, and scrubbed of device
-# serials, model names, addresses and tokens by scripts/e2e-diagnostics.py before they are uploaded (#146).
+# serials, model names, addresses and tokens by scripts/ci/e2e-diagnostics.py before they are uploaded (#146).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -51,7 +51,7 @@ cleanup() {
     if [ "$status" -ne 0 ]; then
       diagnostic_args+=(--status "$status" --runtime-log)
     fi
-    if ! E2E_DIAGNOSTICS_SENSITIVE="$token" python3 scripts/e2e-diagnostics.py "${diagnostic_args[@]}"; then
+    if ! E2E_DIAGNOSTICS_SENSITIVE="$token" python3 scripts/ci/e2e-diagnostics.py "${diagnostic_args[@]}"; then
       echo "warning: E2E diagnostic sanitization failed; no raw logs were published" >&2
     fi
   fi

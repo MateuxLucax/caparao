@@ -1,4 +1,4 @@
-"""Unit tests for scripts/capture-session.py. No Bluetooth adapter or bleak installation is required."""
+"""Unit tests for scripts/capture/capture-session.py. No Bluetooth adapter or bleak installation is required."""
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "capture-session.py"
+SCRIPT = REPO_ROOT / "scripts" / "capture" / "capture-session.py"
 SPEC = importlib.util.spec_from_file_location("capture_session", SCRIPT)
 capture = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
