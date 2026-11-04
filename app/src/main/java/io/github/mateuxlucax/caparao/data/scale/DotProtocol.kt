@@ -21,11 +21,12 @@ import java.util.UUID
  * is never validated. One notification may hold several frames and a frame may be split across two; the decoder
  * buffers and resyncs on `A5 5A`, dropping any declared length above 64.
  *
- * Known quirks (confirmed on a real Dot): the scale's flow saturates at 99.9 on sudden loads — clamp and smooth
- * in the app (`FlowSmoother`). The overload flag is payload byte 8 (set ~1300 g). Weight at power-on reads
- * negative once removed (the Dot zeroes itself at boot). No stability flag is provided — stability is computed
- * in the app. No keep-alive is needed: 5 min 42 s connected and idle saw no drop. Battery sometimes arrives
- * as a push (`01 05`) and sometimes only as a read reply (`02 05`); the app polls and takes either.
+ * Known quirks (confirmed on a real Dot): the scale's raw flow saturates at 99.9 on sudden loads and brew
+ * logic does not rely on it; flow is derived from weight in `FlowSmoother` (the display clamps the raw value
+ * for the readout). The overload flag is payload byte 8 (set ~1300 g). Weight at power-on reads negative once
+ * removed (the Dot zeroes itself at boot). No stability flag is provided — stability is computed in the app.
+ * No keep-alive is needed: 5 min 42 s connected and idle saw no drop. Battery sometimes arrives as a push
+ * (`01 05`) and sometimes only as a read reply (`02 05`); the app polls and takes either.
  */
 object DotProtocol {
     val SERVICE_UUID: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")

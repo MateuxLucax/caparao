@@ -8,9 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.wear.compose.material3.TimeSource
 import io.github.mateuxlucax.caparao.watch.WatchGuide
@@ -54,7 +57,19 @@ abstract class WatchTests(private val lang: String) {
         ),
     )
 
-    @Test fun disconnected() = shot(WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false))
+    @Test fun disconnected() {
+        val snapshot = WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false)
+        compose.setContent {
+            Box(Modifier.fillMaxSize().background(Color.White).clip(CircleShape)) {
+                WatchScreen(snapshot, onTare = {}, onTimer = {}, onReset = {}, timeSource = FixedTime)
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText(
+            ApplicationProvider.getApplicationContext<android.content.Context>()
+                .getString(R.string.scale_disconnected),
+        ).assertIsDisplayed()
+    }
 
     private fun shot(snapshot: WatchSnapshot) {
         // Robolectric draws a square: clip to the round screen the qualifiers describe.

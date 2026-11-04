@@ -82,6 +82,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -213,8 +216,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         openDiagnosticsCard()
         diagnosticsAction(R.string.diagnostics_start)
         waitFor(R.string.diagnostics_recording)
-        compose.onNodeWithText(text(R.string.diagnostics_stop)).performScrollTo()
-        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.diagnostics_stop)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -224,8 +226,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         waitFor(R.string.diagnostics_recording)
         diagnosticsAction(R.string.diagnostics_stop)
         waitFor(R.string.diagnostics_ready)
-        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo()
-        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -235,8 +236,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         waitFor(R.string.diagnostics_recording)
         diagnostics.recordDisconnect()
         waitFor(R.string.diagnostics_incomplete)
-        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo()
-        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -256,6 +256,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             click(tab.label)
             compose.waitForIdle()
         }
+        // Each tab must show its distinctive content.
+        click(R.string.tab_home)
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.tare)), 5_000)
+        compose.onNodeWithContentDescription(text(R.string.tare)).assertIsDisplayed()
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60"), 5_000)
+        compose.onAllNodesWithText("V60").onFirst().assertIsDisplayed()
+        click(R.string.tab_brews)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.onNodeWithText(text(R.string.brews_empty_title)).assertIsDisplayed()
+        click(R.string.tab_settings)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.section_diagnostics)), 5_000)
+        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().assertIsDisplayed()
         // The built-in V60 recipe in the editor: its name, then its method on the card.
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
@@ -313,6 +326,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         compose.waitForIdle()
         compose.onNodeWithTag("widget").assertExists()
+        assertEquals(text(R.string.widget_last_brew_title), context.getString(R.string.widget_last_brew_title))
         latest = null
         compose.waitForIdle()
         compose.onNodeWithTag("widget").assertExists()
@@ -374,6 +388,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         compose.waitForIdle()
         compose.onNodeWithTag("weekly-widget").assertExists()
+        // The rendered estimates: beverage and caffeine carry ≈, dose is recorded and has none.
+        val beverage = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.beverageVolume(context, week.estimatedBeverageMl)
+        val caffeine = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.caffeine(context, week.estimatedCaffeineMg)
+        val dose = io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.dose(context, week.doseGrams)
+        assertTrue(beverage.startsWith("≈ "))
+        assertTrue(caffeine.startsWith("≈ "))
+        assertFalse(dose.startsWith("≈"))
         week = emptyWeek
         compose.waitForIdle()
         compose.onNodeWithTag("weekly-widget").assertExists()
@@ -393,7 +414,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.tab_settings)
         compose.waitForIdle()
         click(R.string.coffees_manage)
-        compose.waitForIdle()
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).assertIsDisplayed()
     }
 
     /** The home tab in each brand color (#108). */
@@ -404,6 +426,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         BrandColor.entries.forEach {
             brand = it
             compose.waitForIdle()
+            compose.onNodeWithContentDescription(text(R.string.tare)).assertIsDisplayed()
         }
         // The Colors section in Settings, switching from the system's colors to Caparaó's.
         brand = null
@@ -413,6 +436,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNode(hasText(text(R.string.colors_brand)) and hasClickAction()).performClick()
         brand = BrandColor.LEAF
         compose.waitForIdle()
+        compose.onAllNodesWithText(text(R.string.colors_brand)).onFirst().assertIsDisplayed()
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */
@@ -554,14 +578,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.ratio_caption))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
         compose.waitForIdle()
         play(scale, 45_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
         compose.waitForIdle()
         play(scale, 59_000)
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
         compose.waitForIdle()
         play(scale, 69_000)
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(150.0, locale))), 5_000)
         compose.waitForIdle()
         play(scale, 89_500)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
     }
 

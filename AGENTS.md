@@ -52,19 +52,24 @@ same comment.
   (`Only on this phone`); distinguish saved, sent and synced.
 - Mechanics: sentence case everywhere including titles and buttons. Use `…` for ongoing states
   (`Connecting…`); full sentences end with a period, titles/labels/buttons do not. Formatting comes
-  from code; units are `g` and `g/s`. Natural EN contractions. `Caparaó` is never translated. Say
-  "the scale" in instructions, "the Dot" when the model matters; pt-BR: "a balança" / "a Dot".
+  from code; units are `g` and `g/s`; pt-BR decimal comma comes from the locale. Ratio is `1:%1$s`.
+  Address is "you"/imperative in EN, "você"/imperative (`Ligue`, `Segure`) in pt-BR. Natural EN
+  contractions. `Caparaó` is never translated. Say "the scale" in instructions, "the Dot" when the
+  model matters; pt-BR: "a balança" / "a Dot".
 - Vocabulary (EN / pt-BR): brew/preparo, dose, yield/bebida, water/água, ratio/razão, flow/fluxo,
   tare/tara, first drop/primeira gota, send/enviar (upload action) vs sync/sincronizar (status),
   recipe/receita, step/etapa, pour/despejo, wait/espera, grind/moagem, coffee/café, rating/nota.
-  French press: steep → Infusão. "Shot" only in espresso instructions.
+  French press: steep → Infusão. "Shot" only in espresso instructions. French-press guide order:
+  no press instruction before the deadline — remove first, then press and serve.
 - Patterns: buttons name the action in one or two words (`Tare`, `Save`, `Retry`); pt-BR uses the
   infinitive (`Salvar`, `Descartar`). Errors are title (problem, no blame, no period) plus hint
   (the action, ending with that action). Empty states are one short line, no subtitle.
   Ongoing states are a present participle + `…`; finished states a short past participle (`Saved`).
-  Widget estimates are prefixed `≈` (brewed amounts, never consumption or health advice). Explain
-  why Bluetooth/local-network access is needed before asking. Keep device addresses, device names
-  and real server details out of public examples; use `coffee.example.com`.
+  Confirmations put the question in the title (`Delete this brew?`) with `Delete`/`Cancel`.
+  Widget: estimates (beverage and caffeine) are prefixed `≈`; dose is recorded and has no `≈`.
+  Brewed amounts only, never consumption. Explain why Bluetooth/local-network access is needed
+  before asking. Keep device addresses, device names and real server details out of public
+  examples; use `coffee.example.com`.
 
 ## UI design
 
@@ -106,7 +111,8 @@ git-ignored `spike-captures/`.
 Wire format, GATT identifiers, connection order and the frame layout live in
 `DotProtocol.kt` (KDoc). Match `TIMEMORE_Dot` / `TES017` only, never a bare "dot". The Dot bonds to one
 phone (HCI 0x3E); MTU 247 → bond → notify → grams + standard mode is the connection order. Confirmed
-on a real Dot: the raw flow saturates at 99.9 (clamp + smooth with `FlowSmoother`); the overload flag
+on a real Dot: the raw flow saturates at 99.9 and brew logic does not rely on it (flow is derived from
+weight in `FlowSmoother`); the overload flag
 is payload byte 8; weight reads negative at power-on once removed; no stability flag exists
 (stability is computed in the app). No keep-alive is needed; battery arrives as a read reply or an
 unreliable push — poll and accept either.
@@ -125,7 +131,8 @@ unreliable push — poll and accept either.
   new / `200` resent; 4xx never retried, 5xx/timeouts retried. One WorkManager job per brew, only
   while a server is set. A contract change starts in `contract/` first.
 - App data is excluded from cloud backups and device transfers (`data_extraction_rules.xml`); the
-  token is never logged or put in an error.
+  token is never logged, put in an error, or sent to another location: redirects are never followed.
+  Limits stay in `contract/README.md`.
 
 ## Validation
 
