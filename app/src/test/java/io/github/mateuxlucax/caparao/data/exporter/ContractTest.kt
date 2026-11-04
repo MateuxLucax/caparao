@@ -12,15 +12,21 @@ import java.io.File
 import kotlin.math.roundToLong
 
 /**
- * The body [ExporterClient] builds against the shared files in contract/ (the same ones
- * scripts/exporter-contract-test.sh posts to the pinned exporter):
- * a brew equal to each valid example must serialize to that example, and the keys must be the schema's.
+ * The body [ExporterClient] builds must continue to match the client fixtures copied from the canonical exporter
+ * contract: a brew equal to each valid example serializes to that example, and the keys match the schema.
  */
 class ContractTest {
-    // Unit tests run in the app module directory.
-    private val contract = File("../contract")
+    private fun read(path: String) = JSONObject(
+        requireNotNull(javaClass.getResourceAsStream("/contract/$path")) { "missing contract fixture: $path" }
+            .bufferedReader().use { it.readText() },
+    )
 
-    private fun read(file: File) = JSONObject(file.readText())
+    private fun validFixtures(): List<String> {
+        val directory = File(requireNotNull(javaClass.getResource("/contract/valid")).toURI())
+        return requireNotNull(directory.listFiles { file -> file.extension == "json" })
+            .map { it.name }
+            .sorted()
+    }
 
     // Compiled against android.jar's org.json, which has keys() but not keySet().
     private fun JSONObject.keyNames(): Set<String> = keys().asSequence().toSet()
@@ -80,20 +86,20 @@ class ContractTest {
 
     @Test
     fun bodiesMatchTheValidExamples() {
-        val files = File(contract, "valid").listFiles { f -> f.extension == "json" }!!.sorted()
+        val files = validFixtures()
         assertTrue("no contract files found", files.size >= 4)
-        files.forEach { file ->
-            val expected = read(file)
+        files.forEach { name ->
+            val expected = read("valid/$name")
             val (brew, samples) = brewOf(expected)
             // Through a string, as on the wire.
             val actual = JSONObject(ExporterClient.body(brew, samples).toString())
-            assertJsonEquals(file.name, expected, actual)
+            assertJsonEquals(name, expected, actual)
         }
     }
 
     @Test
     fun filterBodyHasExactlyTheSchemaKeys() {
-        val schema = read(File(contract, "brew.schema.json"))
+        val schema = read("brew.schema.json")
         val brew = Brew("a3c1d7e4-8f20-4b6a-b5d9-1e7c3a9f0b24", BrewMode.FILTER, 1_792_935_000_000, 195_000, 15.0, 250.0, null, 1.3, 4.8, false)
         val body = JSONObject(ExporterClient.body(brew, listOf(BrewSample(0, 0.0, 0.0))).toString())
 

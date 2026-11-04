@@ -723,9 +723,10 @@ class E2EDiagnosticsTest(unittest.TestCase):
         shutil.copy2(REPO_ROOT / "scripts" / "e2e.sh", scripts / "e2e.sh")
         shutil.copy2(REPO_ROOT / "scripts" / "e2e-diagnostics.py", scripts / "e2e-diagnostics.py")
         shutil.copy2(REPO_ROOT / "scripts" / "exporter.sh", scripts / "exporter.sh")
-        shutil.copy2(REPO_ROOT / "scripts" / "exporter-contract-test.sh", scripts / "exporter-contract-test.sh")
-        (repo / "contract").mkdir()
         logs = repo / "safe-logs"
+        exporter_pid_file = repo / "exporter.pid"
+        temp_path_file = repo / "e2e-temp-path"
+        token = "1234567890123456"
         gradlew = repo / "gradlew"
         gradlew.write_text("#!/bin/sh\necho 'intentional fake build failure' >&2\nexit 23\n", encoding="utf-8")
         gradlew.chmod(0o755)
@@ -734,27 +735,38 @@ class E2EDiagnosticsTest(unittest.TestCase):
             "#!/usr/bin/env bash\n"
             "if [ \"$1\" = build ]; then exit 0; fi\n"
             "out=\"$2\"\n"
-            "printf 'exporter listening token=%s\\n' \"$AUTH_TOKEN\" > \"$out/server.log\"\n"
+            "printf '%s\\n' \"$$\" > \"$FAKE_EXPORTER_PID_FILE\"\n"
+            "printf 'exporter token=%s serial=emulator-5554 model=FAKE_MODEL_X device=fake_device_x mac=02:00:00:00:00:01\\n' \\\n"
+            "  \"$AUTH_TOKEN\" > \"$out/server.log\"\n"
             "exec sleep 60\n",
             encoding="utf-8",
         )
         (scripts / "exporter.sh").chmod(0o755)
-        (scripts / "exporter-contract-test.sh").write_text(
-            "#!/usr/bin/env bash\nexit 0\n", encoding="utf-8"
-        )
-        (scripts / "exporter-contract-test.sh").chmod(0o755)
         bin_dir = repo / "bin"
         bin_dir.mkdir()
         fake_curl = bin_dir / "curl"
         fake_curl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         fake_curl.chmod(0o755)
+        fake_mktemp = bin_dir / "mktemp"
+        fake_mktemp.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os, subprocess, sys\n"
+            f"result = subprocess.run([{shutil.which('mktemp')!r}, *sys.argv[1:]], check=True, text=True, capture_output=True)\n"
+            "path = result.stdout.strip()\n"
+            "open(os.environ['FAKE_E2E_TEMP_PATH_FILE'], 'w').write(path)\n"
+            "print(path)\n",
+            encoding="utf-8",
+        )
+        fake_mktemp.chmod(0o755)
         self._write_fake_adb(repo / "sdk")
 
         env = self.environment(
             ANDROID_HOME=str(repo / "sdk"),
             ANDROID_SERIAL=EMULATOR_SERIAL,
             E2E_LOG_DIR=str(logs),
-            E2E_AUTH_TOKEN="1234567890123456",
+            E2E_AUTH_TOKEN=token,
+            FAKE_EXPORTER_PID_FILE=str(exporter_pid_file),
+            FAKE_E2E_TEMP_PATH_FILE=str(temp_path_file),
             FAKE_ADB_LOGCAT=LOGCAT_OUTPUT,
             PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
         )
@@ -768,6 +780,14 @@ class E2EDiagnosticsTest(unittest.TestCase):
         )
 
         self.assertEqual(23, result.returncode, result.stderr)
+        exporter_pid = int(exporter_pid_file.read_text(encoding="utf-8"))
+        with self.assertRaises(ProcessLookupError):
+            os.kill(exporter_pid, 0)
+        self.assertFalse(Path(temp_path_file.read_text(encoding="utf-8")).exists())
+        server_log = (logs / "server.log").read_text(encoding="utf-8")
+        self.assert_sanitized(server_log)
+        self.assertNotIn(token, server_log)
+        self.assertIn("<redacted>", server_log)
         runtime = (logs / "android-runtime.log").read_text(encoding="utf-8")
         self.assertIn("E2E diagnostics for status 23", runtime)
         self.assertIn("AndroidRuntime: crash", runtime)
@@ -797,7 +817,6 @@ class E2EDiagnosticsTest(unittest.TestCase):
         self.assertIn("assert len(brews) == 2", e2e)
         self.assertIn('set(by_mode) == {"espresso", "french_press"}', e2e)
         self.assertIn("scripts/exporter.sh", e2e)
-        self.assertNotIn("scripts/exporter-contract-test.sh", e2e)
         self.assertNotIn("stub", e2e)
         self.assertNotIn("E2E_PROMETHEUS_PORT", e2e)
         self.assertNotIn("docker", e2e)

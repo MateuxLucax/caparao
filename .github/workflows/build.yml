@@ -1,36 +1,36 @@
 name: Build
 
-# Keep the Release workflow's Build dependency quick: unit tests, lint, the debug build and the contract fixtures
-# against the pinned exporter. Emulator end-to-end runs in a separate workflow (#80), so it does not gate or delay a release.
 on:
+  pull_request:
+    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   push:
     branches: [main]
     paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
     inputs:
-      run_e2e:
-        description: "Run E2E on this non-main branch for validation"
+      force_failure:
+        description: "Fail after E2E passes to verify failure log uploads"
         required: false
         default: false
         type: boolean
-      force_e2e_failure:
-        description: "Fail after E2E passes to verify failure log uploads"
+  workflow_call:
+    inputs:
+      force_failure:
         required: false
         default: false
         type: boolean
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Actions are pinned to commit SHAs (tag in the comment).
 permissions:
   contents: read
 
 jobs:
-  build:
+  fast:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,41 +39,12 @@ jobs:
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
-          # Robolectric's SDK 37 sandbox (the JVM screen tests) needs Java 21; the app still targets Java 17.
           java-version: "21"
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
-      - name: Unit tests, lint and build
-        run: ./gradlew --console=plain createDebugUnitTestCoverageReport :wear:testDebugUnitTest :wearlink:test lintDebug assembleDebug compileDebugAndroidTestKotlin
-
-      - name: Script tests
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
-
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version: "1.27.x"
-
-      - name: Contract fixtures against the pinned exporter
-        run: |
-          token="contract-check-$$-$(date +%s)"
-          tmp=$(mktemp -d)
-          scripts/exporter.sh build
-          AUTH_TOKEN="$token" EXPORTER_PORT=8098 scripts/exporter.sh start "$tmp" &
-          pid=$!
-          trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$tmp"' EXIT
-          for _ in $(seq 1 50); do curl -fs "http://127.0.0.1:8098/healthz" >/dev/null && break; sleep 0.2; done
-          curl -fs "http://127.0.0.1:8098/healthz" >/dev/null || { echo "exporter did not become ready" >&2; cat "$tmp/server.log" >&2; exit 1; }
-          scripts/exporter-contract-test.sh "http://127.0.0.1:8098" "$token"
-
-      # Picked up by the nightly SonarQube scan on the homeserver (sonar-project.properties).
-      - name: Upload coverage
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage
-          path: |
-            app/build/reports/coverage/test/debug/report.xml
-          retention-days: 7
+      - name: Shared local and CI checks
+        run: scripts/check.sh
 
       - name: Upload test and lint reports
         if: failure()
@@ -83,9 +54,8 @@ jobs:
           path: app/build/reports
           retention-days: 7
 
-  # This manual validation path runs only on a selected non-main branch; main pushes skip it and never wait on E2E.
-  e2e-validation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.run_e2e }}
+  e2e:
+    needs: fast
     uses: ./.github/workflows/e2e.yml
     with:
-      force_failure: ${{ inputs.force_e2e_failure }}
+      force_failure: ${{ inputs.force_failure || false }}

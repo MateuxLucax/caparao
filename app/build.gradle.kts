@@ -2,8 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
-    // Gradle's own, for the test tasks' JaCoCo settings below; AGP still writes the report.
-    jacoco
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
@@ -42,8 +40,6 @@ android {
         // A separate package so a debug build installs next to the release one instead of over it (their signers differ).
         debug {
             applicationIdSuffix = ".debug"
-            // JaCoCo XML for SonarQube: createDebugUnitTestCoverageReport (runs testDebugUnitTest first).
-            enableUnitTestCoverage = true
         }
         release {
             // R8: Compose without shrinking is ~25 MB. Room and WorkManager ship their own keep rules.
@@ -80,15 +76,6 @@ android {
     lint {
         warningsAsErrors = false
         abortOnError = true
-    }
-}
-
-// Robolectric loads the app's classes through its own class loader: without this JaCoCo misses everything the screen
-// tests run.
-tasks.withType<Test>().configureEach {
-    extensions.configure<JacocoTaskExtension> {
-        isIncludeNoLocationClasses = true
-        excludes = listOf("jdk.internal.*")
     }
 }
 

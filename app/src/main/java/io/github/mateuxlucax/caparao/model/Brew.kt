@@ -10,7 +10,7 @@ data class Brew(
     /** The first drop (espresso) or the first water (filter). */
     val startedAt: Long,
     val durationMs: Long,
-    /** Coffee dose, weighed or typed before the brew; always set (contract/README.md). */
+    /** Coffee dose, weighed or typed before the brew; required by the [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md). */
     val doseGrams: Double,
     /** Espresso: the beverage in the cup. Filter: the water poured. */
     val yieldGrams: Double,

@@ -2,8 +2,8 @@
 
 Android app for the Timemore Dot scale (Kotlin, Compose). The README is the project overview; the
 [issues](https://github.com/MateuxLucax/caparao/issues) are the only tracker and decision log.
-Modules: `app` (phone), `wear` (watch), `wearlink` (shared watch snapshot), `stub` (Go dev server), `contract` (upload
-schema). The user writes in Portuguese; code, commits and docs are in English, app strings in EN and pt-BR.
+Modules: `app` (phone), `wear` (watch), and `wearlink` (shared watch snapshot). The user writes in Portuguese; code,
+commits and docs are in English, app strings in EN and pt-BR.
 
 ## Tracking
 
@@ -24,7 +24,9 @@ A new worktree lacks git-ignored files: copy `local.properties` from the main ch
 path), and read raw captures from the main checkout's `spike-captures/`.
 
 - Pick only `agent-ready` issues whose dependencies are merged. Stop and ask instead of reopening a decision.
-- Open a PR and never merge: the user merges, because every green push to `main` is a release.
+- Open a PR and never merge: the user merges. PRs with build-relevant changes run Build checks and E2E; asset-,
+  documentation- and license-only changes are filtered out. A green Build on `main` releases that same commit. Manual
+  and `v*` tag releases run Build and E2E before signing.
 - `scripts/check.sh` and JVM tests can run in parallel. **The emulator is one worker at a time**: worktrees install the
   same `.debug` package, so a second worker breaks the first one's test.
 - Attach with `orca emulator attach` (AVDs `Pixel_10_Pro_XL`, `Wear_OS_XL_Round`) and always set `ANDROID_SERIAL`, so
@@ -35,7 +37,8 @@ path), and read raw captures from the main checkout's `spike-captures/`.
 Everything committed is public. Recordings, logs and docs carry the phone model at most: scale MAC addresses, device
 names and serials stay out (`ScaleClient` never logs the address). Servers and tokens in code, tests and docs are
 `coffee.example.com` and `dev-token`; the real domain and token live only in the user's homeserver `private/` copy.
-`scripts/check.sh` (tests, lint, build, gitleaks) runs locally before every push and mirrors CI.
+`scripts/check.sh` (JVM tests, lint, debug build, instrumented-test compilation and script tests) runs locally before
+every push and is the fast CI gate. Gitleaks is local-only: `check.sh` runs it when installed, but CI does not install it.
 
 ## App copy
 
@@ -96,8 +99,9 @@ same comment.
 ## Release
 
 The release key is `~/.config/caparao/release.jks` with its password in the Keychain item `caparao-signing`, both
-backed up by the user. Every release must use this key: a new one forces every user to uninstall. Releases come from
-the Release workflow (`gh workflow run release.yml`); `scripts/release-apk.sh --install` builds a signed one locally.
+backed up by the user. Every release must use this key: a new one forces every user to uninstall. Green Build runs on
+`main` trigger Release for that commit; manual and `v*` tag paths first call Build (fast checks and E2E). Signing
+secrets are available only to the signing job. `scripts/release-apk.sh --install` builds a signed one locally.
 
 ## Scale data
 
@@ -126,18 +130,22 @@ unreliable push — poll and accept either.
 - Room sources are in `app/schemas/`; every version change needs a migration and a migration test.
   Tables `brews` and `brew_samples` (curve, ≤10 Hz, deleted with its brew) cover the brews; the
   exported schema keeps compatibility guarantees.
-- Upload contract (`contract/`): `POST /api/v1/brews` with a Bearer token; every field required,
+- Upload contract: `POST /api/v1/brews` with a Bearer token; every field required,
   unknown ones rejected; `id` is a phone UUID the server upserts (retries never duplicate); `201`
   new / `200` resent; 4xx never retried, 5xx/timeouts retried. One WorkManager job per brew, only
-  while a server is set. A contract change starts in `contract/` first.
+  while a server is set. The canonical schema and fixtures live in the
+  [exporter repository](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md).
+  A contract change starts there, then bumps the exporter pin and updates the app and its client fixtures.
 - App data is excluded from cloud backups and device transfers (`data_extraction_rules.xml`); the
   token is never logged, put in an error, or sent to another location: redirects are never followed.
-  Limits stay in `contract/README.md`.
+  Limits are defined in the exporter's canonical [contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md).
 
 ## Validation
 
 Automated: `scripts/check.sh` (JVM tests incl. `RecordedSessionTest` replay and `ScreenTests`,
-lint, debug build, `compileDebugAndroidTestKotlin`, Go contract tests) and `./gradlew
+lint, debug build, `compileDebugAndroidTestKotlin`, script tests) and `scripts/e2e.sh` (pinned exporter, app uploads,
+SQLite brews and curves on an emulator). CI runs Build and E2E on every PR; Build also runs on `main` pushes and dispatches.
+`./gradlew
 connectedDebugAndroidTest` on the emulator. Manual runs need the real Dot and are recorded against
 the issue tracker (date, app version, phone, Android version, pass/fail per step), never as repo
 prose:
@@ -151,6 +159,6 @@ prose:
 
 ## Related repositories
 
-- `~/Development/timemore-dot-prometheus-exporter`: the server (Go, SQLite, Prometheus remote write), same contract as
-  `contract/` and `stub/`. Images go to GHCR from its CI.
+- `~/Development/timemore-dot-prometheus-exporter`: the server and canonical upload contract (Go, SQLite, Prometheus
+  remote write). Images go to GHCR from its CI.
 - `~/Development/homeserver`: deploys it as the `caparao` stack (`cafe.<domain>`). The user runs the Ansible playbook.

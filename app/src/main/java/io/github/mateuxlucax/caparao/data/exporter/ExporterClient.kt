@@ -14,9 +14,9 @@ import java.net.URL
 class HttpStatusException(val code: Int, message: String) : Exception(message)
 
 /**
- * Client of the upload contract (contract/README.md): `POST {serverUrl}/api/v1/brews` with a Bearer token. The JSON
- * wire format is built only in [body]. Throws [HttpStatusException] for a non-2xx answer and IOException when the
- * server can't be reached; sync/SyncErrors.kt maps both.
+ * Client of the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md):
+ * `POST {serverUrl}/api/v1/brews` with a Bearer token. The JSON wire format is built only in [body]. Throws
+ * [HttpStatusException] for a non-2xx answer and IOException when the server can't be reached; sync/SyncErrors.kt maps both.
  */
 class ExporterClient(
     private val connectTimeoutMs: Int = 15_000,

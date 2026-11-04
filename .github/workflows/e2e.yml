@@ -1,17 +1,7 @@
 name: End-to-end
 
-# Run on main and on demand. This separate workflow keeps emulator time outside the Build → Release path (#80).
+# Reusable emulator gate for Build. Build runs on pull requests, main pushes and dispatches.
 on:
-  push:
-    branches: [main]
-    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
-  workflow_dispatch:
-    inputs:
-      force_failure:
-        description: "Fail after E2E passes to verify failure log uploads"
-        required: false
-        default: false
-        type: boolean
   workflow_call:
     inputs:
       force_failure:
@@ -20,7 +10,7 @@ on:
         type: boolean
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # Actions are pinned to commit SHAs (tag in the comment).
