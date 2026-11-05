@@ -704,7 +704,7 @@ class BrewViewModelTest {
     @Test
     fun filterDrainRangeAndAlertsFreezeWhilePaused() {
         val recipe = v60.copy(steps = twoPours, targetMinMs = 28_000, targetMaxMs = 34_000)
-        recipes.save(recipe)
+        runBlocking { recipes.save(recipe) }
         val vm = viewModel(BrewMode.FILTER)
         val alerts = mutableListOf<GuideAlert>()
         val collecting = CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
