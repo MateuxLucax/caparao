@@ -316,8 +316,11 @@ class BrewViewModel(
             val min = live.recipe?.targetMinMs
             val max = live.recipe?.targetMaxMs
             if (min != null && max != null && min <= max && live.drainWindow != null) {
-                if (live.elapsedMs >= min) alertOnce(StepEvent.DrainTimeEntered)
-                if (live.elapsedMs > max) alertOnce(StepEvent.DrainTimePassed)
+                if (live.elapsedMs > max) {
+                    alertOnce(StepEvent.DrainTimePassed)
+                } else if (live.elapsedMs >= min) {
+                    alertOnce(StepEvent.DrainTimeEntered)
+                }
             }
         }
         if (mode == BrewMode.ESPRESSO && current.phase == BrewPhase.BREWING) {

@@ -240,7 +240,7 @@
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
     <string name="drain_time_ideal_range">Tempo ideal: %1$s–%2$s</string>
     <string name="drain_time_in_range">Dentro do tempo ideal</string>
-    <string name="drain_time_past_range">%1$d s além do tempo ideal</string>
+    <string name="drain_time_past_range">%1$d %2$s além do tempo ideal</string>
     <string name="guide_steep">Infusão</string>
     <string name="guide_steep_text">Deixe em infusão</string>
     <string name="guide_remove_press">Tire a prensa da balança.</string>

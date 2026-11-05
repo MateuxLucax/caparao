@@ -998,6 +998,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             targetMinMs = 120_000, targetMaxMs = 150_000,
             steps = listOf(RecipeStep(StepKind.POUR, 240.0, 0)), createdAt = 0, updatedAt = 0,
         )
+        val pouringRecipe = recipe.copy(
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
+        )
         fun state(elapsedMs: Long, shownRecipe: Recipe = recipe) = BrewUiState(
             mode = shownRecipe.mode,
             step = BrewStep.LIVE,
@@ -1007,8 +1010,12 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             guide = StepState(1, 1f, null, null, null, null),
         )
 
-        var current by mutableStateOf(state(100_000))
+        var current by mutableStateOf(state(100_000, pouringRecipe))
         compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(100_000)
+        compose.waitForIdle()
         compose.onNodeWithTag("drain-time-before").assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.drain_time_ideal_range, "02:00", "02:30")).assertIsDisplayed()
 
@@ -1020,7 +1027,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         current = state(161_000)
         compose.waitForIdle()
         compose.onNodeWithTag("drain-time-past").assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.drain_time_past_range, 11)).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_past_range, 11, text(R.string.unit_seconds))).assertIsDisplayed()
 
         current = state(132_000, recipe.copy(targetMinMs = null, targetMaxMs = null))
         compose.waitForIdle()

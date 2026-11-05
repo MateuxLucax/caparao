@@ -507,6 +507,42 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun filterDrainThatJumpsPastTheWholeRangeOnlyAlertsAsPassed() {
+        val lateSteps = listOf(
+            RecipeStep(StepKind.BLOOM, 40.0, 0),
+            RecipeStep(StepKind.POUR, 100.0, 160_000),
+        )
+        val (vm, alerts) = guidedFilter(lateSteps, targetMinMs = 120_000, targetMaxMs = 150_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 152.0)
+            pour(40.0, 100.0, 5.0)
+        }
+
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertEquals(0, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
+        assertEquals(0, watchAlerts.count { it == StepEvent.DrainTimeEntered })
+        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
+    }
+
+    @Test
+    fun filterDrainAlertsFollowTheVibrationAndSoundSettings() {
+        settings.guideVibration = false
+        settings.guideSound = false
+        val (vm, alerts) = guidedFilter(twoPours, targetMinMs = 28_000, targetMaxMs = 34_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            hold(100.0, 8.0)
+        }
+
+        val drainEvents = setOf(StepEvent.DrainTimeEntered, StepEvent.DrainTimePassed)
+        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
+        assertTrue(alerts.none { it.event in drainEvents })
+        assertTrue(watchAlerts.none { it in drainEvents })
+    }
+
+    @Test
     fun aFrenchPressAlertsOnceAtFourMinutesAndStaysOpenUntilDone() = kotlinx.coroutines.test.runTest {
         val frenchPress = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
         recipes.save(frenchPress)

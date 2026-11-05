@@ -9,6 +9,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +43,10 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.RingColors
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.ui.components.ringStroke
+import io.github.mateuxlucax.caparao.ui.components.readableOn
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
@@ -259,40 +265,47 @@ fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
         label = "drainTimeProgress",
     )
     val colors = MaterialTheme.colorScheme
-    val fill = when (window) {
-        BrewUiState.Window.BEFORE -> colors.primaryContainer
-        BrewUiState.Window.INSIDE -> colors.primary
-        BrewUiState.Window.PAST -> colors.onPrimaryContainer
-    }
+    val ring = drainTimeRingColors(colors, window, isSystemInDarkTheme())
     val status = when (window) {
         BrewUiState.Window.BEFORE -> stringResource(R.string.drain_time_ideal_range, Format.timer((min / 1000).toInt()), Format.timer((max / 1000).toInt()))
         BrewUiState.Window.INSIDE -> stringResource(R.string.drain_time_in_range)
-        BrewUiState.Window.PAST -> stringResource(R.string.drain_time_past_range, ((state.elapsedMs - max) / 1000).toInt())
+        BrewUiState.Window.PAST -> stringResource(
+            R.string.drain_time_past_range,
+            ((state.elapsedMs - max) / 1000).toInt(),
+            stringResource(R.string.unit_seconds),
+        )
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(Modifier.fillMaxWidth().height(14.dp).testTag("drain-time-progress")) {
             val radius = CornerRadius(size.height / 2)
             drawRoundRect(colors.surfaceContainerHighest, cornerRadius = radius)
-            drawRoundRect(fill, size = Size(size.width * animatedProgress, size.height), cornerRadius = radius)
+            drawRoundRect(ring.stroke, size = Size(size.width * animatedProgress, size.height), cornerRadius = radius)
             val minX = size.width * (min.toFloat() / domain).coerceIn(0f, 1f)
             val maxX = size.width * (max.toFloat() / domain).coerceIn(0f, 1f)
             drawLine(colors.onSurfaceVariant, Offset(minX, 0f), Offset(minX, size.height), strokeWidth = 2.dp.toPx())
             drawLine(colors.onSurfaceVariant, Offset(maxX, 0f), Offset(maxX, size.height), strokeWidth = 2.dp.toPx())
-            val currentX = size.width * animatedProgress
-            drawCircle(colors.onSurface, radius = 4.dp.toPx(), center = Offset(currentX, size.height / 2))
+            val dotRadius = 4.dp.toPx()
+            val currentX = (size.width * animatedProgress).coerceIn(dotRadius, (size.width - dotRadius).coerceAtLeast(dotRadius))
+            drawCircle(ring.text, radius = dotRadius, center = Offset(currentX, size.height / 2))
         }
         Text(
             status,
             Modifier.fillMaxWidth().testTag("drain-time-${window.name.lowercase()}"),
             style = MaterialTheme.typography.labelLarge,
-            color = when (window) {
-                BrewUiState.Window.BEFORE -> colors.onSurfaceVariant
-                BrewUiState.Window.INSIDE -> colors.primary
-                BrewUiState.Window.PAST -> colors.onPrimaryContainer
-            },
+            color = ring.text,
             textAlign = TextAlign.Center,
         )
     }
+}
+
+internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window, dark: Boolean): RingColors {
+    val band = when (window) {
+        BrewUiState.Window.BEFORE -> TargetBand.BELOW
+        BrewUiState.Window.INSIDE -> TargetBand.AT
+        BrewUiState.Window.PAST -> TargetBand.ABOVE
+    }
+    val stroke = colors.ringStroke(band, dark)
+    return RingColors(stroke, stroke.readableOn(colors.surface))
 }
 
 /** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */

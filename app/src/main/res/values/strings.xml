@@ -246,7 +246,7 @@
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
     <string name="drain_time_ideal_range">Ideal: %1$s–%2$s</string>
     <string name="drain_time_in_range">In the ideal time</string>
-    <string name="drain_time_past_range">%1$d s past the ideal time</string>
+    <string name="drain_time_past_range">%1$d %2$s past the ideal time</string>
     <string name="guide_steep">Steep</string>
     <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>
