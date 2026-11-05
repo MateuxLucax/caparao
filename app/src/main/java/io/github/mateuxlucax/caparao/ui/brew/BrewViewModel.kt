@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import android.os.SystemClock
+import androidx.compose.animation.core.Easing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -30,7 +31,9 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -66,6 +69,8 @@ class BrewViewModel(
     private val onLive: (BrewUiState?) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
     private val diagnostics: DiagnosticRecorder? = null,
+    /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
+    private val animations: () -> Boolean = { true },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -81,6 +86,8 @@ class BrewViewModel(
     private var frenchPressFinishTracker: FrenchPressFinishTracker? = null
 
     private var job: Job? = null
+    /** The timer rolling back to the saved time, before the summary opens (#197). */
+    private var rollJob: Job? = null
     private var detector: BrewDetector? = null
     private val readings = ArrayList<TimedReading>()
     private val smoother = FlowSmoother()
@@ -347,8 +354,10 @@ class BrewViewModel(
             grind = recipe?.grind,
             waterTempCelsius = recipe?.waterTempCelsius,
         )
-        // First, so the notes filled in below land on this brew's summary.
-        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
+        // First, so the notes filled in below land on this brew's summary. The live screen stays up until the timer
+        // has rolled to the saved time.
+        _uiState.update { it.copy(phase = BrewPhase.DONE, saved = brew) }
+        openSummary(brew.durationMs)
         viewModelScope.launch {
             // Past coffees before this brew is in: it has none yet.
             val coffees = repository.recentCoffees()
@@ -359,7 +368,33 @@ class BrewViewModel(
         }
     }
 
+    /**
+     * Rolls the shown time to [savedMs], the time the summary and the saved brew show, then opens the summary. The
+     * detector can end an espresso a few seconds after the shown time stopped (#197). Only espresso rolls; filter and
+     * French press open the summary at once. With animations off, or when both show the same whole seconds, it opens
+     * at once too.
+     */
+    private fun openSummary(savedMs: Long) {
+        val from = _uiState.value.elapsedMs
+        if (mode != BrewMode.ESPRESSO || !animations() || from / 1000 == savedMs / 1000) {
+            showSummary(savedMs)
+            return
+        }
+        rollJob = viewModelScope.launch {
+            repeat(ROLL_FRAMES) { frame ->
+                delay(ROLL_MS / ROLL_FRAMES)
+                val eased = ROLL_EASING.transform((frame + 1).toFloat() / ROLL_FRAMES)
+                _uiState.update { it.copy(elapsedMs = from + ((savedMs - from) * eased).toLong()) }
+            }
+            showSummary(savedMs)
+        }
+    }
+
+    private fun showSummary(savedMs: Long) = _uiState.update { it.copy(step = BrewStep.SUMMARY, elapsedMs = savedMs) }
+
     private fun reset() {
+        rollJob?.cancel()
+        rollJob = null
         detector = null
         readings.clear()
         smoother.reset()
@@ -397,5 +432,10 @@ class BrewViewModel(
 
         /** 20 minutes at 10 Hz: longer than any brew; past it the curve stops growing. */
         private const val MAX_READINGS = 12_000
+
+        /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */
+        private const val ROLL_MS = 600L
+        private const val ROLL_FRAMES = 36
+        private val ROLL_EASING: Easing = Motion.EmphasizedDecelerate
     }
 }

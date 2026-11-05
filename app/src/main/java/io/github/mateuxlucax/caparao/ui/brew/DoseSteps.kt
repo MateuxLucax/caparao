@@ -51,11 +51,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 import io.github.mateuxlucax.caparao.ui.theme.flex
@@ -63,7 +65,8 @@ import java.util.Locale
 
 /**
  * The ratio first: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
- * tap edits. Next goes to weighing the beans.
+ * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
+ * as a summary, and a free brew calculates the water instead of editing it.
  */
 @Composable
 fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) -> Unit, onDose: (Double) -> Unit, onNext: () -> Unit) {
@@ -72,29 +75,42 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         BrewMode.ESPRESSO -> 0.1
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
+    val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
     var editing by rememberSaveable { mutableStateOf<Editing?>(null) }
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.recipes.isNotEmpty()) RecipeChips(state, onRecipe)
         Spacer(Modifier.weight(1f))
-        AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
-            Text(
-                stringResource(R.string.ratio_value, ratioText(ratio, locale)),
-                style = MaterialTheme.typography.displayLarge.merge(TabularFlex).merge(flex(800, 100)),
-            )
-        }
-        Text(stringResource(R.string.ratio_caption), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            FilledTonalIconButton(onClick = { onRatio(state.targetRatio - step) }, Modifier.size(72.dp)) {
-                Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(32.dp))
+        if (espressoRecipe != null) {
+            EspressoRecipeSummary(espressoRecipe, locale)
+        } else {
+            AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
+                Text(
+                    stringResource(R.string.ratio_value, ratioText(ratio, locale)),
+                    style = MaterialTheme.typography.displayLarge.merge(TabularFlex).merge(flex(800, 100)),
+                )
             }
-            FilledTonalIconButton(onClick = { onRatio(state.targetRatio + step) }, Modifier.size(72.dp)) {
-                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(32.dp))
+            Text(stringResource(R.string.ratio_caption), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                FilledTonalIconButton(onClick = { onRatio(state.targetRatio - step) }, Modifier.size(72.dp)) {
+                    Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(32.dp))
+                }
+                FilledTonalIconButton(onClick = { onRatio(state.targetRatio + step) }, Modifier.size(72.dp)) {
+                    Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(32.dp))
+                }
             }
-        }
-        Row(Modifier.padding(top = 40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Amount(state.dose, R.string.unit_grams, locale) { editing = Editing.DOSE }
-            Icon(painterResource(R.drawable.ic_arrow_forward), null, tint = MaterialTheme.colorScheme.outline)
-            Amount(state.plannedWater, R.string.unit_ml, locale) { editing = Editing.WATER }
+            Row(Modifier.padding(top = 40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Amount(state.dose, R.string.unit_grams, locale) { editing = Editing.DOSE }
+                Icon(painterResource(R.drawable.ic_arrow_forward), null, tint = MaterialTheme.colorScheme.outline)
+                if (state.mode == BrewMode.ESPRESSO) {
+                    Text(
+                        "${state.plannedWater?.let { Format.grams(it, locale) } ?: "–"} ${stringResource(R.string.unit_ml)}",
+                        Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)),
+                    )
+                } else {
+                    Amount(state.plannedWater, R.string.unit_ml, locale) { editing = Editing.WATER }
+                }
+            }
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.dose != null) {
@@ -117,6 +133,63 @@ private enum class Editing { DOSE, WATER }
 /** 1:16 rather than 1:16,0; a half or a tenth shows its decimal. */
 private fun ratioText(ratio: Double, locale: Locale) =
     if (Math.round(ratio * 10) % 10 == 0L) Math.round(ratio).toString() else Format.ratio(ratio, locale)
+
+/**
+ * Espresso with a recipe: a target to follow, not settings to change (#189). Fields the recipe doesn't have are left
+ * out, so a bare recipe still reads as a short summary.
+ */
+@Composable
+private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SummaryRow(stringResource(R.string.label_dose), amount(recipe.doseGrams, R.string.unit_grams, locale))
+            SummaryRow(stringResource(R.string.label_yield), amount(recipe.targetYieldGrams, R.string.unit_grams, locale))
+            SummaryRow(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)))
+            val min = recipe.targetMinMs
+            val max = recipe.targetMaxMs
+            if (min != null && max != null) {
+                SummaryRow(
+                    stringResource(R.string.recipe_window),
+                    stringResource(R.string.espresso_window, (min / 1000).toString(), (max / 1000).toString()),
+                )
+            }
+            recipe.grind?.takeIf { it.isNotBlank() }?.let { SummaryRow(stringResource(R.string.recipe_grind), it) }
+            recipe.waterTempCelsius?.let {
+                SummaryRow(stringResource(R.string.recipe_temp), "$it ${stringResource(R.string.unit_celsius)}")
+            }
+            recipe.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.recipe_notes), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(notes, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        Text(
+            label,
+            Modifier.weight(1f).padding(end = 16.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium.merge(TabularFlex),
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
+private fun amount(grams: Double, @StringRes unit: Int, locale: Locale) = "${Format.grams(grams, locale)} ${stringResource(unit)}"
 
 /** The recipes of this mode and a free brew, as a connected group; the chosen one sets the dose and the ratio. */
 @Composable
@@ -176,9 +249,16 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
 }
 
 /**
+ * The beans actually weighed, when the reading is a dose; otherwise the planned one. Beans left on the scale (0.1 g) or
+ * a cup (150 g) don't become the dose (#195).
+ */
+fun weighedDose(connected: Boolean, readingGrams: Double, plannedDose: Double): Double =
+    if (connected && readingGrams in RecipeForm.DOSE) readingGrams else plannedDose
+
+/**
  * Weighing the beans before grinding: a ring fills toward the dose around the live weight.
  * The ring and gaps adapt on short screens so Next stays reachable. It takes what was weighed, or the planned dose when
- * the scale shows nothing.
+ * the scale shows nothing or the weight is outside the dose limits.
  */
 @Composable
 fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) {
@@ -215,7 +295,7 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
             }
             Spacer(Modifier.weight(1f))
             Button(
-                onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
+                onClick = { onNext(weighedDose(state.connected, state.weightGrams, dose)) },
                 modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
                 shapes = ButtonDefaults.shapes(),
             ) {
