@@ -366,7 +366,6 @@ class AppScreensTest {
             }
         }
 
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
         // Room emits the recipe list before the view model applies its preselected recipe.
         val selectedFrenchPressRecipe = hasText("French press") and isSelectable() and isSelected()
         compose.waitUntilAtLeastOneExists(selectedFrenchPressRecipe, 5_000)
