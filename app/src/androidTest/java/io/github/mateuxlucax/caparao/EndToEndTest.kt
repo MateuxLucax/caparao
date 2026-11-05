@@ -87,6 +87,8 @@ class EndToEndTest {
                 val markers = listOf(
                     R.string.ratio_caption,
                     R.string.weigh_beans_title,
+                    R.string.prepare_portafilter_title,
+                    R.string.prepare_ready,
                     R.string.tare,
                     R.string.cup_on,
                     R.string.brew_saved,
@@ -118,13 +120,17 @@ class EndToEndTest {
             compose.waitForIdle()
             val afterIdle = brewState()
             compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next-idle")
-            if (afterIdle?.step != BrewStep.LIVE) {
+            if (afterIdle?.step != BrewStep.PREPARE_PORTAFILTER) {
                 throw AssertionError(
-                    "Weigh Next did not enter LIVE: before=${describe(beforeNext)} ($beforeSemantics), " +
+                    "Weigh Next did not enter portafilter preparation: before=${describe(beforeNext)} ($beforeSemantics), " +
                         "afterClick=${describe(afterNext)} ($afterSemantics), " +
                         "afterIdle=${describe(afterIdle)} (${semanticsSnapshot()})",
                 )
             }
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 10_000)
+            val readyButton = compose.onNodeWithTag("portafilter-ready").assertIsEnabled().assertIsDisplayed()
+            readyButton.performClick()
+            compose.waitUntil(10_000) { brewState()?.step == BrewStep.LIVE }
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
             // Don't start the 52 s fixture until the live screen and detector are mounted.
             val liveStepError = runCatching {

@@ -152,7 +152,13 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             screenshot("weigh-beans")
             api("POST", "/reading", {"weight_g": 0})
             tap_text("Next")
-            wait_for_text("Ratio")
+            if path.stem == "espresso":
+                wait_for_text("Prepare the portafilter")
+                screenshot("prepare-portafilter")
+                tap_text("Ready")
+                wait_for_text("Put the cup on the scale")
+            else:
+                wait_for_text("Ratio")
             api("POST", "/scenario", path.read_bytes())
         else:
             api("POST", "/scenario", path.read_bytes())
