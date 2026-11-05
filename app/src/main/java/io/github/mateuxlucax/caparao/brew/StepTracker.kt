@@ -111,6 +111,7 @@ class StepTracker(
                 }
                 if (weightGrams < target - TOLERANCE_GRAMS) {
                     targetReachedSinceMs = null
+                    if (weightGrams < target - NEAR_GRAMS) nearSent = false
                     break
                 }
                 if (targetHoldMs > 0) {

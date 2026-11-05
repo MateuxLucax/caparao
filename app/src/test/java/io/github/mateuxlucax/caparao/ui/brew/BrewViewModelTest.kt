@@ -218,7 +218,7 @@ class BrewViewModelTest {
         vm.stop()
 
         val brew = vm.uiState.value.saved!!
-        assertEquals(250.0, brew.yieldGrams, 0.5)
+        assertEquals("Done while the final rise is unconfirmed saves settled weight", 248.8, brew.yieldGrams, 0.1)
         assertNull(brew.timeToFirstDropMs)
         assertEquals(1, dao.brews.value.size)
     }

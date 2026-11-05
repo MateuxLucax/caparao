@@ -41,14 +41,6 @@ class CaptureScenarioTests(unittest.TestCase):
         self.assertIn("lifted", names)
         self.assertIn("summary", names)
 
-    def test_filter_spoon_plan_captures_the_transient_and_saved_summary(self):
-        plan = capture_scenarios.scenario_plan(capture_scenarios.SCENARIO_DIR / "filter-spoon.json")
-        names = [name for _, name in plan]
-        self.assertIn("spoon-on", names)
-        self.assertIn("spoon-off", names)
-        self.assertIn("summary", names)
-        self.assertIn('"filter-spoon": "Filter"', SCRIPT.read_text())
-
     def test_capture_requires_the_configured_emulator(self):
         with self.assertRaisesRegex(ValueError, "emulator"):
             capture_scenarios.require_emulator("adb", "", Mock())

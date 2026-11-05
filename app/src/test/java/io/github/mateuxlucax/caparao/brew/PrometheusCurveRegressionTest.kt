@@ -227,7 +227,7 @@ class PrometheusCurveRegressionTest {
         val beforeRemoval = points[firstNegative - 1]
 
         // The brief 267.2 g handling peak returns to the 255.5 g water level before the filter is lifted.
-        assertEquals(255.5, replay.result.yieldGrams, 0.5)
+        assertEquals(255.5, replay.result.yieldGrams, 0.3)
         assertTrue(replay.result.yieldGrams >= beforeRemoval.second)
         assertEquals("brew ends when the weight falls away", HARNESS_MS + beforeRemoval.first, replay.result.endedAtMs)
         assertTrue("saved end excludes the negative tail", replay.result.endedAtMs < HARNESS_MS + points[firstNegative].first)

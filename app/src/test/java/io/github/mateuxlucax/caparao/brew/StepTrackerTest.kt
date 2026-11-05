@@ -72,6 +72,16 @@ class StepTrackerTest {
     }
 
     @Test
+    fun aTransientNearTargetPeakCanAlertAgainWhenThePourActuallyReturns() {
+        val tracker = StepTracker(v60, targetHoldMs = 1_000)
+        tracker.update(0, 0.0, 0.0)
+
+        assertEquals(listOf(StepEvent.NearTarget(0)), tracker.update(1_000, 46.0, 0.0))
+        assertTrue(tracker.update(1_500, 40.0, 0.0).isEmpty())
+        assertEquals(listOf(StepEvent.NearTarget(0)), tracker.update(2_000, 46.0, 0.0))
+    }
+
+    @Test
     fun theCountdownTicksTheLastFiveSecondsBeforeAPour() {
         val (_, events) = run(v60, onTimeV60())
         val ticks = events.filter { (it.second as? StepEvent.Countdown)?.index == 1 }

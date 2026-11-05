@@ -167,6 +167,44 @@ class FilterDetectorTest {
     }
 
     @Test
+    fun spoonHeldForMoreThanTheSettleWindowIsStillDiscardedWhenItReturns() {
+        openAndTare()
+        session.ramp(0.0, 45.0, 9.0).hold(45.0, 3.0)
+        detector.feed(session)
+
+        session.hold(52.0, 1.5).hold(45.0, 6.0)
+        detector.feed(session)
+
+        assertEquals(BrewPhase.BREWING, detector.phase)
+        detector.stop(session.nowMs)
+        assertEquals(45.0, detector.result!!.yieldGrams, 0.1)
+    }
+
+    @Test
+    fun doneWithASpoonOnTheScaleSavesTheLastSettledWaterWeight() {
+        openAndTare()
+        session.ramp(0.0, 45.0, 9.0).hold(45.0, 3.0).hold(52.0, 0.5)
+        detector.feed(session)
+
+        detector.stop(session.nowMs)
+
+        assertEquals(45.0, detector.result!!.yieldGrams, 0.1)
+    }
+
+    @Test
+    fun aShortPourPlateauBeforeLiftKeepsTheLastUnconfirmedWater() {
+        openAndTare()
+        session.ramp(0.0, 45.0, 9.0).hold(45.0, 3.0)
+        detector.feed(session)
+
+        session.ramp(45.0, 60.0, 1.5).hold(60.0, 0.2).hold(45.0, 5.5)
+        detector.feed(session)
+
+        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(60.0, detector.result!!.yieldGrams, 0.1)
+    }
+
+    @Test
     fun noiseEarlyInThePourIsNotALift() {
         openAndTare()
         session.ramp(0.0, 3.0, 2.0).hold(3.0, 10.0, 0.1).hold(2.0, 10.0)
@@ -182,7 +220,8 @@ class FilterDetectorTest {
         detector.interrupt(session.nowMs)
         val result = detector.result!!
         assertTrue(result.interrupted)
-        assertEquals(120.0, result.yieldGrams, 0.01)
+        // An interrupt during the unconfirmed final rise saves the last settled water (about one second behind).
+        assertEquals(116.0, result.yieldGrams, 0.1)
     }
 
     @Test
