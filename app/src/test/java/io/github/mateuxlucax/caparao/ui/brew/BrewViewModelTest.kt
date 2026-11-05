@@ -981,6 +981,50 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFrenchPressSteepKeepsCountingWhenTheScaleDropsAndAlertsAtTheDeadline() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        try {
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        hold(300.0, 60.0)
+
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertFalse(vm.uiState.value.connected)
+        assertTrue(alerts.none { it.event == StepEvent.AllDone })
+
+        now += 110_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertTrue(vm.uiState.value.frenchPressDeadlineReached)
+
+        now += 15_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals("it keeps repeating until Done, as removal can't be seen", 1, alerts.count { it.event == StepEvent.FrenchPressReminder })
+
+        vm.stop()
+        rolled()
+        val brew = vm.uiState.value.saved!!
+        assertEquals(300.0, brew.yieldGrams, 0.5)
+        assertFalse(brew.interrupted)
+        } finally {
+            vm.end()
+            collecting.cancel()
+        }
+    }
+
+    @Test
     fun frenchPressDeadlineScreenRemainsVisibleWhenSettingsSilenceAlerts() = kotlinx.coroutines.test.runTest {
         settings.guideVibration = false
         settings.guideSound = false

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ColorScheme
@@ -88,6 +89,9 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.mode != BrewMode.FILTER) StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
+        if (state.mode == BrewMode.FRENCH_PRESS && !state.connected) {
+            Text(stringResource(R.string.guide_scale_dropped), color = LocalContentColor.current, textAlign = TextAlign.Center)
+        }
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
