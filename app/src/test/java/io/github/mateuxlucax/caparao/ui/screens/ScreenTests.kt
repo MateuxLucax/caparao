@@ -6,14 +6,19 @@ import android.provider.Settings
 import android.view.View
 import android.widget.TextView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -102,6 +107,10 @@ import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import io.github.mateuxlucax.caparao.ui.components.readableOn
+import io.github.mateuxlucax.caparao.ui.components.ringStroke
+import io.github.mateuxlucax.caparao.ui.components.targetBand
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -953,6 +962,64 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+    }
+
+    /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
+    @Test
+    fun guidedCupAndWeightFollowStepTargetBandsInBothModes() {
+        val target = 100.0
+        val cases = listOf(
+            94.9 to TargetBand.BELOW,
+            95.0 to TargetBand.AT,
+            105.0 to TargetBand.AT,
+            105.1 to TargetBand.ABOVE,
+        )
+        fun state(mode: BrewMode, weight: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = weight,
+            recipe = Recipe(
+                id = "guided-cup-${mode.name}", name = "Cup color", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.POUR, target, 0)), createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(0, (weight / target).toFloat(), null, Pace.BEHIND, 11_000, null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 94.9))
+        var expectedCup = Color.Unspecified
+        var expectedWeight = Color.Unspecified
+        var expectedPace = Color.Unspecified
+        compose.setContent {
+            AppTheme {
+                val scheme = MaterialTheme.colorScheme
+                expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
+                expectedWeight = expectedCup.readableOn(scheme.surface)
+                expectedPace = scheme.onSurfaceVariant
+                GuidedStep(current) {}
+            }
+        }
+
+        fun assertContainsColor(tag: String, color: Color) {
+            val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
+            val expected = color.toArgb()
+            val found = (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
+            assertTrue("$tag should render $color", found)
+        }
+
+        listOf(BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
+            cases.forEach { (weight, band) ->
+                current = state(mode, weight)
+                compose.waitForIdle()
+                assertEquals(band, targetBand(weight, target))
+                assertContainsColor("guided-cup", expectedCup)
+                assertContainsColor("guided-weight", expectedWeight)
+                assertContainsColor("guide-pace", expectedPace)
+                compose.onNodeWithText(context.getString(R.string.guide_behind, 11, text(R.string.unit_seconds))).assertIsDisplayed()
+            }
+        }
     }
 
     /** Every countdown step uses the same smooth ring in both filter and French press. */

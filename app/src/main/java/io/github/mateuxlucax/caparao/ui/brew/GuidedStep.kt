@@ -47,6 +47,8 @@ import io.github.mateuxlucax.caparao.ui.components.RingColors
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
 import io.github.mateuxlucax.caparao.ui.components.readableOn
+import io.github.mateuxlucax.caparao.ui.components.rememberRingColors
+import io.github.mateuxlucax.caparao.ui.components.targetBand
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
@@ -164,7 +166,8 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
-        CupToTarget(fill, color)
+        val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
+        CupToTarget(fill, targetColors.stroke)
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
             style = MaterialTheme.typography.headlineSmall,
@@ -173,11 +176,12 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         Text(
             "${Format.grams(state.weightGrams, locale)} / ${Format.grams(target, locale)} $g",
             style = MaterialTheme.typography.displaySmall.merge(Tabular),
-            color = color,
+            color = targetColors.text,
+            modifier = Modifier.testTag("guided-weight"),
         )
         when {
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
-            guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
+            guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), modifier = Modifier.testTag("guide-pace"))
         }
         FlowChart(state.flowGramsPerSecond, chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
     } else {
@@ -375,8 +379,11 @@ private fun FrenchPressPlungerAnimation() {
 }
 
 @Composable
-private fun Note(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
-    Text(text, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color, textAlign = TextAlign.Center)
+private fun Note(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier: Modifier = Modifier,
+) = Text(text, modifier = modifier, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color, textAlign = TextAlign.Center)
 
 @Composable
 private fun paceText(pace: Pace?, paceMs: Long): String {
@@ -442,7 +449,7 @@ private fun ReachedCheck(label: String?) {
 @Composable
 private fun CupToTarget(fill: Float, color: Color) {
     val body = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(Modifier.size(160.dp)) {
+    Canvas(Modifier.size(160.dp).testTag("guided-cup")) {
         scale(size.width / 120f, pivot = Offset.Zero) {
             // A solid cup filling in the step's colour, the target a short tick on its side below the rim.
             val cup = Rect(26f, 20f, 94f, 100f)
