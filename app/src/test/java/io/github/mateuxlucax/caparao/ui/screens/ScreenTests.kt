@@ -601,7 +601,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         waitFor(R.string.prepare_portafilter_title)
         compose.onNode(hasContentDescription(text(R.string.milestone_portafilter))).assertIsDisplayed()
-        compose.onAllNodes(hasText("Step ", substring = true)).assertCountEquals(0)
+        // The localized counter's own prefix ("Step " or "Etapa "), so the check means something in pt-BR too.
+        val counterPrefix = context.getString(R.string.step_of_named, 1, 8, "").substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {

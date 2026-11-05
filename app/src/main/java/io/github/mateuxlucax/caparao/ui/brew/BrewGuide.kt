@@ -16,13 +16,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,8 +45,12 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
@@ -161,45 +165,97 @@ private fun StageSteps(mode: BrewMode, stage: GuideStage, modifier: Modifier) {
     }
 }
 
-/** One segment and its name per milestone: past and current filled, the current one highlighted. TalkBack hears the current name. */
+/** The largest milestone label size; the smallest rendered size is [MilestoneLabelMinRenderedSize], whatever the font scale. */
+private val MilestoneLabelMaxSize = 11.sp
+/** The highest rendered minimum at which all five names fit a 320 dp phone: pt-BR's "Porta-filtro" needs it (11 sp does not fit). */
+internal val MilestoneLabelMinRenderedSize = 10.5.sp
+private val MilestoneLabelStep = 0.5.sp
+private val MilestoneGap = 8.dp
+
+/**
+ * The largest size at which every name fits on one line in its weighted segment, or null when even the minimum does
+ * not fit. The minimum is divided by the font scale, as on the mode selector, so the rendered text never shrinks below it.
+ */
+@Composable
+private fun rememberMilestoneLabelSize(names: List<String>, weights: List<Float>, maxWidth: Dp): TextUnit? {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp, fontWeight = FontWeight.SemiBold)
+    val availableWidthPx = with(density) { (maxWidth - MilestoneGap * (names.size - 1)).toPx() }
+    val minimumSize = (MilestoneLabelMinRenderedSize.value / density.fontScale).sp
+    return remember(names, weights, availableWidthPx, style, measurer, density.fontScale) {
+        val totalWeight = weights.sum()
+        fun fits(size: TextUnit): Boolean = names.indices.all { i ->
+            val segmentPx = availableWidthPx * weights[i] / totalWeight
+            measurer.measure(AnnotatedString(names[i]), style.copy(fontSize = size), maxLines = 1, softWrap = false).size.width <= segmentPx
+        }
+        var size = MilestoneLabelMaxSize
+        while (!fits(size) && size > minimumSize) {
+            size = (size.value - MilestoneLabelStep.value).coerceAtLeast(minimumSize.value).sp
+        }
+        size.takeIf { fits(it) }
+    }
+}
+
+/**
+ * One segment and its name per milestone, segments as wide as their names: past and current filled, the current one
+ * highlighted. When the names cannot all fit, only the current name shows. TalkBack hears the current name.
+ */
 @Composable
 private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modifier: Modifier) {
     val index = milestoneIndex(milestones, stage)
-    val current = stringResource(milestones[index].name)
+    val names = milestones.map { stringResource(it.name) }
+    val weights = names.map { it.length.coerceAtLeast(1).toFloat() }
     // One node for TalkBack: its description is the current milestone, announced when it changes.
-    Column(
+    BoxWithConstraints(
         modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-            contentDescription = current
+            contentDescription = names[index]
             liveRegion = LiveRegionMode.Polite
         },
-        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            milestones.forEachIndexed { i, _ ->
-                val color by animateColorAsState(
-                    when {
-                        i == index -> MaterialTheme.colorScheme.primary
-                        i < index -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
-                    },
-                    Motion.standard(),
-                    label = "milestone",
-                )
-                Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
+        val labelSize = rememberMilestoneLabelSize(names, weights, maxWidth)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
+                milestones.forEachIndexed { i, _ ->
+                    val color by animateColorAsState(
+                        when {
+                            i == index -> MaterialTheme.colorScheme.primary
+                            i < index -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                            else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                        Motion.standard(),
+                        label = "milestone",
+                    )
+                    Box(Modifier.weight(weights[i]).height(4.dp).clip(CircleShape).background(color))
+                }
             }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            milestones.forEachIndexed { i, milestone ->
+            if (labelSize == null) {
                 Text(
-                    stringResource(milestone.name),
-                    Modifier.weight(1f),
+                    names[index],
+                    Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
-                    color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 11.sp, stepSize = 0.5.sp),
+                    softWrap = false,
                 )
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
+                    names.forEachIndexed { i, name ->
+                        Text(
+                            name,
+                            Modifier.weight(weights[i]),
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
+                            fontSize = labelSize,
+                            color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
             }
         }
     }
