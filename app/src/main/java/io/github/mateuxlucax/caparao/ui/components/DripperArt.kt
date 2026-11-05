@@ -73,8 +73,8 @@ object DripperArt {
 
     private val server by lazy {
         Path().apply {
-            moveTo(46f, 60.5f)
-            lineTo(74f, 60.5f)
+            moveTo(46f, 60f)
+            lineTo(74f, 60f)
             lineTo(74f, 64f)
             quadraticTo(74f, 66.5f, 75.5f, 68.5f)
             lineTo(84.5f, 81f)
@@ -104,12 +104,12 @@ object DripperArt {
 
     private val cone by lazy {
         Path().apply {
-            moveTo(33f, 34.5f)
-            lineTo(87f, 34.5f)
+            moveTo(33f, 34f)
+            lineTo(87f, 34f)
             lineTo(70.5f, 54f)
-            quadraticTo(69f, 56f, 66.5f, 56f)
-            lineTo(53.5f, 56f)
-            quadraticTo(51f, 56f, 49.5f, 54f)
+            quadraticTo(69f, 56.5f, 66.5f, 56.5f)
+            lineTo(53.5f, 56.5f)
+            quadraticTo(51f, 56.5f, 49.5f, 54f)
             close()
         }
     }
