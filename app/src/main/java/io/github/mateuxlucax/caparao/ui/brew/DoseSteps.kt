@@ -90,10 +90,13 @@ import androidx.compose.ui.graphics.StrokeJoin
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.components.DripperArt
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
+import io.github.mateuxlucax.caparao.ui.recipes.label
 
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
@@ -101,18 +104,27 @@ import io.github.mateuxlucax.caparao.ui.theme.flex
 import java.util.Locale
 
 /**
- * The ratio first: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
+ * The ratio first for a free brew: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
  * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
- * as a summary, and a free brew calculates the water instead of editing it.
+ * as a summary. A filter recipe makes water the control and scales its steps for this brew (#204).
  */
 @Composable
-fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) -> Unit, onDose: (Double) -> Unit, onNext: () -> Unit) {
+fun DoseStep(
+    state: BrewUiState,
+    onRecipe: (Recipe?) -> Unit,
+    onRatio: (Double) -> Unit,
+    onDose: (Double) -> Unit,
+    onFilterWater: (Double) -> Unit,
+    onFilterDose: (Double) -> Unit,
+    onNext: () -> Unit,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val step = when (state.mode) {
         BrewMode.ESPRESSO -> 0.1
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
     val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
+    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER }
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     val espresso = state.mode == BrewMode.ESPRESSO
@@ -128,7 +140,10 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         AnimatedVisibility(visible = espressoRecipe != null, enter = reveal(still), exit = conceal(still)) {
             summaryRecipe?.let { EspressoRecipeSummary(it, locale, still) }
         }
-        AnimatedVisibility(visible = espressoRecipe == null, enter = reveal(still), exit = conceal(still)) {
+        AnimatedVisibility(visible = filterRecipe != null, enter = reveal(still), exit = conceal(still)) {
+            filterRecipe?.let { FilterRecipePlan(state, it, locale, onWater = onFilterWater) { editing = Editing.DOSE } }
+        }
+        AnimatedVisibility(visible = espressoRecipe == null && filterRecipe == null, enter = reveal(still), exit = conceal(still)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
                     Text(
@@ -170,11 +185,79 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         GramsDialog(
             label = if (field == Editing.DOSE) R.string.dose_field else R.string.water_field,
             initial = initial?.let { Format.grams(it, locale) } ?: "",
-            onDone = { grams -> onDose(if (field == Editing.DOSE) grams else grams / state.targetRatio); editing = null },
+            onDone = { grams ->
+                if (filterRecipe != null) {
+                    if (field == Editing.DOSE) onFilterDose(grams) else onFilterWater(grams)
+                } else {
+                    onDose(if (field == Editing.DOSE) grams else grams / state.targetRatio)
+                }
+                editing = null
+            },
             onDismiss = { editing = null },
         )
     }
 }
+
+private const val FILTER_WATER_STEP_ML = 10.0
+
+@Composable
+private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale, onWater: (Double) -> Unit, onDose: () -> Unit) {
+    val water = recipe.steps.lastOrNull { it.kind.pours }?.targetWeightGrams ?: state.plannedWater ?: recipe.targetYieldGrams
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(Format.grams(water, locale) + " ${stringResource(R.string.unit_ml)}", style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800, 100)))
+        Text(stringResource(R.string.label_water), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            FilledTonalIconButton(
+                onClick = { onWater((water - FILTER_WATER_STEP_ML).coerceAtLeast(1.0)) },
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(28.dp))
+            }
+            FilledTonalIconButton(
+                onClick = { onWater((water + FILTER_WATER_STEP_ML).coerceAtMost(2000.0)) },
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(28.dp))
+            }
+        }
+        Row(
+            Modifier.padding(top = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Amount(state.dose, R.string.unit_grams, locale, onDose)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.label_ratio), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                recipe.steps.forEach { step ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(step.kind.label), style = MaterialTheme.typography.bodyMedium)
+                        Text(Format.timer((step.targetAtMs / 1000).toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        step.targetWeightGrams?.let { Text("${Format.grams(it, locale)} ${stringResource(R.string.unit_grams)}", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+                idealTime(recipe.notes)?.let { time ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.label_time), style = MaterialTheme.typography.bodyMedium)
+                        Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Built-in filter recipes keep their ideal time in the existing note; show its final time range when present. */
+private fun idealTime(notes: String?): String? = notes
+    ?.let { Regex("\\d+:\\d{2}(?:\\s*[–-]\\s*\\d+:\\d{2})?").findAll(it).lastOrNull()?.value?.replace('-', '–') }
 
 private enum class Editing { DOSE, WATER }
 
@@ -476,11 +559,87 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     }
 }
 
+/** Filter preparation; checklist marks survive a return from the brew step, and never gate Ready. */
+@Composable
+fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
+    val items = listOf(
+        PrepRowData(stringResource(R.string.prepare_rdt)),
+        PrepRowData(stringResource(R.string.prepare_grind), grind),
+        PrepRowData(stringResource(R.string.prepare_rinse_filter)),
+        PrepRowData(stringResource(R.string.prepare_add_grounds)),
+        PrepRowData(stringResource(R.string.prepare_dripper_server)),
+    )
+    val still = animationsOff()
+    val allChecked = state.filterPreparationChecks.size == items.size
+    val readyScale = remember { Animatable(1f) }
+    val pictureScale = remember { Animatable(1f) }
+    LaunchedEffect(allChecked) {
+        if (allChecked && !still) {
+            launch {
+                pictureScale.animateTo(1.06f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+                pictureScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+            }
+            readyScale.snapTo(1.06f)
+            readyScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        } else {
+            pictureScale.snapTo(1f)
+            readyScale.snapTo(1f)
+        }
+    }
+    Box(Modifier.fillMaxSize().padding(24.dp)) {
+        val compact = LocalConfiguration.current.screenHeightDp < 700
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            GuideHeader(GuideStage.PREPARE_FILTER)
+            if (!compact) FilterPicture(
+                state.filterPreparationChecks.size,
+                Modifier.padding(top = 4.dp).size(128.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value },
+            )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.testTag("filter-prepare-dose").padding(top = if (compact) 8.dp else 6.dp),
+            ) {
+                Text(
+                    stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
+                    Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag("filter-prepare-list"),
+                verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+            ) {
+                items.forEachIndexed { index, item ->
+                    PrepItem(
+                        item,
+                        index,
+                        checked = index in state.filterPreparationChecks,
+                        still = still,
+                        tagPrefix = "filter-prepare",
+                    ) { isChecked -> onCheck(index, isChecked) }
+                }
+            }
+            Button(
+                onClick = onReady,
+                modifier = Modifier.testTag("filter-prepare-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+                    .graphicsLayer { scaleX = readyScale.value; scaleY = readyScale.value },
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
 private data class PrepRowData(val label: String, val setting: String? = null)
 
 /** Each row owns a switchable portafilter layer; the row itself is the whole touch target. */
 @Composable
-private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boolean, tagPrefix: String = "portafilter", onCheckedChange: (Boolean) -> Unit) {
     val haptic = LocalHapticFeedback.current
     val tick = remember { Animatable(if (still || !checked) 1f else 0.8f) }
     val corner by animateFloatAsState(if (checked) 50f else if (index == 0 || index == 4) 22f else 8f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "prep corner")
@@ -501,7 +660,7 @@ private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boo
                 if (isChecked) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onCheckedChange(isChecked)
             })
-            .testTag("portafilter-row-$index")
+            .testTag("$tagPrefix-row-$index")
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -522,7 +681,7 @@ private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boo
         Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
         item.setting?.let { setting ->
             Surface(color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small) {
-                Text(setting, Modifier.testTag("portafilter-grind-setting").padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(setting, Modifier.testTag("$tagPrefix-grind-setting").padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -535,6 +694,26 @@ private fun PortafilterPicture(checkedCount: Int, modifier: Modifier = Modifier)
     MorphingShape(checkedCount, modifier.testTag("portafilter-picture"), colors.primaryContainer) {
         Canvas(Modifier.fillMaxSize()) {
             drawPortafilter(metal = colors.primary, handle = colors.onPrimaryContainer)
+        }
+    }
+}
+
+/** The filter dripper and server assemble as its preparation checklist advances. */
+@Composable
+private fun FilterPicture(checkedCount: Int, modifier: Modifier = Modifier) {
+    val still = animationsOff()
+    val visible = DripperArt.visibleParts(checkedCount)
+    val reveal = DripperArt.parts.map { part ->
+        animateFloatAsState(
+            targetValue = if (part in visible) 1f else 0f,
+            animationSpec = if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
+            label = "filter ${part.name.lowercase(Locale.ROOT)}",
+        ).value
+    }
+    val colors = MaterialTheme.colorScheme
+    MorphingShape(checkedCount, modifier.testTag("filter-prepare-picture"), colors.primaryContainer) {
+        Canvas(Modifier.fillMaxSize()) {
+            with(DripperArt) { drawDripper(reveal, colors.primary, colors.onPrimaryContainer) }
         }
     }
 }

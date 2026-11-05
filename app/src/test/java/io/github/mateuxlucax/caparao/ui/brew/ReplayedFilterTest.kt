@@ -4,6 +4,7 @@ import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
@@ -15,10 +16,12 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
@@ -43,13 +46,47 @@ class ReplayedFilterTest {
         scale.start()
         vm.begin()
         vm.setDose(15.0)
-        // Everything leaves the scale at 90 s; Done is tapped 2 s later, inside the lift hold.
-        advanceTimeBy(92_000)
+        vm.ready()
+        // Everything leaves the scale at 90 s; Done is tapped before the two-second return to preparation.
+        advanceTimeBy(91_000)
         vm.stop()
 
         val brew = vm.uiState.value.saved!!
         assertEquals(255.0, brew.yieldGrams, 0.5)
         assertEquals(70.0, brew.durationMs / 1000.0, 1.0)
+        vm.end()
+    }
+
+    @Test
+    fun negativeWeightReturnsFilterToPrepareBeforeAndDuringPour() = TestScope(dispatcher).runTest {
+        Dispatchers.setMain(dispatcher)
+        val lines = File("src/test/resources/sessions/synthetic-filter-prepare-return.jsonl").readLines()
+        val scale = ReplayScaleSource(backgroundScope, lines, startPaused = true, repeat = false)
+        val vm = BrewViewModel(BrewMode.FILTER, scale, BrewRepository(FakeBrewDao()), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
+        scale.start()
+        vm.begin()
+        runCurrent()
+        vm.setDose(15.0)
+        vm.setFilterPreparationCheck(1, true)
+        vm.ready()
+        scale.resume()
+
+        advanceTimeBy(3_100)
+        runCurrent()
+        assertEquals("lifting the dripper during preparation returns to the checklist", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertTrue("the checked grind item is kept", 1 in vm.uiState.value.filterPreparationChecks)
+
+        advanceTimeBy(200)
+        runCurrent()
+        vm.ready()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals("the scale starts pouring after Ready tares again", BrewPhase.BREWING, vm.uiState.value.phase)
+
+        advanceTimeBy(2_100)
+        runCurrent()
+        assertEquals("a negative weight held during Pour returns to preparation", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertTrue("the checklist is still checked after Pour", 1 in vm.uiState.value.filterPreparationChecks)
         vm.end()
     }
 }

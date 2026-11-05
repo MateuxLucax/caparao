@@ -147,7 +147,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter"))
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -762,6 +762,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
     }
 
+    /** At 640 dp tall, the filter picture is omitted so the five rows and Ready fit without scrolling. */
+    @Test
+    fun smallScreenFilterPrepare() {
+        assumeTrue("small-screen variant only", context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640)
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-picture").assertDoesNotExist()
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        repeat(5) { compose.onNodeWithTag("filter-prepare-row-$it").assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+    }
+
     /**
      * The cup lands at 8 s but the scale never reads zero: taring times out after the retry and shows the error. Retry
      * with the scale zeroing again tares, and the guide carries on to the first drop.
@@ -862,15 +880,16 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
+        click(R.string.prepare_ready)
         playUntilShown(scale, R.string.taring, 2_000)
         compose.waitForIdle()
         playUntilShown(scale, R.string.filter_ready, 7_000)
         compose.waitForIdle()
-        // Pours from 20 s, the last one ends at 88 s and everything leaves the scale at 90 s.
+        // Pours from 20 s, the last one ends at 88 s; Done is tapped before the two-second return to preparation.
         play(scale, 60_000)
         compose.waitForIdle()
-        play(scale, 93_000)
-        click(R.string.done)
+        play(scale, 91_000)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
@@ -883,6 +902,88 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         waitFor(R.string.delete)
         compose.waitForIdle()
+    }
+
+    /** Filter checklist follows its recipe, and weighing alone does not tare the dripper and server. */
+    @Test
+    fun filterPrepareStepWaitsForReady() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        val scale = open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        compose.waitForIdle()
+        click(R.string.next)
+        val beanWeighTares = scale.tareCommands
+        click(R.string.next)
+
+        waitFor(R.string.prepare_filter_title)
+        assertEquals("the filter is not tared during preparation", beanWeighTares, scale.tareCommands)
+        compose.onNodeWithContentDescription(text(R.string.milestone_prepare)).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-picture").assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        listOf(
+            R.string.prepare_rdt,
+            R.string.prepare_grind,
+            R.string.prepare_rinse_filter,
+            R.string.prepare_add_grounds,
+            R.string.prepare_dripper_server,
+        ).forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("filter-prepare-row-0").performClick()
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        assertTrue("Ready starts the tare", scale.tareCommands > 0)
+        playUntilShown(scale, R.string.taring, 2_000)
+    }
+
+    /** Free filter brew stays manual with its existing ratio and dose controls. */
+    @Test
+    fun filterFreeBrewKeepsItsManualControls() {
+        settings.setLastRecipeId(BrewMode.FILTER, SettingsStore.FREE_BREW)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_less)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_more)).assertIsDisplayed()
+    }
+
+    /** A filter recipe makes water primary, adjusts only this brew and shows scaled targets alongside their times. */
+    @Test
+    fun filterRecipeWaterScalesItsSteps() {
+        val recipe = Recipe(
+            id = "screen-test-water", name = "V60 water test", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        runBlocking { recipes.save(recipe) }
+        settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("${Format.grams(250.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        repeat(15) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
+        compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        val ratio = context.getString(R.string.ratio_value, Format.ratio(recipe.targetRatio, locale))
+        compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithText("00:30").assertIsDisplayed()
+        compose.onNodeWithText("01:00").assertIsDisplayed()
     }
 
     /**
@@ -911,13 +1012,22 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         click(R.string.next)
         click(R.string.next)
+        click(R.string.prepare_ready)
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.ratio_caption))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
         compose.waitForIdle()
+        val counterPrefix = context.getString(R.string.step_of, 1, recipe.steps.size).substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_bloom)),
+        ).assertIsDisplayed()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
         compose.waitForIdle()
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_wait)),
+        ).assertIsDisplayed()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
         compose.waitForIdle()

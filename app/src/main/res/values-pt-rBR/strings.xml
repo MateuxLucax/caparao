@@ -95,12 +95,16 @@
     <string name="dose_field">Dose em gramas</string>
     <string name="next">Continuar</string>
     <string name="prepare_portafilter_title">Prepare o porta-filtro</string>
+    <string name="prepare_filter_title">Prepare o filtro</string>
     <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Moer</string>
     <string name="prepare_wdt">WDT</string>
     <string name="prepare_tamp">Compactar</string>
     <string name="prepare_puck_screen">Tela do puck</string>
+    <string name="prepare_rinse_filter">Escalde o filtro</string>
+    <string name="prepare_add_grounds">Coloque o café moído</string>
+    <string name="prepare_dripper_server">Coloque o coador e a jarra na balança</string>
     <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
@@ -295,6 +299,7 @@
     <string name="stage_ratio">Razão</string>
     <string name="stage_beans">Pesar os grãos</string>
     <string name="stage_prepare">Preparar o porta-filtro</string>
+    <string name="stage_prepare_filter">Prepare o filtro</string>
     <string name="stage_cup">Xícara</string>
     <string name="stage_tare">Tara</string>
     <string name="stage_first_drop">Primeira gota</string>
@@ -302,11 +307,14 @@
     <string name="stage_extracting">Extraindo</string>
     <string name="stage_brewing">Passando</string>
     <string name="stage_done">Pronto</string>
-    <!-- Espresso progress milestones (#191). -->
+    <!-- Brew progress milestones (#191, #205). -->
     <string name="milestone_recipe">Receita</string>
     <string name="milestone_beans">Grãos</string>
     <string name="milestone_portafilter">Porta-filtro</string>
     <string name="milestone_shot">Extração</string>
+    <string name="milestone_prepare">Filtro</string>
+    <string name="milestone_brew">Preparo</string>
+    <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Concluído</string>
     <string name="weigh_beans_title">Pese os grãos</string>
     <string name="weigh_beans_text">Tare o recipiente e coloque os grãos.</string>

@@ -155,15 +155,20 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            // A guided filter brew counts its recipe's steps instead.
-            // The indicator fades out and its space closes when the guide takes over the live step.
+            // Filter keeps its milestone bar while the recipe guide runs; other modes keep their existing transition.
             val still = animationsOff()
             AnimatedVisibility(
-                visible = state.guide == null,
+                visible = state.guide == null || state.mode == BrewMode.FILTER,
                 enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
                 exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
             ) {
-                GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                GuideIndicator(
+                    state.mode,
+                    guideStage(state.mode, state.step, state.phase),
+                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    steps = state.steps,
+                    stepIndex = state.guide?.index,
+                )
             }
             val density = LocalDensity.current
             // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
@@ -177,9 +182,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { (step, guided) ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
+                    BrewStep.DOSE -> DoseStep(
+                        state,
+                        viewModel::selectRecipe,
+                        viewModel::setRatio,
+                        viewModel::planDose,
+                        viewModel::setFilterRecipeWater,
+                        viewModel::setFilterRecipeDose,
+                        viewModel::weigh,
+                    )
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
-                    BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
+                    BrewStep.PREPARE_PORTAFILTER -> if (state.mode == BrewMode.FILTER) {
+                        FilterPrepareStep(state, viewModel::setFilterPreparationCheck, viewModel::ready)
+                    } else {
+                        PortafilterStep(state, viewModel::ready)
+                    }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
