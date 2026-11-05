@@ -18,6 +18,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -425,8 +427,10 @@ class AppScreensTest {
         hold(scale, 36.0, 6.0)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         // The curve on the Done screen pushes Save below the fold.
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilDoesNotExist(hasText(text(R.string.brews_empty_title)), 5_000)
     }

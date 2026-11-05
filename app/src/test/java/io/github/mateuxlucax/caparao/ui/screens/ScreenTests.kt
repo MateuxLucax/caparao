@@ -33,6 +33,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -554,11 +556,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.brew_saved, 60_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
-        click(R.string.tab_brews)
-        compose.waitForIdle()
+        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
+        // The list loads the brew from the database off the main thread, so wait for its row before taking it.
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
         // The dose is what the scale showed on the weigh step, so take the only brew in the list.
-        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         // The brew loads from the database off the main thread.
         waitFor(R.string.delete)
         compose.waitForIdle()
@@ -796,12 +801,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
-        click(R.string.tab_brews)
+        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
         // The list loads the brew from the database off the main thread, so wait for its row before taking it.
         compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
         // The dose is what the scale showed on the weigh step, so take the only brew in the list.
-        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         waitFor(R.string.delete)
         compose.waitForIdle()
     }
