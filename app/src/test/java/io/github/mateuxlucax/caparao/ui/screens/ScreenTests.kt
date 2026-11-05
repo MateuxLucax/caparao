@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -558,7 +559,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         val appBarClose = hasContentDescription(text(R.string.close))
         val espressoTitle = hasText(text(R.string.mode_espresso))
-        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 8, text(R.string.stage_beans)))
+        // Espresso shows its named milestone, not a step counter; TalkBack gets the current name as its description.
+        val weighProgress = hasContentDescription(text(R.string.milestone_beans))
         val nextAction = hasTestTag("weigh-step-next")
         compose.waitUntilAtLeastOneExists(appBarClose, 5_000)
         compose.waitUntilAtLeastOneExists(espressoTitle, 5_000)
@@ -598,6 +600,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
         waitFor(R.string.prepare_portafilter_title)
+        compose.onNode(hasContentDescription(text(R.string.milestone_portafilter))).assertIsDisplayed()
+        compose.onAllNodes(hasText("Step ", substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {

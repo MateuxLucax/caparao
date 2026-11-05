@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,8 +41,14 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
@@ -97,9 +104,42 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
     }
 }
 
-/** One segment per stage, the done and current ones filled, with "Step x of y" under it. */
+/** A named milestone on the progress bar: what it is called and the stages it covers. */
+data class GuideMilestone(@StringRes val name: Int, val stages: Set<GuideStage>)
+
+/** The named milestones [mode] declares; null while filter and French press still count their stages (#187). */
+fun guideMilestones(mode: BrewMode): List<GuideMilestone>? = when (mode) {
+    BrewMode.ESPRESSO -> listOf(
+        GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
+        GuideMilestone(R.string.milestone_portafilter, setOf(GuideStage.PREPARE_PORTAFILTER)),
+        GuideMilestone(
+            R.string.milestone_shot,
+            setOf(GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO),
+        ),
+        GuideMilestone(R.string.milestone_done, setOf(GuideStage.DONE)),
+    )
+    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+}
+
+/** Where [stage] stands among [milestones]. */
+fun milestoneIndex(milestones: List<GuideMilestone>, stage: GuideStage): Int =
+    milestones.indexOfFirst { stage in it.stages }.coerceAtLeast(0)
+
+/** The mode's progress: named milestones for espresso, counted stages for the modes still waiting for their review. */
 @Composable
 fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modifier) {
+    val milestones = guideMilestones(mode)
+    if (milestones == null) {
+        StageSteps(mode, stage, modifier)
+    } else {
+        Milestones(milestones, stage, modifier)
+    }
+}
+
+/** One segment per stage, the done and current ones filled, with "Step x of y" under it. */
+@Composable
+private fun StageSteps(mode: BrewMode, stage: GuideStage, modifier: Modifier) {
     val stages = guideStages(mode)
     val index = stages.indexOf(stage)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -118,6 +158,50 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** One segment and its name per milestone: past and current filled, the current one highlighted. TalkBack hears the current name. */
+@Composable
+private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modifier: Modifier) {
+    val index = milestoneIndex(milestones, stage)
+    val current = stringResource(milestones[index].name)
+    // One node for TalkBack: its description is the current milestone, announced when it changes.
+    Column(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            contentDescription = current
+            liveRegion = LiveRegionMode.Polite
+        },
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            milestones.forEachIndexed { i, _ ->
+                val color by animateColorAsState(
+                    when {
+                        i == index -> MaterialTheme.colorScheme.primary
+                        i < index -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                    Motion.standard(),
+                    label = "milestone",
+                )
+                Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            milestones.forEachIndexed { i, milestone ->
+                Text(
+                    stringResource(milestone.name),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
+                    color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 11.sp, stepSize = 0.5.sp),
+                )
+            }
+        }
     }
 }
 
