@@ -387,7 +387,7 @@ class BrewViewModel(
                     // A free brew steeps too: pour the planned water, then steep for the chosen time (#218).
                     val freeSteps = freePressSteps()
                     _uiState.update { it.copy(freeSteps = freeSteps) }
-                    tracker = StepTracker(freeSteps, pourIdleMs = FREE_POUR_IDLE_MS)
+                    tracker = StepTracker(freeSteps)
                 }
             }
         }
@@ -527,9 +527,8 @@ class BrewViewModel(
         val current = detector ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
-        // A French press following a recipe keeps steeping instead (#221), and so does a free one once its steep began.
-        val steeping = tracker?.let { _uiState.value.recipe != null || it.state.index >= 1 } == true
-        if (state is ScaleState.Failed && mode == BrewMode.FRENCH_PRESS && steeping && current.phase == BrewPhase.BREWING) {
+        // A French press keeps steeping instead, free or with a recipe (#221, #218).
+        if (state is ScaleState.Failed && mode == BrewMode.FRENCH_PRESS && tracker != null && current.phase == BrewPhase.BREWING) {
             keepSteepRunning()
             return
         }
@@ -790,9 +789,6 @@ class BrewViewModel(
         private const val MAX_READINGS = 12_000
         private const val FILTER_PREPARE_LIFT_MS = 2_000L
         internal const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
-
-        /** A free French press starts to steep after this long without new weight (#218). */
-        private const val FREE_POUR_IDLE_MS = 10_000L
 
         /** The steep a free French press accepts: 10 s to an hour. */
         val STEEP_RANGE_MS = 10_000L..3_600_000L

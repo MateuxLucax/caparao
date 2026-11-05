@@ -1548,7 +1548,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         waitFor(R.string.brewing_press)
         compose.onAllNodesWithText(text(R.string.guide_steep_text)).assertCountEquals(0)
-        // The weight rests at the bloom: no new weight for 10 s starts the steep.
+        // The scale reads 300 g at 80 s, the target: the steep starts.
         play(scale, 80_000)
         waitFor(R.string.guide_steep_text)
         compose.onAllNodesWithText(text(R.string.brewing_press)).assertCountEquals(0)
@@ -1581,7 +1581,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         return scale
     }
 
-    /** Reaching the target water starts the steep at once, well before 10 s without new weight (#218). */
+    /** Reaching the target water starts the steep at once (#218). */
     @Test
     fun frenchPressFreeBrewSteepsOnReachingTheTargetWater() {
         val scale = openFreePress(waterMl = "90")

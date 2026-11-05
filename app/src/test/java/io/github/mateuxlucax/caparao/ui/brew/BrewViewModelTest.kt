@@ -283,8 +283,10 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFrenchPressDisconnectDuringTheBrewSavesTheHighestWaterWeightAsInterrupted() {
+    fun aFreePressKeepsCountingWhenTheScaleDropsDuringThePourAndSavesTheWaterAlreadyRead() {
+        val alerts = mutableListOf<GuideAlert>()
         val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
@@ -295,12 +297,25 @@ class BrewViewModelTest {
         pour(120.0, 0.0, 0.4)
 
         scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertNull(vm.uiState.value.saved)
+        assertFalse(vm.uiState.value.connected)
 
+        now += 240_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("the deadline counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        collecting.cancel()
+
+        vm.stop()
+        rolled()
         val brew = vm.uiState.value.saved!!
         assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
         assertEquals(120.0, brew.yieldGrams, 0.5)
         assertNull(brew.timeToFirstDropMs)
-        assertTrue(brew.interrupted)
+        assertFalse(brew.interrupted)
+        vm.end()
     }
 
     @Test
@@ -1223,18 +1238,12 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreePressSteepsAfterTenSecondsWithoutNewWeightAndSavesTheWaterThatWentIn() {
+    fun aFreePressDoesNotSteepJustBecauseTheWeightRests() {
         val vm = freePressPouring()
         pour(0.0, 214.0, 15.0)
-        hold(214.0, 8.0)
-        assertNull("still pouring until 10 s pass", vm.uiState.value.guide)
-        hold(214.0, 3.0)
-        assertEquals(1, vm.uiState.value.guide?.index)
-        assertEquals(StepKind.PRESS, vm.uiState.value.steps[vm.uiState.value.guide!!.index].kind)
-
-        vm.stop()
-        rolled()
-        assertEquals(214.0, vm.uiState.value.saved!!.yieldGrams, 0.5)
+        hold(214.0, 40.0)
+        assertNull("only the target water starts the steep", vm.uiState.value.guide)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
     }
 
     @Test
