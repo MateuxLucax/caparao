@@ -92,6 +92,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.components.DripperArt
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
@@ -573,11 +574,17 @@ fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onRea
     val still = animationsOff()
     val allChecked = state.filterPreparationChecks.size == items.size
     val readyScale = remember { Animatable(1f) }
+    val pictureScale = remember { Animatable(1f) }
     LaunchedEffect(allChecked) {
         if (allChecked && !still) {
+            launch {
+                pictureScale.animateTo(1.06f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+                pictureScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+            }
             readyScale.snapTo(1.06f)
             readyScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         } else {
+            pictureScale.snapTo(1f)
             readyScale.snapTo(1f)
         }
     }
@@ -585,6 +592,10 @@ fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onRea
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             GuideHeader(GuideStage.PREPARE_FILTER)
+            if (!compact) FilterPicture(
+                state.filterPreparationChecks.size,
+                Modifier.padding(top = 4.dp).size(128.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value },
+            )
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shape = MaterialTheme.shapes.small,
@@ -683,6 +694,26 @@ private fun PortafilterPicture(checkedCount: Int, modifier: Modifier = Modifier)
     MorphingShape(checkedCount, modifier.testTag("portafilter-picture"), colors.primaryContainer) {
         Canvas(Modifier.fillMaxSize()) {
             drawPortafilter(metal = colors.primary, handle = colors.onPrimaryContainer)
+        }
+    }
+}
+
+/** The filter dripper and server assemble as its preparation checklist advances. */
+@Composable
+private fun FilterPicture(checkedCount: Int, modifier: Modifier = Modifier) {
+    val still = animationsOff()
+    val visible = DripperArt.visibleParts(checkedCount)
+    val reveal = DripperArt.parts.map { part ->
+        animateFloatAsState(
+            targetValue = if (part in visible) 1f else 0f,
+            animationSpec = if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
+            label = "filter ${part.name.lowercase(Locale.ROOT)}",
+        ).value
+    }
+    val colors = MaterialTheme.colorScheme
+    MorphingShape(checkedCount, modifier.testTag("filter-prepare-picture"), colors.primaryContainer) {
+        Canvas(Modifier.fillMaxSize()) {
+            with(DripperArt) { drawDripper(reveal, colors.primary, colors.onPrimaryContainer) }
         }
     }
 }
