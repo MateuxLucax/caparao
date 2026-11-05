@@ -5,9 +5,11 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,9 +25,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,13 +42,20 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.material3.CircularWavyProgressIndicator
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawServer
+import io.github.mateuxlucax.caparao.ui.components.RingColors
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.ui.components.ringStroke
+import io.github.mateuxlucax.caparao.ui.components.readableOn
+import io.github.mateuxlucax.caparao.ui.components.rememberRingColors
+import io.github.mateuxlucax.caparao.ui.components.targetBand
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -76,7 +87,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
+        if (state.mode != BrewMode.FILTER) StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -106,6 +117,22 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     val colors = MaterialTheme.colorScheme
+    val still = animationsOff()
+    val chartFlow by animateFloatAsState(
+        state.flowGramsPerSecond.coerceAtLeast(0.0).toFloat(),
+        Motion.standardOrSnap(still, 150),
+        label = "flowChart",
+    )
+    val flowHistory = remember(index) { mutableStateListOf<FlowPoint>() }
+    LaunchedEffect(index, state.elapsedMs, state.flowGramsPerSecond) {
+        val point = FlowPoint(state.elapsedMs, state.flowGramsPerSecond.coerceAtLeast(0.0))
+        if (flowHistory.lastOrNull()?.elapsedMs == point.elapsedMs) {
+            flowHistory[flowHistory.lastIndex] = point
+        } else {
+            flowHistory.add(point)
+        }
+        if (flowHistory.size > 24) flowHistory.removeAt(0)
+    }
     val color by animateColorAsState(
         when {
             guide.pace == Pace.BEHIND -> colors.error
@@ -118,8 +145,9 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     )
     // A French press steeps until its deadline: say so instead of naming the press still to come.
     val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
+    val stepTitle = stringResource(stage)
     Text(
-        "${stringResource(stage)} · ${stringResource(R.string.step_of, index + 1, count)}",
+        if (state.mode == BrewMode.FILTER) stepTitle else "$stepTitle · ${stringResource(R.string.step_of, index + 1, count)}",
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
@@ -140,7 +168,12 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
-        CupToTarget(fill, color)
+        val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
+        if (state.mode == BrewMode.FILTER) {
+            ServerToTarget(fill, targetColors.stroke)
+        } else {
+            CupToTarget(fill, targetColors.stroke)
+        }
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
             style = MaterialTheme.typography.headlineSmall,
@@ -149,15 +182,14 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         Text(
             "${Format.grams(state.weightGrams, locale)} / ${Format.grams(target, locale)} $g",
             style = MaterialTheme.typography.displaySmall.merge(Tabular),
-            color = color,
+            color = targetColors.text,
+            modifier = Modifier.testTag("guided-weight"),
         )
         when {
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
-            guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
+            guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), modifier = Modifier.testTag("guide-pace"))
         }
-        if (guide.dueInMs == null) {
-            PourRate.target(step, previousTarget, state.steps.getOrNull(index + 1), state.weightGrams)?.let { FlowBar(state.flowGramsPerSecond, it) }
-        }
+        FlowChart(state.flowGramsPerSecond, chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -171,34 +203,60 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         }
     }
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
-    Note("${Format.timer((state.elapsedMs / 1000).toInt())} · ${Format.flow(state.flowGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}")
+    Note(Format.timer((state.elapsedMs / 1000).toInt()))
 }
 
-/**
- * The flow as one thick horizontal bar, like the brew ring laid flat: it fills on a neutral track up to twice the
- * step's pour rate, so on pace sits at the tick in the middle, and turns tertiary while on pace.
- */
 @Composable
-private fun FlowBar(flow: Double, target: Double) {
-    val locale = LocalConfiguration.current.locales[0]
+private fun FlowChart(liveFlow: Double, animatedFlow: Double, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
     val colors = MaterialTheme.colorScheme
-    val onPace = PourRate.onPace(flow, target)
-    val fill by animateFloatAsState((flow / (target * 2)).coerceIn(0.0, 1.0).toFloat(), tween(150, easing = LinearEasing), label = "flow")
-    val color by animateColorAsState(if (onPace) colors.tertiary else colors.primary, tween(300, easing = Motion.Standard), label = "flowColor")
-    val track = colors.surfaceContainerHighest
-    val tick = colors.onSurfaceVariant
-    Canvas(Modifier.fillMaxWidth(0.8f).height(28.dp)) {
-        val thick = 20.dp.toPx()
-        val y = size.height / 2
-        val start = thick / 2
-        val end = size.width - thick / 2
-        drawLine(track, Offset(start, y), Offset(end, y), strokeWidth = thick, cap = StrokeCap.Round)
-        if (fill > 0.005f) drawLine(color, Offset(start, y), Offset(start + (end - start) * fill, y), strokeWidth = thick, cap = StrokeCap.Round)
-        val mid = start + (end - start) / 2
-        drawLine(tick, Offset(mid, 0f), Offset(mid, size.height), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+    val band = target?.let(PourRate::band)
+    val displayedHistory = history.mapIndexed { index, point -> if (index == history.lastIndex) point.copy(flow = animatedFlow) else point }
+    Text(
+        stringResource(R.string.guide_flow, Format.flow(liveFlow, locale)),
+        style = MaterialTheme.typography.labelMedium,
+        color = colors.onSurfaceVariant,
+    )
+    Canvas(Modifier.fillMaxWidth(0.9f).height(40.dp).testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")) {
+        val stroke = 4.dp.toPx()
+        val left = 3.dp.toPx()
+        val right = size.width - left
+        val top = stroke
+        val bottom = size.height - top
+        val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: animatedFlow, band?.endInclusive ?: 0.0, 1.0)
+        fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
+        band?.let { ideal ->
+            val bandTop = y(ideal.endInclusive)
+            val bandBottom = y(ideal.start)
+            drawRoundRect(
+                colors.tertiaryContainer.copy(alpha = 0.75f),
+                topLeft = Offset(left, bandTop),
+                size = Size(right - left, bandBottom - bandTop),
+                cornerRadius = CornerRadius(stroke / 2),
+            )
+        }
+        val points = displayedHistory.mapIndexed { index, point ->
+            val x = if (displayedHistory.size == 1) right else left + (right - left) * index / (displayedHistory.size - 1)
+            Offset(x, y(point.flow))
+        }
+        if (points.size == 1) {
+            drawCircle(colors.primary, radius = stroke / 2, center = points.single())
+        } else if (points.size > 1) {
+            // Midpoint smoothing: each sample is a control point, the curve passes through the midpoints between them.
+            val path = Path().apply {
+                moveTo(points.first().x, points.first().y)
+                for (i in 1 until points.lastIndex) {
+                    val control = points[i]
+                    val next = points[i + 1]
+                    quadraticTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2)
+                }
+                lineTo(points.last().x, points.last().y)
+            }
+            drawPath(path, colors.primary, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        }
     }
-    Note(stringResource(R.string.guide_flow, Format.flow(flow, locale), Format.flow(target, locale)), if (onPace) colors.tertiary else colors.onSurfaceVariant)
 }
+
+private data class FlowPoint(val elapsedMs: Long, val flow: Double)
 
 @Composable
 private fun Drawdown(state: BrewUiState) {
@@ -206,11 +264,69 @@ private fun Drawdown(state: BrewUiState) {
     ReachedCheck(null)
     Text(stringResource(R.string.guide_drawdown), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
+    DrainTimeBar(state, Modifier.fillMaxWidth().padding(horizontal = 24.dp))
     Note(
         "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)} · " +
             stringResource(R.string.ratio_value, Format.ratio(state.ratio ?: 0.0, locale)),
     )
     Note(stringResource(R.string.guide_drawdown_text))
+}
+
+/** The filter recipe's ideal drain-time range, shown only after the guided pours finish. */
+@Composable
+fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
+    val window = state.drainWindow ?: return
+    val min = state.recipe?.targetMinMs ?: return
+    val max = state.recipe?.targetMaxMs ?: return
+    val domain = max + maxOf(max - min, 15_000L)
+    val progress = (state.elapsedMs.toFloat() / domain).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        progress,
+        Motion.standardOrSnap(animationsOff(), 120),
+        label = "drainTimeProgress",
+    )
+    val colors = MaterialTheme.colorScheme
+    val ring = drainTimeRingColors(colors, window, isSystemInDarkTheme())
+    val status = when (window) {
+        BrewUiState.Window.BEFORE -> stringResource(R.string.drain_time_ideal_range, Format.timer((min / 1000).toInt()), Format.timer((max / 1000).toInt()))
+        BrewUiState.Window.INSIDE -> stringResource(R.string.drain_time_in_range)
+        BrewUiState.Window.PAST -> stringResource(
+            R.string.drain_time_past_range,
+            ((state.elapsedMs - max) / 1000).toInt(),
+            stringResource(R.string.unit_seconds),
+        )
+    }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(14.dp).testTag("drain-time-progress")) {
+            val radius = CornerRadius(size.height / 2)
+            drawRoundRect(colors.surfaceContainerHighest, cornerRadius = radius)
+            drawRoundRect(ring.stroke, size = Size(size.width * animatedProgress, size.height), cornerRadius = radius)
+            val minX = size.width * (min.toFloat() / domain).coerceIn(0f, 1f)
+            val maxX = size.width * (max.toFloat() / domain).coerceIn(0f, 1f)
+            drawLine(colors.onSurfaceVariant, Offset(minX, 0f), Offset(minX, size.height), strokeWidth = 2.dp.toPx())
+            drawLine(colors.onSurfaceVariant, Offset(maxX, 0f), Offset(maxX, size.height), strokeWidth = 2.dp.toPx())
+            val dotRadius = 4.dp.toPx()
+            val currentX = (size.width * animatedProgress).coerceIn(dotRadius, (size.width - dotRadius).coerceAtLeast(dotRadius))
+            drawCircle(ring.text, radius = dotRadius, center = Offset(currentX, size.height / 2))
+        }
+        Text(
+            status,
+            Modifier.fillMaxWidth().testTag("drain-time-${window.name.lowercase()}"),
+            style = MaterialTheme.typography.labelLarge,
+            color = ring.text,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window, dark: Boolean): RingColors {
+    val band = when (window) {
+        BrewUiState.Window.BEFORE -> TargetBand.BELOW
+        BrewUiState.Window.INSIDE -> TargetBand.AT
+        BrewUiState.Window.PAST -> TargetBand.ABOVE
+    }
+    val stroke = colors.ringStroke(band, dark)
+    return RingColors(stroke, stroke.readableOn(colors.surface))
 }
 
 /** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
@@ -280,8 +396,11 @@ private fun FrenchPressPlungerAnimation() {
 }
 
 @Composable
-private fun Note(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
-    Text(text, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color, textAlign = TextAlign.Center)
+private fun Note(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier: Modifier = Modifier,
+) = Text(text, modifier = modifier, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color, textAlign = TextAlign.Center)
 
 @Composable
 private fun paceText(pace: Pace?, paceMs: Long): String {
@@ -347,7 +466,7 @@ private fun ReachedCheck(label: String?) {
 @Composable
 private fun CupToTarget(fill: Float, color: Color) {
     val body = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(Modifier.size(160.dp)) {
+    Canvas(Modifier.size(160.dp).testTag("guided-cup")) {
         scale(size.width / 120f, pivot = Offset.Zero) {
             // A solid cup filling in the step's colour, the target a short tick on its side below the rim.
             val cup = Rect(26f, 20f, 94f, 100f)
@@ -358,19 +477,46 @@ private fun CupToTarget(fill: Float, color: Color) {
     }
 }
 
-/** A wavy ring that empties as the wait runs out. */
+/** Filter pours fill the server while French press keeps its cup until the carafe art is ready (#226). */
+@Composable
+private fun ServerToTarget(fill: Float, water: Color) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.size(160.dp).testTag("guided-cup")) {
+        Canvas(Modifier.fillMaxSize().testTag("guided-server")) {
+            drawServer(
+                Rect(0f, 0f, size.width, size.height),
+                body = colors.surfaceContainerHighest,
+                handle = colors.outlineVariant,
+                water = water,
+                fill = fill,
+            )
+        }
+    }
+}
+
+/** The brew readout's smooth open ring, emptying as the wait runs out. */
 @Composable
 private fun CountdownRing(progress: Float, color: Color, centerContent: @Composable () -> Unit = {}) {
-    val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
-        CircularWavyProgressIndicator(
-            progress = { 1f - shown },
-            modifier = Modifier.fillMaxSize(),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-            trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-        )
+    val still = animationsOff()
+    val shown by animateFloatAsState(
+        progress,
+        if (still) snap() else tween(200, easing = LinearEasing),
+        label = "ring",
+    )
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    Box(Modifier.size(160.dp).testTag("countdown-ring"), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val strokeWidth = 12.dp.toPx()
+            val inset = strokeWidth / 2
+            val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+            val arcTopLeft = Offset(inset, inset)
+            val style = Stroke(strokeWidth, cap = StrokeCap.Round)
+            drawArc(track, 135f, 270f, false, arcTopLeft, arcSize, style = style)
+            val remaining = 1f - shown
+            if (remaining > 0.005f) {
+                drawArc(color, 135f, 270f * remaining, false, arcTopLeft, arcSize, style = style)
+            }
+        }
         centerContent()
     }
 }

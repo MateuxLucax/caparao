@@ -6,14 +6,19 @@ import android.provider.Settings
 import android.view.View
 import android.widget.TextView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -81,7 +86,13 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
+import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.brew.Pace
+import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.ui.brew.BrewStep
+import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
@@ -96,6 +107,10 @@ import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import io.github.mateuxlucax.caparao.ui.components.readableOn
+import io.github.mateuxlucax.caparao.ui.components.ringStroke
+import io.github.mateuxlucax.caparao.ui.components.targetBand
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -147,7 +162,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter"))
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -352,6 +367,20 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
+    }
+
+    @Test
+    fun filterRecipeEditorShowsIdealTotalTime() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
+        compose.onNodeWithText("V60 One and Done").performClick()
+        waitFor(R.string.recipe_name)
+        compose.onNodeWithText(text(R.string.recipe_total_time)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_min)).onFirst().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_max)).onFirst().assertIsDisplayed()
+        compose.onNodeWithText("120").assertIsDisplayed()
+        compose.onNodeWithText("150").assertIsDisplayed()
     }
 
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
@@ -762,6 +791,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
     }
 
+    /** At 640 dp tall, the filter picture is omitted so the five rows and Ready fit without scrolling. */
+    @Test
+    fun smallScreenFilterPrepare() {
+        assumeTrue("small-screen variant only", context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640)
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-picture").assertDoesNotExist()
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        repeat(5) { compose.onNodeWithTag("filter-prepare-row-$it").assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+    }
+
     /**
      * The cup lands at 8 s but the scale never reads zero: taring times out after the retry and shows the error. Retry
      * with the scale zeroing again tares, and the guide carries on to the first drop.
@@ -859,18 +906,26 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+        click(R.string.free_brew)
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
+        click(R.string.prepare_ready)
         playUntilShown(scale, R.string.taring, 2_000)
         compose.waitForIdle()
         playUntilShown(scale, R.string.filter_ready, 7_000)
         compose.waitForIdle()
-        // Pours from 20 s, the last one ends at 88 s and everything leaves the scale at 90 s.
+        // Pours from 20 s, then the dripper lifts at 90 s and pauses the brew.
         play(scale, 60_000)
         compose.waitForIdle()
-        play(scale, 93_000)
-        click(R.string.done)
+        play(scale, 90_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.filter_paused_hint)).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
@@ -885,6 +940,89 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /** Filter checklist follows its recipe, and weighing alone does not tare the dripper and server. */
+    @Test
+    fun filterPrepareStepWaitsForReady() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        val scale = open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
+        compose.waitForIdle()
+        click(R.string.next)
+        val beanWeighTares = scale.tareCommands
+        click(R.string.next)
+
+        waitFor(R.string.prepare_filter_title)
+        assertEquals("the filter is not tared during preparation", beanWeighTares, scale.tareCommands)
+        compose.onNodeWithContentDescription(text(R.string.milestone_prepare)).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-picture").assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        listOf(
+            R.string.prepare_rdt,
+            R.string.prepare_grind,
+            R.string.prepare_rinse_filter,
+            R.string.prepare_add_grounds,
+            R.string.prepare_dripper_server,
+        ).forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("filter-prepare-row-0").performClick()
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        assertTrue("Ready starts the tare", scale.tareCommands > 0)
+        playUntilShown(scale, R.string.taring, 2_000)
+    }
+
+    /** Filter opens free with manual controls even when the last brew used a recipe. */
+    @Test
+    fun filterFreeBrewKeepsItsManualControls() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_less)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_more)).assertIsDisplayed()
+    }
+
+    /** A filter recipe makes water primary, adjusts only this brew and shows scaled targets alongside their times. */
+    @Test
+    fun filterRecipeWaterScalesItsSteps() {
+        val recipe = Recipe(
+            id = "screen-test-water", name = "V60 water test", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        runBlocking { recipes.save(recipe) }
+        settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.onNode(hasText(recipe.name) and isSelectable()).performScrollTo().performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("${Format.grams(250.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        repeat(15) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
+        compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        val ratio = context.getString(R.string.ratio_value, Format.ratio(recipe.targetRatio, locale))
+        compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithText("00:30").assertIsDisplayed()
+        compose.onNodeWithText("01:00").assertIsDisplayed()
+    }
+
     /**
      * The guided filter brew (wireframes 3a–3e) on the synthetic filter session, following a recipe shaped like it:
      * bloom to 50 g, a wait, then pours to 100, 150 and 200 g at 0:35, 0:50 and 1:00 from the first water (20 s in).
@@ -896,6 +1034,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             steps = listOf(
                 RecipeStep(StepKind.BLOOM, 50.0, 0),
                 RecipeStep(StepKind.WAIT, null, 10_000),
+                RecipeStep(StepKind.SWIRL, null, 30_000),
                 RecipeStep(StepKind.POUR, 100.0, 35_000),
                 RecipeStep(StepKind.POUR, 150.0, 50_000),
                 RecipeStep(StepKind.POUR, 200.0, 60_000),
@@ -908,16 +1047,31 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.mode_filter)
         // The recipe loads off the main thread: Next only takes the dose once its chip is selected.
         compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.onNode(hasText(recipe.name) and isSelectable()).performScrollTo().performClick()
         compose.waitForIdle()
         click(R.string.next)
         click(R.string.next)
+        click(R.string.prepare_ready)
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.ratio_caption))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
         compose.waitForIdle()
+        val counterPrefix = context.getString(R.string.step_of, 1, recipe.steps.size).substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_bloom)),
+        ).assertIsDisplayed()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         compose.waitForIdle()
+        play(scale, 52_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_swirl)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_swirl)),
+        ).assertIsDisplayed()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
         compose.waitForIdle()
@@ -927,6 +1081,210 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+        play(scale, 90_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
+    }
+
+    /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
+    @Test
+    fun guidedCupAndWeightFollowStepTargetBandsInBothModes() {
+        val target = 100.0
+        val cases = listOf(
+            94.9 to TargetBand.BELOW,
+            95.0 to TargetBand.AT,
+            105.0 to TargetBand.AT,
+            105.1 to TargetBand.ABOVE,
+        )
+        fun state(mode: BrewMode, weight: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = weight,
+            recipe = Recipe(
+                id = "guided-cup-${mode.name}", name = "Cup color", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.POUR, target, 0)), createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(0, (weight / target).toFloat(), null, Pace.BEHIND, 11_000, null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 94.9))
+        var expectedCup = Color.Unspecified
+        var expectedWeight = Color.Unspecified
+        var expectedPace = Color.Unspecified
+        var expectedServerBody = Color.Unspecified
+        compose.setContent {
+            AppTheme {
+                val scheme = MaterialTheme.colorScheme
+                expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
+                expectedWeight = expectedCup.readableOn(scheme.surface)
+                expectedPace = scheme.onSurfaceVariant
+                expectedServerBody = scheme.surfaceContainerHighest
+                GuidedStep(current) {}
+            }
+        }
+
+        fun assertContainsColor(tag: String, color: Color) {
+            val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
+            val expected = color.toArgb()
+            val found = (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
+            assertTrue("$tag should render $color", found)
+        }
+
+        fun assertServerHasNoTargetMark() {
+            val bitmap = compose.onNodeWithTag("guided-cup").captureToImage().asAndroidBitmap()
+            val scale = bitmap.width / 80f
+            val x = ((65f - 26f) * scale).toInt()
+            val y = ((bitmap.height - 52f * scale) / 2f + (69.875f - 50f) * scale).toInt()
+            assertEquals(expectedServerBody.toArgb(), bitmap.getPixel(x, y))
+        }
+
+        listOf(BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
+            cases.forEach { (weight, band) ->
+                current = state(mode, weight)
+                compose.waitForIdle()
+                assertEquals(band, targetBand(weight, target))
+                if (mode == BrewMode.FILTER) {
+                    compose.onNodeWithTag("guided-server").assertIsDisplayed()
+                } else {
+                    compose.onNodeWithTag("guided-server").assertDoesNotExist()
+                }
+                compose.onNodeWithTag("guided-cup").assertIsDisplayed()
+                assertContainsColor("guided-cup", expectedCup)
+                if (mode == BrewMode.FILTER && weight == 94.9) assertServerHasNoTargetMark()
+                assertContainsColor("guided-weight", expectedWeight)
+                assertContainsColor("guide-pace", expectedPace)
+                compose.onNodeWithText(context.getString(R.string.guide_behind, 11, text(R.string.unit_seconds))).assertIsDisplayed()
+            }
+        }
+    }
+
+    /** Every countdown step uses the same smooth ring in both filter and French press. */
+    @Test
+    fun guideCountdownRingCoversWaitSwirlAndSteep() {
+        val cases = listOf(
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.WAIT, null, 0), R.string.guide_wait),
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.SWIRL, null, 0), R.string.guide_swirl),
+            Triple(BrewMode.FRENCH_PRESS, RecipeStep(StepKind.PRESS, null, 240_000), R.string.guide_steep),
+        )
+        fun stateFor(index: Int): BrewUiState {
+            val (mode, step) = cases[index]
+            val recipe = Recipe(
+                id = "screen-test-countdown-$index", name = "Countdown test", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60", doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(step), createdAt = 0, updatedAt = 0,
+            )
+            return BrewUiState(
+                mode = mode,
+                step = BrewStep.LIVE,
+                recipe = recipe,
+                guide = StepState(index = 0, progress = 0.5f, dueInMs = 10_000, pace = null, paceMs = null, overshootGrams = null),
+            )
+        }
+        var state by mutableStateOf(stateFor(0))
+        compose.setContent { AppTheme { GuidedStep(state) {} } }
+        cases.forEachIndexed { index, (_, _, label) ->
+            if (index > 0) {
+                state = stateFor(index)
+                compose.waitForIdle()
+            }
+            compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
+            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        }
+    }
+
+    /** The ideal drain-time bar follows the timer before, within and after its range; recipes without one stay unchanged. */
+    @Test
+    fun filterDrawdownShowsThreeDrainTimeStatesAndOmitsTheBarWithoutARange() {
+        val recipe = Recipe(
+            id = "drain-time-screen", name = "Drain time", mode = BrewMode.FILTER, method = "V60",
+            doseGrams = 15.0, targetRatio = 16.0,
+            targetMinMs = 120_000, targetMaxMs = 150_000,
+            steps = listOf(RecipeStep(StepKind.POUR, 240.0, 0)), createdAt = 0, updatedAt = 0,
+        )
+        val pouringRecipe = recipe.copy(
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
+        )
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING) = BrewUiState(
+            mode = shownRecipe.mode,
+            step = BrewStep.LIVE,
+            phase = phase,
+            elapsedMs = elapsedMs,
+            recipe = shownRecipe,
+            guide = StepState(1, 1f, null, null, null, null),
+        )
+
+        var current by mutableStateOf(state(100_000, pouringRecipe))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(100_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-before").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_ideal_range, "02:00", "02:30")).assertIsDisplayed()
+
+        current = state(132_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.drain_time_in_range)).assertIsDisplayed()
+
+        current = state(132_000, phase = BrewPhase.PAUSED)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
+        compose.onNodeWithTag("drain-time-progress").assertIsDisplayed()
+
+        current = state(161_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-past").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_past_range, 11, text(R.string.unit_seconds))).assertIsDisplayed()
+
+        current = state(132_000, recipe.copy(targetMinMs = null, targetMaxMs = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(132_000, recipe.copy(mode = BrewMode.FRENCH_PRESS, method = "French press"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+        current = state(132_000, recipe.copy(mode = BrewMode.ESPRESSO, method = "Espresso"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+    }
+
+    /** Live flow stays current with animations disabled, and the optional target only adds its ideal band. */
+    @Test
+    fun guidedFlowChartHasAnOptionalTargetAndUpdatesLive() {
+        fun state(mode: BrewMode, target: Double?, flow: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            flowGramsPerSecond = flow,
+            recipe = Recipe(
+                id = "flow-chart-${mode.name}", name = "Flow chart", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0, targetFlowGramsPerSecond = target)),
+                createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(index = 0, progress = 0.5f, dueInMs = null, pace = Pace.ON_TIME, paceMs = 0, overshootGrams = null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 5.0, 2.0))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("flow-chart-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(2.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FILTER, null, 3.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onAllNodes(hasTestTag("flow-chart-target")).assertCountEquals(0)
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(3.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FRENCH_PRESS, null, 4.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */
@@ -979,7 +1337,17 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         open("press-ramp", 0)
         click(R.string.tab_brews)
-        val row = { water: Double -> compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}", substring = true) }
+        val rowText = { water: Double ->
+            "${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}"
+        }
+        val row = { water: Double ->
+            compose.onNodeWithText(
+                rowText(water),
+                substring = true,
+                useUnmergedTree = true,
+            )
+        }
+        compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
         row(250.0).performTouchInput { longClick() }
         row(245.0).performClick()
         compose.waitForIdle()

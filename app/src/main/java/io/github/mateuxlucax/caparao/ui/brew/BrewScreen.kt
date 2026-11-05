@@ -111,7 +111,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
     // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    val back = { if (state.step == BrewStep.LIVE && state.phase == BrewPhase.BREWING) confirmStop = true else onClose() }
+    val back = { if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose() }
     BackHandler(onBack = back)
     if (confirmStop) {
         AlertDialog(
@@ -155,15 +155,20 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            // A guided filter brew counts its recipe's steps instead.
-            // The indicator fades out and its space closes when the guide takes over the live step.
+            // Filter keeps its milestone bar while the recipe guide runs; other modes keep their existing transition.
             val still = animationsOff()
             AnimatedVisibility(
-                visible = state.guide == null,
+                visible = state.guide == null || state.mode == BrewMode.FILTER,
                 enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
                 exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
             ) {
-                GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                GuideIndicator(
+                    state.mode,
+                    guideStage(state.mode, state.step, state.phase),
+                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    steps = state.steps,
+                    stepIndex = state.guide?.index,
+                )
             }
             val density = LocalDensity.current
             // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
@@ -177,9 +182,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { (step, guided) ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
+                    BrewStep.DOSE -> DoseStep(
+                        state,
+                        viewModel::selectRecipe,
+                        viewModel::setRatio,
+                        viewModel::planDose,
+                        viewModel::setFilterRecipeWater,
+                        viewModel::setFilterRecipeDose,
+                        viewModel::weigh,
+                    )
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
-                    BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
+                    BrewStep.PREPARE_PORTAFILTER -> if (state.mode == BrewMode.FILTER) {
+                        FilterPrepareStep(state, viewModel::setFilterPreparationCheck, viewModel::ready)
+                    } else {
+                        PortafilterStep(state, viewModel::ready)
+                    }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
@@ -190,6 +207,10 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+    if (state.phase == BrewPhase.PAUSED) {
+        FilterPausedStep(state, viewModel::stop)
+        return
+    }
     if (guided) {
         GuidedStep(state, viewModel::stop)
         return
@@ -260,6 +281,48 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
             }
             else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
+        }
+    }
+}
+
+/** Free and guided filter share the same lift pause: the clock and guide hold until the dripper returns. */
+@Composable
+private fun FilterPausedStep(state: BrewUiState, onDone: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(stringResource(R.string.filter_paused), style = MaterialTheme.typography.titleLargeEmphasized)
+            Text(
+                stringResource(R.string.filter_paused_hint),
+                Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            ScaleReadout(
+                weightGrams = state.weightGrams,
+                flowGramsPerSecond = 0.0,
+                timerSeconds = (state.elapsedMs / 1000).toInt(),
+                timerRunning = false,
+                modifier = Modifier.padding(top = 12.dp).widthIn(max = 320.dp).fillMaxWidth(0.85f),
+                ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                started = true,
+                ringAlpha = 0.45f,
+            )
+            state.pauseRemainingMs?.takeIf { it in 1L..10_000L }?.let { remaining ->
+                Text(
+                    stringResource(R.string.filter_finishing_in, Format.timer(((remaining + 999) / 1_000).toInt())),
+                    Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
+            Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium)
         }
     }
 }

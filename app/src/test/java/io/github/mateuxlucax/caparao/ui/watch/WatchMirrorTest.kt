@@ -46,6 +46,8 @@ class WatchMirrorTest {
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.READY), false).state)
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.WAITING_FOR_CUP), false).state)
         assertEquals(WatchState.DONE, WatchMirror.snapshot(connected, reading, brew.copy(step = BrewStep.SUMMARY), false).state)
+        val paused = brew.copy(mode = BrewMode.FILTER, phase = BrewPhase.PAUSED, weightGrams = 25.0, flowGramsPerSecond = 0.0)
+        assertEquals(WatchSnapshot(WatchState.BREWING, 25.0f, 0f, 21_400, timerRunning = true), WatchMirror.snapshot(connected, reading, paused, true))
     }
 
     @Test
@@ -124,5 +126,11 @@ class WatchMirrorTest {
         assertEquals(WatchAlert.TARE_CONFIRMED, WatchMirror.alert(StepEvent.TareConfirmed))
         assertEquals(WatchAlert.FIRST_DROP, WatchMirror.alert(StepEvent.FirstDrop))
         assertEquals(WatchAlert.IN_TARGET_BAND, WatchMirror.alert(StepEvent.InTargetBand))
+        assertEquals(WatchAlert.FIRST_WATER, WatchMirror.alert(StepEvent.FirstWater))
+        assertEquals(WatchAlert.PAST_TARGET_BAND, WatchMirror.alert(StepEvent.PastTargetBand))
+        assertEquals(WatchAlert.PAUSED, WatchMirror.alert(StepEvent.Paused))
+        assertEquals(WatchAlert.RESUMED, WatchMirror.alert(StepEvent.Resumed))
+        assertEquals(WatchAlert.DRAIN_TIME_ENTERED, WatchMirror.alert(StepEvent.DrainTimeEntered))
+        assertEquals(WatchAlert.DRAIN_TIME_PASSED, WatchMirror.alert(StepEvent.DrainTimePassed))
     }
 }

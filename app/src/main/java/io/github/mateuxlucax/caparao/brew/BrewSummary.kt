@@ -36,7 +36,12 @@ data class BrewSummary(
         private const val MIN_SAMPLE_GAP_MS = 1_000L / MAX_SAMPLE_HZ
 
         /** Builds the summary from [readings] (in order; those outside the brew are ignored) and the detector's [result]. */
-        fun of(mode: BrewMode, readings: List<TimedReading>, result: BrewResult): BrewSummary {
+        fun of(
+            mode: BrewMode,
+            readings: List<TimedReading>,
+            result: BrewResult,
+            flowResetTimesMs: List<Long> = emptyList(),
+        ): BrewSummary {
             val start = result.startedAtMs
             val end = result.endedAtMs
             val durationMs = end - start
@@ -44,8 +49,14 @@ data class BrewSummary(
             var peak = 0.0
             val curve = ArrayList<BrewSample>()
             val lastInBrew = readings.lastOrNull { it.atMs in start..end }
+            val resets = flowResetTimesMs.sorted()
+            var nextReset = 0
             for (r in readings) {
                 if (r.atMs < start || r.atMs > end) continue
+                while (nextReset < resets.size && r.atMs >= resets[nextReset]) {
+                    smoother.reset()
+                    nextReset++
+                }
                 val flow = smoother.add(r)
                 peak = maxOf(peak, flow)
                 val sample = BrewSample(r.atMs - start, r.reading.weightGrams, flow)

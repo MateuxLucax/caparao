@@ -1,5 +1,8 @@
 package io.github.mateuxlucax.caparao.data.scale
 
+import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.FilterDetector
+import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.model.ScaleBattery
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -22,6 +25,20 @@ class ScriptedScaleSourceTest {
             source.advanceTo(if (name == "french-press") 240_000 else 300_000)
             assertTrue("$name should reach a final water weight", (source.reading.value?.weightGrams ?: 0.0) > 0)
         }
+    }
+
+    @Test
+    fun `filter spoon scenario drops the handling peak and saves settled water`() {
+        val source = source("filter-spoon")
+        val detector = FilterDetector()
+        for (atMs in 0L..89_000L step 100L) {
+            source.advanceTo(atMs)
+            source.reading.value?.let { detector.onReading(TimedReading(atMs, it)) }
+        }
+
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        detector.stop(89_000L)
+        assertEquals(60.0, detector.result!!.yieldGrams, 0.3)
     }
 
     @Test

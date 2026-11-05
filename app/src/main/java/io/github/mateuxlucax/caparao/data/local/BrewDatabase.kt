@@ -127,7 +127,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 5,
+    version = 7,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -141,7 +141,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -184,6 +184,37 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         BuiltInRecipes.insert(db, listOf(BuiltInRecipes.frenchPress(System.currentTimeMillis())))
+    }
+}
+
+/** Optional pour-rate targets (#207). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE recipe_steps ADD COLUMN target_flow_grams_per_second REAL")
+        db.execSQL(
+            "UPDATE recipe_steps SET target_flow_grams_per_second = 5.0 " +
+                "WHERE recipe_id = '${BuiltInRecipes.V60_BIG_ID}' AND position = 0 AND kind = 'BLOOM' " +
+                "AND recipe_id IN (SELECT id FROM recipes WHERE created_at = updated_at)",
+        )
+    }
+}
+
+/** Ideal total drain times for untouched filter built-ins (#206). */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val defaults = listOf(
+            BuiltInRecipes.V60_ID to (120_000L to 150_000L),
+            BuiltInRecipes.V60_BIG_ID to (120_000L to 150_000L),
+            BuiltInRecipes.MELITTA_ID to (160_000L to 170_000L),
+            BuiltInRecipes.V60_FOUR_SIX_ID to (180_000L to 210_000L),
+            BuiltInRecipes.MELITTA_LITER_ID to (255_000L to 285_000L),
+        )
+        for ((id, range) in defaults) {
+            db.execSQL(
+                "UPDATE recipes SET target_min_ms = ${range.first}, target_max_ms = ${range.second} " +
+                    "WHERE id = '$id' AND mode = 'FILTER' AND created_at = updated_at",
+            )
+        }
     }
 }
 

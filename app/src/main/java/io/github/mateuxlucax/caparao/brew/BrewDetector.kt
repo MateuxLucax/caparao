@@ -18,6 +18,9 @@ enum class BrewPhase {
 
     BREWING,
 
+    /** Filter only: the dripper is lifted and the brew clock is stopped. */
+    PAUSED,
+
     /** Ended; [BrewDetector.result] holds the outcome. */
     DONE,
 }
@@ -36,12 +39,18 @@ data class BrewResult(
     val interrupted: Boolean,
 )
 
+/** The filter-only readings the live screen needs while the dripper is away. */
+data class BrewPauseState(val startedAtMs: Long, val waterWeightGrams: Double)
+
 /**
  * Pure brew logic fed with readings, one implementation per mode (#90). Not
  * thread-safe; feed it in order from one thread.
  */
 interface BrewDetector {
     val phase: BrewPhase
+
+    /** Non-null while a filter brew is paused. */
+    val pauseState: BrewPauseState? get() = null
 
     /** Non-null once [phase] is [BrewPhase.DONE] with something worth saving. */
     val result: BrewResult?

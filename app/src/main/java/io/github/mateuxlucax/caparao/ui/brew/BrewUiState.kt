@@ -27,6 +27,8 @@ data class BrewUiState(
     val flowGramsPerSecond: Double = 0.0,
     /** Since the first drop or first water; 0 before. */
     val elapsedMs: Long = 0,
+    /** Time until an unattended filter pause ends at the lift; null outside a pause. */
+    val pauseRemainingMs: Long? = null,
     /** The saved brew, on the summary; null there when nothing was recorded. */
     val saved: Brew? = null,
     /** The saved brew's curve, drawn on the espresso summary (#198). */
@@ -37,6 +39,8 @@ data class BrewUiState(
     val recipes: List<Recipe> = emptyList(),
     /** The one being followed; null for a free brew. */
     val recipe: Recipe? = null,
+    /** Filter preparation checklist marks, kept if the setup needs to be lifted and tared again. */
+    val filterPreparationChecks: Set<Int> = emptySet(),
     /** Filter or French press with a recipe's steps, once brewing: where the guide stands (#103, #125). */
     val guide: StepState? = null,
     /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */
@@ -67,11 +71,27 @@ data class BrewUiState(
             }
         }
 
+    /** Filter drain-time state, once the last guided step is done; time runs from the first pour. */
+    val drainWindow: Window?
+        get() {
+            if (mode != BrewMode.FILTER || phase !in setOf(BrewPhase.BREWING, BrewPhase.PAUSED)) return null
+            val guidedSteps = steps
+            if (guidedSteps.isEmpty() || guide?.allDone(guidedSteps.size) != true) return null
+            val min = recipe?.targetMinMs ?: return null
+            val max = recipe.targetMaxMs ?: return null
+            if (min > max) return null
+            return when {
+                elapsedMs < min -> Window.BEFORE
+                elapsedMs <= max -> Window.INSIDE
+                else -> Window.PAST
+            }
+        }
+
     enum class Window { BEFORE, INSIDE, PAST }
 
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
     val ratio: Double?
-        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.DONE) }?.let { weightGrams / it }
+        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED || phase == BrewPhase.DONE) }?.let { weightGrams / it }
 
     /** How far [ratio] is toward [targetRatio], 0 to 1. */
     val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()

@@ -34,11 +34,12 @@ object WatchMirror {
         }
         val watchState = when {
             live.step == BrewStep.SUMMARY || live.phase == BrewPhase.DONE -> WatchState.DONE
-            live.phase == BrewPhase.BREWING -> WatchState.BREWING
+            live.phase == BrewPhase.BREWING || live.phase == BrewPhase.PAUSED -> WatchState.BREWING
             else -> WatchState.READY
         }
         return WatchSnapshot(
-            watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs, timerRunning, guide(live),
+            watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs,
+            timerRunning, guide(live),
         )
     }
 
@@ -53,6 +54,12 @@ object WatchMirror {
         StepEvent.TareConfirmed -> WatchAlert.TARE_CONFIRMED
         StepEvent.FirstDrop -> WatchAlert.FIRST_DROP
         StepEvent.InTargetBand -> WatchAlert.IN_TARGET_BAND
+        StepEvent.FirstWater -> WatchAlert.FIRST_WATER
+        StepEvent.PastTargetBand -> WatchAlert.PAST_TARGET_BAND
+        StepEvent.Paused -> WatchAlert.PAUSED
+        StepEvent.Resumed -> WatchAlert.RESUMED
+        StepEvent.DrainTimeEntered -> WatchAlert.DRAIN_TIME_ENTERED
+        StepEvent.DrainTimePassed -> WatchAlert.DRAIN_TIME_PASSED
     }
 
     /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */

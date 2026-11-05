@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.ui.recipes.label
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
@@ -69,6 +71,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
     DOSE(R.string.dose_title, null, R.string.stage_ratio),
     BEANS(R.string.weigh_beans_title, R.string.weigh_beans_text, R.string.stage_beans),
     PREPARE_PORTAFILTER(R.string.prepare_portafilter_title, null, R.string.stage_prepare),
+    PREPARE_FILTER(R.string.prepare_filter_title, null, R.string.stage_prepare_filter),
     CUP(R.string.espresso_place_cup, R.string.espresso_place_cup_text, R.string.stage_cup),
     TARE(R.string.taring, null, R.string.stage_tare),
     FIRST_DROP(R.string.espresso_ready, R.string.espresso_ready_text, R.string.stage_first_drop),
@@ -82,7 +85,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
 /** The stages of [mode], in order. */
 fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
     BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_PORTAFILTER, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
-    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
+    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_FILTER, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
     BrewMode.FRENCH_PRESS -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.DONE)
 }
 
@@ -90,7 +93,7 @@ fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
 fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = when (step) {
     BrewStep.DOSE -> GuideStage.DOSE
     BrewStep.WEIGH -> GuideStage.BEANS
-    BrewStep.PREPARE_PORTAFILTER -> GuideStage.PREPARE_PORTAFILTER
+    BrewStep.PREPARE_PORTAFILTER -> if (mode == BrewMode.FILTER) GuideStage.PREPARE_FILTER else GuideStage.PREPARE_PORTAFILTER
     BrewStep.SUMMARY -> GuideStage.DONE
     BrewStep.LIVE -> when (phase) {
         BrewPhase.WAITING_FOR_CUP -> GuideStage.CUP
@@ -99,7 +102,7 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
             BrewMode.ESPRESSO -> GuideStage.FIRST_DROP
             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> GuideStage.POUR
         }
-        BrewPhase.BREWING, BrewPhase.DONE -> when (mode) {
+        BrewPhase.BREWING, BrewPhase.PAUSED, BrewPhase.DONE -> when (mode) {
             BrewMode.ESPRESSO -> GuideStage.BREWING_ESPRESSO
             BrewMode.FILTER -> GuideStage.BREWING_FILTER
             BrewMode.FRENCH_PRESS -> GuideStage.BREWING_FRENCH_PRESS
@@ -110,7 +113,7 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
 /** A named milestone on the progress bar: what it is called and the stages it covers. */
 data class GuideMilestone(@StringRes val name: Int, val stages: Set<GuideStage>)
 
-/** The named milestones [mode] declares; null while filter and French press still count their stages (#187). */
+/** The named milestones [mode] declares; French press still counts its stages (#187). */
 fun guideMilestones(mode: BrewMode): List<GuideMilestone>? = when (mode) {
     BrewMode.ESPRESSO -> listOf(
         GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
@@ -122,21 +125,34 @@ fun guideMilestones(mode: BrewMode): List<GuideMilestone>? = when (mode) {
         ),
         GuideMilestone(R.string.milestone_done, setOf(GuideStage.DONE)),
     )
-    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+    BrewMode.FILTER -> listOf(
+        GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
+        GuideMilestone(R.string.milestone_prepare, setOf(GuideStage.PREPARE_FILTER)),
+        GuideMilestone(R.string.milestone_brew, setOf(GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER)),
+        GuideMilestone(R.string.milestone_done, setOf(GuideStage.DONE)),
+    )
+    BrewMode.FRENCH_PRESS -> null
 }
 
 /** Where [stage] stands among [milestones]. */
 fun milestoneIndex(milestones: List<GuideMilestone>, stage: GuideStage): Int =
     milestones.indexOfFirst { stage in it.stages }.coerceAtLeast(0)
 
-/** The mode's progress: named milestones for espresso, counted stages for the modes still waiting for their review. */
+/** The mode's progress: named milestones for espresso and filter, counted stages for French press. */
 @Composable
-fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modifier) {
+fun GuideIndicator(
+    mode: BrewMode,
+    stage: GuideStage,
+    modifier: Modifier = Modifier,
+    steps: List<RecipeStep> = emptyList(),
+    stepIndex: Int? = null,
+) {
     val milestones = guideMilestones(mode)
     if (milestones == null) {
         StageSteps(mode, stage, modifier)
     } else {
-        Milestones(milestones, stage, modifier)
+        Milestones(milestones, stage, modifier, steps, stepIndex, splitBrew = mode == BrewMode.FILTER)
     }
 }
 
@@ -176,11 +192,11 @@ private val MilestoneGap = 8.dp
  * not fit. The minimum is divided by the font scale, as on the mode selector, so the rendered text never shrinks below it.
  */
 @Composable
-private fun rememberMilestoneLabelSize(names: List<String>, weights: List<Float>, maxWidth: Dp): TextUnit? {
+private fun rememberMilestoneLabelSize(names: List<String>, weights: List<Float>, maxWidth: Dp, gap: Dp): TextUnit? {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp, fontWeight = FontWeight.SemiBold)
-    val availableWidthPx = with(density) { (maxWidth - MilestoneGap * (names.size - 1)).toPx() }
+    val availableWidthPx = with(density) { (maxWidth - gap * (names.size - 1)).toPx() }
     val minimumSize = (MilestoneLabelMinRenderedSize.value / density.fontScale).sp
     return remember(names, weights, availableWidthPx, style, measurer, density.fontScale) {
         val totalWeight = weights.sum()
@@ -196,41 +212,70 @@ private fun rememberMilestoneLabelSize(names: List<String>, weights: List<Float>
     }
 }
 
+private data class MilestoneSegment(val milestone: Int, val step: Int?, val weight: Float)
+
 /**
- * One segment and its name per milestone, segments as wide as their names: past and current filled, the current one
- * highlighted. When the names cannot all fit, only the current name shows. TalkBack hears the current name.
+ * One segment per milestone, with filter's Brew milestone split into one unnamed segment per recipe step. Past and
+ * current segments fill; the current one is highlighted. When names cannot fit, only the current milestone shows.
  */
 @Composable
-private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modifier: Modifier) {
-    val index = milestoneIndex(milestones, stage)
+private fun Milestones(
+    milestones: List<GuideMilestone>,
+    stage: GuideStage,
+    modifier: Modifier,
+    steps: List<RecipeStep>,
+    stepIndex: Int?,
+    splitBrew: Boolean,
+) {
+    val milestone = milestoneIndex(milestones, stage)
     val names = milestones.map { stringResource(it.name) }
     val weights = names.map { it.length.coerceAtLeast(1).toFloat() }
+    val brewMilestone = milestones.indexOfFirst { GuideStage.BREWING_FILTER in it.stages }
+    val segmentCount = steps.size.takeIf { splitBrew && stepIndex != null && it > 0 } ?: 0
+    val segments = buildList {
+        milestones.forEachIndexed { index, _ ->
+            if (index == brewMilestone && segmentCount > 0) {
+                repeat(segmentCount) { step -> add(MilestoneSegment(index, step, weights[index] / segmentCount)) }
+            } else {
+                add(MilestoneSegment(index, null, weights[index]))
+            }
+        }
+    }
+    val brewStart = segments.indexOfFirst { it.milestone == brewMilestone }
+    val currentSegment = if (segmentCount > 0 && milestone == brewMilestone) {
+        brewStart + (stepIndex ?: 0).coerceIn(0, segmentCount - 1)
+    } else {
+        segments.indexOfFirst { it.milestone == milestone }
+    }
+    val gap = if (segments.size > milestones.size) 2.dp else MilestoneGap
+    val stepName = segments[currentSegment].step?.let { steps.getOrNull(it)?.kind?.label }?.let { stringResource(it) }
+    val description = if (stepName == null) names[milestone] else stringResource(R.string.milestone_and_step, names[milestone], stepName)
     // One node for TalkBack: its description is the current milestone, announced when it changes.
     BoxWithConstraints(
         modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-            contentDescription = names[index]
+            contentDescription = description
             liveRegion = LiveRegionMode.Polite
         },
     ) {
-        val labelSize = rememberMilestoneLabelSize(names, weights, maxWidth)
+        val labelSize = rememberMilestoneLabelSize(names, weights, maxWidth, gap)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
-                milestones.forEachIndexed { i, _ ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                segments.forEachIndexed { i, segment ->
                     val color by animateColorAsState(
                         when {
-                            i == index -> MaterialTheme.colorScheme.primary
-                            i < index -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                            i == currentSegment -> MaterialTheme.colorScheme.primary
+                            i < currentSegment -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                             else -> MaterialTheme.colorScheme.surfaceContainerHighest
                         },
                         Motion.standard(),
                         label = "milestone",
                     )
-                    Box(Modifier.weight(weights[i]).height(4.dp).clip(CircleShape).background(color))
+                    Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
                 }
             }
             if (labelSize == null) {
                 Text(
-                    names[index],
+                    names[milestone],
                     Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
                     color = MaterialTheme.colorScheme.onSurface,
@@ -240,15 +285,15 @@ private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modi
                     softWrap = false,
                 )
             } else {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                     names.forEachIndexed { i, name ->
                         Text(
                             name,
                             Modifier.weight(weights[i]),
                             style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
                             fontSize = labelSize,
-                            color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (i == milestone) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (i == milestone) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             softWrap = false,

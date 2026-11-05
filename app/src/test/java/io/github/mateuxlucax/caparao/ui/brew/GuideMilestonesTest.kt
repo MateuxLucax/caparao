@@ -8,6 +8,7 @@ import org.junit.Test
 
 class GuideMilestonesTest {
     private val espresso = guideMilestones(BrewMode.ESPRESSO)!!
+    private val filter = guideMilestones(BrewMode.FILTER)!!
 
     @Test
     fun espressoDeclaresFiveNamedMilestonesInOrder() {
@@ -36,8 +37,40 @@ class GuideMilestonesTest {
     }
 
     @Test
-    fun filterAndFrenchPressKeepTheirCountedBarForNow() {
-        assertNull(guideMilestones(BrewMode.FILTER))
+    fun filterDeclaresRecipeBeansPrepareBrewAndDoneMilestones() {
+        assertEquals(
+            listOf(R.string.milestone_recipe, R.string.milestone_beans, R.string.milestone_prepare, R.string.milestone_brew, R.string.milestone_done),
+            filter.map { it.name },
+        )
+        listOf(GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER).forEach {
+            assertEquals(3, milestoneIndex(filter, it))
+        }
+        assertEquals(4, milestoneIndex(filter, GuideStage.DONE))
+        assertEquals(
+            3,
+            milestoneIndex(filter, guideStage(BrewMode.FILTER, BrewStep.LIVE, io.github.mateuxlucax.caparao.brew.BrewPhase.PAUSED)),
+        )
+        guideStages(BrewMode.FILTER).forEach { stage ->
+            assertEquals("$stage belongs to one filter milestone", 1, filter.count { stage in it.stages })
+        }
+    }
+
+    @Test
+    fun frenchPressKeepsItsCountedBarForNow() {
         assertNull(guideMilestones(BrewMode.FRENCH_PRESS))
+    }
+
+    @Test
+    fun filterPreparationIsCountedBetweenBeansAndTareWithoutChangingFrenchPress() {
+        assertEquals(
+            listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_FILTER, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE),
+            guideStages(BrewMode.FILTER),
+        )
+        assertEquals(GuideStage.PREPARE_FILTER, guideStage(BrewMode.FILTER, BrewStep.PREPARE_PORTAFILTER, io.github.mateuxlucax.caparao.brew.BrewPhase.WAITING_FOR_CUP))
+        assertEquals(
+            listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.DONE),
+            guideStages(BrewMode.FRENCH_PRESS),
+        )
+        assertEquals(GuideStage.PREPARE_PORTAFILTER, guideStage(BrewMode.ESPRESSO, BrewStep.PREPARE_PORTAFILTER, io.github.mateuxlucax.caparao.brew.BrewPhase.WAITING_FOR_CUP))
     }
 }

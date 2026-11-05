@@ -178,11 +178,14 @@ class BrewViewModelTest {
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 250.0, 120.0)
-        pour(250.0, 0.0, 0.5) // the dripper lifted...
-        hold(0.0, 6.0) // ...and held past the lift hold, so the brew ends at the drop
+        pour(250.0, 0.0, 0.5) // the dripper lifted, so the timer pauses at the drop
+        hold(0.0, 6.0)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        vm.stop()
 
         val state = vm.uiState.value
         assertEquals("the brew is dated back to the drop, not the end of the hold", 120.0, state.saved!!.durationMs / 1000.0, 0.5)
@@ -210,6 +213,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         assertEquals(listOf("tare"), scale.commands)
         hold(0.0, 1.0)
@@ -218,7 +222,7 @@ class BrewViewModelTest {
         vm.stop()
 
         val brew = vm.uiState.value.saved!!
-        assertEquals(250.0, brew.yieldGrams, 0.5)
+        assertEquals("Done while the final rise is unconfirmed saves settled weight", 248.8, brew.yieldGrams, 0.1)
         assertNull(brew.timeToFirstDropMs)
         assertEquals(1, dao.brews.value.size)
     }
@@ -392,20 +396,182 @@ class BrewViewModelTest {
     private val espresso = v60.copy(id = "esp", name = "Espresso", mode = BrewMode.ESPRESSO, method = "Espresso", doseGrams = 18.0, targetRatio = 2.4)
 
     @Test
-    fun theFirstRecipeIsPreselectedWhenNoneWasChosenBefore() = kotlinx.coroutines.test.runTest {
+    fun filterStartsFreeEvenWhenRecipesExist() = kotlinx.coroutines.test.runTest {
         recipes.save(v60)
         recipes.save(espresso)
         val vm = viewModel(BrewMode.FILTER)
         vm.begin()
         val state = vm.uiState.value
         assertEquals(listOf("v60"), state.recipes.map { it.id })
-        assertEquals("v60", state.recipe?.id)
-        assertEquals(15.0, state.dose!!, 0.0)
-        assertEquals(16.0, state.targetRatio, 0.0)
+        assertNull(state.recipe)
+        assertEquals(SettingsStore.defaultDose(BrewMode.FILTER), state.dose!!, 0.0)
+        assertEquals(SettingsStore.defaultTargetRatio(BrewMode.FILTER), state.targetRatio, 0.0)
     }
 
     @Test
-    fun theLastChoiceIsRememberedPerModeIncludingFreeBrew() = kotlinx.coroutines.test.runTest {
+    fun espressoStillStartsWithItsFirstRecipe() = kotlinx.coroutines.test.runTest {
+        recipes.save(espresso)
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        assertEquals("esp", vm.uiState.value.recipe?.id)
+    }
+
+    @Test
+    fun filterRecipeWaterOutsideTheDoseLimitsDoesNotChangeThePlan() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeWater(1700.0)
+        assertEquals(15.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe.steps, vm.uiState.value.recipe!!.steps)
+        vm.setFilterRecipeWater(1.0)
+        assertEquals(15.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe.steps, vm.uiState.value.recipe!!.steps)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
+    fun selectingTheAlreadySelectedRecipeKeepsThisBrewsScaledWater() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0), RecipeStep(StepKind.POUR, 250.0, 30_000)),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setFilterRecipeWater(300.0)
+
+        val scaled = vm.uiState.value.recipe
+        vm.selectRecipe(recipe)
+
+        assertEquals(scaled, vm.uiState.value.recipe)
+        assertEquals(300.0, vm.uiState.value.recipe!!.steps.last().targetWeightGrams!!, 0.0)
+    }
+
+    @Test
+    fun aRecipeUpdatedElsewhereRefreshesDoseAndRatioBeforeBrewing() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(targetRatio = 16.7, steps = listOf(RecipeStep(StepKind.POUR, 250.0, 0)))
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        val updated = recipe.copy(doseGrams = 18.0, targetRatio = 17.0, updatedAt = 1)
+
+        recipes.save(updated)
+        main.dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(updated, vm.uiState.value.recipe)
+        assertEquals(18.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(17.0, vm.uiState.value.targetRatio, 0.0)
+    }
+
+    @Test
+    fun aRunningGuideUsesTheRecipeStepsScaledByWater() {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 0),
+                RecipeStep(StepKind.POUR, 250.0, 0),
+            ),
+        )
+        runBlocking { recipes.save(recipe) }
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setFilterRecipeWater(310.0)
+        val scaled = listOf(55.8, 111.6, 310.0)
+
+        vm.setDose(vm.uiState.value.dose!!)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, scaled[0], 8.0)
+        hold(scaled[0], 1.0)
+        pour(scaled[0], scaled[1], 8.0)
+        hold(scaled[1], 1.0)
+        pour(scaled[1], scaled[2], 20.0)
+        hold(scaled[2], 1.1)
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(scaled, vm.uiState.value.steps.map { it.targetWeightGrams })
+        assertEquals(recipe.steps.size, vm.uiState.value.guide!!.index)
+    }
+
+    @Test
+    fun scalingFilterWaterKeepsFlowTargetsAndDrainRangeInTheGuide() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetMinMs = 8_000,
+            targetMaxMs = 12_000,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 60.0, 0, targetFlowGramsPerSecond = 5.0)),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setFilterRecipeWater(100.0)
+
+        val scaledPlan = vm.uiState.value.recipe!!
+        assertEquals(100.0, scaledPlan.steps.single().targetWeightGrams!!, 0.0)
+        assertEquals(5.0, scaledPlan.steps.single().targetFlowGramsPerSecond!!, 0.0)
+        assertEquals(8_000L, scaledPlan.targetMinMs)
+        assertEquals(12_000L, scaledPlan.targetMaxMs)
+
+        vm.setDose(scaledPlan.doseGrams)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 2.0)
+        hold(100.0, 1.2)
+        assertTrue(vm.uiState.value.guide!!.allDone(vm.uiState.value.steps.size))
+        assertEquals(BrewUiState.Window.BEFORE, vm.uiState.value.drainWindow)
+        hold(100.0, 6.0)
+        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
+        assertEquals(5.0, vm.uiState.value.recipe!!.steps.single().targetFlowGramsPerSecond!!, 0.0)
+        assertEquals(8_000L, vm.uiState.value.recipe!!.targetMinMs)
+        assertEquals(12_000L, vm.uiState.value.recipe!!.targetMaxMs)
+    }
+
+    @Test
+    fun filterRecipeDoseChangesScaleOnlyThisBrew() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeDose(20.0)
+
+        val targets = vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams!! }
+        assertEquals(60.12, targets[0], 1e-9)
+        assertEquals(120.24, targets[1], 1e-9)
+        assertEquals(334.0, targets[2], 0.0)
+        assertEquals(20.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
+    fun filterStartsFreeAfterSelectingARecipeForThePreviousBrew() = kotlinx.coroutines.test.runTest {
         recipes.save(v60)
         settings.setLastDose(BrewMode.FILTER, 20.0)
         val vm = viewModel(BrewMode.FILTER)
@@ -420,7 +586,7 @@ class BrewViewModelTest {
         vm.selectRecipe(v60)
         vm.end()
         vm.begin()
-        assertEquals("v60", vm.uiState.value.recipe?.id)
+        assertNull(vm.uiState.value.recipe)
     }
 
     @Test
@@ -445,14 +611,21 @@ class BrewViewModelTest {
     }
 
     /** A filter brew following [steps]: tared, then poured as [pours] describes; the alerts it raised. */
-    private fun guidedFilter(steps: List<RecipeStep>, pours: () -> Unit): Pair<BrewViewModel, List<GuideAlert>> {
+    private fun guidedFilter(
+        steps: List<RecipeStep>,
+        targetMinMs: Long? = null,
+        targetMaxMs: Long? = null,
+        pours: () -> Unit,
+    ): Pair<BrewViewModel, List<GuideAlert>> {
         val alerts = mutableListOf<GuideAlert>()
-        recipes.run { kotlinx.coroutines.runBlocking { save(v60.copy(steps = steps)) } }
+        recipes.run { kotlinx.coroutines.runBlocking { save(v60.copy(steps = steps, targetMinMs = targetMinMs, targetMaxMs = targetMaxMs)) } }
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
+        vm.selectRecipe(v60.copy(steps = steps, targetMinMs = targetMinMs, targetMaxMs = targetMaxMs))
         val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pours()
@@ -468,6 +641,7 @@ class BrewViewModelTest {
             pour(0.0, 40.0, 8.0)
             hold(40.0, 12.0)
             pour(40.0, 100.0, 12.0)
+            hold(100.0, 1.0)
         }
         val guide = vm.uiState.value.guide!!
         assertEquals(2, guide.index)
@@ -481,6 +655,201 @@ class BrewViewModelTest {
         assertTrue(alerts.all { it.vibrate && !it.sound })
         vm.stop()
         assertEquals("V60", vm.uiState.value.saved!!.recipeName)
+    }
+
+    @Test
+    fun filterDrainRangeAlertsOnceWhenItBeginsAndWhenItPasses() {
+        settings.guideSound = true
+        val (vm, alerts) = guidedFilter(twoPours, targetMinMs = 28_000, targetMaxMs = 34_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            hold(100.0, 8.0)
+        }
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertTrue(alerts.filter { it.event == StepEvent.DrainTimeEntered || it.event == StepEvent.DrainTimePassed }.all { it.vibrate && it.sound })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimeEntered })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
+    }
+
+    @Test
+    fun filterDrainThatJumpsPastTheWholeRangeOnlyAlertsAsPassed() {
+        val lateSteps = listOf(
+            RecipeStep(StepKind.BLOOM, 40.0, 0),
+            RecipeStep(StepKind.POUR, 100.0, 160_000),
+        )
+        val (vm, alerts) = guidedFilter(lateSteps, targetMinMs = 120_000, targetMaxMs = 150_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 152.0)
+            pour(40.0, 100.0, 5.0)
+            hold(100.0, 1.1)
+        }
+
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertEquals(0, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
+        assertEquals(0, watchAlerts.count { it == StepEvent.DrainTimeEntered })
+        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
+    }
+
+    @Test
+    fun filterDrainAlertsFollowTheVibrationAndSoundSettings() {
+        settings.guideVibration = false
+        settings.guideSound = false
+        val (vm, alerts) = guidedFilter(twoPours, targetMinMs = 28_000, targetMaxMs = 34_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            hold(100.0, 8.0)
+        }
+
+        val drainEvents = setOf(StepEvent.DrainTimeEntered, StepEvent.DrainTimePassed)
+        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
+        assertTrue(alerts.none { it.event in drainEvents })
+        assertTrue(watchAlerts.none { it in drainEvents })
+    }
+
+    @Test
+    fun filterDrainRangeAndAlertsFreezeWhilePaused() {
+        val recipe = v60.copy(steps = twoPours, targetMinMs = 28_000, targetMaxMs = 34_000)
+        runBlocking { recipes.save(recipe) }
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = mutableListOf<GuideAlert>()
+        val collecting = CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 40.0, 8.0)
+        hold(40.0, 12.0)
+        pour(40.0, 100.0, 12.0)
+        hold(100.0, 1.1)
+
+        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        pour(100.0, 0.0, 0.5)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        val frozenTime = vm.uiState.value.elapsedMs
+        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
+        hold(0.0, 5.0)
+        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
+        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
+        assertEquals(0, alerts.count { it.event == StepEvent.DrainTimePassed })
+
+        pour(0.0, 100.0, 0.3)
+        hold(100.0, 1.2)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertTrue(vm.uiState.value.elapsedMs - frozenTime in 0L..250L)
+        hold(100.0, 5.0)
+        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertEquals(1, alerts.count { it.event == StepEvent.Paused })
+        assertEquals(1, alerts.count { it.event == StepEvent.Resumed })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimeEntered })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
+        collecting.cancel()
+    }
+
+    @Test
+    fun aFilterPauseFreezesTheRecipeDeadlineAndRebasesTheSavedCurve() = kotlinx.coroutines.test.runTest {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 50.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 100.0, 25_000),
+        )
+        recipes.save(v60.copy(steps = steps))
+        settings.setLastRecipeId(BrewMode.FILTER, v60.id)
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = mutableListOf<GuideAlert>()
+        val collecting = CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(v60.copy(steps = steps))
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        val firstWaterEpochMs = 1_000_000 + now + 100
+        pour(0.0, 50.0, 4.0)
+        hold(50.0, 1.1)
+        assertEquals(1, vm.uiState.value.guide!!.index)
+        hold(50.0, 16.0)
+
+        pour(50.0, 0.0, 0.3)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals("the displayed water stays at the pre-drop level", 50.0, vm.uiState.value.weightGrams, 0.3)
+        val frozenTime = vm.uiState.value.elapsedMs
+        val frozenDue = vm.uiState.value.guide!!.dueInMs
+        assertTrue("the next step is due before the pause ends", frozenDue!! < 5_000L)
+        val countdownsBeforePause = alerts.count { it.event is StepEvent.Countdown }
+        hold(0.0, 5.0)
+        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
+        assertEquals(frozenDue, vm.uiState.value.guide!!.dueInMs)
+        assertEquals("no countdown alert fires while paused", countdownsBeforePause, alerts.count { it.event is StepEvent.Countdown })
+
+        pour(0.0, 80.0, 0.3)
+        hold(80.0, 1.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals("the wait still has time left after the pause", 1, vm.uiState.value.guide!!.index)
+        val resumedTime = vm.uiState.value.elapsedMs
+        assertTrue("the active timer resumes from its frozen value", resumedTime - frozenTime in 0L..100L)
+        assertEquals("flow starts fresh after resuming", 0.0, vm.uiState.value.flowGramsPerSecond, 0.01)
+        hold(80.0, 3.0)
+        assertEquals("the active wait still has time left", 1, vm.uiState.value.guide!!.index)
+        hold(80.0, 2.0)
+        assertEquals(2, vm.uiState.value.guide!!.index)
+        val activeEndTime = vm.uiState.value.elapsedMs
+        assertTrue("the deadline is reached only after active time resumes", activeEndTime - frozenTime in 5_000L..5_200L)
+
+        collecting.cancel()
+        assertEquals(1, alerts.count { it.event == StepEvent.Paused })
+        assertEquals(1, alerts.count { it.event == StepEvent.Resumed })
+        vm.stop()
+        rolled()
+        val brew = vm.uiState.value.saved!!
+        assertEquals("pause time is absent from the duration", activeEndTime, brew.durationMs)
+        assertEquals("the original water start survives the pause", firstWaterEpochMs, brew.startedAt)
+        assertEquals("water added while the dripper is away is kept", 80.0, brew.yieldGrams, 0.3)
+        assertTrue("the saved flow curve does not spike across the pause seam", brew.flowPeakGramsPerSecond <= 13.5)
+        val curve = dao.samples.getValue(brew.id)
+        assertTrue("samples during the pause are omitted", curve.all { it.weightGrams >= 1.0 })
+        assertEquals("the curve ends at the saved duration", brew.durationMs, curve.last().atMs)
+    }
+
+    @Test
+    fun aPauseBeforeTheFirstRecipeTargetKeepsTheFirstStepPending() = kotlinx.coroutines.test.runTest {
+        recipes.save(v60.copy(steps = twoPours))
+        settings.setLastRecipeId(BrewMode.FILTER, v60.id)
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(v60.copy(steps = twoPours))
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 20.0, 2.0)
+        hold(20.0, 1.2)
+        assertEquals(0, vm.uiState.value.guide!!.index)
+
+        pour(20.0, 0.0, 0.3)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals(20.0, vm.uiState.value.weightGrams, 0.3)
+        hold(0.0, 5.0)
+        assertEquals("the first step stays pending while paused", 0, vm.uiState.value.guide!!.index)
+
+        pour(0.0, 20.0, 0.3)
+        hold(20.0, 1.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals("the first step stays pending after resuming", 0, vm.uiState.value.guide!!.index)
+        vm.stop()
     }
 
     @Test
@@ -582,7 +951,10 @@ class BrewViewModelTest {
     @Test
     fun noAlertsWhenBothAreOffButTheGuideStillRuns() {
         settings.guideVibration = false
-        val (vm, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        val (vm, alerts) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 1.0)
+        }
         assertEquals(1, vm.uiState.value.guide!!.index)
         assertTrue(alerts.isEmpty())
     }
@@ -624,10 +996,98 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 40.0, 8.0)
         assertNull(vm.uiState.value.guide)
+    }
+
+    @Test
+    fun aFreeFilterAlertsAtFirstWaterTargetBandPauseResumeAndEndOnce() {
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+
+        pour(0.0, 2.0, 0.4)
+        pour(2.0, 230.0, 10.0) // enters the ±5% band at 228 g
+        hold(230.0, 1.1)
+        pour(230.0, 260.0, 2.0) // passes the +5% edge at 252 g
+        hold(260.0, 1.1)
+        pour(260.0, 0.0, 0.5)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        hold(0.0, 0.2)
+        pour(0.0, 260.0, 0.5)
+        hold(260.0, 1.2)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+
+        // Hovering on and around the band edges doesn't repeat either milestone.
+        listOf(251.8, 252.0, 251.8, 252.0, 260.0).forEach { grams ->
+            now += 100
+            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
+        }
+        vm.stop()
+
+        val events = alerts.map { it.event }
+        assertEquals(1, events.count { it == StepEvent.FirstWater })
+        assertEquals(1, events.count { it == StepEvent.InTargetBand })
+        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
+        assertEquals(1, events.count { it == StepEvent.Paused })
+        assertEquals(1, events.count { it == StepEvent.Resumed })
+        assertEquals(1, events.count { it == StepEvent.AllDone })
+        assertTrue(alerts.all { it.vibrate && !it.sound })
+        assertEquals(events, watchAlerts)
+    }
+
+    @Test
+    fun eachFilterLiftAlertsPauseAndResumeWithinOneBrew() {
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 50.0, 4.0)
+        hold(50.0, 1.1)
+
+        repeat(2) {
+            pour(50.0, 0.0, 0.3)
+            assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+            hold(0.0, 0.2)
+            pour(0.0, 50.0, 0.3)
+            hold(50.0, 1.1)
+            assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+            hold(50.0, 2.1) // allow the post-resume settling window before the next lift
+        }
+
+        assertEquals(2, alerts.count { it.event == StepEvent.Paused })
+        assertEquals(2, alerts.count { it.event == StepEvent.Resumed })
+        assertEquals(2, watchAlerts.count { it == StepEvent.Paused })
+        assertEquals(2, watchAlerts.count { it == StepEvent.Resumed })
+    }
+
+    @Test
+    fun freeFilterAlertsRespectTheExistingOffSettings() {
+        settings.guideVibration = false
+        settings.guideSound = false
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 2.0, 0.4)
+        assertTrue(alerts.isEmpty())
+        assertTrue(watchAlerts.isEmpty())
     }
 
     @Test

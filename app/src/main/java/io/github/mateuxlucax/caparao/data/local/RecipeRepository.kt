@@ -45,7 +45,7 @@ internal fun Recipe.toEntity() = RecipeEntity(
 )
 
 internal fun Recipe.stepEntities() = steps.mapIndexed { i, step ->
-    RecipeStepEntity(id, i, step.kind.name, step.targetWeightGrams, step.targetAtMs)
+    RecipeStepEntity(id, i, step.kind.name, step.targetWeightGrams, step.targetAtMs, step.targetFlowGramsPerSecond)
 }
 
 internal fun RecipeEntity.toModel(steps: List<RecipeStepEntity>) = Recipe(
@@ -60,7 +60,9 @@ internal fun RecipeEntity.toModel(steps: List<RecipeStepEntity>) = Recipe(
     notes = notes,
     targetMinMs = targetMinMs,
     targetMaxMs = targetMaxMs,
-    steps = steps.sortedBy { it.position }.map { RecipeStep(StepKind.valueOf(it.kind), it.targetWeightGrams, it.targetAtMs) },
+    steps = steps.sortedBy { it.position }.map {
+        RecipeStep(StepKind.valueOf(it.kind), it.targetWeightGrams, it.targetAtMs, it.targetFlowGramsPerSecond)
+    },
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

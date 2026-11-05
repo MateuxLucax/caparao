@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -28,10 +30,14 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The five espresso milestone names on a 320 dp phone: each fits its weighted segment on one line at the minimum size. */
+/** Milestone names on a 320 dp phone: each fits its weighted segment on one line at the minimum size. */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-abstract class MilestoneLabelsTest(private val names: List<String>) {
+abstract class MilestoneLabelsTest(
+    private val names: List<String>,
+    private val mode: BrewMode = BrewMode.ESPRESSO,
+    private val steps: List<RecipeStep> = emptyList(),
+) {
     @get:Rule
     val compose = createComposeRule()
 
@@ -50,7 +56,13 @@ abstract class MilestoneLabelsTest(private val names: List<String>) {
                 AppTheme {
                     // 320 dp wide, with the 24 dp side padding the brew screen gives the indicator.
                     Box(Modifier.width(320.dp)) {
-                        GuideIndicator(BrewMode.ESPRESSO, GuideStage.FIRST_DROP, Modifier.padding(horizontal = 24.dp))
+                        GuideIndicator(
+                            mode,
+                            if (mode == BrewMode.FILTER) GuideStage.BREWING_FILTER else GuideStage.FIRST_DROP,
+                            Modifier.padding(horizontal = 24.dp),
+                            steps = steps,
+                            stepIndex = if (mode == BrewMode.FILTER) steps.lastIndex else null,
+                        )
                     }
                 }
             }
@@ -80,6 +92,20 @@ class MilestoneLabelsEnglishTest : MilestoneLabelsTest(listOf("Recipe", "Beans",
 
 @Config(qualifiers = "pt-rBR-w320dp-h640dp-notnight-xxhdpi")
 class MilestoneLabelsPortugueseTest : MilestoneLabelsTest(listOf("Receita", "Grãos", "Porta-filtro", "Extração", "Concluído"))
+
+@Config(qualifiers = "en-w320dp-h640dp-notnight-xxhdpi")
+class FilterMilestoneLabelsEnglishTest : MilestoneLabelsTest(
+    listOf("Recipe", "Beans", "Prepare", "Brew", "Done"),
+    BrewMode.FILTER,
+    List(10) { RecipeStep(StepKind.POUR, null, 0) },
+)
+
+@Config(qualifiers = "pt-rBR-w320dp-h640dp-notnight-xxhdpi")
+class FilterMilestoneLabelsPortugueseTest : MilestoneLabelsTest(
+    listOf("Receita", "Grãos", "Filtro", "Preparo", "Concluído"),
+    BrewMode.FILTER,
+    List(10) { RecipeStep(StepKind.POUR, null, 0) },
+)
 
 /** Narrower than the names can fit in pt-BR: the indicator shows the current name alone instead of clipping the rest. */
 @RunWith(AndroidJUnit4::class)

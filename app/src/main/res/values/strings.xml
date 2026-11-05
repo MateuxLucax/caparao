@@ -99,12 +99,16 @@
     <string name="dose_field">Dose in grams</string>
     <string name="next">Next</string>
     <string name="prepare_portafilter_title">Prepare the portafilter</string>
+    <string name="prepare_filter_title">Prepare the filter</string>
     <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Grind</string>
     <string name="prepare_wdt">WDT</string>
     <string name="prepare_tamp">Tamp</string>
     <string name="prepare_puck_screen">Puck screen</string>
+    <string name="prepare_rinse_filter">Rinse the filter</string>
+    <string name="prepare_add_grounds">Add the grounds</string>
+    <string name="prepare_dripper_server">Dripper and server on the scale</string>
     <string name="prepare_ready">Ready</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
     <string name="espresso_place_cup_text">The scale tares once the cup is steady.</string>
@@ -151,6 +155,9 @@
     <string name="cancel">Cancel</string>
     <string name="brewing_espresso">Extracting</string>
     <string name="brewing_filter">Brewing</string>
+    <string name="filter_paused">Paused</string>
+    <string name="filter_paused_hint">Put the dripper back on the scale to continue.</string>
+    <string name="filter_finishing_in">Finishing in %1$s</string>
     <!-- Server and uploads -->
     <string name="nothing_synced_yet">Server set. Nothing synced yet.</string>
     <string name="server_title">Your server</string>
@@ -199,6 +206,7 @@
     <string name="recipe_grind">Grind</string>
     <string name="recipe_temp">Water temperature</string>
     <string name="recipe_window">Time from the first drop</string>
+    <string name="recipe_total_time">Ideal total time</string>
     <string name="recipe_window_min">From</string>
     <string name="recipe_window_max">To</string>
     <string name="unit_seconds" translatable="false">s</string>
@@ -213,6 +221,7 @@
     <string name="step_press">Press</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
+    <string name="step_flow_target">Flow target</string>
     <string name="add_step">Add step</string>
     <string name="remove_step">Remove step</string>
     <string name="required">Required</string>
@@ -220,7 +229,8 @@
     <string name="recipe_error_ratio">From 1:0.5 to 1:30</string>
     <string name="recipe_error_temp">From 1 to 100 °C</string>
     <string name="recipe_error_window">Whole seconds, the first not above the second.</string>
-    <string name="recipe_error_steps">Each step starts at or after the one before, as m:ss. Each pour goes higher than the one before.</string>
+    <string name="recipe_error_total_time">Use whole seconds for both times, or leave both blank. The first must not be above the second.</string>
+    <string name="recipe_error_steps">Each step starts at or after the one before, as m:ss. Each pour goes higher than the one before. Flow targets must be positive.</string>
     <string name="recipe_error_no_steps">Add at least one step.</string>
     <string name="delete_recipe_title">Delete this recipe?</string>
     <string name="delete_recipe_text">Brews that followed it keep its name.</string>
@@ -238,9 +248,12 @@
     <string name="guide_ahead">%1$d s ahead</string>
     <string name="guide_behind">%1$d s behind</string>
     <string name="guide_over">%1$s g past the target</string>
-    <string name="guide_flow">Flow %1$s g/s · aim for %2$s</string>
+    <string name="guide_flow">Flow %1$s g/s</string>
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
+    <string name="drain_time_ideal_range">Ideal: %1$s–%2$s</string>
+    <string name="drain_time_in_range">In the ideal time</string>
+    <string name="drain_time_past_range">%1$d %2$s past the ideal time</string>
     <string name="guide_steep">Steep</string>
     <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>
@@ -302,6 +315,7 @@
     <string name="stage_ratio">Ratio</string>
     <string name="stage_beans">Weigh the beans</string>
     <string name="stage_prepare">Prepare the portafilter</string>
+    <string name="stage_prepare_filter">Prepare the filter</string>
     <string name="stage_cup">Cup</string>
     <string name="stage_tare">Tare</string>
     <string name="stage_first_drop">First drop</string>
@@ -309,11 +323,14 @@
     <string name="stage_extracting">Extracting</string>
     <string name="stage_brewing">Brewing</string>
     <string name="stage_done">Done</string>
-    <!-- Espresso progress milestones (#191). -->
+    <!-- Brew progress milestones (#191, #205). -->
     <string name="milestone_recipe">Recipe</string>
     <string name="milestone_beans">Beans</string>
     <string name="milestone_portafilter">Portafilter</string>
     <string name="milestone_shot">Shot</string>
+    <string name="milestone_prepare">Prepare</string>
+    <string name="milestone_brew">Brew</string>
+    <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Done</string>
     <string name="weigh_beans_title">Weigh the beans</string>
     <string name="weigh_beans_text">Tare the container, then add the beans.</string>
