@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.components
 
-import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -30,10 +29,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -67,8 +66,7 @@ private class PourFrame(t: Float) {
  */
 @Composable
 fun PourAnimation(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val still = animationsOff()
     val time = if (still) {
         4_200f
     } else {

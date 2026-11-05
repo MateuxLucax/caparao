@@ -14,13 +14,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.assertAll
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -28,6 +35,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -138,7 +147,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome"))
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -176,6 +185,16 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     private fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
+
+    /** A node whose whole text matches [pattern]: the readout's weight (a decimal) and timer (mm:ss). */
+    private fun textMatching(pattern: Regex) =
+        SemanticsMatcher("text matching $pattern") { node -> node.config.getOrNull(SemanticsProperties.Text)?.any { pattern.matches(it.text) } == true }
+
+    /** The live readout's weight and timer, which stay on screen through the shot. */
+    private fun assertWeightAndTimerShown() {
+        compose.onNode(textMatching(Regex("\\d+[.,]\\d"))).assertIsDisplayed()
+        compose.onNode(textMatching(Regex("\\d\\d:\\d\\d"))).assertIsDisplayed()
+    }
 
     private fun open(
         session: String,
@@ -541,11 +560,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.brew_saved, 60_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
-        click(R.string.tab_brews)
-        compose.waitForIdle()
+        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
+        // The list loads the brew from the database off the main thread, so wait for its row before taking it.
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
         // The dose is what the scale showed on the weigh step, so take the only brew in the list.
-        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         // The brew loads from the database off the main thread.
         waitFor(R.string.delete)
         compose.waitForIdle()
@@ -608,7 +630,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         val appBarClose = hasContentDescription(text(R.string.close))
         val espressoTitle = hasText(text(R.string.mode_espresso))
-        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 8, text(R.string.stage_beans)))
+        // Espresso shows its named milestone, not a step counter; TalkBack gets the current name as its description.
+        val weighProgress = hasContentDescription(text(R.string.milestone_beans))
         val nextAction = hasTestTag("weigh-step-next")
         compose.waitUntilAtLeastOneExists(appBarClose, 5_000)
         compose.waitUntilAtLeastOneExists(espressoTitle, 5_000)
@@ -648,8 +671,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
         waitFor(R.string.prepare_portafilter_title)
+        compose.onNode(hasContentDescription(text(R.string.milestone_portafilter))).assertIsDisplayed()
+        // The localized counter's own prefix ("Step " or "Etapa "), so the check means something in pt-BR too.
+        val counterPrefix = context.getString(R.string.step_of_named, 1, 8, "").substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.prepare_grind)).assertIsDisplayed()
+        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
             compose.onNodeWithText(text(it)).assertIsDisplayed()
         }
@@ -661,6 +690,76 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.espresso_ready, 20_000)
         compose.waitForIdle()
+    }
+
+    /**
+     * With animations off, the espresso pictures are still frames: the cup, the LED and the open ring show the same
+     * state as the animated ones, and the weight, timer and flow stay on screen through the shot (#194).
+     */
+    @Test
+    fun espressoMotionStill() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.taring, 15_000)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.espresso_ready, 20_000)
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+        playUntilShown(scale, R.string.brewing_espresso, 60_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
+    }
+
+    /**
+     * With animations off, the portafilter checklist still ticks: every item can be checked, and Ready stays on screen and
+     * enabled, emphasized or not (#198).
+     */
+    @Test
+    fun portafilterChecksWithoutMotion() {
+        open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_portafilter_title)
+        compose.onAllNodes(isToggleable()).assertCountEquals(5)
+        // The text side of the row is part of its touch target, not just the leading mark.
+        compose.onNodeWithTag("portafilter-row-0").performClick()
+        compose.onAllNodes(isToggleable())[0].assert(isOn())
+        compose.onNodeWithTag("portafilter-row-0").performClick()
+        compose.onAllNodes(isToggleable())[0].assert(!isOn())
+        repeat(5) { compose.onAllNodes(isToggleable())[it].performClick() }
+        compose.waitForIdle()
+        compose.onAllNodes(isToggleable()).assertAll(isOn())
+        compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText(text(R.string.prepare_ready)).assertIsDisplayed()
+    }
+
+    /** At 640 dp tall, the picture is omitted and the five rows and Ready fit without scrolling. */
+    @Test
+    fun smallScreenPortafilter() {
+        assumeTrue("small-screen variant only", context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640)
+        open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_portafilter_title)
+        compose.onNodeWithTag("portafilter-picture").assertDoesNotExist()
+        compose.onNodeWithTag("portafilter-dose").assertIsDisplayed()
+        repeat(5) { compose.onNodeWithTag("portafilter-row-$it").assertIsDisplayed() }
+        compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
     }
 
     /**
@@ -684,6 +783,55 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.espresso_ready, 55_000)
         compose.onAllNodes(hasText(text(R.string.tare_failed_title))).assertCountEquals(0)
+
+    }
+
+    /**
+     * The same espresso path with animations on (#194): the cup lands, the tare rolls the weight to zero and the first
+     * drop falls. The milestone, weight, timer and flow stay on screen through each stage. The ring's open state is
+     * covered by ScaleReadoutRingTest, since the Canvas has no semantics to query here.
+     */
+    @Test
+    fun espressoMotionAnimated() {
+        val before = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        try {
+            val scale = open("synthetic-espresso-guide", 0)
+            click(R.string.mode_espresso)
+            compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+            compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+            click(R.string.next)
+            click(R.string.next)
+            click(R.string.prepare_ready)
+            compose.waitForIdle()
+            playUntilShown(scale, R.string.taring, 15_000)
+            compose.waitForIdle()
+            // The tare rolls the weight down to zero on its 400 ms tween; the readout keeps its labels while it does.
+            while (compose.onAllNodes(hasText(Format.grams(0.0, locale))).fetchSemanticsNodes().isEmpty()) {
+                check(scale.nowMs < 20_000) { "the weight never rolled to zero" }
+                compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+                compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+                play(scale, scale.nowMs + 100)
+                compose.waitForIdle()
+            }
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+            playUntilShown(scale, R.string.espresso_ready, 20_000)
+            compose.waitForIdle()
+            compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            playUntilShown(scale, R.string.brewing_espresso, 60_000)
+            compose.waitForIdle()
+            compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
+        } finally {
+            Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, before)
+        }
     }
 
     /** Retry is greyed out while the scale is disconnected, and the error stays on screen; it works again once connected. */
@@ -725,10 +873,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
-        click(R.string.tab_brews)
+        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
+        // The list loads the brew from the database off the main thread, so wait for its row before taking it.
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
         // The dose is what the scale showed on the weigh step, so take the only brew in the list.
-        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
+        compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         waitFor(R.string.delete)
         compose.waitForIdle()
     }

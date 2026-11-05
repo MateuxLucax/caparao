@@ -82,6 +82,9 @@ class BrewViewModel(
     /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
     val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
 
+    /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
+    val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
+
     /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
     /** The espresso moments already alerted for this brew, so each one alerts once (#193). */
@@ -364,7 +367,7 @@ class BrewViewModel(
 
     private fun alert(event: StepEvent) {
         val target = settings.guideVibrationOn
-        val vibrate = settings.guideVibration && target.phone
+        val vibrate = phoneVibrates
         val sound = settings.guideSound
         if (settings.guideVibration && target.watch) onWatchAlert(event)
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
@@ -403,9 +406,8 @@ class BrewViewModel(
             grind = recipe?.grind,
             waterTempCelsius = recipe?.waterTempCelsius,
         )
-        // First, so the notes filled in below land on this brew's summary. The live screen stays up until the timer
-        // has rolled to the saved time.
-        _uiState.update { it.copy(phase = BrewPhase.DONE, saved = brew) }
+        // Keep the live screen until the timer reaches the saved time, with the curve ready for the summary.
+        _uiState.update { it.copy(phase = BrewPhase.DONE, saved = brew, curve = summary.curve) }
         openSummary(brew.durationMs)
         viewModelScope.launch {
             // Past coffees before this brew is in: it has none yet.

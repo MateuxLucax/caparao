@@ -1,11 +1,19 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,6 +62,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -72,6 +81,7 @@ import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.ui.brews.BrewChart
 import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
@@ -80,6 +90,7 @@ import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
@@ -145,19 +156,31 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             // A guided filter brew counts its recipe's steps instead.
-            if (state.guide == null) GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            // The indicator fades out and its space closes when the guide takes over the live step.
+            val still = animationsOff()
+            AnimatedVisibility(
+                visible = state.guide == null,
+                enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
+                GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            }
             val density = LocalDensity.current
+            // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
             AnimatedContent(
-                state.step,
+                state.step to (state.guide != null),
                 Modifier.weight(1f).fillMaxWidth(),
-                transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+                transitionSpec = {
+                    val forward = if (initialState.first == targetState.first) targetState.second else targetState.first.ordinal > initialState.first.ordinal
+                    if (still) EnterTransition.None togetherWith ExitTransition.None else Motion.springAxisX(forward, density)
+                },
                 label = "step",
-            ) { step ->
+            ) { (step, guided) ->
                 when (step) {
                     BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
-                    BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose)
+                    BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
-                    BrewStep.LIVE -> LiveStep(state, viewModel)
+                    BrewStep.LIVE -> LiveStep(state, viewModel, guided)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
@@ -166,8 +189,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
-    if (state.guide != null) {
+private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+    if (guided) {
         GuidedStep(state, viewModel::stop)
         return
     }
@@ -177,7 +200,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        GuideHeader(guideStage(state.mode, state.step, state.phase))
+        val espresso = state.mode == BrewMode.ESPRESSO
+        GuideHeader(guideStage(state.mode, state.step, state.phase), espresso = espresso)
         if (!state.connected) {
             Text(stringResource(R.string.scale_needed), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
@@ -189,6 +213,10 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                // Espresso's ring opens on the first drop, the tare rolls the weight to zero, and the flow thickens a cue (#194).
+                started = !espresso || brewing || state.phase == BrewPhase.DONE,
+                rolling = espresso && state.phase == BrewPhase.TARING,
+                flowCue = espresso,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
                     BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
@@ -272,7 +300,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             return@Column
         }
         // The result springs open.
-        val still = LocalContext.current.let { remember { Settings.Global.getFloat(it.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } }
+        val still = animationsOff()
         val open = remember { Animatable(if (still) 1f else 0.85f) }
         LaunchedEffect(Unit) { open.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
         Column(
@@ -284,7 +312,18 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             if (brew.interrupted) {
                 Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
             }
-            BrewNumbers(brew)
+            // Espresso's result counts up and its curve draws in (#198); the other modes show their numbers as they are.
+            val espressoResult = brew.mode == BrewMode.ESPRESSO
+            BrewNumbers(brew, countUp = espressoResult)
+            if (espressoResult && state.curve.isNotEmpty()) {
+                BrewChart(
+                    state.curve,
+                    brew.durationMs,
+                    "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
+                    "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
+                    Modifier.fillMaxWidth().testTag("brew-curve"),
+                )
+            }
         }
         // Asked after the brew, never before, so the main flow stays a few taps (#105).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
@@ -294,11 +333,15 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
     }
 }
 
-/** Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. */
+/**
+ * Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. [countUp] counts the numbers
+ * up from zero on the save screen (#198); with animations off they show at once.
+ */
 @Composable
-fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
+fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier, countUp: Boolean = false) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
+    val flowUnit = stringResource(R.string.unit_grams_per_second)
     Card(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
@@ -309,29 +352,61 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
                             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.label_water
                         },
                     ),
-                    "${Format.grams(brew.yieldGrams, locale)} $g",
+                    countedText(brew.yieldGrams, countUp) { "${Format.grams(it, locale)} $g" },
                     Modifier.weight(1f),
                     large = true,
                 )
-                Metric(stringResource(R.string.label_time), Format.timer((brew.durationMs / 1000).toInt()), Modifier.weight(1f), large = true)
+                Metric(
+                    stringResource(R.string.label_time),
+                    countedText(brew.durationMs / 1000.0, countUp) { Format.timer(it.toInt()) },
+                    Modifier.weight(1f),
+                    large = true,
+                )
             }
             Row(Modifier.fillMaxWidth()) {
-                Metric(stringResource(R.string.label_dose), "${Format.grams(brew.doseGrams, locale)} $g", Modifier.weight(1f))
-                Metric(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, Format.ratio(brew.ratio, locale)), Modifier.weight(1f))
+                Metric(stringResource(R.string.label_dose), countedText(brew.doseGrams, countUp) { "${Format.grams(it, locale)} $g" }, Modifier.weight(1f))
+                Metric(
+                    stringResource(R.string.label_ratio),
+                    countedText(brew.ratio, countUp) { stringResource(R.string.ratio_value, Format.ratio(it, locale)) },
+                    Modifier.weight(1f),
+                )
             }
             Row(Modifier.fillMaxWidth()) {
                 Metric(
                     stringResource(R.string.label_flow_avg),
-                    "${Format.flow(brew.flowAvgGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}",
+                    countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
                     Modifier.weight(1f),
                 )
                 brew.timeToFirstDropMs?.let {
-                    Metric(stringResource(R.string.label_first_drop), Format.timer((it / 1000).toInt()), Modifier.weight(1f))
+                    Metric(
+                        stringResource(R.string.label_first_drop),
+                        countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                        Modifier.weight(1f),
+                    )
                 } ?: Spacer(Modifier.weight(1f))
             }
         }
     }
 }
+
+/**
+ * A number that counts up from zero to [target] when [countUp] is set (#198). With animations off, or without the count,
+ * it is the final value at once, so the information is on screen either way.
+ */
+@Composable
+private fun countedText(target: Double, countUp: Boolean, format: @Composable (Double) -> String): String {
+    val still = animationsOff()
+    if (!countUp || still) return format(target)
+    // The progress runs 0 to 1 and scales the Double target, so the count never goes through Float: the last text is exact.
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(COUNT_UP_MS, easing = Motion.EmphasizedDecelerate))
+    }
+    return if (progress.value >= 1f) format(target) else format(target * progress.value)
+}
+
+private const val COUNT_UP_MS = 800
 
 @Composable
 private fun Metric(label: String, value: String, modifier: Modifier = Modifier, large: Boolean = false) {

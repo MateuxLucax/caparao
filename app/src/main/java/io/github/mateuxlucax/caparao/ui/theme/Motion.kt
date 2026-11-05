@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.theme
 
+import android.provider.Settings
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -7,6 +8,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -15,9 +17,22 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+
+/**
+ * Whether the system asks for no animation (animations off in developer options or accessibility). The one place that
+ * reads it: every looping or glowing animation checks this, so they agree. Read once per composition, like the rest.
+ */
+@Composable
+fun animationsOff(): Boolean {
+    val context = LocalContext.current
+    return remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+}
 
 /**
  * Material 3 motion tokens (m3.material.io/styles/motion/easing-and-duration/tokens-specs) and the transition patterns
@@ -34,6 +49,10 @@ object Motion {
 
     /** For values that change in place: colors, progress. */
     fun <T> standard(durationMs: Int = SHORT_4): FiniteAnimationSpec<T> = tween(durationMs, easing = Standard)
+
+    /** [standard], or a snap when the system asks for no animation (#183): the state still changes, only without motion. */
+    fun <T> standardOrSnap(still: Boolean, durationMs: Int = SHORT_4): FiniteAnimationSpec<T> =
+        if (still) snap() else standard(durationMs)
 
     /**
      * Shared axis X: forward slides in from the right, back from the left, both fading. For steps in a flow and for

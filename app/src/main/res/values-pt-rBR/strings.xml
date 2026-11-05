@@ -95,12 +95,11 @@
     <string name="dose_field">Dose em gramas</string>
     <string name="next">Continuar</string>
     <string name="prepare_portafilter_title">Prepare o porta-filtro</string>
-    <string name="prepare_dose">Dose de %1$s g</string>
+    <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Moer</string>
-    <string name="prepare_grind_with_setting">Moer · %1$s</string>
     <string name="prepare_wdt">WDT</string>
-    <string name="prepare_tamp">Tampar</string>
+    <string name="prepare_tamp">Compactar</string>
     <string name="prepare_puck_screen">Tela do puck</string>
     <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
@@ -303,6 +302,12 @@
     <string name="stage_extracting">Extraindo</string>
     <string name="stage_brewing">Passando</string>
     <string name="stage_done">Pronto</string>
+    <!-- Espresso progress milestones (#191). -->
+    <string name="milestone_recipe">Receita</string>
+    <string name="milestone_beans">Grãos</string>
+    <string name="milestone_portafilter">Porta-filtro</string>
+    <string name="milestone_shot">Extração</string>
+    <string name="milestone_done">Concluído</string>
     <string name="weigh_beans_title">Pese os grãos</string>
     <string name="weigh_beans_text">Tare o recipiente e coloque os grãos.</string>
     <string name="weigh_of">de %1$s g</string>

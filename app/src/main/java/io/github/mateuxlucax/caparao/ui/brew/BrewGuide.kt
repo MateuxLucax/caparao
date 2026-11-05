@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -16,6 +15,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,11 +37,20 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
@@ -49,6 +58,7 @@ import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import io.github.mateuxlucax.caparao.ui.theme.flex
 import kotlin.math.PI
 import kotlin.math.sin
@@ -97,9 +107,42 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
     }
 }
 
-/** One segment per stage, the done and current ones filled, with "Step x of y" under it. */
+/** A named milestone on the progress bar: what it is called and the stages it covers. */
+data class GuideMilestone(@StringRes val name: Int, val stages: Set<GuideStage>)
+
+/** The named milestones [mode] declares; null while filter and French press still count their stages (#187). */
+fun guideMilestones(mode: BrewMode): List<GuideMilestone>? = when (mode) {
+    BrewMode.ESPRESSO -> listOf(
+        GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
+        GuideMilestone(R.string.milestone_portafilter, setOf(GuideStage.PREPARE_PORTAFILTER)),
+        GuideMilestone(
+            R.string.milestone_shot,
+            setOf(GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO),
+        ),
+        GuideMilestone(R.string.milestone_done, setOf(GuideStage.DONE)),
+    )
+    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+}
+
+/** Where [stage] stands among [milestones]. */
+fun milestoneIndex(milestones: List<GuideMilestone>, stage: GuideStage): Int =
+    milestones.indexOfFirst { stage in it.stages }.coerceAtLeast(0)
+
+/** The mode's progress: named milestones for espresso, counted stages for the modes still waiting for their review. */
 @Composable
 fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modifier) {
+    val milestones = guideMilestones(mode)
+    if (milestones == null) {
+        StageSteps(mode, stage, modifier)
+    } else {
+        Milestones(milestones, stage, modifier)
+    }
+}
+
+/** One segment per stage, the done and current ones filled, with "Step x of y" under it. */
+@Composable
+private fun StageSteps(mode: BrewMode, stage: GuideStage, modifier: Modifier) {
     val stages = guideStages(mode)
     val index = stages.indexOf(stage)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -121,15 +164,116 @@ fun GuideIndicator(mode: BrewMode, stage: GuideStage, modifier: Modifier = Modif
     }
 }
 
+/** The largest milestone label size; the smallest rendered size is [MilestoneLabelMinRenderedSize], whatever the font scale. */
+private val MilestoneLabelMaxSize = 11.sp
+/** The highest rendered minimum at which all five names fit a 320 dp phone: pt-BR's "Porta-filtro" needs it (11 sp does not fit). */
+internal val MilestoneLabelMinRenderedSize = 10.5.sp
+private val MilestoneLabelStep = 0.5.sp
+private val MilestoneGap = 8.dp
+
+/**
+ * The largest size at which every name fits on one line in its weighted segment, or null when even the minimum does
+ * not fit. The minimum is divided by the font scale, as on the mode selector, so the rendered text never shrinks below it.
+ */
+@Composable
+private fun rememberMilestoneLabelSize(names: List<String>, weights: List<Float>, maxWidth: Dp): TextUnit? {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp, fontWeight = FontWeight.SemiBold)
+    val availableWidthPx = with(density) { (maxWidth - MilestoneGap * (names.size - 1)).toPx() }
+    val minimumSize = (MilestoneLabelMinRenderedSize.value / density.fontScale).sp
+    return remember(names, weights, availableWidthPx, style, measurer, density.fontScale) {
+        val totalWeight = weights.sum()
+        fun fits(size: TextUnit): Boolean = names.indices.all { i ->
+            val segmentPx = availableWidthPx * weights[i] / totalWeight
+            measurer.measure(AnnotatedString(names[i]), style.copy(fontSize = size), maxLines = 1, softWrap = false).size.width <= segmentPx
+        }
+        var size = MilestoneLabelMaxSize
+        while (!fits(size) && size > minimumSize) {
+            size = (size.value - MilestoneLabelStep.value).coerceAtLeast(minimumSize.value).sp
+        }
+        size.takeIf { fits(it) }
+    }
+}
+
+/**
+ * One segment and its name per milestone, segments as wide as their names: past and current filled, the current one
+ * highlighted. When the names cannot all fit, only the current name shows. TalkBack hears the current name.
+ */
+@Composable
+private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modifier: Modifier) {
+    val index = milestoneIndex(milestones, stage)
+    val names = milestones.map { stringResource(it.name) }
+    val weights = names.map { it.length.coerceAtLeast(1).toFloat() }
+    // One node for TalkBack: its description is the current milestone, announced when it changes.
+    BoxWithConstraints(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            contentDescription = names[index]
+            liveRegion = LiveRegionMode.Polite
+        },
+    ) {
+        val labelSize = rememberMilestoneLabelSize(names, weights, maxWidth)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
+                milestones.forEachIndexed { i, _ ->
+                    val color by animateColorAsState(
+                        when {
+                            i == index -> MaterialTheme.colorScheme.primary
+                            i < index -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                            else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                        Motion.standard(),
+                        label = "milestone",
+                    )
+                    Box(Modifier.weight(weights[i]).height(4.dp).clip(CircleShape).background(color))
+                }
+            }
+            if (labelSize == null) {
+                Text(
+                    names[index],
+                    Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(MilestoneGap)) {
+                    names.forEachIndexed { i, name ->
+                        Text(
+                            name,
+                            Modifier.weight(weights[i]),
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
+                            fontSize = labelSize,
+                            color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (i == index) FontWeight.SemiBold else FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** The current stage's animation, title and instruction, moving along the shared X axis when the stage changes. */
 @Composable
-fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
+fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Boolean = false) {
     val density = LocalDensity.current
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
         if (stage.pictured) {
             MorphingShape(stage.ordinal, Modifier.padding(bottom = 20.dp).size(128.dp)) {
-                AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                // Espresso's picture follows the scale across stages (#194), so it is not swapped per stage.
+                if (espresso) {
+                    EspressoPicture(stage)
+                } else {
+                    AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                }
             }
         }
         AnimatedContent(
@@ -162,8 +306,7 @@ private const val LOOP_MS = 2_400
 @Composable
 private fun StageAnimation(stage: GuideStage) {
     if (!stage.pictured) return
-    val context = LocalContext.current
-    val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val still = animationsOff()
     val t = if (still) {
         0.7f
     } else {
