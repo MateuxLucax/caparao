@@ -26,6 +26,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         private set
     override var result: BrewResult? = null
         private set
+    override val tareTimedOut: Boolean get() = tare.timedOut
 
     private val tare = TareWatcher(config.tare)
     private var tareSent = false
@@ -50,6 +51,11 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             BrewPhase.BREWING -> { followBrew(reading, prev); null }
             BrewPhase.WAITING_FOR_CUP, BrewPhase.DONE -> null
         }
+    }
+
+    override fun retryTare(atMs: Long): ScaleCommand {
+        tare.begin(atMs)
+        return ScaleCommand.TARE
     }
 
     override fun stop(atMs: Long) = end(atMs, interrupted = false)

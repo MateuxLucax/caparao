@@ -98,6 +98,8 @@
     <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
     <string name="cup_on">Coloquei a xícara</string>
     <string name="taring">Tarando…</string>
+    <string name="tare_failed_title">A balança não está zerando</string>
+    <string name="tare_failed_hint">Tire da balança o que estiver sobrando e toque em Repetir.</string>
     <string name="brewing_filter_text">Despeje no seu ritmo. Tire o coador ou toque em Pronto para terminar.</string>
     <string name="french_press_brewing_text">O timer começa com a primeira água. Toque em Pronto para terminar.</string>
     <string name="step_of">Etapa %1$d de %2$d</string>

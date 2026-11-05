@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.brew
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -83,6 +84,51 @@ class EspressoDetectorTest {
         session.ramp(0.0, 20.0, 10.0).hold(20.0, 5.0)
         detector.feed(session)
         assertEquals(0L, detector.result!!.taredAtMs)
+    }
+
+    /** The cup lands and the scale never zeroes: the tare starts about 3.3 s in, retried at 6.3 s, timed out at 11.3 s. */
+    private fun cupOnAScaleThatStaysAtWeight() {
+        session.hold(0.0, 2.0).ramp(0.0, 150.0, 0.3).hold(150.0, 7.0)
+        detector.feed(session)
+        assertFalse(detector.tareTimedOut)
+        session.hold(150.0, 6.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.TARING, detector.phase)
+        assertTrue(detector.tareTimedOut)
+    }
+
+    @Test
+    fun tareTimesOutAfterTheRetryAndALateZeroStillContinues() {
+        cupOnAScaleThatStaysAtWeight()
+        // The late zero arrives with no retry: the shot goes on as if the tare had never timed out.
+        session.hold(0.0, 1.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.READY, detector.phase)
+        assertFalse(detector.tareTimedOut)
+
+        session.hold(0.0, 6.0)
+        val firstDrop = session.nowMs
+        session.ramp(0.0, 36.0, 15.0).hold(36.0, 8.0)
+        detector.feed(session)
+        val result = detector.result!!
+        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(firstDrop.toDouble(), result.startedAtMs.toDouble(), 500.0)
+        assertEquals(36.0, result.yieldGrams, 0.3)
+        assertNotNull(result.taredAtMs)
+        assertEquals(false, result.interrupted)
+    }
+
+    @Test
+    fun retryTareAsksAgainClearsTheTimeoutAndAZeroThenContinues() {
+        cupOnAScaleThatStaysAtWeight()
+        assertEquals(ScaleCommand.TARE, detector.retryTare(session.nowMs))
+        assertEquals(BrewPhase.TARING, detector.phase)
+        assertFalse(detector.tareTimedOut)
+
+        session.hold(0.0, 1.0)
+        assertEquals(emptyList<Pair<Long, ScaleCommand>>(), detector.feed(session))
+        assertEquals(BrewPhase.READY, detector.phase)
+        assertFalse(detector.tareTimedOut)
     }
 
     @Test

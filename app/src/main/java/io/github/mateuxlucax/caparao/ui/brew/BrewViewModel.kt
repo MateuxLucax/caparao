@@ -170,6 +170,14 @@ class BrewViewModel(
         _uiState.update { it.copy(phase = espresso.phase) }
     }
 
+    /** Taring timed out: asks for the tare once more. Does nothing outside the tare. */
+    fun retryTare() {
+        val current = detector ?: return
+        if (current.phase != BrewPhase.TARING) return
+        send(current.retryTare(clock()))
+        _uiState.update { it.copy(tareTimedOut = false) }
+    }
+
     /** Stop (espresso) or Done (filter); before the brew started, nothing is saved. */
     fun stop() {
         val current = detector ?: return
@@ -255,6 +263,7 @@ class BrewViewModel(
         _uiState.update {
             it.copy(
                 phase = current.phase,
+                tareTimedOut = current.tareTimedOut,
                 weightGrams = shownWeight,
                 flowGramsPerSecond = flow,
                 elapsedMs = since?.let { s -> timed.atMs - s } ?: 0,
