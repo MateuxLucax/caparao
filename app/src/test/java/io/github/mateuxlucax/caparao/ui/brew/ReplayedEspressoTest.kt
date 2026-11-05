@@ -43,6 +43,7 @@ class ReplayedEspressoTest {
         scale.start()
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         advanceTimeBy(48_000)
 
         val brew = vm.uiState.value.saved!!

@@ -156,6 +156,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 when (step) {
                     BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose)
+                    BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
                     BrewStep.LIVE -> LiveStep(state, viewModel)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }

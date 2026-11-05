@@ -535,6 +535,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
+        click(R.string.prepare_ready)
         // The shot starts 14 s into the session and pours for about 25 s.
         play(scale, 21_000)
         compose.waitForIdle()
@@ -607,7 +608,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         val appBarClose = hasContentDescription(text(R.string.close))
         val espressoTitle = hasText(text(R.string.mode_espresso))
-        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 7, text(R.string.stage_beans)))
+        val weighProgress = hasText(context.getString(R.string.step_of_named, 2, 8, text(R.string.stage_beans)))
         val nextAction = hasTestTag("weigh-step-next")
         compose.waitUntilAtLeastOneExists(appBarClose, 5_000)
         compose.waitUntilAtLeastOneExists(espressoTitle, 5_000)
@@ -636,14 +637,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
-    /** The espresso guide's steps before the shot: cup, taring, waiting for the first drop. */
+    /** The espresso guide prepares the portafilter before cup detection, taring and the first drop. */
     @Test
     fun espressoGuide() {
         val scale = open("synthetic-espresso-guide", 0)
         click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
+        waitFor(R.string.prepare_portafilter_title)
+        compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
+        listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
+            compose.onNodeWithText(text(it)).assertIsDisplayed()
+        }
+        compose.onNodeWithTag("portafilter-ready").assertIsDisplayed()
+        click(R.string.prepare_ready)
         compose.waitForIdle()
         // The cup lands at 8 s and is tared as soon as it is still.
         playUntilShown(scale, R.string.taring, 15_000)
@@ -663,6 +674,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.mode_espresso)
         click(R.string.next)
         click(R.string.next)
+        click(R.string.prepare_ready)
         compose.waitForIdle()
         playUntilShown(scale, R.string.taring, 15_000)
         playUntilShown(scale, R.string.tare_failed_title, 40_000)
@@ -682,6 +694,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.mode_espresso)
         click(R.string.next)
         click(R.string.next)
+        click(R.string.prepare_ready)
         compose.waitForIdle()
         playUntilShown(scale, R.string.tare_failed_title, 40_000)
         scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)

@@ -226,7 +226,8 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.next)).performClick()
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         compose.onNodeWithTag("weigh-step-next").performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithTag("portafilter-ready").assertIsEnabled()
         // Closed before the cup went on: nothing started, so straight back home without a summary.
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
@@ -248,6 +249,8 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
         compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 5_000)
 
         assertEquals(null, replay.reading.value)
@@ -403,7 +406,8 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.onNodeWithText(text(R.string.next)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
         runEspressoToTheFirstDrops(scale)
 
         // The widget suggests Filter after this Espresso, but a running brew is never interrupted.
@@ -452,7 +456,8 @@ class AppScreensTest {
 
         // The same ViewModel still listens: the rest of the flow runs to the first drops.
         compose.onNodeWithText(text(R.string.next)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
         runEspressoToTheFirstDrops(scale)
     }
 
@@ -480,7 +485,8 @@ class AppScreensTest {
         // The ViewModel was not ended: the shot still runs from the dose to the first drops.
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.onNodeWithText(text(R.string.next)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
         runEspressoToTheFirstDrops(scale)
     }
 

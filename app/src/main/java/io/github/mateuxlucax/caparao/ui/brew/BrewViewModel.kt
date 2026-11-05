@@ -157,10 +157,26 @@ class BrewViewModel(
     /** Zero the scale, to weigh the beans without the container. */
     fun tare() = scale.tare()
 
-    /** The dose was weighed or typed: start watching for the brew. */
+    /** The dose was weighed: keep it and, for espresso, move to portafilter preparation. */
     fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE && _uiState.value.step != BrewStep.WEIGH) return
         if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
+        if (mode == BrewMode.ESPRESSO) {
+            _uiState.update { it.copy(step = BrewStep.PREPARE_PORTAFILTER, dose = grams) }
+            return
+        }
+        armDetector(grams)
+    }
+
+    /** Ready on the espresso preparation step: arm cup detection from the scale's current weight. */
+    fun ready() {
+        val state = _uiState.value
+        if (mode != BrewMode.ESPRESSO || state.step != BrewStep.PREPARE_PORTAFILTER) return
+        val dose = state.dose ?: return
+        armDetector(dose, scale.reading.value)
+    }
+
+    private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()
             BrewMode.FILTER -> FilterDetector()
@@ -171,8 +187,13 @@ class BrewViewModel(
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
         diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
-        // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
-        scale.reading.value?.let(::onReading)
+        // Espresso without a reading (Ready after a disconnect) takes the first one as its baseline.
+        if (new is EspressoDetector) {
+            new.beginWaitingFromBaseline(espressoBaseline?.let { TimedReading(clock(), it) })
+        } else {
+            // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
+            scale.reading.value?.let(::onReading)
+        }
     }
 
     /** Espresso: the cup on the scale is already tared, skip waiting for it. */

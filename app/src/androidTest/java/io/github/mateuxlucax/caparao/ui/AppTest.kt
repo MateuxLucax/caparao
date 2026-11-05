@@ -140,7 +140,8 @@ class AppTest {
         compose.onNodeWithText(text(R.string.next)).performClick()
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         compose.onNodeWithText(text(R.string.next)).performClick()
-        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertExists()
+        compose.onNodeWithText(text(R.string.prepare_portafilter_title)).assertExists()
+        compose.onNodeWithText(text(R.string.prepare_ready)).assertExists()
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.onNodeWithText(text(R.string.tab_home)).assertExists()
     }

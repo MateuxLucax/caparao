@@ -10,7 +10,7 @@ import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 
 /** The brew screen's steps. */
-enum class BrewStep { DOSE, WEIGH, LIVE, SUMMARY }
+enum class BrewStep { DOSE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
 
 data class BrewUiState(
     val mode: BrewMode,

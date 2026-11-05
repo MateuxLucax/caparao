@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.ButtonGroupDefaults
@@ -40,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -301,6 +303,51 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
             ) {
                 Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
             }
+        }
+    }
+}
+
+/** Espresso puck preparation; checks are local to this visit and never affect the Ready action. */
+@Composable
+fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    var checked by remember { mutableStateOf(setOf<Int>()) }
+    val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
+    val items = listOf(
+        stringResource(R.string.prepare_rdt),
+        if (grind == null) stringResource(R.string.prepare_grind) else stringResource(R.string.prepare_grind_with_setting, grind),
+        stringResource(R.string.prepare_wdt),
+        stringResource(R.string.prepare_tamp),
+        stringResource(R.string.prepare_puck_screen),
+    )
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        GuideHeader(GuideStage.PREPARE_PORTAFILTER)
+        Text(
+            stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
+            Modifier.padding(top = 12.dp),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(Modifier.weight(1f).fillMaxWidth().padding(top = 20.dp), verticalArrangement = Arrangement.Center) {
+            items.forEachIndexed { index, item ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Checkbox(checked = index in checked, onCheckedChange = { isChecked ->
+                        checked = if (isChecked) checked + index else checked - index
+                    })
+                    Text(item, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+        Button(
+            onClick = onReady,
+            modifier = Modifier.testTag("portafilter-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(),
+        ) {
+            Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
         }
     }
 }

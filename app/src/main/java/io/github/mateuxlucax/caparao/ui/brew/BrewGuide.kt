@@ -58,6 +58,7 @@ import kotlin.math.sin
 enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @StringRes val label: Int) {
     DOSE(R.string.dose_title, null, R.string.stage_ratio),
     BEANS(R.string.weigh_beans_title, R.string.weigh_beans_text, R.string.stage_beans),
+    PREPARE_PORTAFILTER(R.string.prepare_portafilter_title, null, R.string.stage_prepare),
     CUP(R.string.espresso_place_cup, R.string.espresso_place_cup_text, R.string.stage_cup),
     TARE(R.string.taring, null, R.string.stage_tare),
     FIRST_DROP(R.string.espresso_ready, R.string.espresso_ready_text, R.string.stage_first_drop),
@@ -70,7 +71,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
 
 /** The stages of [mode], in order. */
 fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
-    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
+    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_PORTAFILTER, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
     BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
     BrewMode.FRENCH_PRESS -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.DONE)
 }
@@ -79,6 +80,7 @@ fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
 fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = when (step) {
     BrewStep.DOSE -> GuideStage.DOSE
     BrewStep.WEIGH -> GuideStage.BEANS
+    BrewStep.PREPARE_PORTAFILTER -> GuideStage.PREPARE_PORTAFILTER
     BrewStep.SUMMARY -> GuideStage.DONE
     BrewStep.LIVE -> when (phase) {
         BrewPhase.WAITING_FOR_CUP -> GuideStage.CUP
