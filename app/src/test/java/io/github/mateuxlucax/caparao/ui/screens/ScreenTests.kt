@@ -18,7 +18,11 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertAll
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -689,6 +693,27 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
     }
 
+    /**
+     * With animations off, the portafilter checklist still ticks: every item can be checked, and Ready stays on screen and
+     * enabled, emphasized or not (#198).
+     */
+    @Test
+    fun portafilterChecksWithoutMotion() {
+        open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_portafilter_title)
+        compose.onAllNodes(isToggleable()).assertCountEquals(5)
+        repeat(5) { compose.onAllNodes(isToggleable())[it].performClick() }
+        compose.waitForIdle()
+        compose.onAllNodes(isToggleable()).assertAll(isOn())
+        compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText(text(R.string.prepare_ready)).assertIsDisplayed()
+    }
+
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */
     @Test
     fun filter() {
@@ -710,6 +735,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         click(R.string.tab_brews)
+        // The list loads the brew from the database off the main thread, so wait for its row before taking it.
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
         // The dose is what the scale showed on the weigh step, so take the only brew in the list.
         compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performClick()
         waitFor(R.string.delete)

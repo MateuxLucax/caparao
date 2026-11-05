@@ -8,6 +8,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -48,6 +49,10 @@ object Motion {
 
     /** For values that change in place: colors, progress. */
     fun <T> standard(durationMs: Int = SHORT_4): FiniteAnimationSpec<T> = tween(durationMs, easing = Standard)
+
+    /** [standard], or a snap when the system asks for no animation (#183): the state still changes, only without motion. */
+    fun <T> standardOrSnap(still: Boolean, durationMs: Int = SHORT_4): FiniteAnimationSpec<T> =
+        if (still) snap() else standard(durationMs)
 
     /**
      * Shared axis X: forward slides in from the right, back from the left, both fading. For steps in a flow and for

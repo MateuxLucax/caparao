@@ -37,6 +37,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import io.github.mateuxlucax.caparao.ui.theme.flex
 
 /**
@@ -105,8 +106,10 @@ internal fun chartGridColor(): Color = MaterialTheme.colorScheme.outlineVariant.
  */
 @Composable
 internal fun rememberDrawIn(key: Any): Animatable<Float, *> {
-    val progress = remember(key) { Animatable(0f) }
-    LaunchedEffect(key) { progress.animateTo(1f, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessVeryLow)) }
+    // With animations off the curve is drawn whole from the start (#183).
+    val still = animationsOff()
+    val progress = remember(key) { Animatable(if (still) 1f else 0f) }
+    LaunchedEffect(key) { if (!still) progress.animateTo(1f, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessVeryLow)) }
     return progress
 }
 

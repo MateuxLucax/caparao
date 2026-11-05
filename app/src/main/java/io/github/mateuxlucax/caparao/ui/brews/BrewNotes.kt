@@ -1,5 +1,11 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -26,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.Brew
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
 /** A brew's notes as typed (#105), on the save screen and in the brew detail. */
 data class NotesForm(
@@ -110,13 +120,32 @@ fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm
 /** Five stars; tapping the current rating clears it. */
 @Composable
 private fun Rating(rating: Int?, onRate: (Int?) -> Unit) {
+    val still = animationsOff()
+    val haptic = LocalHapticFeedback.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.brew_rating), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         (1..5).forEach { star ->
-            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onRate(if (rating == star) null else star) }) {
+            val filled = rating != null && star <= rating
+            // A star that fills or empties springs from a little smaller back to its resting size; the tap gives a tick.
+            val pop = remember { Animatable(1f) }
+            val shown = remember { mutableStateOf(filled) }
+            LaunchedEffect(filled) {
+                if (shown.value != filled) {
+                    shown.value = filled
+                    if (!still) {
+                        pop.snapTo(0.8f)
+                        pop.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+                    }
+                }
+            }
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onRate(if (rating == star) null else star)
+            }) {
                 Icon(
-                    painterResource(if (rating != null && star <= rating) R.drawable.ic_star else R.drawable.ic_star_outline),
+                    painterResource(if (filled) R.drawable.ic_star else R.drawable.ic_star_outline),
                     contentDescription = stringResource(R.string.rating_stars, star),
+                    modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

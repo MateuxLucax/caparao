@@ -358,7 +358,7 @@ class BrewViewModel(
             waterTempCelsius = recipe?.waterTempCelsius,
         )
         // First, so the notes filled in below land on this brew's summary.
-        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
+        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew, curve = summary.curve) }
         viewModelScope.launch {
             // Past coffees before this brew is in: it has none yet.
             val coffees = repository.recentCoffees()

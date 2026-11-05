@@ -13,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -79,6 +80,7 @@ import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.ui.brews.BrewChart
 import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
@@ -292,7 +294,18 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             if (brew.interrupted) {
                 Text(stringResource(R.string.brew_interrupted), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
             }
-            BrewNumbers(brew)
+            // Espresso's result counts up and its curve draws in (#198); the other modes show their numbers as they are.
+            val espressoResult = brew.mode == BrewMode.ESPRESSO
+            BrewNumbers(brew, countUp = espressoResult)
+            if (espressoResult && state.curve.isNotEmpty()) {
+                BrewChart(
+                    state.curve,
+                    brew.durationMs,
+                    "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
+                    "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
+                    Modifier.fillMaxWidth(),
+                )
+            }
         }
         // Asked after the brew, never before, so the main flow stays a few taps (#105).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
@@ -302,11 +315,15 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
     }
 }
 
-/** Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. */
+/**
+ * Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. [countUp] counts the numbers
+ * up from zero on the save screen (#198); with animations off they show at once.
+ */
 @Composable
-fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
+fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier, countUp: Boolean = false) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
+    val flowUnit = stringResource(R.string.unit_grams_per_second)
     Card(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
@@ -317,29 +334,57 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier) {
                             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.label_water
                         },
                     ),
-                    "${Format.grams(brew.yieldGrams, locale)} $g",
+                    countedText(brew.yieldGrams, countUp) { "${Format.grams(it, locale)} $g" },
                     Modifier.weight(1f),
                     large = true,
                 )
-                Metric(stringResource(R.string.label_time), Format.timer((brew.durationMs / 1000).toInt()), Modifier.weight(1f), large = true)
+                Metric(
+                    stringResource(R.string.label_time),
+                    countedText(brew.durationMs / 1000.0, countUp) { Format.timer(it.toInt()) },
+                    Modifier.weight(1f),
+                    large = true,
+                )
             }
             Row(Modifier.fillMaxWidth()) {
-                Metric(stringResource(R.string.label_dose), "${Format.grams(brew.doseGrams, locale)} $g", Modifier.weight(1f))
-                Metric(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, Format.ratio(brew.ratio, locale)), Modifier.weight(1f))
+                Metric(stringResource(R.string.label_dose), countedText(brew.doseGrams, countUp) { "${Format.grams(it, locale)} $g" }, Modifier.weight(1f))
+                Metric(
+                    stringResource(R.string.label_ratio),
+                    countedText(brew.ratio, countUp) { stringResource(R.string.ratio_value, Format.ratio(it, locale)) },
+                    Modifier.weight(1f),
+                )
             }
             Row(Modifier.fillMaxWidth()) {
                 Metric(
                     stringResource(R.string.label_flow_avg),
-                    "${Format.flow(brew.flowAvgGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}",
+                    countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
                     Modifier.weight(1f),
                 )
                 brew.timeToFirstDropMs?.let {
-                    Metric(stringResource(R.string.label_first_drop), Format.timer((it / 1000).toInt()), Modifier.weight(1f))
+                    Metric(
+                        stringResource(R.string.label_first_drop),
+                        countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                        Modifier.weight(1f),
+                    )
                 } ?: Spacer(Modifier.weight(1f))
             }
         }
     }
 }
+
+/**
+ * A number that counts up from zero to [target] when [countUp] is set (#198). With animations off, or without the count,
+ * it is the final value at once, so the information is on screen either way.
+ */
+@Composable
+private fun countedText(target: Double, countUp: Boolean, format: @Composable (Double) -> String): String {
+    val still = animationsOff()
+    if (!countUp || still) return format(target)
+    val shown = remember { Animatable(0f) }
+    LaunchedEffect(target) { shown.animateTo(target.toFloat(), tween(COUNT_UP_MS, easing = Motion.EmphasizedDecelerate)) }
+    return format(shown.value.toDouble())
+}
+
+private const val COUNT_UP_MS = 800
 
 @Composable
 private fun Metric(label: String, value: String, modifier: Modifier = Modifier, large: Boolean = false) {

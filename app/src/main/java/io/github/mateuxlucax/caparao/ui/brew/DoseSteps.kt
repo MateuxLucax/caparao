@@ -2,7 +2,27 @@ package io.github.mateuxlucax.caparao.ui.brew
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -77,39 +97,50 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
     val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
+    val still = animationsOff()
+    val haptic = LocalHapticFeedback.current
+    val espresso = state.mode == BrewMode.ESPRESSO
+    // A tick on the ratio buttons, for espresso's free brew (#198); the other modes' ratio stays as it was.
+    fun tick() { if (espresso) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+    // The summary keeps the last recipe while it folds away, so switching to Free brew doesn't blank it first.
+    var summaryRecipe by remember { mutableStateOf(espressoRecipe) }
+    LaunchedEffect(espressoRecipe) { espressoRecipe?.let { summaryRecipe = it } }
     var editing by rememberSaveable { mutableStateOf<Editing?>(null) }
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.recipes.isNotEmpty()) RecipeChips(state, onRecipe)
         Spacer(Modifier.weight(1f))
-        if (espressoRecipe != null) {
-            EspressoRecipeSummary(espressoRecipe, locale)
-        } else {
-            AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
-                Text(
-                    stringResource(R.string.ratio_value, ratioText(ratio, locale)),
-                    style = MaterialTheme.typography.displayLarge.merge(TabularFlex).merge(flex(800, 100)),
-                )
-            }
-            Text(stringResource(R.string.ratio_caption), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                FilledTonalIconButton(onClick = { onRatio(state.targetRatio - step) }, Modifier.size(72.dp)) {
-                    Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(32.dp))
-                }
-                FilledTonalIconButton(onClick = { onRatio(state.targetRatio + step) }, Modifier.size(72.dp)) {
-                    Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(32.dp))
-                }
-            }
-            Row(Modifier.padding(top = 40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Amount(state.dose, R.string.unit_grams, locale) { editing = Editing.DOSE }
-                Icon(painterResource(R.drawable.ic_arrow_forward), null, tint = MaterialTheme.colorScheme.outline)
-                if (state.mode == BrewMode.ESPRESSO) {
+        AnimatedVisibility(visible = espressoRecipe != null, enter = reveal(still), exit = conceal(still)) {
+            summaryRecipe?.let { EspressoRecipeSummary(it, locale, still) }
+        }
+        AnimatedVisibility(visible = espressoRecipe == null, enter = reveal(still), exit = conceal(still)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
                     Text(
-                        "${state.plannedWater?.let { Format.grams(it, locale) } ?: "–"} ${stringResource(R.string.unit_ml)}",
-                        Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                        style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)),
+                        stringResource(R.string.ratio_value, ratioText(ratio, locale)),
+                        style = MaterialTheme.typography.displayLarge.merge(TabularFlex).merge(flex(800, 100)),
                     )
-                } else {
-                    Amount(state.plannedWater, R.string.unit_ml, locale) { editing = Editing.WATER }
+                }
+                Text(stringResource(R.string.ratio_caption), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    FilledTonalIconButton(onClick = { tick(); onRatio(state.targetRatio - step) }, Modifier.size(72.dp)) {
+                        Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(32.dp))
+                    }
+                    FilledTonalIconButton(onClick = { tick(); onRatio(state.targetRatio + step) }, Modifier.size(72.dp)) {
+                        Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(32.dp))
+                    }
+                }
+                Row(Modifier.padding(top = 40.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Amount(state.dose, R.string.unit_grams, locale) { editing = Editing.DOSE }
+                    Icon(painterResource(R.drawable.ic_arrow_forward), null, tint = MaterialTheme.colorScheme.outline)
+                    if (state.mode == BrewMode.ESPRESSO) {
+                        Text(
+                            "${state.plannedWater?.let { Format.grams(it, locale) } ?: "–"} ${stringResource(R.string.unit_ml)}",
+                            Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                            style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)),
+                        )
+                    } else {
+                        Amount(state.plannedWater, R.string.unit_ml, locale) { editing = Editing.WATER }
+                    }
                 }
             }
         }
@@ -131,6 +162,13 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
 
 private enum class Editing { DOSE, WATER }
 
+/** The free brew controls fade and grow in; a plain swap with animations off (#183). */
+private fun reveal(still: Boolean): EnterTransition =
+    fadeIn(Motion.standardOrSnap(still)) + expandVertically(Motion.standardOrSnap(still))
+
+private fun conceal(still: Boolean): ExitTransition =
+    fadeOut(Motion.standardOrSnap(still)) + shrinkVertically(Motion.standardOrSnap(still))
+
 /** 1:16 rather than 1:16,0; a half or a tenth shows its decimal. */
 private fun ratioText(ratio: Double, locale: Locale) =
     if (Math.round(ratio * 10) % 10 == 0L) Math.round(ratio).toString() else Format.ratio(ratio, locale)
@@ -140,27 +178,29 @@ private fun ratioText(ratio: Double, locale: Locale) =
  * out, so a bare recipe still reads as a short summary.
  */
 @Composable
-private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale) {
+private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale, still: Boolean) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.fillMaxWidth(),
+        // Another recipe with more or fewer rows resizes the card.
+        modifier = Modifier.fillMaxWidth().animateContentSize(Motion.standardOrSnap(still)),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryRow(stringResource(R.string.label_dose), amount(recipe.doseGrams, R.string.unit_grams, locale))
-            SummaryRow(stringResource(R.string.label_yield), amount(recipe.targetYieldGrams, R.string.unit_grams, locale))
-            SummaryRow(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)))
+            SummaryRow(stringResource(R.string.label_dose), amount(recipe.doseGrams, R.string.unit_grams, locale), still)
+            SummaryRow(stringResource(R.string.label_yield), amount(recipe.targetYieldGrams, R.string.unit_grams, locale), still)
+            SummaryRow(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)), still)
             val min = recipe.targetMinMs
             val max = recipe.targetMaxMs
             if (min != null && max != null) {
                 SummaryRow(
                     stringResource(R.string.recipe_window),
                     stringResource(R.string.espresso_window, (min / 1000).toString(), (max / 1000).toString()),
+                    still,
                 )
             }
-            recipe.grind?.takeIf { it.isNotBlank() }?.let { SummaryRow(stringResource(R.string.recipe_grind), it) }
+            recipe.grind?.takeIf { it.isNotBlank() }?.let { SummaryRow(stringResource(R.string.recipe_grind), it, still) }
             recipe.waterTempCelsius?.let {
-                SummaryRow(stringResource(R.string.recipe_temp), "$it ${stringResource(R.string.unit_celsius)}")
+                SummaryRow(stringResource(R.string.recipe_temp), "$it ${stringResource(R.string.unit_celsius)}", still)
             }
             recipe.notes?.takeIf { it.isNotBlank() }?.let { notes ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -173,7 +213,7 @@ private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale) {
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String) {
+private fun SummaryRow(label: String, value: String, still: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
         Text(
             label,
@@ -181,11 +221,25 @@ private fun SummaryRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
+        // A new recipe's value rolls in from below as the old one rolls out.
+        AnimatedContent(
             value,
-            style = MaterialTheme.typography.titleMedium.merge(TabularFlex),
-            textAlign = TextAlign.End,
-        )
+            label = "summary value",
+            transitionSpec = {
+                if (still) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    (slideInVertically(Motion.standard()) { it / 2 } + fadeIn(Motion.standard())) togetherWith
+                        (slideOutVertically(Motion.standard()) { -it / 2 } + fadeOut(Motion.standard()))
+                }
+            },
+        ) { shown ->
+            Text(
+                shown,
+                style = MaterialTheme.typography.titleMedium.merge(TabularFlex),
+                textAlign = TextAlign.End,
+            )
+        }
     }
 }
 
@@ -259,12 +313,41 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
     val locale = LocalConfiguration.current.locales[0]
     val dose = state.dose ?: 0.0
     val progress by animateFloatAsState(if (dose > 0) (state.weightGrams / dose).coerceIn(0.0, 1.0).toFloat() else 0f, Motion.standard(), label = "beans")
+    val espresso = state.mode == BrewMode.ESPRESSO
+    val reached = dose > 0 && state.weightGrams >= dose
+    val still = animationsOff()
+    val haptic = LocalHapticFeedback.current
+    // Espresso's ring pulses and the phone buzzes once when the weight reaches the dose; a screen opened already there stays quiet.
+    var reachedBefore by remember { mutableStateOf(reached) }
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(reached) {
+        if (espresso && reached && !reachedBefore) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (!still) {
+                val bounce = spring<Float>(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
+                pulse.animateTo(1.06f, bounce)
+                pulse.animateTo(1f, bounce)
+            }
+        }
+        reachedBefore = reached
+    }
+    // Next takes the primary color once the dose is reached.
+    val nextFill by animateColorAsState(
+        if (reached) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+        Motion.standardOrSnap(still),
+        label = "next fill",
+    )
+    val nextLabel by animateColorAsState(
+        if (reached) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+        Motion.standardOrSnap(still),
+        label = "next label",
+    )
     BoxWithConstraints(Modifier.fillMaxSize().padding(24.dp)) {
         val compact = maxHeight < 500.dp
         val ringSize = minOf(260.dp, maxHeight * 0.4f)
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(1f))
-            Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(ringSize).graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }, contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxSize(),
@@ -292,6 +375,7 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
                 onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
                 modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
                 shapes = ButtonDefaults.shapes(),
+                colors = if (espresso) ButtonDefaults.buttonColors(containerColor = nextFill, contentColor = nextLabel) else ButtonDefaults.buttonColors(),
             ) {
                 Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
             }
@@ -312,6 +396,19 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
         stringResource(R.string.prepare_tamp),
         stringResource(R.string.prepare_puck_screen),
     )
+    val still = animationsOff()
+    val allChecked = checked.size == items.size
+    // Ready takes the primary color once every item is checked. It stays enabled: the checks never block it.
+    val readyFill by animateColorAsState(
+        if (allChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+        Motion.standardOrSnap(still),
+        label = "ready fill",
+    )
+    val readyLabel by animateColorAsState(
+        if (allChecked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+        Motion.standardOrSnap(still),
+        label = "ready label",
+    )
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         GuideHeader(GuideStage.PREPARE_PORTAFILTER)
         Text(
@@ -322,15 +419,8 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
         )
         Column(Modifier.weight(1f).fillMaxWidth().padding(top = 20.dp), verticalArrangement = Arrangement.Center) {
             items.forEachIndexed { index, item ->
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Checkbox(checked = index in checked, onCheckedChange = { isChecked ->
-                        checked = if (isChecked) checked + index else checked - index
-                    })
-                    Text(item, style = MaterialTheme.typography.titleMedium)
+                PrepItem(item, checked = index in checked, still = still) { isChecked ->
+                    checked = if (isChecked) checked + index else checked - index
                 }
             }
         }
@@ -338,8 +428,37 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
             onClick = onReady,
             modifier = Modifier.testTag("portafilter-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
             shapes = ButtonDefaults.shapes(),
+            colors = ButtonDefaults.buttonColors(containerColor = readyFill, contentColor = readyLabel),
         ) {
             Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+/** One checklist item: its check springs in a little when ticked; the check itself is the Material checkbox's. */
+@Composable
+private fun PrepItem(label: String, checked: Boolean, still: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val tick = remember { Animatable(1f) }
+    LaunchedEffect(checked) {
+        if (checked && !still) {
+            tick.snapTo(0.8f)
+            tick.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        }
+    }
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { isChecked ->
+                if (isChecked) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onCheckedChange(isChecked)
+            },
+            modifier = Modifier.graphicsLayer { scaleX = tick.value; scaleY = tick.value },
+        )
+        Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }
