@@ -27,11 +27,11 @@ object DripperArt {
             translate(ART_OFFSET_X, ART_OFFSET_Y) {
                 scale(ART_SCALE, pivot = Offset.Zero) {
                     val ghost = primary.copy(alpha = GHOST_ALPHA)
-                    listOf(Part.FLANGE, Part.CONE, Part.PLATE, Part.SERVER, Part.HANDLE).forEach { part ->
+                    listOf(Part.FLANGE, Part.CONE, Part.PLATE, Part.HANDLE, Part.SERVER).forEach { part ->
                         drawPart(part, ghost, ghost)
                     }
-                    parts.forEachIndexed { index, part ->
-                        val amount = reveal[index].coerceIn(0f, 1f)
+                    listOf(Part.HANDLE, Part.SERVER, Part.PLATE, Part.CONE, Part.FLANGE).forEach { part ->
+                        val amount = reveal[parts.indexOf(part)].coerceIn(0f, 1f)
                         if (amount > 0f) {
                             translate(top = -(1f - amount) * PART_SLIDE) {
                                 drawPart(part, primary.copy(alpha = amount), handle.copy(alpha = amount))
@@ -93,12 +93,12 @@ object DripperArt {
 
     private val handlePath by lazy {
         Path().apply {
-            moveTo(79.5f, 69.5f)
+            moveTo(74f, 69.5f)
             lineTo(89f, 69.5f)
             quadraticTo(96f, 69.5f, 96f, 76.5f)
             lineTo(96f, 80f)
             quadraticTo(96f, 87f, 89f, 87f)
-            lineTo(87f, 87f)
+            lineTo(83f, 87f)
         }
     }
 
