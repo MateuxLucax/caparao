@@ -216,31 +216,42 @@ private fun FlowChart(liveFlow: Double, animatedFlow: Double, history: List<Flow
         style = MaterialTheme.typography.labelMedium,
         color = colors.onSurfaceVariant,
     )
-    Canvas(Modifier.fillMaxWidth(0.9f).height(32.dp).testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")) {
+    Canvas(Modifier.fillMaxWidth(0.9f).height(40.dp).testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")) {
+        val stroke = 4.dp.toPx()
         val left = 3.dp.toPx()
         val right = size.width - left
-        val top = 3.dp.toPx()
+        val top = stroke
         val bottom = size.height - top
         val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: animatedFlow, band?.endInclusive ?: 0.0, 1.0)
         fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
         band?.let { ideal ->
             val bandTop = y(ideal.endInclusive)
             val bandBottom = y(ideal.start)
-            drawRect(
+            drawRoundRect(
                 colors.tertiaryContainer.copy(alpha = 0.75f),
                 topLeft = Offset(left, bandTop),
                 size = Size(right - left, bandBottom - bandTop),
+                cornerRadius = CornerRadius(stroke / 2),
             )
         }
-        drawLine(colors.outlineVariant, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.dp.toPx())
         val points = displayedHistory.mapIndexed { index, point ->
             val x = if (displayedHistory.size == 1) right else left + (right - left) * index / (displayedHistory.size - 1)
             Offset(x, y(point.flow))
         }
         if (points.size == 1) {
-            drawCircle(colors.primary, radius = 3.dp.toPx(), center = points.single())
-        } else {
-            points.zipWithNext().forEach { (from, to) -> drawLine(colors.primary, from, to, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round) }
+            drawCircle(colors.primary, radius = stroke / 2, center = points.single())
+        } else if (points.size > 1) {
+            // Midpoint smoothing: each sample is a control point, the curve passes through the midpoints between them.
+            val path = Path().apply {
+                moveTo(points.first().x, points.first().y)
+                for (i in 1 until points.lastIndex) {
+                    val control = points[i]
+                    val next = points[i + 1]
+                    quadraticTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2)
+                }
+                lineTo(points.last().x, points.last().y)
+            }
+            drawPath(path, colors.primary, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 }
