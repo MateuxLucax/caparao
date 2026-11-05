@@ -476,11 +476,77 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     }
 }
 
+/** Filter preparation; checklist marks survive a return from the brew step, and never gate Ready. */
+@Composable
+fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
+    val items = listOf(
+        PrepRowData(stringResource(R.string.prepare_rdt)),
+        PrepRowData(stringResource(R.string.prepare_grind), grind),
+        PrepRowData(stringResource(R.string.prepare_rinse_filter)),
+        PrepRowData(stringResource(R.string.prepare_add_grounds)),
+        PrepRowData(stringResource(R.string.prepare_dripper_server)),
+    )
+    val still = animationsOff()
+    val allChecked = state.filterPreparationChecks.size == items.size
+    val readyScale = remember { Animatable(1f) }
+    LaunchedEffect(allChecked) {
+        if (allChecked && !still) {
+            readyScale.snapTo(1.06f)
+            readyScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        } else {
+            readyScale.snapTo(1f)
+        }
+    }
+    Box(Modifier.fillMaxSize().padding(24.dp)) {
+        val compact = LocalConfiguration.current.screenHeightDp < 700
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            GuideHeader(GuideStage.PREPARE_FILTER)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.testTag("filter-prepare-dose").padding(top = if (compact) 8.dp else 6.dp),
+            ) {
+                Text(
+                    stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
+                    Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag("filter-prepare-list"),
+                verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+            ) {
+                items.forEachIndexed { index, item ->
+                    PrepItem(
+                        item,
+                        index,
+                        checked = index in state.filterPreparationChecks,
+                        still = still,
+                        tagPrefix = "filter-prepare",
+                    ) { isChecked -> onCheck(index, isChecked) }
+                }
+            }
+            Button(
+                onClick = onReady,
+                modifier = Modifier.testTag("filter-prepare-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+                    .graphicsLayer { scaleX = readyScale.value; scaleY = readyScale.value },
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
 private data class PrepRowData(val label: String, val setting: String? = null)
 
 /** Each row owns a switchable portafilter layer; the row itself is the whole touch target. */
 @Composable
-private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boolean, tagPrefix: String = "portafilter", onCheckedChange: (Boolean) -> Unit) {
     val haptic = LocalHapticFeedback.current
     val tick = remember { Animatable(if (still || !checked) 1f else 0.8f) }
     val corner by animateFloatAsState(if (checked) 50f else if (index == 0 || index == 4) 22f else 8f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "prep corner")
@@ -501,7 +567,7 @@ private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boo
                 if (isChecked) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onCheckedChange(isChecked)
             })
-            .testTag("portafilter-row-$index")
+            .testTag("$tagPrefix-row-$index")
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -522,7 +588,7 @@ private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boo
         Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
         item.setting?.let { setting ->
             Surface(color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small) {
-                Text(setting, Modifier.testTag("portafilter-grind-setting").padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(setting, Modifier.testTag("$tagPrefix-grind-setting").padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

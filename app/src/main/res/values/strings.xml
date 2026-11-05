@@ -99,12 +99,16 @@
     <string name="dose_field">Dose in grams</string>
     <string name="next">Next</string>
     <string name="prepare_portafilter_title">Prepare the portafilter</string>
+    <string name="prepare_filter_title">Prepare the filter</string>
     <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Grind</string>
     <string name="prepare_wdt">WDT</string>
     <string name="prepare_tamp">Tamp</string>
     <string name="prepare_puck_screen">Puck screen</string>
+    <string name="prepare_rinse_filter">Rinse the filter</string>
+    <string name="prepare_add_grounds">Add the grounds</string>
+    <string name="prepare_dripper_server">Dripper and server on the scale</string>
     <string name="prepare_ready">Ready</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
     <string name="espresso_place_cup_text">The scale tares once the cup is steady.</string>
@@ -302,6 +306,7 @@
     <string name="stage_ratio">Ratio</string>
     <string name="stage_beans">Weigh the beans</string>
     <string name="stage_prepare">Prepare the portafilter</string>
+    <string name="stage_prepare_filter">Prepare the filter</string>
     <string name="stage_cup">Cup</string>
     <string name="stage_tare">Tare</string>
     <string name="stage_first_drop">First drop</string>

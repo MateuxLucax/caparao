@@ -178,11 +178,13 @@ class BrewViewModelTest {
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 250.0, 120.0)
         pour(250.0, 0.0, 0.5) // the dripper lifted...
-        hold(0.0, 6.0) // ...and held past the lift hold, so the brew ends at the drop
+        hold(0.0, 1.0) // ...and Done is tapped before the two-second return to preparation.
+        vm.stop()
 
         val state = vm.uiState.value
         assertEquals("the brew is dated back to the drop, not the end of the hold", 120.0, state.saved!!.durationMs / 1000.0, 0.5)
@@ -210,6 +212,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         assertEquals(listOf("tare"), scale.commands)
         hold(0.0, 1.0)
@@ -453,6 +456,7 @@ class BrewViewModelTest {
         vm.begin()
         val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pours()
@@ -624,6 +628,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 40.0, 8.0)

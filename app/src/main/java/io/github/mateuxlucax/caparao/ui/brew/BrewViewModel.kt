@@ -99,6 +99,8 @@ class BrewViewModel(
     private val readings = ArrayList<TimedReading>()
     private val smoother = FlowSmoother()
     private var brewingSinceMs: Long? = null
+    /** A negative tared weight held for two seconds means the filter setup was lifted off the scale. */
+    private var filterLiftBeganAtMs: Long? = null
     /** Highest tared water weight for the current French press, held as the server is lifted off the scale. */
     private var frenchPressWaterGrams = 0.0
 
@@ -160,21 +162,29 @@ class BrewViewModel(
     /** Zero the scale, to weigh the beans without the container. */
     fun tare() = scale.tare()
 
-    /** The dose was weighed: keep it and, for espresso, move to portafilter preparation. */
+    /** The dose was weighed: keep it and move espresso or filter to preparation. */
     fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE && _uiState.value.step != BrewStep.WEIGH) return
         if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
-        if (mode == BrewMode.ESPRESSO) {
+        if (mode == BrewMode.ESPRESSO || mode == BrewMode.FILTER) {
             _uiState.update { it.copy(step = BrewStep.PREPARE_PORTAFILTER, dose = grams) }
             return
         }
         armDetector(grams)
     }
 
-    /** Ready on the espresso preparation step: arm cup detection from the scale's current weight. */
+    /** Mark or unmark one filter preparation item; checks live only for this brew. */
+    fun setFilterPreparationCheck(index: Int, checked: Boolean) {
+        if (mode != BrewMode.FILTER || _uiState.value.step != BrewStep.PREPARE_PORTAFILTER || index !in 0..4) return
+        _uiState.update {
+            it.copy(filterPreparationChecks = if (checked) it.filterPreparationChecks + index else it.filterPreparationChecks - index)
+        }
+    }
+
+    /** Ready on the preparation step: arm detection from the current scale weight. */
     fun ready() {
         val state = _uiState.value
-        if (mode != BrewMode.ESPRESSO || state.step != BrewStep.PREPARE_PORTAFILTER) return
+        if ((mode != BrewMode.ESPRESSO && mode != BrewMode.FILTER) || state.step != BrewStep.PREPARE_PORTAFILTER) return
         val dose = state.dose ?: return
         armDetector(dose, scale.reading.value)
     }
@@ -260,6 +270,18 @@ class BrewViewModel(
 
     private fun onReading(reading: ScaleReading) {
         val current = detector
+        if (mode == BrewMode.FILTER && current != null && (current.phase == BrewPhase.READY || current.phase == BrewPhase.BREWING) && _uiState.value.step == BrewStep.LIVE) {
+            val since = if (reading.weightGrams < 0.0) {
+                filterLiftBeganAtMs ?: clock().also { filterLiftBeganAtMs = it }
+            } else {
+                filterLiftBeganAtMs = null
+                null
+            }
+            if (since != null && clock() - since >= FILTER_PREPARE_LIFT_MS) {
+                returnToFilterPreparation(reading)
+                return
+            }
+        }
         if (current == null || current.phase == BrewPhase.DONE) {
             _uiState.update { it.copy(weightGrams = reading.weightGrams) }
             return
@@ -317,6 +339,27 @@ class BrewViewModel(
             if (ratio != null && targetBand(ratio, _uiState.value.targetRatio) == TargetBand.AT) alertOnce(StepEvent.InTargetBand)
         }
         if (current.phase == BrewPhase.DONE) finish(current)
+    }
+
+    /** The filter setup was lifted: let the user put it back and tare again without losing checklist marks. */
+    private fun returnToFilterPreparation(reading: ScaleReading) {
+        detector = null
+        filterLiftBeganAtMs = null
+        readings.clear()
+        smoother.reset()
+        brewingSinceMs = null
+        tracker = null
+        _uiState.update {
+            it.copy(
+                step = BrewStep.PREPARE_PORTAFILTER,
+                phase = BrewPhase.WAITING_FOR_CUP,
+                tareTimedOut = false,
+                weightGrams = reading.weightGrams,
+                flowGramsPerSecond = 0.0,
+                elapsedMs = 0,
+                guide = null,
+            )
+        }
     }
 
     private fun onRecipes(list: List<Recipe>) {
@@ -451,6 +494,7 @@ class BrewViewModel(
         readings.clear()
         smoother.reset()
         brewingSinceMs = null
+        filterLiftBeganAtMs = null
         frenchPressWaterGrams = 0.0
         tracker = null
         frenchPressFinishTracker = null
@@ -484,6 +528,7 @@ class BrewViewModel(
 
         /** 20 minutes at 10 Hz: longer than any brew; past it the curve stops growing. */
         private const val MAX_READINGS = 12_000
+        private const val FILTER_PREPARE_LIFT_MS = 2_000L
 
         /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */
         private const val ROLL_MS = 600L

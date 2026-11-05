@@ -40,4 +40,18 @@ class GuideMilestonesTest {
         assertNull(guideMilestones(BrewMode.FILTER))
         assertNull(guideMilestones(BrewMode.FRENCH_PRESS))
     }
+
+    @Test
+    fun filterPreparationIsCountedBetweenBeansAndTareWithoutChangingFrenchPress() {
+        assertEquals(
+            listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_FILTER, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE),
+            guideStages(BrewMode.FILTER),
+        )
+        assertEquals(GuideStage.PREPARE_FILTER, guideStage(BrewMode.FILTER, BrewStep.PREPARE_PORTAFILTER, io.github.mateuxlucax.caparao.brew.BrewPhase.WAITING_FOR_CUP))
+        assertEquals(
+            listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.DONE),
+            guideStages(BrewMode.FRENCH_PRESS),
+        )
+        assertEquals(GuideStage.PREPARE_PORTAFILTER, guideStage(BrewMode.ESPRESSO, BrewStep.PREPARE_PORTAFILTER, io.github.mateuxlucax.caparao.brew.BrewPhase.WAITING_FOR_CUP))
+    }
 }

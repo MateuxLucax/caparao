@@ -862,14 +862,15 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
+        click(R.string.prepare_ready)
         playUntilShown(scale, R.string.taring, 2_000)
         compose.waitForIdle()
         playUntilShown(scale, R.string.filter_ready, 7_000)
         compose.waitForIdle()
-        // Pours from 20 s, the last one ends at 88 s and everything leaves the scale at 90 s.
+        // Pours from 20 s, the last one ends at 88 s; Done is tapped before the two-second return to preparation.
         play(scale, 60_000)
         compose.waitForIdle()
-        play(scale, 93_000)
+        play(scale, 91_000)
         click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
@@ -883,6 +884,40 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onAllNodes(hasText(" ${text(R.string.unit_grams)} →", substring = true))[0].performSemanticsAction(SemanticsActions.OnClick)
         waitFor(R.string.delete)
         compose.waitForIdle()
+    }
+
+    /** Filter checklist follows its recipe, and weighing alone does not tare the dripper and server. */
+    @Test
+    fun filterPrepareStepWaitsForReady() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        val scale = open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        compose.waitForIdle()
+        click(R.string.next)
+        val beanWeighTares = scale.tareCommands
+        click(R.string.next)
+
+        waitFor(R.string.prepare_filter_title)
+        assertEquals("the filter is not tared during preparation", beanWeighTares, scale.tareCommands)
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        listOf(
+            R.string.prepare_rdt,
+            R.string.prepare_grind,
+            R.string.prepare_rinse_filter,
+            R.string.prepare_add_grounds,
+            R.string.prepare_dripper_server,
+        ).forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("filter-prepare-row-0").performClick()
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        assertTrue("Ready starts the tare", scale.tareCommands > 0)
+        playUntilShown(scale, R.string.taring, 2_000)
     }
 
     /**
@@ -911,6 +946,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         click(R.string.next)
         click(R.string.next)
+        click(R.string.prepare_ready)
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.ratio_caption))).fetchSemanticsNodes().isEmpty() }
         play(scale, 24_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
