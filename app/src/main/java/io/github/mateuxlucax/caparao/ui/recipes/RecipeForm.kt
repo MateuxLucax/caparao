@@ -70,11 +70,13 @@ data class RecipeForm(
         notes = notes.trim().ifEmpty { null },
         targetMinMs = when (mode) {
             BrewMode.ESPRESSO -> seconds(minSeconds)?.times(1000)
-            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+            BrewMode.FILTER -> seconds(minSeconds)?.times(1000)
+            BrewMode.FRENCH_PRESS -> null
         },
         targetMaxMs = when (mode) {
             BrewMode.ESPRESSO -> seconds(maxSeconds)?.times(1000)
-            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+            BrewMode.FILTER -> seconds(maxSeconds)?.times(1000)
+            BrewMode.FRENCH_PRESS -> null
         },
         steps = when (mode) {
             BrewMode.ESPRESSO -> emptyList()

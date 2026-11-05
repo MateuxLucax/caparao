@@ -2,7 +2,8 @@ package io.github.mateuxlucax.caparao.model
 
 /**
  * A reusable way to brew (#102). Filter and French press recipes carry [steps]; espresso recipes have none and are
- * guided by the target window [targetMinMs]..[targetMaxMs] instead. [id] is generated on the phone.
+ * guided by the target window [targetMinMs]..[targetMaxMs] instead; filter recipes can use that window for their ideal
+ * total time. [id] is generated on the phone.
  */
 data class Recipe(
     val id: String,
@@ -17,7 +18,7 @@ data class Recipe(
     val grind: String? = null,
     val waterTempCelsius: Int? = null,
     val notes: String? = null,
-    /** Espresso only: the shot time window, from the first drop. */
+    /** Espresso shot time from the first drop, or filter total time from the first pour. */
     val targetMinMs: Long? = null,
     val targetMaxMs: Long? = null,
     /** In order; empty for espresso. */
