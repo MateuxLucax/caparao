@@ -24,6 +24,8 @@ data class FilterConfig(
     val pauseReturnToleranceGrams: Double = 3.0,
     /** The returned weight must hold before the timer resumes. */
     val pauseResumeHoldMs: Long = 1_000,
+    /** Provisional handling settle window after a dripper return; tuned in #200. */
+    val resumeSettleWindowMs: Long = 2_000,
     /** French press keeps running when the carafe is lifted to serve. */
     val liftDetectionEnabled: Boolean = true,
 )
@@ -62,13 +64,14 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     private var dropBeganAtMs: Long? = null
     private var dropYieldGrams = 0.0
     /** Physical start of the current pause; the live timer freezes here. */
-    var pauseStartedAtMs: Long? = null
+    private var pauseStartedAtMs: Long? = null
         private set
     private var resumeCandidateAtMs: Long? = null
+    private var resumeSettleUntilMs: Long? = null
     private var pausedDurationMs = 0L
 
-    /** Last water level before the pause, including an unconfirmed pour peak. */
-    val pausedWeightGrams: Double get() = dropYieldGrams
+    override val pauseState: BrewPauseState?
+        get() = pauseStartedAtMs?.takeIf { phase == BrewPhase.PAUSED }?.let { BrewPauseState(it, dropYieldGrams) }
 
     override fun onReading(reading: TimedReading): ScaleCommand? {
         val prev = previous
@@ -152,6 +155,12 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     }
 
     private fun followFilterBrew(reading: TimedReading, prev: TimedReading?) {
+        val settleUntil = resumeSettleUntilMs
+        if (settleUntil != null) {
+            if (reading.atMs < settleUntil) return
+            resumeSettleUntilMs = null
+        }
+
         val grams = reading.reading.weightGrams
         if (ignoringHandlingPeak) {
             if (grams <= maxGrams) {
@@ -173,7 +182,6 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             }
         }
 
-        val pendingPeakGrams = candidateMaxGrams
         val drop = maxGrams - grams
         val lifted = drop >= config.liftDropGrams ||
             (drop >= config.liftMinDropGrams && drop >= maxGrams * config.liftDropFraction)
@@ -185,7 +193,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             }
             val began = dropBeganAtMs ?: (prev?.atMs ?: reading.atMs).also {
                 dropBeganAtMs = it
-                dropYieldGrams = maxOf(maxGrams, pendingPeakGrams)
+                dropYieldGrams = maxGrams
             }
             pauseStartedAtMs = began
             resumeCandidateAtMs = null
@@ -213,7 +221,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             return
         }
 
-        val returned = reading.reading.weightGrams >= dropYieldGrams - config.pauseReturnToleranceGrams
+        val returned = reading.reading.weightGrams >= maxGrams - config.pauseReturnToleranceGrams
         if (!returned) {
             resumeCandidateAtMs = null
             return
@@ -229,6 +237,9 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             resumeCandidateAtMs = null
             dropBeganAtMs = null
             dropYieldGrams = maxGrams
+            clearCandidate()
+            clearDecreaseCandidate()
+            resumeSettleUntilMs = reading.atMs + config.resumeSettleWindowMs
             phase = BrewPhase.BREWING
         }
     }

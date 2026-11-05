@@ -39,7 +39,7 @@ object WatchMirror {
         }
         return WatchSnapshot(
             watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs,
-            live.phase == BrewPhase.BREWING, guide(live),
+            timerRunning, guide(live),
         )
     }
 

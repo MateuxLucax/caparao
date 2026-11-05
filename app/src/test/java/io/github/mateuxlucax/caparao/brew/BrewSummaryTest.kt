@@ -32,6 +32,27 @@ class BrewSummaryTest {
     }
 
     @Test
+    fun flowSmoothingDoesNotBridgeAFilterPauseSeam() {
+        val beforePause = (0 until 200).map { index ->
+            val atMs = index * 50L
+            TimedReading(atMs, ScaleReading(atMs * 0.003, 99.9, 0, false))
+        }
+        // Thirty grams were added while lifted; after rebasing, the resumed stream starts at the same active time.
+        val afterPause = (0..40).map { index ->
+            val atMs = 10_000L + index * 50L
+            TimedReading(atMs, ScaleReading(60.0 + index * 0.15, 99.9, 0, false))
+        }
+        val summary = BrewSummary.of(
+            BrewMode.FILTER,
+            beforePause + afterPause,
+            BrewResult(0, 12_000, 66.0, null, false),
+            flowResetTimesMs = listOf(10_000),
+        )
+
+        assertTrue("a 3 g/s pour should not inherit the jump across the pause", summary.flowPeakGramsPerSecond <= 3.5)
+    }
+
+    @Test
     fun frenchPressHasNoTimeToFirstDrop() {
         assertNull(BrewSummary.of(BrewMode.FRENCH_PRESS, readings, result).timeToFirstDropMs)
     }

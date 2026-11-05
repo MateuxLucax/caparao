@@ -496,39 +496,83 @@ class BrewViewModelTest {
         recipes.save(v60.copy(steps = steps))
         settings.setLastRecipeId(BrewMode.FILTER, v60.id)
         val vm = viewModel(BrewMode.FILTER)
+        val alerts = mutableListOf<GuideAlert>()
+        val collecting = CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
         hold(320.0, 0.1)
         hold(0.0, 1.0)
+        val firstWaterEpochMs = 1_000_000 + now + 100
         pour(0.0, 50.0, 4.0)
         hold(50.0, 1.1)
         assertEquals(1, vm.uiState.value.guide!!.index)
-        hold(50.0, 12.0)
+        hold(50.0, 16.0)
 
         pour(50.0, 0.0, 0.3)
         assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals("the displayed water stays at the pre-drop level", 50.0, vm.uiState.value.weightGrams, 0.3)
         val frozenTime = vm.uiState.value.elapsedMs
         val frozenDue = vm.uiState.value.guide!!.dueInMs
+        assertTrue("the next step is due before the pause ends", frozenDue!! < 5_000L)
+        val countdownsBeforePause = alerts.count { it.event is StepEvent.Countdown }
         hold(0.0, 5.0)
         assertEquals(frozenTime, vm.uiState.value.elapsedMs)
         assertEquals(frozenDue, vm.uiState.value.guide!!.dueInMs)
+        assertEquals("no countdown alert fires while paused", countdownsBeforePause, alerts.count { it.event is StepEvent.Countdown })
 
-        pour(0.0, 50.0, 0.3)
-        hold(50.0, 1.0)
+        pour(0.0, 80.0, 0.3)
+        hold(80.0, 1.0)
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals("the wait still has time left after the pause", 1, vm.uiState.value.guide!!.index)
-        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
-        hold(50.0, 8.0)
+        val resumedTime = vm.uiState.value.elapsedMs
+        assertTrue("the active timer resumes from its frozen value", resumedTime - frozenTime in 0L..100L)
+        assertEquals("flow starts fresh after resuming", 0.0, vm.uiState.value.flowGramsPerSecond, 0.01)
+        hold(80.0, 3.0)
+        assertEquals("the active wait still has time left", 1, vm.uiState.value.guide!!.index)
+        hold(80.0, 2.0)
         assertEquals(2, vm.uiState.value.guide!!.index)
+        val activeEndTime = vm.uiState.value.elapsedMs
+        assertTrue("the deadline is reached only after active time resumes", activeEndTime - frozenTime in 5_000L..5_200L)
 
+        collecting.cancel()
         vm.stop()
         rolled()
         val brew = vm.uiState.value.saved!!
-        assertEquals("pause time is absent from the duration", frozenTime + 8_000L, brew.durationMs)
+        assertEquals("pause time is absent from the duration", activeEndTime, brew.durationMs)
+        assertEquals("the original water start survives the pause", firstWaterEpochMs, brew.startedAt)
+        assertEquals("water added while the dripper is away is kept", 80.0, brew.yieldGrams, 0.3)
+        assertTrue("the saved flow curve does not spike across the pause seam", brew.flowPeakGramsPerSecond <= 13.5)
         val curve = dao.samples.getValue(brew.id)
         assertTrue("samples during the pause are omitted", curve.all { it.weightGrams >= 1.0 })
         assertEquals("the curve ends at the saved duration", brew.durationMs, curve.last().atMs)
+    }
+
+    @Test
+    fun aPauseBeforeTheFirstRecipeTargetKeepsTheFirstStepPending() = kotlinx.coroutines.test.runTest {
+        recipes.save(v60.copy(steps = twoPours))
+        settings.setLastRecipeId(BrewMode.FILTER, v60.id)
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 20.0, 2.0)
+        hold(20.0, 1.2)
+        assertEquals(0, vm.uiState.value.guide!!.index)
+
+        pour(20.0, 0.0, 0.3)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals(20.0, vm.uiState.value.weightGrams, 0.3)
+        hold(0.0, 5.0)
+        assertEquals("the first step stays pending while paused", 0, vm.uiState.value.guide!!.index)
+
+        pour(0.0, 20.0, 0.3)
+        hold(20.0, 1.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals("the first step stays pending after resuming", 0, vm.uiState.value.guide!!.index)
+        vm.stop()
     }
 
     @Test

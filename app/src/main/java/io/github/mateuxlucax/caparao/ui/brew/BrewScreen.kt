@@ -263,7 +263,6 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
             } else {
                 Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
             }
-            BrewPhase.PAUSED -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
             else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
         }
     }

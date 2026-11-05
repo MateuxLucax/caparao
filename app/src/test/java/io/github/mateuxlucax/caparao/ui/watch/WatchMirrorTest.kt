@@ -42,12 +42,12 @@ class WatchMirrorTest {
     @Test
     fun aLiveBrewShowsItsOwnNumbers() {
         val brew = BrewUiState(BrewMode.ESPRESSO, step = BrewStep.LIVE, phase = BrewPhase.BREWING, weightGrams = 30.5, flowGramsPerSecond = 1.9, elapsedMs = 21_400)
-        assertEquals(WatchSnapshot(WatchState.BREWING, 30.5f, 1.9f, 21_400, timerRunning = true), WatchMirror.snapshot(connected, reading, brew, false))
+        assertEquals(WatchSnapshot(WatchState.BREWING, 30.5f, 1.9f, 21_400, timerRunning = false), WatchMirror.snapshot(connected, reading, brew, false))
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.READY), false).state)
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.WAITING_FOR_CUP), false).state)
         assertEquals(WatchState.DONE, WatchMirror.snapshot(connected, reading, brew.copy(step = BrewStep.SUMMARY), false).state)
         val paused = brew.copy(mode = BrewMode.FILTER, phase = BrewPhase.PAUSED, weightGrams = 25.0, flowGramsPerSecond = 0.0)
-        assertEquals(WatchSnapshot(WatchState.BREWING, 25.0f, 0f, 21_400, timerRunning = false), WatchMirror.snapshot(connected, reading, paused, true))
+        assertEquals(WatchSnapshot(WatchState.BREWING, 25.0f, 0f, 21_400, timerRunning = true), WatchMirror.snapshot(connected, reading, paused, true))
     }
 
     @Test
