@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -141,11 +142,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
         )
     }
+    val pressDeadline = state.frenchPressDeadlineReached && !state.frenchPressRemoved
+    val screenColor = if (pressDeadline) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+    val contentColor = if (pressDeadline) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
     Scaffold(
+        containerColor = screenColor,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(state.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) },
                 subtitle = { state.recipe?.let { Text(it.name) } },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = screenColor,
+                    titleContentColor = contentColor,
+                    subtitleContentColor = contentColor,
+                    navigationIconContentColor = contentColor,
+                ),
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))

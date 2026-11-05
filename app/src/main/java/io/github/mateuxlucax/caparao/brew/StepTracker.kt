@@ -57,6 +57,9 @@ sealed interface StepEvent {
 
     /** Filter: the drawdown timer passes the recipe's ideal total-time range (#206). */
     data object DrainTimePassed : StepEvent
+
+    /** French press: repeat the deadline alert while the press is still on the scale (#217). */
+    data object FrenchPressReminder : StepEvent
 }
 
 /** Where the guide stands after a reading. */
@@ -150,7 +153,7 @@ class StepTracker(
         }
         if (flowGramsPerSecond < POUR_FLOW) rested = true
         state = stateAt(elapsedMs, weightGrams)
-        if (steps.getOrNull(index)?.kind != StepKind.PRESS) state.dueInMs?.let { due ->
+        state.dueInMs?.let { due ->
             val seconds = ceil(due / 1000.0).toInt()
             if (seconds in 1..COUNTDOWN_SECONDS && countdownSent.add(seconds)) events += StepEvent.Countdown(index, seconds)
         }

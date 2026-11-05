@@ -257,6 +257,7 @@
     <string name="guide_steep">Steep</string>
     <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>
+    <string name="guide_time_up">Time’s up</string>
     <string name="guide_press_serve">Press and serve</string>
     <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>

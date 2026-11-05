@@ -7,6 +7,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 
@@ -51,6 +52,14 @@ data class BrewUiState(
 ) {
     /** The steps being followed, when the guide is on. */
     val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps.orEmpty() else emptyList()
+
+    /** True once the French press recipe reaches its terminal steep deadline. */
+    val frenchPressDeadlineReached: Boolean
+        get() {
+            val recipeSteps = recipe?.steps.orEmpty()
+            return mode == BrewMode.FRENCH_PRESS && recipeSteps.lastOrNull()?.kind == StepKind.PRESS &&
+                guide?.allDone(recipeSteps.size) == true
+        }
 
     /** Espresso with a recipe's time window: where the shot time stands; null without one or before the shot. */
     val window: Window?

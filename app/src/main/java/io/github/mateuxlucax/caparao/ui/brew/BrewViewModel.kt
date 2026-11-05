@@ -92,6 +92,8 @@ class BrewViewModel(
     private val alerted = HashSet<StepEvent>()
     /** Starts only after the terminal press deadline, and never ends the brew. */
     private var frenchPressFinishTracker: FrenchPressFinishTracker? = null
+    private var frenchPressDeadlineAlertSent = false
+    private var frenchPressLastAlertAtMs: Long? = null
 
     private var job: Job? = null
     /** The timer rolling back to the saved time, before the summary opens (#197). */
@@ -381,11 +383,12 @@ class BrewViewModel(
         val guideWeight = if (current.phase == BrewPhase.PAUSED) shownWeight else reading.weightGrams
         val guide = tracker?.takeIf { since != null && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED) }?.let { t ->
             val events = t.update(activeAt!! - since!!, guideWeight, flow)
-            events.forEach(::alert)
             if (mode == BrewMode.FRENCH_PRESS && StepEvent.AllDone in events) frenchPressFinishTracker = FrenchPressFinishTracker()
+            events.filterNot { mode == BrewMode.FRENCH_PRESS && it == StepEvent.AllDone }.forEach(::alert)
+            if (mode == BrewMode.FRENCH_PRESS) pressDeadlineAlerts(timed.atMs, reading.weightGrams, t.state.allDone(_uiState.value.recipe?.steps.orEmpty().size))
             t.state
         }
-        val frenchPressRemoved = frenchPressFinishTracker?.update(timed.atMs, reading.weightGrams) ?: false
+        val frenchPressRemoved = frenchPressFinishTracker?.removedAtMs != null
         _uiState.update {
             it.copy(
                 phase = current.phase,
@@ -535,6 +538,25 @@ class BrewViewModel(
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
 
+    /**
+     * French press: from the deadline, alert and then repeat every [FRENCH_PRESS_ALERT_INTERVAL_MS] until the scale
+     * sees the press leave. A candidate removal pauses the repeat; if the weight returns it alerts again at once (#217).
+     */
+    private fun pressDeadlineAlerts(atMs: Long, weightGrams: Double, deadlinePassed: Boolean) {
+        val finish = frenchPressFinishTracker ?: return
+        val removed = finish.update(atMs, weightGrams)
+        if (!deadlinePassed || removed) return
+        if (finish.removalStartedAtMs != null) {
+            frenchPressLastAlertAtMs = null
+            return
+        }
+        val last = frenchPressLastAlertAtMs
+        if (last != null && atMs - last < FRENCH_PRESS_ALERT_INTERVAL_MS) return
+        alert(if (frenchPressDeadlineAlertSent) StepEvent.FrenchPressReminder else StepEvent.AllDone)
+        frenchPressDeadlineAlertSent = true
+        frenchPressLastAlertAtMs = atMs
+    }
+
     private fun send(command: ScaleCommand) = when (command) {
         ScaleCommand.TARE -> scale.tare()
     }
@@ -648,6 +670,8 @@ class BrewViewModel(
         frenchPressWaterGrams = 0.0
         tracker = null
         frenchPressFinishTracker = null
+        frenchPressDeadlineAlertSent = false
+        frenchPressLastAlertAtMs = null
         recipeChosen = false
         filterRecipeEdited = false
         filterRecipeBase = null
@@ -681,6 +705,7 @@ class BrewViewModel(
         /** 20 minutes at 10 Hz: longer than any brew; past it the curve stops growing. */
         private const val MAX_READINGS = 12_000
         private const val FILTER_PREPARE_LIFT_MS = 2_000L
+        private const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
 
         /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */
         private const val ROLL_MS = 600L

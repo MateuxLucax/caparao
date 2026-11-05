@@ -332,13 +332,25 @@ internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window
 /** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
 @Composable
 private fun FrenchPressReady(state: BrewUiState) {
-    Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
     if (state.frenchPressRemoved) {
+        Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Note(stringResource(R.string.guide_press_serve_text))
         FrenchPressPlungerAnimation()
     } else {
+        val deadlineMs = state.recipe?.steps?.lastOrNull()?.targetAtMs ?: state.elapsedMs
+        val delayMs = (state.elapsedMs - deadlineMs).coerceAtLeast(0L)
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.guide_time_up),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Text(
+            if (delayMs == 0L) Format.timer((deadlineMs / 1000).toInt()) else "+${Format.timer((delayMs / 1000).toInt())}",
+            style = MaterialTheme.typography.displayMedium.merge(Tabular),
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
     }
 }
 

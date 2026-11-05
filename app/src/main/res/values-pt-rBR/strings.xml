@@ -251,6 +251,7 @@
     <string name="guide_steep">Infusão</string>
     <string name="guide_steep_text">Deixe em infusão</string>
     <string name="guide_remove_press">Tire a prensa da balança.</string>
+    <string name="guide_time_up">Tempo esgotado</string>
     <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>

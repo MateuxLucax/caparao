@@ -29,6 +29,7 @@ abstract class FrenchPressGuideTest(
     private val removeText: String,
     private val serveText: String,
     private val prematurePress: String,
+    private val timeUp: String,
 ) {
     @get:Rule
     val compose = createComposeRule()
@@ -73,6 +74,8 @@ abstract class FrenchPressGuideTest(
     fun theDeadlineAsksToRemoveThePressFirst() {
         show(state(recipe.steps.size))
         compose.onNodeWithText(removeText).assertIsDisplayed()
+        compose.onNodeWithText(timeUp).assertIsDisplayed()
+        compose.onNodeWithText("+00:05").assertIsDisplayed()
         compose.onAllNodesWithText(prematurePress, substring = true).assertCountEquals(0)
         compose.onNodeWithText(serveText).assertDoesNotExist()
     }
@@ -92,6 +95,7 @@ class FrenchPressGuideEnglishTest : FrenchPressGuideTest(
     removeText = "Remove the press from the scale.",
     serveText = "Press and serve",
     prematurePress = "Press the plunger",
+    timeUp = "Time’s up",
 )
 
 @Config(qualifiers = "pt-rBR-w411dp-h891dp-xxhdpi")
@@ -101,4 +105,5 @@ class FrenchPressGuidePortugueseTest : FrenchPressGuideTest(
     removeText = "Tire a prensa da balança.",
     serveText = "Abaixe o êmbolo e sirva",
     prematurePress = "Abaixe o êmbolo às",
+    timeUp = "Tempo esgotado",
 )
