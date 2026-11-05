@@ -768,6 +768,34 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun eachFilterLiftAlertsPauseAndResumeWithinOneBrew() {
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 50.0, 4.0)
+        hold(50.0, 1.1)
+
+        repeat(2) {
+            pour(50.0, 0.0, 0.3)
+            assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+            hold(0.0, 0.2)
+            pour(0.0, 50.0, 0.3)
+            hold(50.0, 1.1)
+            assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+            hold(50.0, 2.1) // allow the post-resume settling window before the next lift
+        }
+
+        assertEquals(2, alerts.count { it.event == StepEvent.Paused })
+        assertEquals(2, alerts.count { it.event == StepEvent.Resumed })
+        assertEquals(2, watchAlerts.count { it == StepEvent.Paused })
+        assertEquals(2, watchAlerts.count { it == StepEvent.Resumed })
+    }
+
+    @Test
     fun freeFilterAlertsRespectTheExistingOffSettings() {
         settings.guideVibration = false
         settings.guideSound = false

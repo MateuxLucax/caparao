@@ -419,8 +419,8 @@ class BrewViewModel(
         if (mode != BrewMode.FILTER) return
         when {
             from == BrewPhase.READY && to == BrewPhase.BREWING && _uiState.value.recipe == null -> alertOnce(StepEvent.FirstWater)
-            from == BrewPhase.BREWING && to == BrewPhase.PAUSED -> alertOnce(StepEvent.Paused)
-            from == BrewPhase.PAUSED && to == BrewPhase.BREWING -> alertOnce(StepEvent.Resumed)
+            from == BrewPhase.BREWING && to == BrewPhase.PAUSED -> alert(StepEvent.Paused)
+            from == BrewPhase.PAUSED && to == BrewPhase.BREWING -> alert(StepEvent.Resumed)
         }
     }
 
