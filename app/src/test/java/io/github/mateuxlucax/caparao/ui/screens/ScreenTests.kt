@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
@@ -143,7 +144,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome"))
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -672,7 +673,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val counterPrefix = context.getString(R.string.step_of_named, 1, 8, "").substringBefore("1")
         compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.prepare_grind)).assertIsDisplayed()
+        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
             compose.onNodeWithText(text(it)).assertIsDisplayed()
         }
@@ -727,11 +730,33 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         waitFor(R.string.prepare_portafilter_title)
         compose.onAllNodes(isToggleable()).assertCountEquals(5)
+        // The text side of the row is part of its touch target, not just the leading mark.
+        compose.onNodeWithTag("portafilter-row-0").performClick()
+        compose.onAllNodes(isToggleable())[0].assert(isOn())
+        compose.onNodeWithTag("portafilter-row-0").performClick()
+        compose.onAllNodes(isToggleable())[0].assert(!isOn())
         repeat(5) { compose.onAllNodes(isToggleable())[it].performClick() }
         compose.waitForIdle()
         compose.onAllNodes(isToggleable()).assertAll(isOn())
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithText(text(R.string.prepare_ready)).assertIsDisplayed()
+    }
+
+    /** At 640 dp tall, the picture is omitted and the five rows and Ready fit without scrolling. */
+    @Test
+    fun smallScreenPortafilter() {
+        assumeTrue("small-screen variant only", context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640)
+        open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_portafilter_title)
+        compose.onNodeWithTag("portafilter-picture").assertDoesNotExist()
+        compose.onNodeWithTag("portafilter-dose").assertIsDisplayed()
+        repeat(5) { compose.onNodeWithTag("portafilter-row-$it").assertIsDisplayed() }
+        compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
     }
 
     /**

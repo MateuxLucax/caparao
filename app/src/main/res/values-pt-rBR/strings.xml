@@ -95,12 +95,11 @@
     <string name="dose_field">Dose em gramas</string>
     <string name="next">Continuar</string>
     <string name="prepare_portafilter_title">Prepare o porta-filtro</string>
-    <string name="prepare_dose">Dose de %1$s g</string>
+    <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Moer</string>
-    <string name="prepare_grind_with_setting">Moer · %1$s</string>
     <string name="prepare_wdt">WDT</string>
-    <string name="prepare_tamp">Tampar</string>
+    <string name="prepare_tamp">Compactar</string>
     <string name="prepare_puck_screen">Tela do puck</string>
     <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>

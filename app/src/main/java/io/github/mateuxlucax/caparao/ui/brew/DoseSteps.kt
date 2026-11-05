@@ -17,6 +17,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -41,12 +45,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -75,14 +81,26 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.StrokeJoin
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 import io.github.mateuxlucax.caparao.ui.theme.flex
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * The ratio first: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
@@ -389,35 +407,54 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     var checked by remember { mutableStateOf(setOf<Int>()) }
     val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
     val items = listOf(
-        stringResource(R.string.prepare_rdt),
-        if (grind == null) stringResource(R.string.prepare_grind) else stringResource(R.string.prepare_grind_with_setting, grind),
-        stringResource(R.string.prepare_wdt),
-        stringResource(R.string.prepare_tamp),
-        stringResource(R.string.prepare_puck_screen),
+        PrepRowData(stringResource(R.string.prepare_rdt)),
+        PrepRowData(stringResource(R.string.prepare_grind), grind),
+        PrepRowData(stringResource(R.string.prepare_wdt)),
+        PrepRowData(stringResource(R.string.prepare_tamp)),
+        PrepRowData(stringResource(R.string.prepare_puck_screen)),
     )
     val still = animationsOff()
     val allChecked = checked.size == items.size
     // Ready springs once when every item is checked (#198). It rests in the default color and stays enabled: the checks never block it.
     val readyScale = remember { Animatable(1f) }
+    val pictureScale = remember { Animatable(1f) }
     LaunchedEffect(allChecked) {
         if (allChecked && !still) {
+            launch {
+                pictureScale.animateTo(1.06f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+                pictureScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+            }
             readyScale.snapTo(1.06f)
             readyScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         } else {
+            pictureScale.snapTo(1f)
             readyScale.snapTo(1f)
         }
     }
-    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Box(Modifier.fillMaxSize().padding(24.dp)) {
+      val compact = LocalConfiguration.current.screenHeightDp < 700
+      Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         GuideHeader(GuideStage.PREPARE_PORTAFILTER)
-        Text(
-            stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
-            Modifier.padding(top = 12.dp),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Column(Modifier.weight(1f).fillMaxWidth().padding(top = 20.dp), verticalArrangement = Arrangement.Center) {
+        if (!compact) PortafilterPicture(checked, still, Modifier.padding(top = 4.dp).size(144.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value })
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.small,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.testTag("portafilter-dose").padding(top = if (compact) 8.dp else 6.dp),
+        ) {
+            Text(
+                stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
+                Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Column(
+            Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag("portafilter-list"),
+            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+        ) {
             items.forEachIndexed { index, item ->
-                PrepItem(item, checked = index in checked, still = still) { isChecked ->
+                PrepItem(item, index, checked = index in checked, still = still) { isChecked ->
                     checked = if (isChecked) checked + index else checked - index
                 }
             }
@@ -430,14 +467,21 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
         ) {
             Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
         }
+      }
     }
 }
 
-/** One checklist item: its check springs in a little when ticked; the check itself is the Material checkbox's. */
+private data class PrepRowData(val label: String, val setting: String? = null)
+
+/** Each row owns a switchable portafilter layer; the row itself is the whole touch target. */
 @Composable
-private fun PrepItem(label: String, checked: Boolean, still: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val haptic = LocalHapticFeedback.current
-    val tick = remember { Animatable(1f) }
+    val tick = remember { Animatable(if (still || !checked) 1f else 0.8f) }
+    val corner by animateFloatAsState(if (checked) 50f else if (index == 0 || index == 4) 22f else 8f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "prep corner")
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) .98f else 1f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "prep press")
     LaunchedEffect(checked) {
         if (checked && !still) {
             tick.snapTo(0.8f)
@@ -445,18 +489,97 @@ private fun PrepItem(label: String, checked: Boolean, still: Boolean, onCheckedC
         }
     }
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().height(52.dp).graphicsLayer { scaleX = press; scaleY = press }
+            .clip(RoundedCornerShape(corner.dp))
+            .background(if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+            .toggleable(value = checked, role = Role.Checkbox, interactionSource = interactionSource, indication = null, onValueChange = { isChecked ->
+                if (isChecked) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onCheckedChange(isChecked)
+            })
+            .testTag("portafilter-row-$index")
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = { isChecked ->
-                if (isChecked) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onCheckedChange(isChecked)
-            },
-            modifier = Modifier.graphicsLayer { scaleX = tick.value; scaleY = tick.value },
-        )
-        Text(label, style = MaterialTheme.typography.titleMedium)
+        Box(Modifier.size(28.dp).graphicsLayer { scaleX = tick.value; scaleY = tick.value }, contentAlignment = Alignment.Center) {
+            val primary = MaterialTheme.colorScheme.primary
+            val onPrimary = MaterialTheme.colorScheme.onPrimary
+            val outline = MaterialTheme.colorScheme.outline
+            Canvas(Modifier.size(26.dp)) {
+                if (checked) {
+                    val path = Path().apply { addOval(Rect(Offset.Zero, Size(size.width, size.height))) }
+                    drawPath(path, primary)
+                    val p = Path().apply { moveTo(size.width * .25f, size.height * .52f); lineTo(size.width * .43f, size.height * .68f); lineTo(size.width * .76f, size.height * .34f) }
+                    drawPath(p, onPrimary, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                } else drawCircle(outline, style = Stroke(width = 1.7.dp.toPx()))
+            }
+        }
+        Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
+        item.setting?.let { setting ->
+            Surface(color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small) {
+                Text(setting, Modifier.testTag("portafilter-grind-setting").padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Top-down portafilter illustration: solid expressive forms and independently animated preparation layers. */
+@Composable
+private fun PortafilterPicture(checked: Set<Int>, still: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val layerSpecs = (0..4).map { index ->
+        animateFloatAsState(if (index in checked) 1f else 0f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "portafilter layer $index").value
+    }
+    MorphingShape(checked.size, modifier.testTag("portafilter-picture"), if (checked.size == 5) colors.primary else colors.primaryContainer) {
+        Canvas(Modifier.size(120.dp)) {
+            val sx = size.width / 120f
+            val sy = size.height / 120f
+            drawContext.transform.scale(sx, sy, Offset.Zero)
+            // Handle and its socket.
+            val handle = Path().apply { moveTo(69f, 68f); lineTo(92f, 94f); quadraticTo(96f, 99f, 101f, 94f); quadraticTo(105f, 90f, 101f, 86f); lineTo(77f, 60f); close() }
+            drawPath(handle, colors.onSurfaceVariant)
+            drawCircle(colors.outline, 25f, Offset(60f, 54f))
+            drawCircle(colors.surfaceContainerHighest, 21f, Offset(60f, 54f))
+            scale(.7f + layerSpecs[1] * .3f, pivot = Offset(60f, 54f)) {
+                drawCircle(Color(0xFF795548), 18f, Offset(60f, 54f), alpha = layerSpecs[1])
+                if (layerSpecs[3] < .5f) {
+                    listOf(Offset(48f, 48f), Offset(57f, 43f), Offset(68f, 50f), Offset(52f, 60f), Offset(65f, 63f), Offset(60f, 54f)).forEach {
+                        drawCircle(Color(0xFF4E342E), 1.2f, it, alpha = layerSpecs[1] * (1f - layerSpecs[3]))
+                    }
+                }
+            }
+            if (layerSpecs[3] > 0f) scale(.7f + layerSpecs[3] * .3f, pivot = Offset(60f, 54f)) {
+                drawCircle(Color(0xFF795548), 18f, Offset(60f, 54f), alpha = layerSpecs[3])
+            }
+            if (layerSpecs[0] > 0f) scale(.7f + layerSpecs[0] * .3f, pivot = Offset(40f, 24f)) {
+                listOf(Offset(37f, 22f), Offset(44f, 16f), Offset(33f, 32f)).forEach {
+                    drawCircle(colors.tertiary, 2f, it, alpha = layerSpecs[0])
+                }
+            }
+            if (layerSpecs[2] > 0f && layerSpecs[3] < .5f) scale(.7f + layerSpecs[2] * .3f, pivot = Offset(60f, 54f)) {
+                val ink = colors.onSurface.copy(alpha = .72f * layerSpecs[2] * (1f - layerSpecs[3]))
+                for (offset in listOf(-2f, 2f)) {
+                    val spiral = Path()
+                    for (point in 0..90) {
+                        val angle = point / 90f * 5f * Math.PI.toFloat()
+                        val radius = 1f + point / 90f * 12f
+                        val x = 60f + offset + cos(angle) * radius
+                        val y = 54f + sin(angle) * radius
+                        if (point == 0) spiral.moveTo(x, y) else spiral.lineTo(x, y)
+                    }
+                    drawPath(spiral, ink, style = Stroke(1.2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+            }
+            if (layerSpecs[4] > 0f) scale(.7f + layerSpecs[4] * .3f, pivot = Offset(60f, 54f)) {
+                val clip = Path().apply { addOval(Rect(42f, 36f, 78f, 72f)) }
+                clipPath(clip) {
+                    for (coord in 42..78 step 5) {
+                        drawLine(colors.onSurface.copy(alpha = .75f * layerSpecs[4]), Offset(coord.toFloat(), 36f), Offset(coord.toFloat(), 72f), 1f)
+                        drawLine(colors.onSurface.copy(alpha = .75f * layerSpecs[4]), Offset(42f, coord.toFloat() - 6f), Offset(78f, coord.toFloat() - 6f), 1f)
+                    }
+                }
+            }
+            drawContext.transform.scale(1f / sx, 1f / sy, Offset.Zero)
+        }
     }
 }

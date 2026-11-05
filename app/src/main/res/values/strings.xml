@@ -99,10 +99,9 @@
     <string name="dose_field">Dose in grams</string>
     <string name="next">Next</string>
     <string name="prepare_portafilter_title">Prepare the portafilter</string>
-    <string name="prepare_dose">Dose: %1$s g</string>
+    <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Grind</string>
-    <string name="prepare_grind_with_setting">Grind · %1$s</string>
     <string name="prepare_wdt">WDT</string>
     <string name="prepare_tamp">Tamp</string>
     <string name="prepare_puck_screen">Puck screen</string>
