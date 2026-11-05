@@ -1346,6 +1346,39 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         assertMilestone(R.string.milestone_done)
     }
 
+    private fun frenchPressSteep(): SessionScale {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        return scale
+    }
+
+    /** Before the deadline Done asks first (#222). */
+    @Test
+    fun frenchPressDoneAsksBeforeTheDeadline() {
+        val scale = frenchPressSteep()
+        play(scale, 80_000)
+        compose.waitForIdle()
+        click(R.string.done)
+        waitFor(R.string.finish_brew_title)
+        compose.onNodeWithText(text(R.string.keep_brewing)).assertIsDisplayed()
+    }
+
+    /** After the deadline Done ends the brew directly (#222). */
+    @Test
+    fun frenchPressDoneEndsDirectlyAfterTheDeadline() {
+        val scale = frenchPressSteep()
+        play(scale, 241_100)
+        waitFor(R.string.guide_remove_press)
+        click(R.string.done)
+        compose.waitForIdle()
+        compose.onAllNodesWithText(text(R.string.finish_brew_title)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)
+    }
+
     /**
      * Compare and trends (#106) on three saved V60 brews: two picked with a long press, their curves overlaid with
      * the rating row, then the recipe's trends from the newest one's detail.

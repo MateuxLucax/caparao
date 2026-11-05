@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -141,11 +142,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
         )
     }
+    val pressDeadline = state.frenchPressDeadlineReached && !state.frenchPressRemoved
+    val screenColor = if (pressDeadline) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+    val contentColor = if (pressDeadline) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
     Scaffold(
+        containerColor = screenColor,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(state.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) },
                 subtitle = { state.recipe?.let { Text(it.name) } },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = screenColor,
+                    titleContentColor = contentColor,
+                    subtitleContentColor = contentColor,
+                    navigationIconContentColor = contentColor,
+                ),
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
@@ -191,7 +202,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
                         BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
-                    BrewStep.LIVE -> LiveStep(state, viewModel, guided)
+                    BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
@@ -200,13 +211,14 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
     if (state.phase == BrewPhase.PAUSED) {
         FilterPausedStep(state, viewModel::stop)
         return
     }
     if (guided) {
-        GuidedStep(state, viewModel::stop)
+        // A French press steep still running asks first; one stray tap would end it for good (#222).
+        GuidedStep(state, onDone = { if (state.mode == BrewMode.FRENCH_PRESS && !state.frenchPressDeadlineReached) onConfirmStop() else viewModel.stop() })
         return
     }
     val brewing = state.phase == BrewPhase.BREWING
