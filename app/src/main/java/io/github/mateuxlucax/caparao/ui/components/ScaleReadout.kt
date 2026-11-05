@@ -58,8 +58,9 @@ data class RatioTarget(val ratio: Double?, val target: Double, val progress: Flo
  * Weight with the timer under it. Shared by Home and the live brew.
  *
  * Home shows the flow under the timer, nothing around it. With a [ratio] (the brew), an open ring goes around the weight,
- * filling on the way to the target ratio and turning tertiary with a glow once the ratio reads it. Flow and ratio then
- * sit under the ring as two labeled numbers.
+ * filling on the way to the target ratio and tinted by how far the live ratio is from it: light green short of the ±5%
+ * band, primary on it, a darker green past it (lighter in the dark theme), pulsing once the ratio reads the target. Flow
+ * and ratio then sit under the ring as two labeled numbers, the ratio in the ring's colour.
  */
 @Composable
 fun ScaleReadout(
@@ -168,9 +169,7 @@ fun ScaleReadout(
         label = "progress",
     )
     val colors = MaterialTheme.colorScheme
-    val colorSpec = tween<Color>(500, easing = Motion.Standard)
-    val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, colorSpec, label = "outer")
-    val ratioColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.onSurface, colorSpec, label = "ratio")
+    val ring = rememberRingColors(targetBand(ratio.ratio, ratio.target))
     // Rolls like the weight instead of jumping a tenth at a time.
     val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
     // One glow out of the outer ring the moment the target is reached.
@@ -194,10 +193,10 @@ fun ScaleReadout(
                 val outerStyle = Stroke(outer, cap = StrokeCap.Round)
                 if (glow.value > 0f) {
                     val wide = outer * (1f + 1.5f * (1f - glow.value))
-                    drawArc(outerColor.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
+                    drawArc(ring.stroke.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
                 }
                 drawArc(colors.surfaceContainerHighest, ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = outerStyle)
-                if (progress > 0.005f) drawArc(outerColor, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
+                if (progress > 0.005f) drawArc(ring.stroke, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
             }
             weightAndTimer()
         }
@@ -206,7 +205,7 @@ fun ScaleReadout(
             Stat(
                 stringResource(R.string.label_ratio),
                 ratio.ratio?.let { stringResource(R.string.ratio_value, Format.ratio(shownRatio.toDouble(), locale)) } ?: "–",
-                ratioColor,
+                ring.text,
                 stringResource(R.string.target_ratio_value, Format.ratio(ratio.target, locale)),
                 Modifier.weight(1f),
             )
