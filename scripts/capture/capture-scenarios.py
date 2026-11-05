@@ -135,7 +135,8 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             time.sleep(0.2)
 
         scenario = json.loads(path.read_text())
-        mode_label = {"filter": "Filter", "espresso": "Espresso", "french-press": "Press"}.get(path.stem)
+        mode_label = {"filter": "Filter", "filter-spoon": "Filter", "espresso": "Espresso", "french-press": "Press"}.get(path.stem)
+        filter_mode = path.stem in {"filter", "filter-spoon"}
         if mode_label is not None:
             api("POST", "/event", {"event": "connected"})
             screenshot("home")
@@ -169,7 +170,7 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
         for at_ms, name in checkpoints:
             advance_clock(at_ms - previous_ms)
             time.sleep(0.8)
-            if name == "finished" or (path.stem == "filter" and name == "summary"):
+            if name == "finished" or (filter_mode and name == "summary"):
                 wait_for_text("Saved", timeout=10)
             screenshot(name)
             previous_ms = at_ms

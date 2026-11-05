@@ -226,10 +226,8 @@ class PrometheusCurveRegressionTest {
         assertTrue("P16 contains the removed-filter tail", firstNegative > 0)
         val beforeRemoval = points[firstNegative - 1]
 
-        // The old summary saved the final negative reading, which the exporter clamped to 0 g. The curve shows about
-        // 255 g poured before the user touched the scale; the true water mass is not independently known, so this
-        // asserts only that the removal tail is not the yield and that the saved value is at least what was poured.
-        assertTrue(replay.result.yieldGrams >= 255.5)
+        // The brief 267.2 g handling peak returns to the 255.5 g water level before the filter is lifted.
+        assertEquals(255.5, replay.result.yieldGrams, 0.5)
         assertTrue(replay.result.yieldGrams >= beforeRemoval.second)
         assertEquals("brew ends when the weight falls away", HARNESS_MS + beforeRemoval.first, replay.result.endedAtMs)
         assertTrue("saved end excludes the negative tail", replay.result.endedAtMs < HARNESS_MS + points[firstNegative].first)

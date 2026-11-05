@@ -150,6 +150,23 @@ class FilterDetectorTest {
     }
 
     @Test
+    fun transientSpoonWeightDoesNotEndTheBrewOrReplaceSettledWater() {
+        openAndTare()
+        session.ramp(0.0, 45.0, 9.0).hold(45.0, 3.0)
+        detector.feed(session)
+
+        session.hold(52.0, 0.5).hold(45.0, 2.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.BREWING, detector.phase)
+
+        session.ramp(45.0, 60.0, 3.0).hold(60.0, 2.0).hold(45.0, 6.0)
+        detector.feed(session)
+
+        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(60.0, detector.result!!.yieldGrams, 0.1)
+    }
+
+    @Test
     fun noiseEarlyInThePourIsNotALift() {
         openAndTare()
         session.ramp(0.0, 3.0, 2.0).hold(3.0, 10.0, 0.1).hold(2.0, 10.0)

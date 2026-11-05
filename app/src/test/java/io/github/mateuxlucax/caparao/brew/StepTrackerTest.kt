@@ -57,6 +57,21 @@ class StepTrackerTest {
     }
 
     @Test
+    fun filterTargetMustStayReachedForTheConfiguredHold() {
+        val tracker = StepTracker(v60, targetHoldMs = 1_000)
+
+        assertTrue(tracker.update(0, 0.0, 0.0).isEmpty())
+        assertTrue(tracker.update(1_000, 52.0, 0.0).none { it == StepEvent.Reached(0) })
+        assertTrue(tracker.update(1_500, 45.0, 0.0).none { it == StepEvent.Reached(0) })
+        assertEquals(0, tracker.state.index)
+
+        assertTrue(tracker.update(2_000, 52.0, 0.0).none { it == StepEvent.Reached(0) })
+        assertTrue(tracker.update(2_999, 52.0, 0.0).none { it == StepEvent.Reached(0) })
+        assertTrue(StepEvent.Reached(0) in tracker.update(3_000, 52.0, 0.0))
+        assertEquals(1, tracker.state.index)
+    }
+
+    @Test
     fun theCountdownTicksTheLastFiveSecondsBeforeAPour() {
         val (_, events) = run(v60, onTimeV60())
         val ticks = events.filter { (it.second as? StepEvent.Countdown)?.index == 1 }

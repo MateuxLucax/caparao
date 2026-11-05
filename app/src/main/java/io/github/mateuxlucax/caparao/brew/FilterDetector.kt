@@ -12,6 +12,12 @@ data class FilterConfig(
     val liftMinDropGrams: Double = 5.0,
     /** ...held this long means the dripper was lifted, not bumped. */
     val liftHoldMs: Long = 5_000,
+    /** A new filter weight must stay above the previous water level without a large fall for this long. */
+    val settledWeightHoldMs: Long = 1_000,
+    /** A fall larger than this restarts the settling window; returning to the prior water level discards the peak. */
+    val settledWeightToleranceGrams: Double = 1.0,
+    /** Filter recipe targets must be held this long before the guide advances. */
+    val stepTargetHoldMs: Long = 1_000,
     /** French press keeps running when the carafe is lifted to serve. */
     val liftDetectionEnabled: Boolean = true,
 )
@@ -36,7 +42,11 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     private var previous: TimedReading? = null
     var startedAtMs: Long? = null
         private set
+    /** Highest confirmed water weight. Brief peaks that return to this level are ignored. */
     private var maxGrams = 0.0
+    private var candidateStartedAtMs: Long? = null
+    private var candidateMaxGrams = 0.0
+    private var candidateLastGrams = 0.0
     private var lastGrams = 0.0
     /** Set while the weight is down from the max: when the drop began. */
     private var dropBeganAtMs: Long? = null
@@ -113,6 +123,12 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     }
 
     private fun followBrew(reading: TimedReading, prev: TimedReading?) {
+        if (config.liftDetectionEnabled) {
+            followFilterBrew(reading, prev)
+            return
+        }
+
+        // French press intentionally keeps the original running maximum behavior until its own review (#214).
         val grams = reading.reading.weightGrams
         val drop = maxGrams - grams
         val lifted = config.liftDetectionEnabled && (
@@ -128,5 +144,61 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         // The drop began at the last reading before the weight fell.
         val began = dropBeganAtMs ?: (prev?.atMs ?: reading.atMs).also { dropBeganAtMs = it }
         if (reading.atMs - began >= config.liftHoldMs) finish(began, maxGrams, interrupted = false)
+    }
+
+    private fun followFilterBrew(reading: TimedReading, prev: TimedReading?) {
+        val grams = reading.reading.weightGrams
+        val returnedToWater = grams <= maxGrams
+        if (returnedToWater) {
+            // A utensil or hand that leaves the scale returns to the previous water level; discard its peak.
+            clearCandidate()
+        } else {
+            updateSettledCandidate(reading)
+        }
+
+        val drop = maxGrams - grams
+        val lifted = drop >= config.liftDropGrams ||
+            (drop >= config.liftMinDropGrams && drop >= maxGrams * config.liftDropFraction)
+        if (!lifted) {
+            dropBeganAtMs = null
+            return
+        }
+
+        // The drop began at the last reading before the weight fell.
+        val began = dropBeganAtMs ?: (prev?.atMs ?: reading.atMs).also { dropBeganAtMs = it }
+        if (reading.atMs - began >= config.liftHoldMs) finish(began, maxGrams, interrupted = false)
+    }
+
+    private fun updateSettledCandidate(reading: TimedReading) {
+        val grams = reading.reading.weightGrams
+        val startedAt = candidateStartedAtMs
+        if (startedAt == null) {
+            candidateStartedAtMs = reading.atMs
+            candidateMaxGrams = grams
+            candidateLastGrams = grams
+            return
+        }
+
+        if (grams < candidateLastGrams - config.settledWeightToleranceGrams) {
+            // A changing pour can wobble; restart the settling window at its latest level.
+            candidateStartedAtMs = reading.atMs
+            candidateMaxGrams = grams
+            candidateLastGrams = grams
+            return
+        }
+
+        val nextMax = maxOf(candidateMaxGrams, grams)
+        candidateMaxGrams = nextMax
+        candidateLastGrams = grams
+        if (reading.atMs - startedAt >= config.settledWeightHoldMs) {
+            maxGrams = maxOf(maxGrams, candidateMaxGrams)
+            clearCandidate()
+        }
+    }
+
+    private fun clearCandidate() {
+        candidateStartedAtMs = null
+        candidateMaxGrams = 0.0
+        candidateLastGrams = 0.0
     }
 }

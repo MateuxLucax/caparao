@@ -67,7 +67,10 @@ data class StepState(
  * pace is measured in time, once, when a pour begins (flow over [POUR_FLOW] after resting, or [CONTINUE_GRAMS] past the
  * last target), against the step's start.
  */
-class StepTracker(private val steps: List<RecipeStep>) {
+class StepTracker(
+    private val steps: List<RecipeStep>,
+    private val targetHoldMs: Long = 0L,
+) {
     init {
         require(steps.dropLast(1).none { it.kind == StepKind.PRESS }) { "PRESS must be the last recipe step" }
     }
@@ -78,6 +81,7 @@ class StepTracker(private val steps: List<RecipeStep>) {
     private var pourBeganAtMs: Long? = null
     private var rested = true
     private var nearSent = false
+    private var targetReachedSinceMs: Long? = null
     private val countdownSent = HashSet<Int>()
 
     var state = StepState(0, 0f, null, null, null, null)
@@ -105,7 +109,18 @@ class StepTracker(private val steps: List<RecipeStep>) {
                     nearSent = true
                     events += StepEvent.NearTarget(index)
                 }
-                if (weightGrams < target - TOLERANCE_GRAMS) break
+                if (weightGrams < target - TOLERANCE_GRAMS) {
+                    targetReachedSinceMs = null
+                    break
+                }
+                if (targetHoldMs > 0) {
+                    val reachedSince = targetReachedSinceMs
+                    if (reachedSince == null) {
+                        targetReachedSinceMs = elapsedMs
+                        break
+                    }
+                    if (elapsedMs - reachedSince < targetHoldMs) break
+                }
                 events += StepEvent.Reached(index)
                 lastTarget = target
             } else {
@@ -134,6 +149,7 @@ class StepTracker(private val steps: List<RecipeStep>) {
         index++
         stepSinceMs = elapsedMs
         pourBeganAtMs = null
+        targetReachedSinceMs = null
         // Still pouring into the next step: the pour began only once the flow rests or clearly goes on.
         rested = false
         nearSent = false

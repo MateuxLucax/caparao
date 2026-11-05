@@ -87,6 +87,7 @@ class BrewViewModel(
 
     /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
+    private val filterConfig = FilterConfig()
     /** The espresso moments already alerted for this brew, so each one alerts once (#193). */
     private val alerted = HashSet<StepEvent>()
     /** Starts only after the terminal press deadline, and never ends the brew. */
@@ -182,7 +183,7 @@ class BrewViewModel(
     private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
         val new = when (mode) {
             BrewMode.ESPRESSO -> EspressoDetector()
-            BrewMode.FILTER -> FilterDetector()
+            BrewMode.FILTER -> FilterDetector(filterConfig)
             BrewMode.FRENCH_PRESS -> FilterDetector(FilterConfig(liftDetectionEnabled = false))
         }
         detector = new
@@ -276,7 +277,8 @@ class BrewViewModel(
             val steps = _uiState.value.recipe?.steps.orEmpty()
             when (mode) {
                 BrewMode.ESPRESSO -> Unit
-                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> if (steps.isNotEmpty()) tracker = StepTracker(steps)
+                BrewMode.FILTER -> if (steps.isNotEmpty()) tracker = StepTracker(steps, filterConfig.stepTargetHoldMs)
+                BrewMode.FRENCH_PRESS -> if (steps.isNotEmpty()) tracker = StepTracker(steps)
             }
         }
         val since = brewingSinceMs

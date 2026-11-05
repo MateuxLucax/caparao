@@ -468,6 +468,7 @@ class BrewViewModelTest {
             pour(0.0, 40.0, 8.0)
             hold(40.0, 12.0)
             pour(40.0, 100.0, 12.0)
+            hold(100.0, 1.0)
         }
         val guide = vm.uiState.value.guide!!
         assertEquals(2, guide.index)
@@ -582,7 +583,10 @@ class BrewViewModelTest {
     @Test
     fun noAlertsWhenBothAreOffButTheGuideStillRuns() {
         settings.guideVibration = false
-        val (vm, alerts) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
+        val (vm, alerts) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 1.0)
+        }
         assertEquals(1, vm.uiState.value.guide!!.index)
         assertTrue(alerts.isEmpty())
     }
