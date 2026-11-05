@@ -47,6 +47,11 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun setTargetRatio(mode: BrewMode, ratio: Double) =
         prefs.edit().putFloat(KEY_TARGET_RATIO + mode.name.lowercase(), ratio.toFloat()).apply()
 
+    /** The steep of the last free French press, to start the next one from (#218). */
+    fun lastSteepMs(): Long = prefs.getLong(KEY_LAST_STEEP, DEFAULT_STEEP_MS)
+
+    fun setLastSteepMs(ms: Long) = prefs.edit().putLong(KEY_LAST_STEEP, ms).apply()
+
     /** Guided brew alerts (#103): vibration on by default, sound off. */
     var guideVibration: Boolean
         get() = prefs.getBoolean(KEY_GUIDE_VIBRATION, true)
@@ -127,6 +132,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_BRAND_COLORS = "brand_colors"
         private const val KEY_TARGET_RATIO = "target_ratio_"
+        private const val KEY_LAST_STEEP = "last_steep_ms"
+        const val DEFAULT_STEEP_MS = 4 * 60 * 1000L
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"
         private const val KEY_LAST_SYNC = "last_sync_ms"

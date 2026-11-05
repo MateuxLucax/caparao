@@ -172,7 +172,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 state.mode,
                 guideStage(state.mode, state.step, state.phase, serving),
                 Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                steps = state.steps,
+                // A free French press has no recipe steps to split the Brew segment into.
+                steps = if (state.recipe != null) state.steps else emptyList(),
                 stepIndex = state.guide?.index,
             )
             val still = animationsOff()
@@ -196,6 +197,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         viewModel::setFilterRecipeWater,
                         viewModel::setFilterRecipeDose,
                         viewModel::weigh,
+                        viewModel::setSteep,
                     )
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {

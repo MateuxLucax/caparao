@@ -102,7 +102,8 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
             // Once shown, a step's screen keeps reading the live state.
             val live = state.guide.takeIf { it.index == index } ?: guide
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
-                val previous = steps.take(index).lastOrNull { it.kind.pours }?.targetWeightGrams
+                // A free brew checks off the water that went in, which can be short of the planned target.
+                val previous = if (state.recipe == null && index > 0) state.weightGrams else steps.take(index).lastOrNull { it.kind.pours }?.targetWeightGrams
                 if (step == null) {
                     if (state.mode == BrewMode.FRENCH_PRESS) FrenchPressReady(state) else Drawdown(state)
                 } else {
@@ -156,7 +157,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
     val stepTitle = stringResource(stage)
     Text(
-        if (state.mode == BrewMode.FILTER) stepTitle else "$stepTitle · ${stringResource(R.string.step_of, index + 1, count)}",
+        if (state.mode == BrewMode.FILTER || state.recipe == null) stepTitle else "$stepTitle · ${stringResource(R.string.step_of, index + 1, count)}",
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )

@@ -91,6 +91,8 @@ data class StepState(
 class StepTracker(
     private val steps: List<RecipeStep>,
     private val targetHoldMs: Long = 0L,
+    /** A free French press: a pour ends once no new weight came for this long, even short of its target (#218). */
+    private val pourIdleMs: Long = 0L,
 ) {
     init {
         require(steps.dropLast(1).none { it.kind == StepKind.PRESS }) { "PRESS must be the last recipe step" }
@@ -104,6 +106,11 @@ class StepTracker(
     private var nearSent = false
     private var targetReachedSinceMs: Long? = null
     private val countdownSent = HashSet<Int>()
+    private var mostWeightGrams = 0.0
+    private var lastGainAtMs = 0L
+
+    /** How many steps it follows. */
+    val stepCount: Int get() = steps.size
 
     var state = StepState(0, 0f, null, null, null, null)
         private set
@@ -126,6 +133,16 @@ class StepTracker(
                 continue
             } else if (step.kind.pours && target != null) {
                 markPourBegan(step, elapsedMs, weightGrams, flowGramsPerSecond)
+                if (weightGrams > mostWeightGrams + GAIN_GRAMS) {
+                    mostWeightGrams = weightGrams
+                    lastGainAtMs = elapsedMs
+                }
+                if (pourIdleMs > 0 && weightGrams < target - TOLERANCE_GRAMS && elapsedMs - lastGainAtMs >= pourIdleMs) {
+                    // No more water is coming: the steep starts without announcing a target that was not reached.
+                    lastTarget = mostWeightGrams
+                    advance(elapsedMs, events)
+                    continue
+                }
                 if (!nearSent && weightGrams >= target - NEAR_GRAMS && weightGrams < target - TOLERANCE_GRAMS) {
                     nearSent = true
                     events += StepEvent.NearTarget(index)
@@ -228,5 +245,7 @@ class StepTracker(
         /** Pouring on without a rest: past an overshoot, this is the next pour. */
         const val CONTINUE_GRAMS = 10.0
         const val COUNTDOWN_SECONDS = 5
+        /** Weight added by less than this is the scale settling, not water. */
+        const val GAIN_GRAMS = 0.5
     }
 }

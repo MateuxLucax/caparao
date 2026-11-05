@@ -253,6 +253,45 @@ class StepTrackerTest {
         assertFalse(tracker.state.allDone(v60.size))
     }
 
+    /** A free French press: the pour, then the steep; no new weight for [pourIdleMs] starts the steep too (#218). */
+    private val freePress = listOf(RecipeStep(StepKind.POUR, 300.0, 0), RecipeStep(StepKind.PRESS, null, 240_000))
+
+    @Test
+    fun aPourWithoutNewWeightForTheIdleTimeStartsTheSteepWithoutReachingTheTarget() {
+        val tracker = StepTracker(freePress, pourIdleMs = 10_000)
+        val events = mutableListOf<StepEvent>()
+        events += tracker.update(1_000, 20.0, 2.0)
+        events += tracker.update(8_000, 214.0, 4.0)
+        assertEquals(0, tracker.state.index)
+        events += tracker.update(17_900, 214.2, 0.0)
+        assertEquals("noise under half a gram is not water", 0, tracker.state.index)
+        events += tracker.update(18_100, 214.0, 0.0)
+        assertEquals(1, tracker.state.index)
+        assertTrue(events.none { it is StepEvent.Reached })
+        assertEquals(221_900L, tracker.state.dueInMs)
+    }
+
+    @Test
+    fun morePourBeforeTheIdleTimeRestartsIt() {
+        val tracker = StepTracker(freePress, pourIdleMs = 10_000)
+        tracker.update(1_000, 20.0, 2.0)
+        tracker.update(9_000, 100.0, 4.0)
+        tracker.update(18_000, 100.0, 0.0)
+        tracker.update(19_000, 120.0, 4.0)
+        tracker.update(28_000, 120.0, 0.0)
+        assertEquals(0, tracker.state.index)
+        tracker.update(29_100, 120.0, 0.0)
+        assertEquals(1, tracker.state.index)
+    }
+
+    @Test
+    fun aPourNeverStopsOnIdleWithoutTheOption() {
+        val tracker = StepTracker(freePress)
+        tracker.update(1_000, 20.0, 2.0)
+        tracker.update(60_000, 214.0, 0.0)
+        assertEquals(0, tracker.state.index)
+    }
+
     /**
      * The synthetic filter replay session decoded frame by frame: dripper and server (400 g, tared away), pours from 20 s
      * to 50, 100, 150 and 255 g ending at 28, 63, 78 and 88 s. Followed with that V60, whose second and third

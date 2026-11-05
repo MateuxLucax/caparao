@@ -79,6 +79,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -1408,6 +1409,38 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         waitFor(R.string.brew_saved)
         assertMilestone(R.string.milestone_done)
+    }
+
+    /** A free French press: the Steep field on the dose screen, the pour on the ring, then the steep like a recipe's (#218). */
+    @Test
+    fun frenchPressFreeBrewHasASteepFieldAndSteepsLikeARecipe() {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.free_brew)
+        compose.waitUntilAtLeastOneExists(hasTestTag("press-steep-field"), 5_000)
+        compose.onNodeWithTag("press-steep-field").assertIsDisplayed()
+        compose.onNodeWithText("4:00").assertIsDisplayed()
+        compose.onNodeWithTag("press-steep-field").performClick()
+        compose.onNodeWithTag("press-steep-input").performTextReplacement("4:30")
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("4:30"), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_press_title)
+        click(R.string.prepare_ready)
+
+        // The first water: the ring pours under a title of its own, with no steep yet.
+        play(scale, 12_000)
+        compose.waitForIdle()
+        waitFor(R.string.brewing_press)
+        compose.onAllNodesWithText(text(R.string.guide_steep_text)).assertCountEquals(0)
+        // The weight rests at the bloom: no new weight for 10 s starts the steep.
+        play(scale, 80_000)
+        waitFor(R.string.guide_steep_text)
+        compose.onAllNodesWithText(text(R.string.brewing_press)).assertCountEquals(0)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
     }
 
     private fun frenchPressSteep(): SessionScale {

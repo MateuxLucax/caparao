@@ -117,6 +117,7 @@ fun DoseStep(
     onFilterWater: (Double) -> Unit,
     onFilterDose: (Double) -> Unit,
     onNext: () -> Unit,
+    onSteep: (Long) -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val step = when (state.mode) {
@@ -134,6 +135,7 @@ fun DoseStep(
     var summaryRecipe by remember { mutableStateOf(espressoRecipe) }
     LaunchedEffect(espressoRecipe) { espressoRecipe?.let { summaryRecipe = it } }
     var editing by rememberSaveable { mutableStateOf<Editing?>(null) }
+    var editingSteep by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.recipes.isNotEmpty()) RecipeChips(state, onRecipe)
         Spacer(Modifier.weight(1f))
@@ -173,12 +175,20 @@ fun DoseStep(
                         Amount(state.plannedWater, R.string.unit_ml, locale) { editing = Editing.WATER }
                     }
                 }
+                if (state.mode == BrewMode.FRENCH_PRESS) SteepField(state.steepMs) { editingSteep = true }
             }
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.dose != null) {
             Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
         }
+    }
+    if (editingSteep) {
+        SteepDialog(
+            initial = RecipeForm.clockText(state.steepMs),
+            onDone = { ms -> onSteep(ms); editingSteep = false },
+            onDismiss = { editingSteep = false },
+        )
     }
     editing?.let { field ->
         val initial = if (field == Editing.DOSE) state.dose else state.plannedWater
@@ -380,6 +390,42 @@ private fun Amount(grams: Double?, @StringRes unit: Int, locale: Locale, onClick
             )
         }
     }
+}
+
+/** A free French press steeps for this long, from the first water (#218). */
+@Composable
+private fun SteepField(steepMs: Long, onClick: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.padding(top = 16.dp).fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(onClick = onClick).testTag("press-steep-field"),
+    ) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.guide_steep), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(RecipeForm.clockText(steepMs), style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)))
+        }
+    }
+}
+
+@Composable
+private fun SteepDialog(initial: String, onDone: (Long) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    val typed = RecipeForm.clock(text)?.takeIf { it in BrewViewModel.STEEP_RANGE_MS }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.filter { c -> c.isDigit() || c == ':' }.take(5) },
+                label = { Text(stringResource(R.string.steep_time_field)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.testTag("press-steep-input"),
+            )
+        },
+        confirmButton = { TextButton(onClick = { typed?.let(onDone) }, enabled = typed != null) { Text(stringResource(R.string.done)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable
