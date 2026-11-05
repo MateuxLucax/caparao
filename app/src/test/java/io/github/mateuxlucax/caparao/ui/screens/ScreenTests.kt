@@ -147,7 +147,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter"))
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -762,6 +762,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
     }
 
+    /** At 640 dp tall, the filter picture is omitted so the five rows and Ready fit without scrolling. */
+    @Test
+    fun smallScreenFilterPrepare() {
+        assumeTrue("small-screen variant only", context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640)
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-picture").assertDoesNotExist()
+        compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
+        repeat(5) { compose.onNodeWithTag("filter-prepare-row-$it").assertIsDisplayed() }
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
+    }
+
     /**
      * The cup lands at 8 s but the scale never reads zero: taring times out after the retry and shows the error. Retry
      * with the scale zeroing again tares, and the guide carries on to the first drop.
@@ -901,6 +919,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
         waitFor(R.string.prepare_filter_title)
         assertEquals("the filter is not tared during preparation", beanWeighTares, scale.tareCommands)
+        compose.onNodeWithTag("filter-prepare-picture").assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
         listOf(
             R.string.prepare_rdt,

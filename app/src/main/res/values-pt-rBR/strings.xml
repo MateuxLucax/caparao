@@ -104,7 +104,7 @@
     <string name="prepare_puck_screen">Tela do puck</string>
     <string name="prepare_rinse_filter">Escalde o filtro</string>
     <string name="prepare_add_grounds">Coloque o café moído</string>
-    <string name="prepare_dripper_server">Coloque o porta-filtro e a jarra na balança</string>
+    <string name="prepare_dripper_server">Coloque o coador e a jarra na balança</string>
     <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
