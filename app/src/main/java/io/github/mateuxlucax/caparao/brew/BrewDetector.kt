@@ -49,6 +49,12 @@ interface BrewDetector {
     /** Feeds the next reading; returns a command for the scale, if any. */
     fun onReading(reading: TimedReading): ScaleCommand?
 
+    /** While [phase] is [BrewPhase.TARING]: the scale did not read zero even after the retry. A late zero clears it. */
+    val tareTimedOut: Boolean
+
+    /** The user asked for the tare again from the screen; the zero wait starts over at [atMs]. */
+    fun retryTare(atMs: Long): ScaleCommand
+
     /** The user tapped stop or done. Ends a brew in progress; before it started, nothing is saved. */
     fun stop(atMs: Long)
 

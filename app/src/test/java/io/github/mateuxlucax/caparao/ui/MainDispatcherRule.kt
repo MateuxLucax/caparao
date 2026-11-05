@@ -8,10 +8,12 @@ import kotlinx.coroutines.test.setMain
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
-/** Runs viewModelScope on a test dispatcher: there is no Android main looper on the JVM. */
+/** Runs viewModelScope on a test dispatcher: there is no Android main looper on the JVM. [dispatcher] lets a test run its delays. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule : TestWatcher() {
-    override fun starting(description: Description) = Dispatchers.setMain(UnconfinedTestDispatcher())
+    val dispatcher = UnconfinedTestDispatcher()
+
+    override fun starting(description: Description) = Dispatchers.setMain(dispatcher)
 
     override fun finished(description: Description) = Dispatchers.resetMain()
 }

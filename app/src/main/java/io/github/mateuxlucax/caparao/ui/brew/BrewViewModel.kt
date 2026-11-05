@@ -1,9 +1,12 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import android.os.SystemClock
+import androidx.compose.animation.core.Easing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.ui.components.targetBand
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewDetector
 import io.github.mateuxlucax.caparao.brew.BrewPhase
@@ -30,7 +33,9 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
+import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -66,6 +71,8 @@ class BrewViewModel(
     private val onLive: (BrewUiState?) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
     private val diagnostics: DiagnosticRecorder? = null,
+    /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
+    private val animations: () -> Boolean = { true },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -77,10 +84,14 @@ class BrewViewModel(
 
     /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
+    /** The espresso moments already alerted for this brew, so each one alerts once (#193). */
+    private val alerted = HashSet<StepEvent>()
     /** Starts only after the terminal press deadline, and never ends the brew. */
     private var frenchPressFinishTracker: FrenchPressFinishTracker? = null
 
     private var job: Job? = null
+    /** The timer rolling back to the saved time, before the summary opens (#197). */
+    private var rollJob: Job? = null
     private var detector: BrewDetector? = null
     private val readings = ArrayList<TimedReading>()
     private val smoother = FlowSmoother()
@@ -172,6 +183,7 @@ class BrewViewModel(
             BrewMode.FRENCH_PRESS -> FilterDetector(FilterConfig(liftDetectionEnabled = false))
         }
         detector = new
+        alerted.clear()
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
         diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
@@ -187,8 +199,18 @@ class BrewViewModel(
     /** Espresso: the cup on the scale is already tared, skip waiting for it. */
     fun armNow() {
         val espresso = detector as? EspressoDetector ?: return
+        val before = espresso.phase
         espresso.armNow(clock()).also(::send)
+        espressoMoment(before, espresso.phase)
         _uiState.update { it.copy(phase = espresso.phase) }
+    }
+
+    /** Taring timed out: asks for the tare once more. Does nothing outside the tare or while the scale is disconnected. */
+    fun retryTare() {
+        val current = detector ?: return
+        if (current.phase != BrewPhase.TARING || !_uiState.value.connected) return
+        send(current.retryTare(clock()))
+        _uiState.update { it.copy(tareTimedOut = false) }
     }
 
     /** Stop (espresso) or Done (filter); before the brew started, nothing is saved. */
@@ -241,7 +263,9 @@ class BrewViewModel(
         }
         val timed = TimedReading(clock(), reading)
         if (readings.size < MAX_READINGS) readings += timed
+        val before = current.phase
         current.onReading(timed)?.let(::send)
+        espressoMoment(before, current.phase)
         recordDiagnosticPhase(current.phase)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
             brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
@@ -276,12 +300,18 @@ class BrewViewModel(
         _uiState.update {
             it.copy(
                 phase = current.phase,
+                tareTimedOut = current.tareTimedOut,
                 weightGrams = shownWeight,
                 flowGramsPerSecond = flow,
                 elapsedMs = since?.let { s -> timed.atMs - s } ?: 0,
                 guide = guide ?: it.guide,
                 frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
             )
+        }
+        if (mode == BrewMode.ESPRESSO && current.phase == BrewPhase.BREWING) {
+            // The band is the ring's (#192): a hover on its edge alerts once, as the latch is per brew.
+            val ratio = _uiState.value.ratio
+            if (ratio != null && targetBand(ratio, _uiState.value.targetRatio) == TargetBand.AT) alertOnce(StepEvent.InTargetBand)
         }
         if (current.phase == BrewPhase.DONE) finish(current)
     }
@@ -316,6 +346,20 @@ class BrewViewModel(
             recordDiagnosticPhase(current.phase)
             finish(current)
         }
+    }
+
+    /** Espresso's moments (#193): the phase changes that put the cup, the tare, the first drop on the screen. */
+    private fun espressoMoment(from: BrewPhase, to: BrewPhase) {
+        if (mode != BrewMode.ESPRESSO) return
+        when {
+            from == BrewPhase.WAITING_FOR_CUP && to == BrewPhase.TARING -> alertOnce(StepEvent.CupDetected)
+            from == BrewPhase.TARING && to == BrewPhase.READY -> alertOnce(StepEvent.TareConfirmed)
+            from == BrewPhase.READY && to == BrewPhase.BREWING -> alertOnce(StepEvent.FirstDrop)
+        }
+    }
+
+    private fun alertOnce(event: StepEvent) {
+        if (alerted.add(event)) alert(event)
     }
 
     private fun alert(event: StepEvent) {
@@ -359,8 +403,10 @@ class BrewViewModel(
             grind = recipe?.grind,
             waterTempCelsius = recipe?.waterTempCelsius,
         )
-        // First, so the notes filled in below land on this brew's summary.
-        _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = brew) }
+        // First, so the notes filled in below land on this brew's summary. The live screen stays up until the timer
+        // has rolled to the saved time.
+        _uiState.update { it.copy(phase = BrewPhase.DONE, saved = brew) }
+        openSummary(brew.durationMs)
         viewModelScope.launch {
             // Past coffees before this brew is in: it has none yet.
             val coffees = repository.recentCoffees()
@@ -371,8 +417,35 @@ class BrewViewModel(
         }
     }
 
+    /**
+     * Rolls the shown time to [savedMs], the time the summary and the saved brew show, then opens the summary. The
+     * detector can end an espresso a few seconds after the shown time stopped (#197). Only espresso rolls; filter and
+     * French press open the summary at once. With animations off, or when both show the same whole seconds, it opens
+     * at once too.
+     */
+    private fun openSummary(savedMs: Long) {
+        val from = _uiState.value.elapsedMs
+        if (mode != BrewMode.ESPRESSO || !animations() || from / 1000 == savedMs / 1000) {
+            showSummary(savedMs)
+            return
+        }
+        rollJob = viewModelScope.launch {
+            repeat(ROLL_FRAMES) { frame ->
+                delay(ROLL_MS / ROLL_FRAMES)
+                val eased = ROLL_EASING.transform((frame + 1).toFloat() / ROLL_FRAMES)
+                _uiState.update { it.copy(elapsedMs = from + ((savedMs - from) * eased).toLong()) }
+            }
+            showSummary(savedMs)
+        }
+    }
+
+    private fun showSummary(savedMs: Long) = _uiState.update { it.copy(step = BrewStep.SUMMARY, elapsedMs = savedMs) }
+
     private fun reset() {
+        rollJob?.cancel()
+        rollJob = null
         detector = null
+        alerted.clear()
         readings.clear()
         smoother.reset()
         brewingSinceMs = null
@@ -409,5 +482,10 @@ class BrewViewModel(
 
         /** 20 minutes at 10 Hz: longer than any brew; past it the curve stops growing. */
         private const val MAX_READINGS = 12_000
+
+        /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */
+        private const val ROLL_MS = 600L
+        private const val ROLL_FRAMES = 36
+        private val ROLL_EASING: Easing = Motion.EmphasizedDecelerate
     }
 }

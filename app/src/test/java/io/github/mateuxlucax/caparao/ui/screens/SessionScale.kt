@@ -36,6 +36,9 @@ class SessionScale(lines: List<String>) : ScaleSource {
     private var tareOffset = 0.0
     private var lastRawWeight = 0.0
 
+    /** Off to show a scale that never reads zero after a tare: the brew screen times out. */
+    var zeroOnTare = true
+
     /** Delivers every frame up to [atMs], calling [settle] after each so the app takes it in before the next. */
     fun playUntil(atMs: Long, settle: () -> Unit) {
         while (next < frames.size && frames[next].first <= atMs) {
@@ -57,6 +60,7 @@ class SessionScale(lines: List<String>) : ScaleSource {
     override fun stop() = Unit
 
     override fun tare() {
+        if (!zeroOnTare) return
         tareOffset = lastRawWeight
         reading.update { it?.copy(weightGrams = 0.0) }
     }
