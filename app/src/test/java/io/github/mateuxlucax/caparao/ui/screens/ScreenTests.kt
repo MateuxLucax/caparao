@@ -1417,6 +1417,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
         compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_press_title)
+        click(R.string.prepare_ready)
         return scale
     }
 
@@ -1426,7 +1428,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val scale = frenchPressSteep()
         play(scale, 80_000)
         compose.waitForIdle()
-        click(R.string.done)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         waitFor(R.string.finish_brew_title)
         compose.onNodeWithText(text(R.string.keep_brewing)).assertIsDisplayed()
     }
@@ -1437,7 +1439,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val scale = frenchPressSteep()
         play(scale, 241_100)
         waitFor(R.string.guide_remove_press)
-        click(R.string.done)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitForIdle()
         compose.onAllNodesWithText(text(R.string.finish_brew_title)).assertCountEquals(0)
         compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)

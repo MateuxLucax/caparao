@@ -197,7 +197,8 @@ class EndToEndTest {
         val alertScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
         val viewModel = AtomicReference<BrewViewModel?>()
         try {
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 10_000)
+            // The shortcut opens the built-in French press recipe, whose water is the control (no ratio caption).
+            compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 10_000)
             val brewViewModel = activity.viewModelStore.get("brew-FRENCH_PRESS") as? BrewViewModel
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }
@@ -205,6 +206,10 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.next)).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
+            // Prepare waits for Ready; only then does the tare go out and the live step start.
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_press_title)), 10_000)
+            assertEquals(BrewStep.PREPARE_PORTAFILTER, viewModel.get()?.uiState?.value?.step)
+            compose.onNodeWithTag("press-prepare-ready").assertIsEnabled().performClick()
             compose.waitUntil(10_000) { viewModel.get()?.uiState?.value?.step == BrewStep.LIVE }
 
             replay.resume()
