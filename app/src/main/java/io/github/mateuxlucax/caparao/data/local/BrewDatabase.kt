@@ -193,7 +193,8 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("ALTER TABLE recipe_steps ADD COLUMN target_flow_grams_per_second REAL")
         db.execSQL(
             "UPDATE recipe_steps SET target_flow_grams_per_second = 5.0 " +
-                "WHERE recipe_id = '${BuiltInRecipes.V60_BIG_ID}' AND position = 0 AND kind = 'BLOOM'",
+                "WHERE recipe_id = '${BuiltInRecipes.V60_BIG_ID}' AND position = 0 AND kind = 'BLOOM' " +
+                "AND recipe_id IN (SELECT id FROM recipes WHERE created_at = updated_at)",
         )
     }
 }

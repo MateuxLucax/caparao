@@ -173,7 +173,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
         }
-        FlowChart(chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
+        FlowChart(state.flowGramsPerSecond, chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -191,12 +191,12 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
 }
 
 @Composable
-private fun FlowChart(flow: Double, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
+private fun FlowChart(liveFlow: Double, animatedFlow: Double, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
     val colors = MaterialTheme.colorScheme
     val band = target?.let(PourRate::band)
-    val displayedHistory = history.mapIndexed { index, point -> if (index == history.lastIndex) point.copy(flow = flow) else point }
+    val displayedHistory = history.mapIndexed { index, point -> if (index == history.lastIndex) point.copy(flow = animatedFlow) else point }
     Text(
-        stringResource(R.string.guide_flow, Format.flow(flow, locale)),
+        stringResource(R.string.guide_flow, Format.flow(liveFlow, locale)),
         style = MaterialTheme.typography.labelMedium,
         color = colors.onSurfaceVariant,
     )
@@ -205,7 +205,7 @@ private fun FlowChart(flow: Double, history: List<FlowPoint>, target: Double?, l
         val right = size.width - left
         val top = 3.dp.toPx()
         val bottom = size.height - top
-        val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: flow, band?.endInclusive ?: 0.0, 1.0)
+        val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: animatedFlow, band?.endInclusive ?: 0.0, 1.0)
         fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
         band?.let { ideal ->
             val bandTop = y(ideal.endInclusive)

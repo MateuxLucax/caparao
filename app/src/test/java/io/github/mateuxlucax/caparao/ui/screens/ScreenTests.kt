@@ -1058,7 +1058,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         open("press-ramp", 0)
         click(R.string.tab_brews)
-        val row = { water: Double -> compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}", substring = true) }
+        val row = {
+            water: Double ->
+            compose.onNodeWithText(
+                "${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}",
+                substring = true,
+                useUnmergedTree = true,
+            )
+        }
         row(250.0).performTouchInput { longClick() }
         row(245.0).performClick()
         compose.waitForIdle()

@@ -93,11 +93,11 @@ class MigrationTest {
     }
 
     @Test
-    fun from5AddsOptionalFlowTargetsAndSetsBigBrewBloom() = runBlocking {
+    fun from5AddsOptionalFlowTargetsAndSetsUneditedBigBrewBloom() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
             for (sql in VERSION_4) db.execSQL(sql)
             db.execSQL(
-                "INSERT INTO recipes VALUES ('${BuiltInRecipes.V60_BIG_ID}', 'V60 Big Brew', 'FILTER', 'V60', 30.0, 15.0, NULL, NULL, NULL, NULL, NULL, 100, 200)",
+                "INSERT INTO recipes VALUES ('${BuiltInRecipes.V60_BIG_ID}', 'V60 Big Brew', 'FILTER', 'V60', 30.0, 15.0, NULL, NULL, NULL, NULL, NULL, 100, 100)",
             )
             db.execSQL("INSERT INTO recipe_steps VALUES ('${BuiltInRecipes.V60_BIG_ID}', 0, 'BLOOM', 90.0, 0)")
             db.execSQL("INSERT INTO recipe_steps VALUES ('${BuiltInRecipes.V60_BIG_ID}', 1, 'BLOOM', 155.0, 20000)")
@@ -114,6 +114,28 @@ class MigrationTest {
             val bigBrew = recipes.single { it.id == BuiltInRecipes.V60_BIG_ID }
             assertEquals(listOf(5.0, null), bigBrew.steps.map { it.targetFlowGramsPerSecond })
             assertNull(recipes.single { it.id == "custom" }.steps.single().targetFlowGramsPerSecond)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun from5LeavesEditedBigBrewFlowTargetUnset() = runBlocking {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            for (sql in VERSION_4) db.execSQL(sql)
+            db.execSQL(
+                "INSERT INTO recipes VALUES ('${BuiltInRecipes.V60_BIG_ID}', 'V60 Big Brew', 'FILTER', 'V60', 30.0, 15.0, NULL, NULL, NULL, NULL, NULL, 100, 200)",
+            )
+            db.execSQL("INSERT INTO recipe_steps VALUES ('${BuiltInRecipes.V60_BIG_ID}', 0, 'BLOOM', 90.0, 0)")
+            db.version = 5
+        }
+
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
+            .addMigrations(MIGRATION_5_6)
+            .build()
+        try {
+            val bigBrew = RecipeRepository(db.recipes()).recipes.first().single { it.id == BuiltInRecipes.V60_BIG_ID }
+            assertNull(bigBrew.steps.single().targetFlowGramsPerSecond)
         } finally {
             db.close()
         }
