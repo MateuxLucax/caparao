@@ -3,6 +3,9 @@ package io.github.mateuxlucax.caparao.ui.screens
 import android.content.Context
 import android.os.Looper
 import android.provider.Settings
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.luminance
+import io.github.mateuxlucax.caparao.ui.components.PressArt
 import android.view.View
 import android.widget.TextView
 import androidx.compose.foundation.background
@@ -1150,11 +1153,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                 current = state(mode, weight)
                 compose.waitForIdle()
                 assertEquals(band, targetBand(weight, target))
-                if (mode == BrewMode.FILTER) {
-                    compose.onNodeWithTag("guided-server").assertIsDisplayed()
-                } else {
-                    compose.onNodeWithTag("guided-server").assertDoesNotExist()
-                }
+                compose.onNodeWithTag("guided-server").assertIsDisplayed()
                 compose.onNodeWithTag("guided-cup").assertIsDisplayed()
                 assertContainsColor("guided-cup", expectedCup)
                 if (mode == BrewMode.FILTER && weight == 94.9) assertServerHasNoTargetMark()
@@ -1163,6 +1162,116 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                 compose.onNodeWithText(context.getString(R.string.guide_behind, 11, text(R.string.unit_seconds))).assertIsDisplayed()
             }
         }
+    }
+
+    /** The press art on each stage with animations off: still frames that carry all the information (#226). */
+    @Test
+    fun pressArtStagesWithAnimationsOff() = pressArtStages(animated = false)
+
+    /** The same stages with animations on: the motion ends on the same frames and the steps stay readable (#226). */
+    @Test
+    fun pressArtStagesWithAnimationsOn() {
+        val before = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        try {
+            pressArtStages(animated = true)
+        } finally {
+            Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, before)
+        }
+    }
+
+    private fun pressArtStages(animated: Boolean) {
+        val recipe = Recipe(
+            id = "press-art-$animated", name = "Press art", mode = BrewMode.FRENCH_PRESS, method = "French press",
+            doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 100.0, 0),
+                RecipeStep(StepKind.POUR, 300.0, 60_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        fun state(
+            index: Int,
+            weight: Double = 0.0,
+            progress: Float = 0f,
+            elapsedMs: Long = 0,
+            removed: Boolean = false,
+            dueInMs: Long? = null,
+        ) = BrewUiState(
+            mode = BrewMode.FRENCH_PRESS, step = BrewStep.LIVE, phase = BrewPhase.BREWING, connected = true,
+            weightGrams = weight, elapsedMs = elapsedMs, recipe = recipe, frenchPressRemoved = removed,
+            guide = StepState(index, progress, dueInMs, null, null, null),
+        )
+
+        var current by mutableStateOf(state(0, weight = 100.0))
+        var scheme = lightColorScheme()
+        var dark = false
+        compose.setContent {
+            AppTheme {
+                scheme = MaterialTheme.colorScheme
+                dark = isSystemInDarkTheme()
+                GuidedStep(current) {}
+            }
+        }
+
+        fun hasColor(tag: String, color: Color): Boolean {
+            val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
+            val expected = color.toArgb()
+            return (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
+        }
+
+        /** The pixel of a point in the server's 80 × 52 box, drawn under a [lift] of the scene (see PressOnScale). */
+        fun pixelAt(tag: String, viewX: Float, viewY: Float, lift: Float): Int {
+            val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
+            val size = bitmap.width.toFloat()
+            val room = size * 0.12f
+            val rise = size * 0.16f * lift
+            val boxHeight = size - room
+            val scale = minOf(size / 80f, boxHeight / 52f)
+            val x = (size - 80f * scale) / 2f - 26f * scale + viewX * scale
+            val y = -rise + (boxHeight - 52f * scale) / 2f - 50f * scale + viewY * scale
+            return bitmap.getPixel(x.toInt(), y.toInt())
+        }
+
+        // Fill: the carafe takes the band color of the weight against the target, with no target line.
+        for ((weight, band) in listOf(60.0 to TargetBand.BELOW, 100.0 to TargetBand.AT, 120.0 to TargetBand.ABOVE)) {
+            current = state(0, weight = weight)
+            compose.waitForIdle()
+            compose.onNodeWithTag("guided-server").assertIsDisplayed()
+            assertEquals(band, targetBand(weight, 100.0))
+            assertTrue("the fill follows the band", hasColor("guided-cup", scheme.ringStroke(band, dark)))
+            compose.onNodeWithTag("guided-weight").assertIsDisplayed()
+            compose.onNodeWithText("${Format.grams(weight, locale)} / ${Format.grams(100.0, locale)} g").assertIsDisplayed()
+        }
+
+        // Steep: the coffee darkens inside the smooth ring, and the countdown stays readable.
+        for (progress in listOf(0f, 1f)) {
+            current = state(2, weight = 300.0, progress = progress, elapsedMs = 100_000, dueInMs = 120_000)
+            compose.waitForIdle()
+            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+            compose.onNodeWithTag("steep-press").assertIsDisplayed()
+            assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress)))
+            compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
+        }
+        assertTrue(PressArt.steepColor(1f).luminance() < PressArt.steepColor(0f).luminance())
+
+        // Deadline: the carafe at its darkest, the delay in view.
+        current = state(3, weight = 300.0, elapsedMs = 255_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("press-deadline-art").assertIsDisplayed()
+        assertTrue(hasColor("guided-cup", PressArt.steepColor(1f)))
+        compose.onNodeWithText(text(R.string.guide_remove_press)).assertIsDisplayed()
+        compose.onNodeWithTag("press-delay").assertIsDisplayed()
+        compose.onNodeWithText("+${Format.timer(15)}").assertIsDisplayed()
+
+        // Removal: the carafe has left the scale and the plunger sits in the coffee, in both settings.
+        current = state(3, weight = 0.0, elapsedMs = 270_000, removed = true)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("guided-server").assertIsDisplayed()
+        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 75f, 88f, lift = 1f))
+        compose.onNodeWithText(text(R.string.guide_press_serve_text)).assertIsDisplayed()
     }
 
     /** Every countdown step uses the same smooth ring in both filter and French press. */

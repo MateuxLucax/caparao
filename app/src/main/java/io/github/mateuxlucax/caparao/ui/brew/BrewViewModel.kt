@@ -789,7 +789,7 @@ class BrewViewModel(
         /** 20 minutes at 10 Hz: longer than any brew; past it the curve stops growing. */
         private const val MAX_READINGS = 12_000
         private const val FILTER_PREPARE_LIFT_MS = 2_000L
-        private const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
+        internal const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
 
         /** A free French press starts to steep after this long without new weight (#218). */
         private const val FREE_POUR_IDLE_MS = 10_000L

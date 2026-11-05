@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
@@ -44,8 +45,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
-import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawServer
+import io.github.mateuxlucax.caparao.ui.components.PressArt
+import io.github.mateuxlucax.caparao.ui.components.PressOnScale
 import io.github.mateuxlucax.caparao.ui.components.RingColors
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -53,8 +55,6 @@ import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.rememberRingColors
 import io.github.mateuxlucax.caparao.ui.components.targetBand
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -165,24 +165,31 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
         CountdownRing(guide.progress, color) {
-            guide.dueInMs?.let {
-                Text(
-                    Format.timer(seconds(it)),
-                    style = MaterialTheme.typography.displaySmall.merge(Tabular),
-                    color = color,
-                    maxLines = 1,
-                    textAlign = TextAlign.Center,
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // The coffee darkens as the steep runs out, inside the ring (#226).
+                if (state.mode == BrewMode.FRENCH_PRESS) {
+                    PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), size = 72.dp, showScale = false)
+                }
+                guide.dueInMs?.let {
+                    Text(
+                        Format.timer(seconds(it)),
+                        style = MaterialTheme.typography.displaySmall.merge(Tabular),
+                        color = color,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
         Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
+        // Both fill their server with the step's color against the target: no target line, the color says it (#208).
         if (state.mode == BrewMode.FILTER) {
             ServerToTarget(fill, targetColors.stroke)
         } else {
-            CupToTarget(fill, targetColors.stroke)
+            PressOnScale(fill, targetColors.stroke)
         }
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
@@ -339,17 +346,38 @@ internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window
     return RingColors(stroke, stroke.readableOn(colors.surface))
 }
 
-/** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
+/** Shows the correct post-timer phase; the plunger lowers only after the press has left the scale (#226). */
 @Composable
 private fun FrenchPressReady(state: BrewUiState) {
     if (state.frenchPressRemoved) {
+        RemovedPress()
         Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Note(stringResource(R.string.guide_press_serve_text))
-        FrenchPressPlungerAnimation()
     } else {
         val deadlineMs = state.recipe?.steps?.lastOrNull()?.targetAtMs ?: state.elapsedMs
         val delayMs = (state.elapsedMs - deadlineMs).coerceAtLeast(0L)
+        val repeats = (delayMs / BrewViewModel.FRENCH_PRESS_ALERT_INTERVAL_MS).toInt()
+        val still = animationsOff()
+        // The deadline colors the screen from the carafe, and each repeat of the alert pulses the delay.
+        val spread = remember { Animatable(if (still) 1f else 0f) }
+        val pulse = remember { Animatable(1f) }
+        val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        LaunchedEffect(still) { if (!still) spread.animateTo(1f, tween(700, easing = Motion.EmphasizedDecelerate)) }
+        LaunchedEffect(repeats, still) {
+            if (!still && repeats > 0) {
+                pulse.snapTo(1.18f)
+                pulse.animateTo(1f, spatial)
+            }
+        }
+        val burst = MaterialTheme.colorScheme.onErrorContainer
+        Box(Modifier.testTag("press-deadline-art"), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(200.dp)) {
+                val t = spread.value
+                if (t < 1f) drawCircle(burst.copy(alpha = 0.25f * (1f - t)), radius = size.minDimension / 2 * t, center = center)
+            }
+            PressOnScale(1f, PressArt.steepColor(1f))
+        }
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(
             stringResource(R.string.guide_time_up),
@@ -358,63 +386,27 @@ private fun FrenchPressReady(state: BrewUiState) {
         )
         Text(
             if (delayMs == 0L) Format.timer((deadlineMs / 1000).toInt()) else "+${Format.timer((delayMs / 1000).toInt())}",
+            Modifier.graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }.testTag("press-delay"),
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
     }
 }
 
-/** The carafe stays still; only the plunger lowers, after the user has removed the press from the scale. */
+/** The carafe rises off the scale, and only then the plunger lowers, once, with the theme's spring. */
 @Composable
-private fun FrenchPressPlungerAnimation() {
+private fun RemovedPress() {
     val still = animationsOff()
-    val progress = remember { Animatable(if (still) 1f else 0f) }
-    val spatialMotion = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val lift = remember { Animatable(if (still) 1f else 0f) }
+    val plunger = remember { Animatable(if (still) 1f else 0f) }
+    val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     LaunchedEffect(still) {
-        if (!still) progress.animateTo(1f, spatialMotion)
-    }
-    val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.size(160.dp)) {
-        scale(size.width / 120f, pivot = Offset.Zero) {
-            val left = 31f
-            val right = 89f
-            val top = 28f
-            val bottom = 105f
-            val press = Rect(left, top, right, bottom)
-            drawRoundRect(
-                color = colors.surfaceContainerHighest,
-                topLeft = Offset(press.left, press.top),
-                size = Size(press.width, press.height),
-                cornerRadius = CornerRadius(7f, 7f),
-            )
-            drawRect(
-                colors.tertiary.copy(alpha = 0.45f),
-                topLeft = Offset(left + 4f, 70f),
-                size = Size(right - left - 8f, bottom - 74f),
-            )
-            drawRoundRect(
-                color = colors.outline,
-                topLeft = Offset(press.left, press.top),
-                size = Size(press.width, press.height),
-                cornerRadius = CornerRadius(7f, 7f),
-                style = Stroke(width = 3f),
-            )
-            val handle = Path().apply {
-                moveTo(right, 40f)
-                cubicTo(101f, 40f, 109f, 44f, 109f, 53f)
-                lineTo(109f, 77f)
-                cubicTo(109f, 86f, 101f, 90f, right, 90f)
-            }
-            drawPath(
-                handle,
-                colors.outline,
-                style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
-            val plateY = 42f + 42f * progress.value
-            drawLine(colors.primary, Offset(60f, 8f), Offset(60f, plateY), strokeWidth = 4f, cap = StrokeCap.Round)
-            drawLine(colors.primary, Offset(42f, plateY), Offset(78f, plateY), strokeWidth = 6f, cap = StrokeCap.Round)
+        if (!still) {
+            lift.animateTo(1f, tween(450, easing = Motion.EmphasizedDecelerate))
+            plunger.animateTo(1f, spatial)
         }
     }
+    PressOnScale(1f, PressArt.steepColor(1f), plunger = plunger.value, lift = lift.value)
 }
 
 @Composable
@@ -458,22 +450,7 @@ private fun ReachedCheck(label: String?) {
     }
 }
 
-/** The cup filling toward a dashed target line; the last target as a faint line below it. */
-@Composable
-private fun CupToTarget(fill: Float, color: Color) {
-    val body = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(Modifier.size(160.dp).testTag("guided-cup")) {
-        scale(size.width / 120f, pivot = Offset.Zero) {
-            // A solid cup filling in the step's colour, the target a short tick on its side below the rim.
-            val cup = Rect(26f, 20f, 94f, 100f)
-            drawCup(cup, body, color, fill * 60f / 80f)
-            val target = cup.bottom - 60f
-            drawLine(color, Offset(94f, target), Offset(104f, target), strokeWidth = 5f, cap = StrokeCap.Round)
-        }
-    }
-}
-
-/** Filter pours fill the server while French press keeps its cup until the carafe art is ready (#226). */
+/** Filter pours fill the server with the step's color; the color is the only target cue (#208). */
 @Composable
 private fun ServerToTarget(fill: Float, water: Color) {
     val colors = MaterialTheme.colorScheme

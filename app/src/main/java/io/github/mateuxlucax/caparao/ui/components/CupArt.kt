@@ -42,13 +42,14 @@ object CupArt {
         }
     }
 
-    /** A flat server with its water, sized to the 80 × 52 viewBox inside [box]. */
+    /** A flat server with its water, sized to the 80 × 52 viewBox inside [box]. [overlay] draws in that viewBox's units. */
     fun DrawScope.drawServer(
         box: Rect,
         body: Color,
         handle: Color,
         water: Color,
         fill: Float,
+        overlay: DrawScope.() -> Unit = {},
     ) {
         val scale = min(box.width / SERVER_VIEW_WIDTH, box.height / SERVER_VIEW_HEIGHT)
         val left = box.left + (box.width - SERVER_VIEW_WIDTH * scale) / 2f - SERVER_VIEW_LEFT * scale
@@ -72,6 +73,7 @@ object CupArt {
                     size = Size(36f, 4.5f),
                     cornerRadius = CornerRadius(2.25f),
                 )
+                overlay()
             }
         }
     }
