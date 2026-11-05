@@ -475,9 +475,9 @@ class BrewViewModel(
         }
         if (recipeChosen || state.step != BrewStep.DOSE) return
         recipeChosen = true
-        // Never chosen in this mode: the first recipe; free brew only when it was the last choice.
+        // Filter always opens free; other modes keep their last choice or first recipe.
         val last = settings.lastRecipeId(mode)
-        apply(if (last == null) list.firstOrNull() else list.find { it.id == last })
+        apply(if (mode == BrewMode.FILTER) null else if (last == null) list.firstOrNull() else list.find { it.id == last })
     }
 
     private fun apply(recipe: Recipe?) {
