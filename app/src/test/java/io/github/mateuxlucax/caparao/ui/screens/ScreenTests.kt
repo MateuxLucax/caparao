@@ -107,6 +107,7 @@ import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
 import io.github.mateuxlucax.caparao.ui.components.targetBand
@@ -1076,6 +1077,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithContentDescription(
             context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_bloom)),
         ).assertIsDisplayed()
+        // The brew segments fill as their step opens (shown at once with animations off): earlier ones full, later ones empty.
+        compose.onNodeWithTag("milestone-fill-2", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("milestone-fill-3", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("milestone-fill-4", useUnmergedTree = true).assertDoesNotExist()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
         compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
@@ -1087,6 +1092,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithContentDescription(
             context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_swirl)),
         ).assertIsDisplayed()
+        compose.onNodeWithTag("milestone-fill-4", useUnmergedTree = true).assertExists()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
         compose.waitForIdle()
@@ -1266,6 +1272,25 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         current = state(132_000, recipe.copy(mode = BrewMode.ESPRESSO, method = "Espresso"))
         compose.waitForIdle()
         compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+    }
+
+    /** After a pause the readout shows its held numbers at once, with the ring colour coming back from the paused one. */
+    @Test
+    fun scaleReadoutResumesFromPauseWithItsNumbers() {
+        var paused by mutableStateOf(true)
+        compose.setContent {
+            AppTheme {
+                ScaleReadout(
+                    weightGrams = 142.0, flowGramsPerSecond = 0.0, timerSeconds = 74, timerRunning = !paused,
+                    started = true, ringAlpha = if (paused) 0.45f else 1f, initialRingAlpha = 0.45f,
+                )
+            }
+        }
+        compose.onNodeWithText("01:14").assertIsDisplayed()
+        paused = false
+        compose.waitForIdle()
+        compose.onNodeWithText("01:14").assertIsDisplayed()
+        compose.onNodeWithText(Format.grams(142.0, locale), substring = true).assertIsDisplayed()
     }
 
     /** Live flow stays current with animations disabled, and the optional target only adds its ideal band. */
