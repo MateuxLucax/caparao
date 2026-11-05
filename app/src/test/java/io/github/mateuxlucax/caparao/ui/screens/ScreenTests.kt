@@ -1014,6 +1014,12 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                 current = state(mode, weight)
                 compose.waitForIdle()
                 assertEquals(band, targetBand(weight, target))
+                if (mode == BrewMode.FILTER) {
+                    compose.onNodeWithTag("guided-server").assertIsDisplayed()
+                } else {
+                    compose.onNodeWithTag("guided-server").assertDoesNotExist()
+                }
+                compose.onNodeWithTag("guided-cup").assertIsDisplayed()
                 assertContainsColor("guided-cup", expectedCup)
                 assertContainsColor("guided-weight", expectedWeight)
                 assertContainsColor("guide-pace", expectedPace)

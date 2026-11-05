@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
+import io.github.mateuxlucax.caparao.ui.components.CupArt.drawServer
 import io.github.mateuxlucax.caparao.ui.components.RingColors
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -167,7 +168,11 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
         val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
-        CupToTarget(fill, targetColors.stroke)
+        if (state.mode == BrewMode.FILTER) {
+            ServerToTarget(fill, targetColors.stroke)
+        } else {
+            CupToTarget(fill, targetColors.stroke)
+        }
         Text(
             stringResource(if (step.kind == StepKind.BLOOM) R.string.guide_bloom else R.string.guide_pour, Format.grams(target, locale)),
             style = MaterialTheme.typography.headlineSmall,
@@ -456,6 +461,25 @@ private fun CupToTarget(fill: Float, color: Color) {
             drawCup(cup, body, color, fill * 60f / 80f)
             val target = cup.bottom - 60f
             drawLine(color, Offset(94f, target), Offset(104f, target), strokeWidth = 5f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+/** Filter pours fill the server while French press keeps its cup until the carafe art is ready (#226). */
+@Composable
+private fun ServerToTarget(fill: Float, water: Color) {
+    val colors = MaterialTheme.colorScheme
+    val targetMark = if (fill >= 1f) colors.surface else colors.onSurface
+    Box(Modifier.size(160.dp).testTag("guided-cup")) {
+        Canvas(Modifier.fillMaxSize().testTag("guided-server")) {
+            drawServer(
+                Rect(0f, 0f, size.width, size.height),
+                body = colors.surfaceContainerHighest,
+                handle = colors.outlineVariant,
+                water = water,
+                targetMark = targetMark,
+                fill = fill,
+            )
         }
     }
 }
