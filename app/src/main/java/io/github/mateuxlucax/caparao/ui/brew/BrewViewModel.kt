@@ -143,28 +143,30 @@ class BrewViewModel(
     fun selectRecipe(recipe: Recipe?) {
         val state = _uiState.value
         if (state.step != BrewStep.DOSE) return
-        if (mode == BrewMode.FILTER && filterRecipeEdited && state.recipe?.id == recipe?.id) {
+        if (waterIsControl && filterRecipeEdited && state.recipe?.id == recipe?.id) {
             settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
             return
         }
         recipeChosen = true
         filterRecipeEdited = false
-        filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
         settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
         apply(recipe)
     }
 
-    /** Change this filter brew's water target in ml/g; recipe pours scale while their times and ratio stay fixed. */
+    /** Filter and French press recipes make water the control (#204, #215). */
+    private val waterIsControl get() = mode == BrewMode.FILTER || mode == BrewMode.FRENCH_PRESS
+
+    /** Change this brew's water target in ml/g; recipe pours scale while their times and ratio stay fixed. */
     fun setFilterRecipeWater(grams: Double) {
         val state = _uiState.value
-        val recipe = filterRecipeBase?.takeIf { state.recipe?.id == it.id && mode == BrewMode.FILTER } ?: return
+        val recipe = filterRecipeBase?.takeIf { state.recipe?.id == it.id && waterIsControl } ?: return
         if (state.step != BrewStep.DOSE || grams !in 1.0..2000.0 || grams / recipe.targetRatio !in RecipeForm.DOSE) return
         val scaled = scaleRecipeToWater(recipe, grams)
         filterRecipeEdited = true
         _uiState.update { it.copy(recipe = scaled, dose = scaled.doseGrams) }
     }
 
-    /** Change this filter brew's dose while keeping its recipe ratio. */
+    /** Change this brew's dose while keeping its recipe ratio. */
     fun setFilterRecipeDose(grams: Double) {
         if (grams !in RecipeForm.DOSE) return
         setFilterRecipeWater(grams * _uiState.value.targetRatio)
@@ -462,10 +464,10 @@ class BrewViewModel(
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
         // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
-        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }
+        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }?.withDefaultFrenchPressSteep()
         val current = savedRecipe?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: state.recipe
-        if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { it.mode == BrewMode.FILTER }
-        val refreshPlan = savedRecipe?.takeIf { mode == BrewMode.FILTER && state.step == BrewStep.DOSE && !filterRecipeEdited }
+        if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { waterIsControl && it.mode == mode }
+        val refreshPlan = savedRecipe?.takeIf { waterIsControl && state.step == BrewStep.DOSE && !filterRecipeEdited }
         _uiState.update {
             it.copy(
                 recipes = list,
@@ -483,7 +485,7 @@ class BrewViewModel(
 
     private fun apply(recipe: Recipe?) {
         val forBrew = recipe?.withDefaultFrenchPressSteep()
-        filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
+        filterRecipeBase = forBrew?.takeIf { waterIsControl && it.mode == mode }
         _uiState.update {
             it.copy(
                 recipe = forBrew,

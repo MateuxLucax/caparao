@@ -1299,6 +1299,25 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /** Water is the French press recipe's control: 400 ml scales the dose and weights, and the steep stays at 4:00 (#215). */
+    @Test
+    fun frenchPressRecipeWaterScalesItsSteps() {
+        open("idle-5min", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("${Format.grams(300.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        repeat(10) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
+        compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
+        compose.onNodeWithText("${Format.grams(26.7, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(133.3, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("04:00").assertIsDisplayed()
+        val ratio = context.getString(R.string.ratio_value, "15")
+        compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
+    }
+
     /** The timer, post-timer removal prompt and plunger-only serve animation (#126). */
     @Test
     fun frenchPressGuide() {

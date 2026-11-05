@@ -106,7 +106,7 @@ import java.util.Locale
 /**
  * The ratio first for a free brew: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
  * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
- * as a summary. A filter recipe makes water the control and scales its steps for this brew (#204).
+ * as a summary. A filter or French press recipe makes water the control and scales its steps for this brew (#204, #215).
  */
 @Composable
 fun DoseStep(
@@ -124,7 +124,7 @@ fun DoseStep(
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
     val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
-    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER }
+    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER || state.mode == BrewMode.FRENCH_PRESS }
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     val espresso = state.mode == BrewMode.ESPRESSO

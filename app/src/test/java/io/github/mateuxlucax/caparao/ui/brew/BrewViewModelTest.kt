@@ -546,6 +546,43 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun frenchPressWaterScalesDoseAndStepWeightsButNotTimesOrTheSavedRecipe() = kotlinx.coroutines.test.runTest {
+        val recipe = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeWater(400.0)
+
+        val scaled = vm.uiState.value.recipe!!
+        assertEquals(26.7, vm.uiState.value.dose!!, 0.05)
+        assertEquals(15.0, vm.uiState.value.targetRatio, 0.0)
+        assertEquals(listOf(133.3, null, 400.0, null), scaled.steps.map { it.targetWeightGrams?.let { w -> Math.round(w * 10) / 10.0 } })
+        assertEquals(400.0, scaled.steps[2].targetWeightGrams!!, 0.0)
+        assertEquals(recipe.steps.map { it.targetAtMs }, scaled.steps.map { it.targetAtMs })
+        assertEquals(240_000L, scaled.steps.last().targetAtMs)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
+    fun anOlderFrenchPressRecipeScalesWithItsDefaultSteep() = kotlinx.coroutines.test.runTest {
+        val full = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        val recipe = full.copy(steps = full.steps.dropLast(1))
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeWater(150.0)
+
+        val steps = vm.uiState.value.recipe!!.steps
+        assertEquals(StepKind.PRESS, steps.last().kind)
+        assertEquals(240_000L, steps.last().targetAtMs)
+        assertEquals(150.0, steps[2].targetWeightGrams!!, 0.0)
+    }
+
+    @Test
     fun filterRecipeDoseChangesScaleOnlyThisBrew() = kotlinx.coroutines.test.runTest {
         val recipe = v60.copy(
             targetRatio = 16.7,
