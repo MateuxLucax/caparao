@@ -48,7 +48,6 @@ object CupArt {
         body: Color,
         handle: Color,
         water: Color,
-        targetMark: Color,
         fill: Float,
     ) {
         val scale = min(box.width / SERVER_VIEW_WIDTH, box.height / SERVER_VIEW_HEIGHT)
@@ -73,8 +72,6 @@ object CupArt {
         }
         val fillFraction = fill.coerceIn(0f, 1.1f)
         val waterTop = SERVER_BOTTOM - (SERVER_BOTTOM - SERVER_FILL_TOP) * SERVER_TARGET_FILL * fillFraction
-        val targetY = SERVER_BOTTOM - (SERVER_BOTTOM - SERVER_FILL_TOP) * SERVER_TARGET_FILL
-
         translate(left, top) {
             scale(scale, pivot = Offset.Zero) {
                 val handlePath = Path().apply {
@@ -91,13 +88,6 @@ object CupArt {
                     if (fillFraction > 0f) {
                         drawRect(water, Offset(33f, waterTop), Size(54f, SERVER_BOTTOM - waterTop))
                     }
-                    drawLine(
-                        targetMark.copy(alpha = 0.75f),
-                        Offset(58f, targetY),
-                        Offset(86f, targetY),
-                        strokeWidth = 1.1f,
-                        cap = StrokeCap.Round,
-                    )
                 }
                 drawRoundRect(
                     color = body,

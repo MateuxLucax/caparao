@@ -992,12 +992,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         var expectedCup = Color.Unspecified
         var expectedWeight = Color.Unspecified
         var expectedPace = Color.Unspecified
+        var expectedServerBody = Color.Unspecified
         compose.setContent {
             AppTheme {
                 val scheme = MaterialTheme.colorScheme
                 expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
                 expectedWeight = expectedCup.readableOn(scheme.surface)
                 expectedPace = scheme.onSurfaceVariant
+                expectedServerBody = scheme.surfaceContainerHighest
                 GuidedStep(current) {}
             }
         }
@@ -1007,6 +1009,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             val expected = color.toArgb()
             val found = (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
             assertTrue("$tag should render $color", found)
+        }
+
+        fun assertServerHasNoTargetMark() {
+            val bitmap = compose.onNodeWithTag("guided-cup").captureToImage().asAndroidBitmap()
+            val scale = bitmap.width / 80f
+            val x = ((65f - 26f) * scale).toInt()
+            val y = ((bitmap.height - 52f * scale) / 2f + (69.875f - 50f) * scale).toInt()
+            assertEquals(expectedServerBody.toArgb(), bitmap.getPixel(x, y))
         }
 
         listOf(BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
@@ -1021,6 +1031,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                 }
                 compose.onNodeWithTag("guided-cup").assertIsDisplayed()
                 assertContainsColor("guided-cup", expectedCup)
+                if (mode == BrewMode.FILTER && weight == 94.9) assertServerHasNoTargetMark()
                 assertContainsColor("guided-weight", expectedWeight)
                 assertContainsColor("guide-pace", expectedPace)
                 compose.onNodeWithText(context.getString(R.string.guide_behind, 11, text(R.string.unit_seconds))).assertIsDisplayed()

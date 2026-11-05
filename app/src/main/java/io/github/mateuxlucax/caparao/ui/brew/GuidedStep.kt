@@ -469,7 +469,6 @@ private fun CupToTarget(fill: Float, color: Color) {
 @Composable
 private fun ServerToTarget(fill: Float, water: Color) {
     val colors = MaterialTheme.colorScheme
-    val targetMark = if (fill >= 1f) colors.surface else colors.onSurface
     Box(Modifier.size(160.dp).testTag("guided-cup")) {
         Canvas(Modifier.fillMaxSize().testTag("guided-server")) {
             drawServer(
@@ -477,7 +476,6 @@ private fun ServerToTarget(fill: Float, water: Color) {
                 body = colors.surfaceContainerHighest,
                 handle = colors.outlineVariant,
                 water = water,
-                targetMark = targetMark,
                 fill = fill,
             )
         }
