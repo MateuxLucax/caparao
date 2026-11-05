@@ -212,7 +212,7 @@
     <string name="step_pour">Despejo</string>
     <string name="step_wait">Espera</string>
     <string name="step_swirl">Agitar</string>
-    <string name="step_press">Prensar</string>
+    <string name="step_press">Infusão</string>
     <string name="step_weight">Até</string>
     <string name="step_start">Início</string>
     <string name="step_flow_target">Fluxo-alvo</string>

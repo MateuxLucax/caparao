@@ -115,6 +115,30 @@ class RecipeFormTest {
     }
 
     @Test
+    fun frenchPressRequiresSteepAsItsLastStep() {
+        val noSteep = RecipeForm.new(BrewMode.FRENCH_PRESS).copy(
+            name = "French press",
+            dose = "20",
+            ratio = "15",
+            steps = listOf(StepForm(StepKind.BLOOM, "100", "0:00"), StepForm(StepKind.POUR, "300", "1:00")),
+        )
+        assertEquals(setOf(Field.STEPS), noSteep.validate())
+
+        val newForm = RecipeForm.new(BrewMode.FRENCH_PRESS).copy(name = "French press", dose = "20", ratio = "15")
+        assertEquals(StepForm(StepKind.PRESS, start = "4:00"), newForm.steps.last())
+    }
+
+    @Test
+    fun anOlderFrenchPressRecipeGetsTheDefaultSteepWhenOpened() {
+        val oldRecipe = BuiltInRecipes.frenchPress(0).copy(steps = BuiltInRecipes.frenchPress(0).steps.dropLast(1))
+
+        val form = RecipeForm.of(oldRecipe, Locale.US)
+
+        assertEquals(StepForm(StepKind.PRESS, start = "4:00"), form.steps.last())
+        assertEquals(3, oldRecipe.steps.size)
+    }
+
+    @Test
     fun pressStepMustBeTerminalAndFrenchPressOnly() {
         val press = StepForm(StepKind.PRESS, start = "4:00")
         val laterPour = StepForm(StepKind.POUR, "300", "4:30")

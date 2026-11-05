@@ -19,6 +19,7 @@ import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepTracker
+import io.github.mateuxlucax.caparao.brew.withDefaultFrenchPressSteep
 import io.github.mateuxlucax.caparao.brew.scaleRecipeToWater
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
@@ -481,12 +482,13 @@ class BrewViewModel(
     }
 
     private fun apply(recipe: Recipe?) {
+        val forBrew = recipe?.withDefaultFrenchPressSteep()
         filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
         _uiState.update {
             it.copy(
-                recipe = recipe,
-                dose = recipe?.doseGrams ?: settings.lastDose(mode),
-                targetRatio = recipe?.targetRatio ?: settings.targetRatio(mode),
+                recipe = forBrew,
+                dose = forBrew?.doseGrams ?: settings.lastDose(mode),
+                targetRatio = forBrew?.targetRatio ?: settings.targetRatio(mode),
             )
         }
     }
