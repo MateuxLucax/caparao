@@ -87,7 +87,6 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (state.mode != BrewMode.FILTER) StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -413,32 +412,6 @@ private fun paceText(pace: Pace?, paceMs: Long): String {
 }
 
 private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
-
-/** How far through the steps: a wave up to the current one. */
-@Composable
-private fun StepProgress(progress: Float) {
-    val shown by animateFloatAsState(progress, Motion.standard(), label = "steps")
-    // Only the wave, always moving: no track and no stop dot after it. With animations off, the wave holds still.
-    val modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-    if (animationsOff()) {
-        LinearWavyProgressIndicator(
-            progress = { shown },
-            modifier = modifier,
-            trackColor = Color.Transparent,
-            stopSize = 0.dp,
-            amplitude = { 1f },
-            waveSpeed = 0.dp,
-        )
-    } else {
-        LinearWavyProgressIndicator(
-            progress = { shown },
-            modifier = modifier,
-            trackColor = Color.Transparent,
-            stopSize = 0.dp,
-            amplitude = { 1f },
-        )
-    }
-}
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */
 @Composable
