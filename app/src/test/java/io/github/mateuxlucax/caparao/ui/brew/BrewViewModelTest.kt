@@ -119,6 +119,7 @@ class BrewViewModelTest {
     private fun shotThatEndsOnAFlatWeight(vm: BrewViewModel) {
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         pour(0.0, 150.0, 0.5)
         hold(150.0, 1.5)
         hold(0.0, 1.0)
@@ -328,6 +329,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         vm.armNow()
         hold(150.0, 9.0) // never zeroes: the retry goes out at 3 s, the timeout shows at 8 s
         assertTrue(vm.uiState.value.tareTimedOut)
@@ -651,6 +653,7 @@ class BrewViewModelTest {
     private fun espressoPastFirstDrop(vm: BrewViewModel, yieldTo: Double) {
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         pour(0.0, 150.0, 0.5) // the cup goes on
         hold(150.0, 1.5)
         hold(0.0, 1.0) // the tare confirms
