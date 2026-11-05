@@ -33,6 +33,8 @@ class GuideFeedback(context: Context) {
             StepEvent.TareConfirmed -> ToneGenerator.TONE_PROP_PROMPT to 60
             StepEvent.FirstDrop -> ToneGenerator.TONE_PROP_BEEP2 to 200
             StepEvent.InTargetBand -> ToneGenerator.TONE_PROP_ACK to 200
+            StepEvent.DrainTimeEntered -> ToneGenerator.TONE_PROP_ACK to 200
+            StepEvent.DrainTimePassed -> ToneGenerator.TONE_PROP_BEEP2 to 400
         }
         if (alert.vibrate) vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
         if (alert.sound && tone != null) tones?.startTone(tone.first, tone.second)

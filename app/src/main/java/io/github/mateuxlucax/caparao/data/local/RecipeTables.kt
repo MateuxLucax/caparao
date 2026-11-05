@@ -42,6 +42,7 @@ data class RecipeStepEntity(
     val kind: String,
     @ColumnInfo(name = "target_weight_grams") val targetWeightGrams: Double?,
     @ColumnInfo(name = "target_at_ms") val targetAtMs: Long,
+    @ColumnInfo(name = "target_flow_grams_per_second") val targetFlowGramsPerSecond: Double? = null,
 )
 
 @Dao

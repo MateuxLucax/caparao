@@ -15,6 +15,8 @@ enum class WatchAlert(val pattern: LongArray) {
     TARE_CONFIRMED(longArrayOf(0, 40, 80, 40)),
     FIRST_DROP(longArrayOf(0, 120)),
     IN_TARGET_BAND(longArrayOf(0, 50, 60, 50, 60, 50)),
+    DRAIN_TIME_ENTERED(longArrayOf(0, 60, 80, 100)),
+    DRAIN_TIME_PASSED(longArrayOf(0, 200)),
     ;
 
     fun encode(): ByteArray = byteArrayOf(ordinal.toByte())

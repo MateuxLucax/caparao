@@ -199,6 +199,7 @@
     <string name="recipe_grind">Moagem</string>
     <string name="recipe_temp">Temperatura da água</string>
     <string name="recipe_window">Tempo desde a primeira gota</string>
+    <string name="recipe_total_time">Tempo total ideal</string>
     <string name="recipe_window_min">De</string>
     <string name="recipe_window_max">Até</string>
     <string name="recipe_notes">Notas</string>
@@ -211,6 +212,7 @@
     <string name="step_press">Prensar</string>
     <string name="step_weight">Até</string>
     <string name="step_start">Início</string>
+    <string name="step_flow_target">Fluxo-alvo</string>
     <string name="add_step">Adicionar etapa</string>
     <string name="remove_step">Remover etapa</string>
     <string name="required">Obrigatório</string>
@@ -218,7 +220,8 @@
     <string name="recipe_error_ratio">De 1:0,5 a 1:30</string>
     <string name="recipe_error_temp">De 1 a 100 °C</string>
     <string name="recipe_error_window">Segundos inteiros, o primeiro não maior que o segundo.</string>
-    <string name="recipe_error_steps">Cada etapa começa no mesmo tempo ou depois da anterior, como m:ss. Cada despejo vai além do anterior.</string>
+    <string name="recipe_error_total_time">Use segundos inteiros nos dois tempos ou deixe ambos em branco. O primeiro não pode passar do segundo.</string>
+    <string name="recipe_error_steps">Cada etapa começa no mesmo tempo ou depois da anterior, como m:ss. Cada despejo vai além do anterior. O fluxo-alvo deve ser maior que zero.</string>
     <string name="recipe_error_no_steps">Adicione pelo menos uma etapa.</string>
     <string name="delete_recipe_title">Excluir esta receita?</string>
     <string name="delete_recipe_text">Os preparos que a seguiram mantêm o nome dela.</string>
@@ -236,9 +239,12 @@
     <string name="guide_ahead">%1$d s adiantado</string>
     <string name="guide_behind">%1$d s atrasado</string>
     <string name="guide_over">%1$s g acima do alvo</string>
-    <string name="guide_flow">Fluxo %1$s g/s · alvo %2$s</string>
+    <string name="guide_flow">Fluxo %1$s g/s</string>
     <string name="guide_drawdown">Deixe drenar</string>
     <string name="guide_drawdown_text">Toque em Pronto quando o coador esvaziar, ou tire-o da balança.</string>
+    <string name="drain_time_ideal_range">Tempo ideal: %1$s–%2$s</string>
+    <string name="drain_time_in_range">Dentro do tempo ideal</string>
+    <string name="drain_time_past_range">%1$d %2$s além do tempo ideal</string>
     <string name="guide_steep">Infusão</string>
     <string name="guide_steep_text">Deixe em infusão</string>
     <string name="guide_remove_press">Tire a prensa da balança.</string>

@@ -6,14 +6,19 @@ import android.provider.Settings
 import android.view.View
 import android.widget.TextView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -81,7 +86,13 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
+import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.brew.Pace
+import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.ui.brew.BrewStep
+import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
@@ -96,6 +107,10 @@ import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.theme.BrandColor
+import io.github.mateuxlucax.caparao.ui.components.readableOn
+import io.github.mateuxlucax.caparao.ui.components.ringStroke
+import io.github.mateuxlucax.caparao.ui.components.targetBand
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -352,6 +367,20 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
+    }
+
+    @Test
+    fun filterRecipeEditorShowsIdealTotalTime() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
+        compose.onNodeWithText("V60 One and Done").performClick()
+        waitFor(R.string.recipe_name)
+        compose.onNodeWithText(text(R.string.recipe_total_time)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_min)).onFirst().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_max)).onFirst().assertIsDisplayed()
+        compose.onNodeWithText("120").assertIsDisplayed()
+        compose.onNodeWithText("150").assertIsDisplayed()
     }
 
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
@@ -997,6 +1026,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             steps = listOf(
                 RecipeStep(StepKind.BLOOM, 50.0, 0),
                 RecipeStep(StepKind.WAIT, null, 10_000),
+                RecipeStep(StepKind.SWIRL, null, 30_000),
                 RecipeStep(StepKind.POUR, 100.0, 35_000),
                 RecipeStep(StepKind.POUR, 150.0, 50_000),
                 RecipeStep(StepKind.POUR, 200.0, 60_000),
@@ -1024,6 +1054,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         ).assertIsDisplayed()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.waitForIdle()
+        play(scale, 52_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_swirl)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         compose.waitForIdle()
         compose.onNodeWithContentDescription(
             context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_wait)),
@@ -1037,6 +1072,201 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+    }
+
+    /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
+    @Test
+    fun guidedCupAndWeightFollowStepTargetBandsInBothModes() {
+        val target = 100.0
+        val cases = listOf(
+            94.9 to TargetBand.BELOW,
+            95.0 to TargetBand.AT,
+            105.0 to TargetBand.AT,
+            105.1 to TargetBand.ABOVE,
+        )
+        fun state(mode: BrewMode, weight: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = weight,
+            recipe = Recipe(
+                id = "guided-cup-${mode.name}", name = "Cup color", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.POUR, target, 0)), createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(0, (weight / target).toFloat(), null, Pace.BEHIND, 11_000, null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 94.9))
+        var expectedCup = Color.Unspecified
+        var expectedWeight = Color.Unspecified
+        var expectedPace = Color.Unspecified
+        var expectedServerBody = Color.Unspecified
+        compose.setContent {
+            AppTheme {
+                val scheme = MaterialTheme.colorScheme
+                expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
+                expectedWeight = expectedCup.readableOn(scheme.surface)
+                expectedPace = scheme.onSurfaceVariant
+                expectedServerBody = scheme.surfaceContainerHighest
+                GuidedStep(current) {}
+            }
+        }
+
+        fun assertContainsColor(tag: String, color: Color) {
+            val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
+            val expected = color.toArgb()
+            val found = (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
+            assertTrue("$tag should render $color", found)
+        }
+
+        fun assertServerHasNoTargetMark() {
+            val bitmap = compose.onNodeWithTag("guided-cup").captureToImage().asAndroidBitmap()
+            val scale = bitmap.width / 80f
+            val x = ((65f - 26f) * scale).toInt()
+            val y = ((bitmap.height - 52f * scale) / 2f + (69.875f - 50f) * scale).toInt()
+            assertEquals(expectedServerBody.toArgb(), bitmap.getPixel(x, y))
+        }
+
+        listOf(BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
+            cases.forEach { (weight, band) ->
+                current = state(mode, weight)
+                compose.waitForIdle()
+                assertEquals(band, targetBand(weight, target))
+                if (mode == BrewMode.FILTER) {
+                    compose.onNodeWithTag("guided-server").assertIsDisplayed()
+                } else {
+                    compose.onNodeWithTag("guided-server").assertDoesNotExist()
+                }
+                compose.onNodeWithTag("guided-cup").assertIsDisplayed()
+                assertContainsColor("guided-cup", expectedCup)
+                if (mode == BrewMode.FILTER && weight == 94.9) assertServerHasNoTargetMark()
+                assertContainsColor("guided-weight", expectedWeight)
+                assertContainsColor("guide-pace", expectedPace)
+                compose.onNodeWithText(context.getString(R.string.guide_behind, 11, text(R.string.unit_seconds))).assertIsDisplayed()
+            }
+        }
+    }
+
+    /** Every countdown step uses the same smooth ring in both filter and French press. */
+    @Test
+    fun guideCountdownRingCoversWaitSwirlAndSteep() {
+        val cases = listOf(
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.WAIT, null, 0), R.string.guide_wait),
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.SWIRL, null, 0), R.string.guide_swirl),
+            Triple(BrewMode.FRENCH_PRESS, RecipeStep(StepKind.PRESS, null, 240_000), R.string.guide_steep),
+        )
+        fun stateFor(index: Int): BrewUiState {
+            val (mode, step) = cases[index]
+            val recipe = Recipe(
+                id = "screen-test-countdown-$index", name = "Countdown test", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60", doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(step), createdAt = 0, updatedAt = 0,
+            )
+            return BrewUiState(
+                mode = mode,
+                step = BrewStep.LIVE,
+                recipe = recipe,
+                guide = StepState(index = 0, progress = 0.5f, dueInMs = 10_000, pace = null, paceMs = null, overshootGrams = null),
+            )
+        }
+        var state by mutableStateOf(stateFor(0))
+        compose.setContent { AppTheme { GuidedStep(state) {} } }
+        cases.forEachIndexed { index, (_, _, label) ->
+            if (index > 0) {
+                state = stateFor(index)
+                compose.waitForIdle()
+            }
+            compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
+            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        }
+    }
+
+    /** The ideal drain-time bar follows the timer before, within and after its range; recipes without one stay unchanged. */
+    @Test
+    fun filterDrawdownShowsThreeDrainTimeStatesAndOmitsTheBarWithoutARange() {
+        val recipe = Recipe(
+            id = "drain-time-screen", name = "Drain time", mode = BrewMode.FILTER, method = "V60",
+            doseGrams = 15.0, targetRatio = 16.0,
+            targetMinMs = 120_000, targetMaxMs = 150_000,
+            steps = listOf(RecipeStep(StepKind.POUR, 240.0, 0)), createdAt = 0, updatedAt = 0,
+        )
+        val pouringRecipe = recipe.copy(
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
+        )
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe) = BrewUiState(
+            mode = shownRecipe.mode,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            elapsedMs = elapsedMs,
+            recipe = shownRecipe,
+            guide = StepState(1, 1f, null, null, null, null),
+        )
+
+        var current by mutableStateOf(state(100_000, pouringRecipe))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(100_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-before").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_ideal_range, "02:00", "02:30")).assertIsDisplayed()
+
+        current = state(132_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.drain_time_in_range)).assertIsDisplayed()
+
+        current = state(161_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-past").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_past_range, 11, text(R.string.unit_seconds))).assertIsDisplayed()
+
+        current = state(132_000, recipe.copy(targetMinMs = null, targetMaxMs = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(132_000, recipe.copy(mode = BrewMode.FRENCH_PRESS, method = "French press"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+        current = state(132_000, recipe.copy(mode = BrewMode.ESPRESSO, method = "Espresso"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+    }
+
+    /** Live flow stays current with animations disabled, and the optional target only adds its ideal band. */
+    @Test
+    fun guidedFlowChartHasAnOptionalTargetAndUpdatesLive() {
+        fun state(mode: BrewMode, target: Double?, flow: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            flowGramsPerSecond = flow,
+            recipe = Recipe(
+                id = "flow-chart-${mode.name}", name = "Flow chart", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0, targetFlowGramsPerSecond = target)),
+                createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(index = 0, progress = 0.5f, dueInMs = null, pace = Pace.ON_TIME, paceMs = 0, overshootGrams = null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 5.0, 2.0))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("flow-chart-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(2.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FILTER, null, 3.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onAllNodes(hasTestTag("flow-chart-target")).assertCountEquals(0)
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(3.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FRENCH_PRESS, null, 4.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */
@@ -1089,7 +1319,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         open("press-ramp", 0)
         click(R.string.tab_brews)
-        val row = { water: Double -> compose.onNodeWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}", substring = true) }
+        val row = {
+            water: Double ->
+            compose.onNodeWithText(
+                "${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}",
+                substring = true,
+                useUnmergedTree = true,
+            )
+        }
         row(250.0).performTouchInput { longClick() }
         row(245.0).performClick()
         compose.waitForIdle()
