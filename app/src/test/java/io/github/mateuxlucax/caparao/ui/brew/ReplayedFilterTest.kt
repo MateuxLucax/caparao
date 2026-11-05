@@ -27,7 +27,7 @@ import java.io.File
 
 /**
  * The whole chain on the JVM for a filter brew: the synthetic session with the server lifted at 90 s, replayed into
- * [BrewViewModel], with Done tapped before the lift hold runs out.
+ * [BrewViewModel], with Done tapped during the pause.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReplayedFilterTest {
@@ -37,7 +37,7 @@ class ReplayedFilterTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun theServerLiftedBeforeDoneKeepsTheWater() = TestScope(dispatcher).runTest {
+    fun theServerLiftedBeforeDoneKeepsTheWaterAndTheFrozenTime() = TestScope(dispatcher).runTest {
         Dispatchers.setMain(dispatcher)
         val lines = File("src/test/resources/sessions/synthetic-filter-lift.jsonl").readLines()
         val scale = ReplayScaleSource(backgroundScope, lines)
@@ -47,8 +47,10 @@ class ReplayedFilterTest {
         vm.begin()
         vm.setDose(15.0)
         vm.ready()
-        // Everything leaves the scale at 90 s; Done is tapped before the two-second return to preparation.
-        advanceTimeBy(91_000)
+        // Everything leaves the scale at 90 s; the brew is paused at the lift.
+        advanceTimeBy(92_000)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertTrue(kotlin.math.abs(70_000L - vm.uiState.value.elapsedMs) <= 500L)
         vm.stop()
 
         val brew = vm.uiState.value.saved!!

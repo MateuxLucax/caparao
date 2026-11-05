@@ -155,6 +155,9 @@
     <string name="cancel">Cancel</string>
     <string name="brewing_espresso">Extracting</string>
     <string name="brewing_filter">Brewing</string>
+    <string name="filter_paused">Paused</string>
+    <string name="filter_paused_hint">Put the dripper back on the scale to continue.</string>
+    <string name="filter_finishing_in">Finishing in %1$s</string>
     <!-- Server and uploads -->
     <string name="nothing_synced_yet">Server set. Nothing synced yet.</string>
     <string name="server_title">Your server</string>

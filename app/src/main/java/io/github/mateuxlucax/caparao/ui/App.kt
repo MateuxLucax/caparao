@@ -194,7 +194,7 @@ private fun Main(
                 }
                 LaunchedEffect(brew) { brew.begin() }
                 DisposableEffect(brew) {
-                    openBrew.value = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING }, close = close)
+                    openBrew.value = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
                     onDispose {}
                 }
                 BrewScreen(brew, onClose = close)

@@ -86,6 +86,8 @@ fun ScaleReadout(
     rolling: Boolean = false,
     /** Espresso's extraction: a thin ring inside the open ring thickens with the live flow (#194). */
     flowCue: Boolean = false,
+    /** Filter pause: soften the ring while keeping the held weight readable. */
+    ringAlpha: Float = 1f,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
@@ -184,6 +186,7 @@ fun ScaleReadout(
     )
     val colors = MaterialTheme.colorScheme
     val still = animationsOff()
+    val shownRingAlpha by animateFloatAsState(ringAlpha, if (still) snap() else tween(300), label = "ringAlpha")
     // The ring opens from its start on the first drop, then the progress fills it; with animations off it is open at once.
     val open by animateFloatAsState(if (started) 1f else 0f, if (still) snap() else spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow), label = "open")
     // The live flow as the thickness of a thin ring inside the open one: a cue, not a number, so it stays under the numbers.
@@ -213,18 +216,18 @@ fun ScaleReadout(
                 val o = outer / 2
                 val outerSize = Size(size.width - outer, size.height - outer)
                 val outerStyle = Stroke(outer, cap = StrokeCap.Round)
-                if (glow.value > 0f) {
+                if (glow.value > 0f && shownRingAlpha > 0f) {
                     val wide = outer * (1f + 1.5f * (1f - glow.value))
-                    drawArc(ring.stroke.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
+                    drawArc(ring.stroke.copy(alpha = 0.35f * glow.value * shownRingAlpha), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
                 }
-                if (open > 0.005f) drawArc(colors.surfaceContainerHighest, ARC_START, ARC_SWEEP * open, false, Offset(o, o), outerSize, style = outerStyle)
-                if (progress > 0.005f) drawArc(ring.stroke, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
+                if (open > 0.005f) drawArc(colors.surfaceContainerHighest.copy(alpha = shownRingAlpha), ARC_START, ARC_SWEEP * open, false, Offset(o, o), outerSize, style = outerStyle)
+                if (progress > 0.005f) drawArc(ring.stroke.copy(alpha = shownRingAlpha), ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
                 if (flowShown > 0.005f) {
                     val width = 2.dp.toPx() + 8.dp.toPx() * flowShown
                     // Centered in the gap just inside the outer ring, 4 dp clear of it.
                     val radius = size.width / 2 - outer - 4.dp.toPx() - width / 2
                     drawArc(
-                        colors.secondary.copy(alpha = 0.6f),
+                        colors.secondary.copy(alpha = 0.6f * shownRingAlpha),
                         ARC_START,
                         ARC_SWEEP,
                         false,

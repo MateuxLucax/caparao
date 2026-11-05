@@ -1,0 +1,32 @@
+{
+  "name": "filter-spoon",
+  "dose_g": 20,
+  "ratio": 15,
+  "captures": [
+    { "at_ms": 15000, "name": "first-pour" },
+    { "at_ms": 39000, "name": "spoon-on" },
+    { "at_ms": 43000, "name": "spoon-off" },
+    { "at_ms": 79000, "name": "lifted" },
+    { "at_ms": 89000, "name": "summary" }
+  ],
+  "events": [
+    {
+      "at_ms": 0,
+      "type": "connected",
+      "battery": { "bars": 3, "percent": 80 }
+    },
+    { "at_ms": 0, "type": "weight", "grams": 0 },
+    { "at_ms": 500, "type": "weight", "grams": 0 },
+    { "at_ms": 1000, "type": "weight", "grams": 0 },
+    { "at_ms": 1500, "type": "ramp", "from_g": 0, "to_g": 45, "step_g": 0.5, "every_ms": 100 },
+    { "at_ms": 11000, "type": "hold", "grams": 45, "until_ms": 38000, "every_ms": 100 },
+    { "at_ms": 38000, "type": "weight", "grams": 52 },
+    { "at_ms": 38000, "type": "hold", "grams": 52, "until_ms": 38500, "every_ms": 100 },
+    { "at_ms": 38600, "type": "weight", "grams": 45 },
+    { "at_ms": 38700, "type": "hold", "grams": 45, "until_ms": 45000, "every_ms": 100 },
+    { "at_ms": 45000, "type": "ramp", "from_g": 45, "to_g": 60, "step_g": 0.5, "every_ms": 100 },
+    { "at_ms": 48000, "type": "hold", "grams": 60, "until_ms": 78000, "every_ms": 100 },
+    { "at_ms": 78000, "type": "lift", "grams": 45 },
+    { "at_ms": 78100, "type": "hold", "grams": 45, "until_ms": 89000, "every_ms": 100 }
+  ]
+}

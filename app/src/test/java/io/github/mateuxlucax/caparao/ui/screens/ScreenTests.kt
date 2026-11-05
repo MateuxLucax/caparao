@@ -906,6 +906,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+        click(R.string.free_brew)
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
@@ -914,11 +917,21 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.filter_ready, 7_000)
         compose.waitForIdle()
-        // Pours from 20 s, the last one ends at 88 s; Done is tapped before the two-second return to preparation.
+        // Pours from 20 s, then the dripper lifts at 90 s and pauses the brew.
         play(scale, 60_000)
         compose.waitForIdle()
-        play(scale, 91_000)
-        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        play(scale, 90_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.filter_paused_hint)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
+        play(scale, 93_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        play(scale, 110_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(context.getString(R.string.filter_finishing_in, Format.timer(10))).assertIsDisplayed()
+        click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
@@ -1072,6 +1085,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+        play(scale, 93_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
     }
 
     /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
@@ -1195,10 +1212,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val pouringRecipe = recipe.copy(
             steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
         )
-        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe) = BrewUiState(
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING) = BrewUiState(
             mode = shownRecipe.mode,
             step = BrewStep.LIVE,
-            phase = BrewPhase.BREWING,
+            phase = phase,
             elapsedMs = elapsedMs,
             recipe = shownRecipe,
             guide = StepState(1, 1f, null, null, null, null),
@@ -1217,6 +1234,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
         compose.onNodeWithText(text(R.string.drain_time_in_range)).assertIsDisplayed()
+
+        current = state(132_000, phase = BrewPhase.PAUSED)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
+        compose.onNodeWithTag("drain-time-progress").assertIsDisplayed()
 
         current = state(161_000)
         compose.waitForIdle()
@@ -1319,14 +1341,17 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
         open("press-ramp", 0)
         click(R.string.tab_brews)
-        val row = {
-            water: Double ->
+        val rowText = { water: Double ->
+            "${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}"
+        }
+        val row = { water: Double ->
             compose.onNodeWithText(
-                "${Format.grams(15.0, locale)} ${text(R.string.unit_grams)} → ${Format.grams(water, locale)}",
+                rowText(water),
                 substring = true,
                 useUnmergedTree = true,
             )
         }
+        compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
         row(250.0).performTouchInput { longClick() }
         row(245.0).performClick()
         compose.waitForIdle()

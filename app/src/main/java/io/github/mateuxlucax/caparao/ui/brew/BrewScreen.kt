@@ -111,7 +111,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
     // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    val back = { if (state.step == BrewStep.LIVE && state.phase == BrewPhase.BREWING) confirmStop = true else onClose() }
+    val back = { if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose() }
     BackHandler(onBack = back)
     if (confirmStop) {
         AlertDialog(
@@ -207,6 +207,10 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+    if (state.phase == BrewPhase.PAUSED) {
+        FilterPausedStep(state, viewModel::stop)
+        return
+    }
     if (guided) {
         GuidedStep(state, viewModel::stop)
         return
@@ -277,6 +281,48 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
             }
             else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
+        }
+    }
+}
+
+/** Free and guided filter share the same lift pause: the clock and guide hold until the dripper returns. */
+@Composable
+private fun FilterPausedStep(state: BrewUiState, onDone: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(stringResource(R.string.filter_paused), style = MaterialTheme.typography.titleLargeEmphasized)
+            Text(
+                stringResource(R.string.filter_paused_hint),
+                Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            ScaleReadout(
+                weightGrams = state.weightGrams,
+                flowGramsPerSecond = 0.0,
+                timerSeconds = (state.elapsedMs / 1000).toInt(),
+                timerRunning = false,
+                modifier = Modifier.padding(top = 12.dp).widthIn(max = 320.dp).fillMaxWidth(0.85f),
+                ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                started = true,
+                ringAlpha = 0.45f,
+            )
+            state.pauseRemainingMs?.takeIf { it in 1L..10_000L }?.let { remaining ->
+                Text(
+                    stringResource(R.string.filter_finishing_in, Format.timer(((remaining + 999) / 1_000).toInt())),
+                    Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
+            Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium)
         }
     }
 }

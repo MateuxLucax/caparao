@@ -37,8 +37,20 @@ sealed interface StepEvent {
     /** Espresso: the first drop starts the brew (#193). */
     data object FirstDrop : StepEvent
 
-    /** Espresso: the live ratio enters the ±5% band around the target (#193). */
+    /** Free filter: the first water starts the brew (#209). */
+    data object FirstWater : StepEvent
+
+    /** The live ratio enters the ±5% band around the target (#193, #209). */
     data object InTargetBand : StepEvent
+
+    /** Filter water passes the upper edge of the ±5% band around its target (#209). */
+    data object PastTargetBand : StepEvent
+
+    /** The filter dripper is lifted from the scale (#209). */
+    data object Paused : StepEvent
+
+    /** The filter dripper has returned to the scale (#209). */
+    data object Resumed : StepEvent
 
     /** Filter: the drawdown timer enters the recipe's ideal total-time range (#206). */
     data object DrainTimeEntered : StepEvent
@@ -73,7 +85,10 @@ data class StepState(
  * pace is measured in time, once, when a pour begins (flow over [POUR_FLOW] after resting, or [CONTINUE_GRAMS] past the
  * last target), against the step's start.
  */
-class StepTracker(private val steps: List<RecipeStep>) {
+class StepTracker(
+    private val steps: List<RecipeStep>,
+    private val targetHoldMs: Long = 0L,
+) {
     init {
         require(steps.dropLast(1).none { it.kind == StepKind.PRESS }) { "PRESS must be the last recipe step" }
     }
@@ -84,6 +99,7 @@ class StepTracker(private val steps: List<RecipeStep>) {
     private var pourBeganAtMs: Long? = null
     private var rested = true
     private var nearSent = false
+    private var targetReachedSinceMs: Long? = null
     private val countdownSent = HashSet<Int>()
 
     var state = StepState(0, 0f, null, null, null, null)
@@ -111,7 +127,19 @@ class StepTracker(private val steps: List<RecipeStep>) {
                     nearSent = true
                     events += StepEvent.NearTarget(index)
                 }
-                if (weightGrams < target - TOLERANCE_GRAMS) break
+                if (weightGrams < target - TOLERANCE_GRAMS) {
+                    targetReachedSinceMs = null
+                    if (weightGrams < target - NEAR_GRAMS) nearSent = false
+                    break
+                }
+                if (targetHoldMs > 0) {
+                    val reachedSince = targetReachedSinceMs
+                    if (reachedSince == null) {
+                        targetReachedSinceMs = elapsedMs
+                        break
+                    }
+                    if (elapsedMs - reachedSince < targetHoldMs) break
+                }
                 events += StepEvent.Reached(index)
                 lastTarget = target
             } else {
@@ -140,6 +168,7 @@ class StepTracker(private val steps: List<RecipeStep>) {
         index++
         stepSinceMs = elapsedMs
         pourBeganAtMs = null
+        targetReachedSinceMs = null
         // Still pouring into the next step: the pour began only once the flow rests or clearly goes on.
         rested = false
         nearSent = false

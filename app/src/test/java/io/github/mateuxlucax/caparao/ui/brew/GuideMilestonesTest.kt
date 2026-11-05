@@ -46,6 +46,10 @@ class GuideMilestonesTest {
             assertEquals(3, milestoneIndex(filter, it))
         }
         assertEquals(4, milestoneIndex(filter, GuideStage.DONE))
+        assertEquals(
+            3,
+            milestoneIndex(filter, guideStage(BrewMode.FILTER, BrewStep.LIVE, io.github.mateuxlucax.caparao.brew.BrewPhase.PAUSED)),
+        )
         guideStages(BrewMode.FILTER).forEach { stage ->
             assertEquals("$stage belongs to one filter milestone", 1, filter.count { stage in it.stages })
         }
