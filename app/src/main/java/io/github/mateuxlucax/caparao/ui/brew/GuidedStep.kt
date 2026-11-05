@@ -107,7 +107,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
                 if (step == null) {
                     if (state.mode == BrewMode.FRENCH_PRESS) FrenchPressReady(state) else Drawdown(state)
                 } else {
-                    Step(step, index, steps.size, live, state, previous)
+                    Step(step, index, live, state, previous)
                 }
             }
         }
@@ -123,7 +123,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
 }
 
 @Composable
-private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, state: BrewUiState, previousTarget: Double?) {
+private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiState, previousTarget: Double?) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     val colors = MaterialTheme.colorScheme
@@ -157,7 +157,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
     val stepTitle = stringResource(stage)
     Text(
-        if (state.mode == BrewMode.FILTER || state.recipe == null) stepTitle else "$stepTitle · ${stringResource(R.string.step_of, index + 1, count)}",
+        stepTitle,
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )

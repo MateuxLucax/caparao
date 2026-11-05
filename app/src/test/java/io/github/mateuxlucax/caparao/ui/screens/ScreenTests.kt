@@ -1062,7 +1062,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 24_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
         compose.waitForIdle()
-        val counterPrefix = context.getString(R.string.step_of, 1, recipe.steps.size).substringBefore("1")
+        val counterPrefix = context.getString(R.string.step_of_named, 1, recipe.steps.size, "").substringBefore("1")
         compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithContentDescription(
             context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_bloom)),
@@ -1508,6 +1508,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 80_000)
         compose.waitForIdle()
         assertMilestone(R.string.milestone_brew)
+        // The milestone bar names the step; the guide carries no "Step n of m" counter.
+        compose.onAllNodes(hasText(context.getString(R.string.step_of_named, 1, 4, "").substringBefore("1"), substring = true)).assertCountEquals(0)
         play(scale, 241_100)
         waitFor(R.string.guide_remove_press)
         compose.waitForIdle()
