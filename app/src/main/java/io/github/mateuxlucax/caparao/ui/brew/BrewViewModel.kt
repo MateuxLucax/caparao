@@ -361,12 +361,13 @@ class BrewViewModel(
 
     /**
      * Rolls the shown time to [savedMs], the time the summary and the saved brew show, then opens the summary. The
-     * detector can end a brew a few seconds after the shown time stopped (#197). With animations off, or when both
-     * show the same whole seconds, it opens at once.
+     * detector can end an espresso a few seconds after the shown time stopped (#197). Only espresso rolls; filter and
+     * French press open the summary at once. With animations off, or when both show the same whole seconds, it opens
+     * at once too.
      */
     private fun openSummary(savedMs: Long) {
         val from = _uiState.value.elapsedMs
-        if (!animations() || from / 1000 == savedMs / 1000) {
+        if (mode != BrewMode.ESPRESSO || !animations() || from / 1000 == savedMs / 1000) {
             showSummary(savedMs)
             return
         }

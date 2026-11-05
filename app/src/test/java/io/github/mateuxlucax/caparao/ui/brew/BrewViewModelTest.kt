@@ -163,6 +163,23 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFilterBrewEndedByALiftDatedBackDoesNotRoll() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2) // dripper and server on the scale
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 250.0, 120.0)
+        pour(250.0, 0.0, 0.5) // the dripper lifted...
+        hold(0.0, 6.0) // ...and held past the lift hold, so the brew ends at the drop
+
+        val state = vm.uiState.value
+        assertEquals("the brew is dated back to the drop, not the end of the hold", 120.0, state.saved!!.durationMs / 1000.0, 0.5)
+        assertEquals("the summary opens at once, with no roll", BrewStep.SUMMARY, state.step)
+    }
+
+    @Test
     fun aFilterPourEndsWithDone() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2) // dripper and server on the scale
