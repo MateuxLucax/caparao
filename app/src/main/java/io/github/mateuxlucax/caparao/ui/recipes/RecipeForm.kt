@@ -6,8 +6,8 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import java.util.Locale
 
-/** One step row as typed: weight in grams, start as m:ss. */
-data class StepForm(val kind: StepKind, val weight: String = "", val start: String = "")
+/** One step row as typed: weight in grams, start as m:ss, and an optional flow target in g/s. */
+data class StepForm(val kind: StepKind, val weight: String = "", val start: String = "", val flowTarget: String = "")
 
 /** A recipe as typed in the editor: text fields, checked by [validate] before saving. */
 data class RecipeForm(
@@ -48,6 +48,7 @@ data class RecipeForm(
                     val weight = number(step.weight)
                     if (start == null || start < lastStart) add(Field.STEPS)
                     if (step.kind.pours && (weight == null || weight <= lastWeight || weight > MAX_WATER)) add(Field.STEPS)
+                    if (step.kind.pours && step.flowTarget.isNotBlank() && flowRate(step.flowTarget) == null) add(Field.STEPS)
                     if (step.kind == StepKind.PRESS && (mode != BrewMode.FRENCH_PRESS || index != steps.lastIndex)) add(Field.STEPS)
                     lastStart = start ?: lastStart
                     if (step.kind.pours) lastWeight = weight ?: lastWeight
@@ -78,7 +79,14 @@ data class RecipeForm(
         steps = when (mode) {
             BrewMode.ESPRESSO -> emptyList()
             BrewMode.FILTER, BrewMode.FRENCH_PRESS ->
-                steps.map { RecipeStep(it.kind, if (it.kind.pours) number(it.weight) else null, clock(it.start)!!) }
+                steps.map {
+                    RecipeStep(
+                        it.kind,
+                        if (it.kind.pours) number(it.weight) else null,
+                        clock(it.start)!!,
+                        if (it.kind.pours) flowRate(it.flowTarget) else null,
+                    )
+                }
         },
         createdAt = createdAt,
         updatedAt = now,
@@ -94,6 +102,8 @@ data class RecipeForm(
         val RATIO = 0.5..30.0
         val TEMP = 1..100
         private const val MAX_WATER = 2000.0
+
+        private fun flowRate(text: String): Double? = number(text)?.takeIf { it.isFinite() }
 
         /** Suggestions for [method]; any text is allowed. */
         val METHODS = mapOf(
@@ -113,7 +123,14 @@ data class RecipeForm(
             minSeconds = recipe.targetMinMs?.let { (it / 1000).toString() }.orEmpty(),
             maxSeconds = recipe.targetMaxMs?.let { (it / 1000).toString() }.orEmpty(),
             notes = recipe.notes.orEmpty(),
-            steps = recipe.steps.map { StepForm(it.kind, it.targetWeightGrams?.let { w -> plain(w, locale) }.orEmpty(), clockText(it.targetAtMs)) },
+            steps = recipe.steps.map {
+                StepForm(
+                    it.kind,
+                    it.targetWeightGrams?.let { w -> plain(w, locale) }.orEmpty(),
+                    clockText(it.targetAtMs),
+                    it.targetFlowGramsPerSecond?.let { rate -> plain(rate, locale) }.orEmpty(),
+                )
+            },
         )
 
         /** A new pour-based recipe: one bloom at 0:00. */

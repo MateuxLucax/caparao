@@ -31,6 +31,17 @@ class RecipeFormTest {
     }
 
     @Test
+    fun optionalFlowTargetIsParsedValidatedAndKeptByTheForm() {
+        val targeted = filter.copy(steps = listOf(StepForm(StepKind.BLOOM, "45", "0:00", "5,5")))
+        assertEquals(emptySet<Field>(), targeted.validate())
+        val recipe = targeted.toRecipe("id", createdAt = 1, now = 2)
+        assertEquals(5.5, recipe.steps.single().targetFlowGramsPerSecond!!, 0.0)
+        assertEquals(targeted, RecipeForm.of(recipe, Locale.forLanguageTag("pt-BR")))
+        assertEquals(setOf(Field.STEPS), targeted.copy(steps = listOf(targeted.steps.single().copy(flowTarget = "0"))).validate())
+        assertEquals(setOf(Field.STEPS), targeted.copy(steps = listOf(targeted.steps.single().copy(flowTarget = "fast"))).validate())
+    }
+
+    @Test
     fun requiredFieldsAndRanges() {
         assertEquals(
             setOf(Field.NAME, Field.METHOD, Field.DOSE, Field.RATIO, Field.TEMP),

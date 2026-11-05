@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,6 +108,22 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     val colors = MaterialTheme.colorScheme
+    val still = animationsOff()
+    val chartFlow by animateFloatAsState(
+        state.flowGramsPerSecond.coerceAtLeast(0.0).toFloat(),
+        Motion.standardOrSnap(still, 150),
+        label = "flowChart",
+    )
+    val flowHistory = remember(index) { mutableStateListOf<FlowPoint>() }
+    LaunchedEffect(index, state.elapsedMs, state.flowGramsPerSecond) {
+        val point = FlowPoint(state.elapsedMs, state.flowGramsPerSecond.coerceAtLeast(0.0))
+        if (flowHistory.lastOrNull()?.elapsedMs == point.elapsedMs) {
+            flowHistory[flowHistory.lastIndex] = point
+        } else {
+            flowHistory.add(point)
+        }
+        if (flowHistory.size > 24) flowHistory.removeAt(0)
+    }
     val color by animateColorAsState(
         when {
             guide.pace == Pace.BEHIND -> colors.error
@@ -156,9 +173,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), color)
         }
-        if (guide.dueInMs == null) {
-            PourRate.target(step, previousTarget, state.steps.getOrNull(index + 1), state.weightGrams)?.let { FlowBar(state.flowGramsPerSecond, it) }
-        }
+        FlowChart(chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -172,34 +187,49 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         }
     }
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
-    Note("${Format.timer((state.elapsedMs / 1000).toInt())} · ${Format.flow(state.flowGramsPerSecond, locale)} ${stringResource(R.string.unit_grams_per_second)}")
+    Note(Format.timer((state.elapsedMs / 1000).toInt()))
 }
 
-/**
- * The flow as one thick horizontal bar, like the brew ring laid flat: it fills on a neutral track up to twice the
- * step's pour rate, so on pace sits at the tick in the middle, and turns tertiary while on pace.
- */
 @Composable
-private fun FlowBar(flow: Double, target: Double) {
-    val locale = LocalConfiguration.current.locales[0]
+private fun FlowChart(flow: Double, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
     val colors = MaterialTheme.colorScheme
-    val onPace = PourRate.onPace(flow, target)
-    val fill by animateFloatAsState((flow / (target * 2)).coerceIn(0.0, 1.0).toFloat(), tween(150, easing = LinearEasing), label = "flow")
-    val color by animateColorAsState(if (onPace) colors.tertiary else colors.primary, tween(300, easing = Motion.Standard), label = "flowColor")
-    val track = colors.surfaceContainerHighest
-    val tick = colors.onSurfaceVariant
-    Canvas(Modifier.fillMaxWidth(0.8f).height(28.dp)) {
-        val thick = 20.dp.toPx()
-        val y = size.height / 2
-        val start = thick / 2
-        val end = size.width - thick / 2
-        drawLine(track, Offset(start, y), Offset(end, y), strokeWidth = thick, cap = StrokeCap.Round)
-        if (fill > 0.005f) drawLine(color, Offset(start, y), Offset(start + (end - start) * fill, y), strokeWidth = thick, cap = StrokeCap.Round)
-        val mid = start + (end - start) / 2
-        drawLine(tick, Offset(mid, 0f), Offset(mid, size.height), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+    val band = target?.let(PourRate::band)
+    val displayedHistory = history.mapIndexed { index, point -> if (index == history.lastIndex) point.copy(flow = flow) else point }
+    Text(
+        stringResource(R.string.guide_flow, Format.flow(flow, locale)),
+        style = MaterialTheme.typography.labelMedium,
+        color = colors.onSurfaceVariant,
+    )
+    Canvas(Modifier.fillMaxWidth(0.9f).height(32.dp).testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")) {
+        val left = 3.dp.toPx()
+        val right = size.width - left
+        val top = 3.dp.toPx()
+        val bottom = size.height - top
+        val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: flow, band?.endInclusive ?: 0.0, 1.0)
+        fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
+        band?.let { ideal ->
+            val bandTop = y(ideal.endInclusive)
+            val bandBottom = y(ideal.start)
+            drawRect(
+                colors.tertiaryContainer.copy(alpha = 0.75f),
+                topLeft = Offset(left, bandTop),
+                size = Size(right - left, bandBottom - bandTop),
+            )
+        }
+        drawLine(colors.outlineVariant, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.dp.toPx())
+        val points = displayedHistory.mapIndexed { index, point ->
+            val x = if (displayedHistory.size == 1) right else left + (right - left) * index / (displayedHistory.size - 1)
+            Offset(x, y(point.flow))
+        }
+        if (points.size == 1) {
+            drawCircle(colors.primary, radius = 3.dp.toPx(), center = points.single())
+        } else {
+            points.zipWithNext().forEach { (from, to) -> drawLine(colors.primary, from, to, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round) }
+        }
     }
-    Note(stringResource(R.string.guide_flow, Format.flow(flow, locale), Format.flow(target, locale)), if (onPace) colors.tertiary else colors.onSurfaceVariant)
 }
+
+private data class FlowPoint(val elapsedMs: Long, val flow: Double)
 
 @Composable
 private fun Drawdown(state: BrewUiState) {

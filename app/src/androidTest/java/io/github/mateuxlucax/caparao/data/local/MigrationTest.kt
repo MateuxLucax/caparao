@@ -93,6 +93,33 @@ class MigrationTest {
     }
 
     @Test
+    fun from5AddsOptionalFlowTargetsAndSetsBigBrewBloom() = runBlocking {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            for (sql in VERSION_4) db.execSQL(sql)
+            db.execSQL(
+                "INSERT INTO recipes VALUES ('${BuiltInRecipes.V60_BIG_ID}', 'V60 Big Brew', 'FILTER', 'V60', 30.0, 15.0, NULL, NULL, NULL, NULL, NULL, 100, 200)",
+            )
+            db.execSQL("INSERT INTO recipe_steps VALUES ('${BuiltInRecipes.V60_BIG_ID}', 0, 'BLOOM', 90.0, 0)")
+            db.execSQL("INSERT INTO recipe_steps VALUES ('${BuiltInRecipes.V60_BIG_ID}', 1, 'BLOOM', 155.0, 20000)")
+            db.execSQL("INSERT INTO recipes VALUES ('custom', 'Custom', 'FILTER', 'V60', 15.0, 16.0, NULL, NULL, NULL, NULL, NULL, 100, 200)")
+            db.execSQL("INSERT INTO recipe_steps VALUES ('custom', 0, 'BLOOM', 45.0, 0)")
+            db.version = 5
+        }
+
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
+            .addMigrations(MIGRATION_5_6)
+            .build()
+        try {
+            val recipes = RecipeRepository(db.recipes()).recipes.first()
+            val bigBrew = recipes.single { it.id == BuiltInRecipes.V60_BIG_ID }
+            assertEquals(listOf(5.0, null), bigBrew.steps.map { it.targetFlowGramsPerSecond })
+            assertNull(recipes.single { it.id == "custom" }.steps.single().targetFlowGramsPerSecond)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
     fun aFreshInstallGetsTheBuiltInRecipes() = runBlocking {
         val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).build()
         try {
@@ -101,6 +128,13 @@ class MigrationTest {
             val v60 = recipes.single { it.id == BuiltInRecipes.V60_ID }
             assertEquals(listOf(45.0, 90.0, 250.0), v60.steps.map { it.targetWeightGrams })
             assertEquals(listOf(0L, 30_000L, 60_000L), v60.steps.map { it.targetAtMs })
+            val bigBrew = recipes.single { it.id == BuiltInRecipes.V60_BIG_ID }
+            assertEquals(listOf(5.0, null, null, null), bigBrew.steps.map { it.targetFlowGramsPerSecond })
+            assertEquals(
+                emptyList<Double>(),
+                recipes.filterNot { it.id == BuiltInRecipes.V60_BIG_ID }.flatMap { it.steps }
+                    .mapNotNull { it.targetFlowGramsPerSecond },
+            )
             val melitta = recipes.single { it.id == BuiltInRecipes.MELITTA_ID }
             assertEquals(listOf(40.0, 300.0), melitta.steps.map { it.targetWeightGrams })
             val frenchPress = recipes.single { it.id == BuiltInRecipes.FRENCH_PRESS_ID }

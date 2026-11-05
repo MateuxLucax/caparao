@@ -127,7 +127,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 5,
+    version = 6,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -141,7 +141,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -184,6 +184,17 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         BuiltInRecipes.insert(db, listOf(BuiltInRecipes.frenchPress(System.currentTimeMillis())))
+    }
+}
+
+/** Optional pour-rate targets (#207). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE recipe_steps ADD COLUMN target_flow_grams_per_second REAL")
+        db.execSQL(
+            "UPDATE recipe_steps SET target_flow_grams_per_second = 5.0 " +
+                "WHERE recipe_id = '${BuiltInRecipes.V60_BIG_ID}' AND position = 0 AND kind = 'BLOOM'",
+        )
     }
 }
 

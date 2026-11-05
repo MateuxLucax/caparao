@@ -59,7 +59,7 @@ object BuiltInRecipes {
             doseGrams = 30.0, targetRatio = 15.0, grind = "Medium-coarse", waterTempCelsius = 87,
             notes = "Lance Hedrick. First bloom gently, about 5 g/s; last pour in the center, as fast as the kettle allows. Total 2:00–2:30.",
             steps = listOf(
-                RecipeStep(StepKind.BLOOM, 90.0, 0),
+                RecipeStep(StepKind.BLOOM, 90.0, 0, targetFlowGramsPerSecond = 5.0),
                 RecipeStep(StepKind.BLOOM, 155.0, 20_000),
                 RecipeStep(StepKind.BLOOM, 205.0, 40_000),
                 RecipeStep(StepKind.POUR, 450.0, 60_000),
@@ -112,6 +112,11 @@ object BuiltInRecipes {
 
     /** Inserts exactly [recipes]; callers upgrading an old database must not restore earlier built-ins the user deleted. */
     fun insert(db: SupportSQLiteDatabase, recipes: List<Recipe>) {
+        val hasFlowTargets = db.query("PRAGMA table_info(recipe_steps)").use { cursor ->
+            val name = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) if (cursor.getString(name) == "target_flow_grams_per_second") return@use true
+            false
+        }
         for (recipe in recipes) {
             val row = recipe.toEntity()
             db.insert("recipes", SQLiteDatabase.CONFLICT_IGNORE, ContentValues().apply {
@@ -136,6 +141,7 @@ object BuiltInRecipes {
                     put("kind", step.kind)
                     put("target_weight_grams", step.targetWeightGrams)
                     put("target_at_ms", step.targetAtMs)
+                    if (hasFlowTargets) put("target_flow_grams_per_second", step.targetFlowGramsPerSecond)
                 })
             }
         }

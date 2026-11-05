@@ -82,6 +82,7 @@ import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -971,6 +972,40 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         }
+    }
+
+    /** Live flow stays current with animations disabled, and the optional target only adds its ideal band. */
+    @Test
+    fun guidedFlowChartHasAnOptionalTargetAndUpdatesLive() {
+        fun state(mode: BrewMode, target: Double?, flow: Double) = BrewUiState(
+            mode = mode,
+            step = BrewStep.LIVE,
+            flowGramsPerSecond = flow,
+            recipe = Recipe(
+                id = "flow-chart-${mode.name}", name = "Flow chart", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60",
+                doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0, targetFlowGramsPerSecond = target)),
+                createdAt = 0, updatedAt = 0,
+            ),
+            guide = StepState(index = 0, progress = 0.5f, dueInMs = null, pace = Pace.ON_TIME, paceMs = 0, overshootGrams = null),
+        )
+
+        var current by mutableStateOf(state(BrewMode.FILTER, 5.0, 2.0))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("flow-chart-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(2.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FILTER, null, 3.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onAllNodes(hasTestTag("flow-chart-target")).assertCountEquals(0)
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(3.0, locale))).assertIsDisplayed()
+
+        current = state(BrewMode.FRENCH_PRESS, null, 4.0)
+        compose.waitForIdle()
+        compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */

@@ -203,16 +203,29 @@ private fun StepRow(
     val start = RoundedCornerShape(outer, inner, inner, outer)
     val middle = RoundedCornerShape(inner)
     val end = RoundedCornerShape(inner, outer, outer, inner)
-    Row(Modifier.fillMaxWidth().height(StepHeight), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        KindPicker(step.kind, allowedKinds, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
-        if (step.kind.pours) {
-            StepField(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, middle, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
-        } else {
-            Box(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer, middle))
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().height(StepHeight), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            KindPicker(step.kind, allowedKinds, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
+            if (step.kind.pours) {
+                StepField(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, middle, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
+            } else {
+                Box(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer, middle))
+            }
+            StepField(step.start, { onChange(step.copy(start = it)) }, R.string.step_start, error, middle, Modifier.weight(1f), clock = true)
+            FilledTonalIconButton(onClick = onRemove, shape = end, modifier = Modifier.width(48.dp).fillMaxHeight()) {
+                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
+            }
         }
-        StepField(step.start, { onChange(step.copy(start = it)) }, R.string.step_start, error, middle, Modifier.weight(1f), clock = true)
-        FilledTonalIconButton(onClick = onRemove, shape = end, modifier = Modifier.width(48.dp).fillMaxHeight()) {
-            Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
+        if (step.kind.pours) {
+            StepField(
+                step.flowTarget,
+                { onChange(step.copy(flowTarget = it)) },
+                R.string.step_flow_target,
+                error,
+                RoundedCornerShape(12.dp),
+                Modifier.fillMaxWidth().height(48.dp),
+                suffix = stringResource(R.string.unit_grams_per_second),
+            )
         }
     }
 }

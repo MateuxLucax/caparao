@@ -33,7 +33,13 @@ data class Recipe(
  * One step of a filter or French press recipe. [targetWeightGrams] is cumulative, as the scale shows it, and null for
  * [StepKind.WAIT], [StepKind.SWIRL] and [StepKind.PRESS]; [targetAtMs] is when the step should start, from the first water.
  */
-data class RecipeStep(val kind: StepKind, val targetWeightGrams: Double?, val targetAtMs: Long)
+data class RecipeStep(
+    val kind: StepKind,
+    val targetWeightGrams: Double?,
+    val targetAtMs: Long,
+    /** Optional ideal pour rate, in grams per second. */
+    val targetFlowGramsPerSecond: Double? = null,
+)
 
 enum class StepKind {
     BLOOM, POUR, WAIT, SWIRL, PRESS;
