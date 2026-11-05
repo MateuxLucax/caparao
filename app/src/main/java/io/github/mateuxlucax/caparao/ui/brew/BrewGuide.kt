@@ -7,6 +7,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -273,7 +275,15 @@ private fun Milestones(
                         Motion.standardOrSnap(still),
                         label = "milestone",
                     )
-                    Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
+                    if (splitBrew) {
+                        // A filter step's segment fills in from the left when its step opens; reduced motion fills it at once.
+                        val filled by animateFloatAsState(if (i <= currentSegment) 1f else 0f, Motion.standardOrSnap(still, Motion.MEDIUM_2), label = "milestoneFill")
+                        Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                            Box(Modifier.fillMaxHeight().fillMaxWidth(filled).background(color))
+                        }
+                    } else {
+                        Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
+                    }
                 }
             }
             if (labelSize == null) {
