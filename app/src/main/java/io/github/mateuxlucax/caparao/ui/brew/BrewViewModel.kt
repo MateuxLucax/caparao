@@ -5,6 +5,8 @@ import androidx.compose.animation.core.Easing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.ui.components.targetBand
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewDetector
 import io.github.mateuxlucax.caparao.brew.BrewPhase
@@ -82,6 +84,8 @@ class BrewViewModel(
 
     /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
+    /** The espresso moments already alerted for this brew, so each one alerts once (#193). */
+    private val alerted = HashSet<StepEvent>()
     /** Starts only after the terminal press deadline, and never ends the brew. */
     private var frenchPressFinishTracker: FrenchPressFinishTracker? = null
 
@@ -163,6 +167,7 @@ class BrewViewModel(
             BrewMode.FRENCH_PRESS -> FilterDetector(FilterConfig(liftDetectionEnabled = false))
         }
         detector = new
+        alerted.clear()
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
         diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
@@ -173,7 +178,9 @@ class BrewViewModel(
     /** Espresso: the cup on the scale is already tared, skip waiting for it. */
     fun armNow() {
         val espresso = detector as? EspressoDetector ?: return
+        val before = espresso.phase
         espresso.armNow(clock()).also(::send)
+        espressoMoment(before, espresso.phase)
         _uiState.update { it.copy(phase = espresso.phase) }
     }
 
@@ -235,7 +242,9 @@ class BrewViewModel(
         }
         val timed = TimedReading(clock(), reading)
         if (readings.size < MAX_READINGS) readings += timed
+        val before = current.phase
         current.onReading(timed)?.let(::send)
+        espressoMoment(before, current.phase)
         recordDiagnosticPhase(current.phase)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
             brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
@@ -278,6 +287,11 @@ class BrewViewModel(
                 frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
             )
         }
+        if (mode == BrewMode.ESPRESSO && current.phase == BrewPhase.BREWING) {
+            // The band is the ring's (#192): a hover on its edge alerts once, as the latch is per brew.
+            val ratio = _uiState.value.ratio
+            if (ratio != null && targetBand(ratio, _uiState.value.targetRatio) == TargetBand.AT) alertOnce(StepEvent.InTargetBand)
+        }
         if (current.phase == BrewPhase.DONE) finish(current)
     }
 
@@ -311,6 +325,20 @@ class BrewViewModel(
             recordDiagnosticPhase(current.phase)
             finish(current)
         }
+    }
+
+    /** Espresso's moments (#193): the phase changes that put the cup, the tare, the first drop on the screen. */
+    private fun espressoMoment(from: BrewPhase, to: BrewPhase) {
+        if (mode != BrewMode.ESPRESSO) return
+        when {
+            from == BrewPhase.WAITING_FOR_CUP && to == BrewPhase.TARING -> alertOnce(StepEvent.CupDetected)
+            from == BrewPhase.TARING && to == BrewPhase.READY -> alertOnce(StepEvent.TareConfirmed)
+            from == BrewPhase.READY && to == BrewPhase.BREWING -> alertOnce(StepEvent.FirstDrop)
+        }
+    }
+
+    private fun alertOnce(event: StepEvent) {
+        if (alerted.add(event)) alert(event)
     }
 
     private fun alert(event: StepEvent) {
@@ -396,6 +424,7 @@ class BrewViewModel(
         rollJob?.cancel()
         rollJob = null
         detector = null
+        alerted.clear()
         readings.clear()
         smoother.reset()
         brewingSinceMs = null

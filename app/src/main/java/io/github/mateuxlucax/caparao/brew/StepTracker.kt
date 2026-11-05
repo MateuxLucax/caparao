@@ -8,7 +8,10 @@ import kotlin.math.ceil
 /** How the start of a pour compares with the recipe's time for it. */
 enum class Pace { AHEAD, ON_TIME, BEHIND }
 
-/** A moment worth an alert (#103), reported once by [StepTracker.update]. */
+/**
+ * A moment worth an alert (#103), reported once by [StepTracker.update]; espresso reports its own moments (#193) once
+ * per brew from the ViewModel.
+ */
 sealed interface StepEvent {
     /** Step [index] is now the current one. */
     data class Started(val index: Int) : StepEvent
@@ -24,6 +27,18 @@ sealed interface StepEvent {
 
     /** The last guided step is due; a filter drains or a French press is removed, pressed and served before Done. */
     data object AllDone : StepEvent
+
+    /** Espresso: the cup is on the scale and the tare starts (#193). */
+    data object CupDetected : StepEvent
+
+    /** Espresso: the scale reads zero after the tare (#193). */
+    data object TareConfirmed : StepEvent
+
+    /** Espresso: the first drop starts the brew (#193). */
+    data object FirstDrop : StepEvent
+
+    /** Espresso: the live ratio enters the ±5% band around the target (#193). */
+    data object InTargetBand : StepEvent
 }
 
 /** Where the guide stands after a reading. */

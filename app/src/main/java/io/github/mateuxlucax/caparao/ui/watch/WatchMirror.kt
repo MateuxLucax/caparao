@@ -49,6 +49,10 @@ object WatchMirror {
         is StepEvent.Reached -> WatchAlert.TARGET_REACHED
         is StepEvent.Countdown -> WatchAlert.COUNTDOWN
         StepEvent.AllDone -> WatchAlert.ALL_DONE
+        StepEvent.CupDetected -> WatchAlert.CUP_DETECTED
+        StepEvent.TareConfirmed -> WatchAlert.TARE_CONFIRMED
+        StepEvent.FirstDrop -> WatchAlert.FIRST_DROP
+        StepEvent.InTargetBand -> WatchAlert.IN_TARGET_BAND
     }
 
     /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */
