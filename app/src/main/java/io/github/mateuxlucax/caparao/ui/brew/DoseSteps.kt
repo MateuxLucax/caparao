@@ -84,23 +84,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.StrokeJoin
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
+import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 import io.github.mateuxlucax.caparao.ui.theme.flex
 import java.util.Locale
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * The ratio first: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
@@ -435,7 +431,7 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
       val compact = LocalConfiguration.current.screenHeightDp < 700
       Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         GuideHeader(GuideStage.PREPARE_PORTAFILTER)
-        if (!compact) PortafilterPicture(checked, still, Modifier.padding(top = 4.dp).size(144.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value })
+        if (!compact) PortafilterPicture(checked.size, Modifier.padding(top = 4.dp).size(128.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value })
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.small,
@@ -523,63 +519,13 @@ private fun PrepItem(item: PrepRowData, index: Int, checked: Boolean, still: Boo
     }
 }
 
-/** Top-down portafilter illustration: solid expressive forms and independently animated preparation layers. */
+/** The portafilter picture and its morphing shape pulse together when preparation is complete. */
 @Composable
-private fun PortafilterPicture(checked: Set<Int>, still: Boolean, modifier: Modifier = Modifier) {
+private fun PortafilterPicture(checkedCount: Int, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    val layerSpecs = (0..4).map { index ->
-        animateFloatAsState(if (index in checked) 1f else 0f, if (still) snap() else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "portafilter layer $index").value
-    }
-    MorphingShape(checked.size, modifier.testTag("portafilter-picture"), if (checked.size == 5) colors.primary else colors.primaryContainer) {
-        Canvas(Modifier.size(120.dp)) {
-            val sx = size.width / 120f
-            val sy = size.height / 120f
-            drawContext.transform.scale(sx, sy, Offset.Zero)
-            // Handle and its socket.
-            val handle = Path().apply { moveTo(69f, 68f); lineTo(92f, 94f); quadraticTo(96f, 99f, 101f, 94f); quadraticTo(105f, 90f, 101f, 86f); lineTo(77f, 60f); close() }
-            drawPath(handle, colors.onSurfaceVariant)
-            drawCircle(colors.outline, 25f, Offset(60f, 54f))
-            drawCircle(colors.surfaceContainerHighest, 21f, Offset(60f, 54f))
-            scale(.7f + layerSpecs[1] * .3f, pivot = Offset(60f, 54f)) {
-                drawCircle(Color(0xFF795548), 18f, Offset(60f, 54f), alpha = layerSpecs[1])
-                if (layerSpecs[3] < .5f) {
-                    listOf(Offset(48f, 48f), Offset(57f, 43f), Offset(68f, 50f), Offset(52f, 60f), Offset(65f, 63f), Offset(60f, 54f)).forEach {
-                        drawCircle(Color(0xFF4E342E), 1.2f, it, alpha = layerSpecs[1] * (1f - layerSpecs[3]))
-                    }
-                }
-            }
-            if (layerSpecs[3] > 0f) scale(.7f + layerSpecs[3] * .3f, pivot = Offset(60f, 54f)) {
-                drawCircle(Color(0xFF795548), 18f, Offset(60f, 54f), alpha = layerSpecs[3])
-            }
-            if (layerSpecs[0] > 0f) scale(.7f + layerSpecs[0] * .3f, pivot = Offset(40f, 24f)) {
-                listOf(Offset(37f, 22f), Offset(44f, 16f), Offset(33f, 32f)).forEach {
-                    drawCircle(colors.tertiary, 2f, it, alpha = layerSpecs[0])
-                }
-            }
-            if (layerSpecs[2] > 0f && layerSpecs[3] < .5f) scale(.7f + layerSpecs[2] * .3f, pivot = Offset(60f, 54f)) {
-                val ink = colors.onSurface.copy(alpha = .72f * layerSpecs[2] * (1f - layerSpecs[3]))
-                for (offset in listOf(-2f, 2f)) {
-                    val spiral = Path()
-                    for (point in 0..90) {
-                        val angle = point / 90f * 5f * Math.PI.toFloat()
-                        val radius = 1f + point / 90f * 12f
-                        val x = 60f + offset + cos(angle) * radius
-                        val y = 54f + sin(angle) * radius
-                        if (point == 0) spiral.moveTo(x, y) else spiral.lineTo(x, y)
-                    }
-                    drawPath(spiral, ink, style = Stroke(1.2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                }
-            }
-            if (layerSpecs[4] > 0f) scale(.7f + layerSpecs[4] * .3f, pivot = Offset(60f, 54f)) {
-                val clip = Path().apply { addOval(Rect(42f, 36f, 78f, 72f)) }
-                clipPath(clip) {
-                    for (coord in 42..78 step 5) {
-                        drawLine(colors.onSurface.copy(alpha = .75f * layerSpecs[4]), Offset(coord.toFloat(), 36f), Offset(coord.toFloat(), 72f), 1f)
-                        drawLine(colors.onSurface.copy(alpha = .75f * layerSpecs[4]), Offset(42f, coord.toFloat() - 6f), Offset(78f, coord.toFloat() - 6f), 1f)
-                    }
-                }
-            }
-            drawContext.transform.scale(1f / sx, 1f / sy, Offset.Zero)
+    MorphingShape(checkedCount, modifier.testTag("portafilter-picture"), colors.primaryContainer) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawPortafilter(metal = colors.primary, handle = colors.onPrimaryContainer)
         }
     }
 }
