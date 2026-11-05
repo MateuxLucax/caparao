@@ -397,7 +397,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
 }
 
 /**
- * Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. [countUp] counts the numbers
+ * Yield, time, ratio, dose and flow of a saved brew, in a card (French press has no average flow). Shared with the brew detail. [countUp] counts the numbers
  * up from zero on the save screen (#198); with animations off they show at once.
  */
 @Composable
@@ -434,19 +434,22 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier, countUp: Boolean = fa
                     Modifier.weight(1f),
                 )
             }
-            Row(Modifier.fillMaxWidth()) {
-                Metric(
-                    stringResource(R.string.label_flow_avg),
-                    countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
-                    Modifier.weight(1f),
-                )
-                brew.timeToFirstDropMs?.let {
+            // French press steeps with no flow, so its average over the whole time says nothing (#224); the upload keeps the field.
+            if (brew.mode != BrewMode.FRENCH_PRESS) {
+                Row(Modifier.fillMaxWidth()) {
                     Metric(
-                        stringResource(R.string.label_first_drop),
-                        countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                        stringResource(R.string.label_flow_avg),
+                        countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
                         Modifier.weight(1f),
                     )
-                } ?: Spacer(Modifier.weight(1f))
+                    brew.timeToFirstDropMs?.let {
+                        Metric(
+                            stringResource(R.string.label_first_drop),
+                            countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                            Modifier.weight(1f),
+                        )
+                    } ?: Spacer(Modifier.weight(1f))
+                }
             }
         }
     }

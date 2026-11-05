@@ -89,6 +89,7 @@ import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -1285,6 +1286,50 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
+    }
+
+    /** French press shows live flow and its chart on bloom and pour only; wait and steep hide them (#224). */
+    @Test
+    fun frenchPressFlowShowsOnlyWhilePouring() {
+        val recipe = Recipe(
+            id = "press-flow", name = "Press flow", mode = BrewMode.FRENCH_PRESS, method = "French press", doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 100.0, 0),
+                RecipeStep(StepKind.WAIT, null, 0),
+                RecipeStep(StepKind.POUR, 300.0, 60_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        fun state(index: Int) = BrewUiState(
+            mode = BrewMode.FRENCH_PRESS,
+            step = BrewStep.LIVE,
+            flowGramsPerSecond = 3.0,
+            recipe = recipe,
+            guide = StepState(index = index, progress = 0.5f, dueInMs = 10_000, pace = null, paceMs = null, overshootGrams = null),
+        )
+        var current by mutableStateOf(state(0))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        listOf(0 to true, 1 to false, 2 to true, 3 to false).forEach { (index, shown) ->
+            current = state(index)
+            compose.waitForIdle()
+            compose.onAllNodes(hasTestTag("flow-chart-no-target")).assertCountEquals(if (shown) 1 else 0)
+            compose.onAllNodesWithText(context.getString(R.string.guide_flow, Format.flow(3.0, locale))).assertCountEquals(if (shown) 1 else 0)
+        }
+    }
+
+    /** The French press summary leaves out the average flow, which divides the water by the whole steep (#224). */
+    @Test
+    fun frenchPressSummaryHidesTheAverageFlow() {
+        fun brew(mode: BrewMode) = Brew("avg-flow-${mode.name}", mode, 0L, 240_000L, 20.0, 300.0, null, 1.25, 0.0, false)
+        var current by mutableStateOf(brew(BrewMode.FRENCH_PRESS))
+        compose.setContent { AppTheme { BrewNumbers(current) } }
+        compose.onNodeWithText(text(R.string.label_time)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.label_flow_avg)).assertCountEquals(0)
+
+        current = brew(BrewMode.FILTER)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.label_flow_avg)).assertIsDisplayed()
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */
