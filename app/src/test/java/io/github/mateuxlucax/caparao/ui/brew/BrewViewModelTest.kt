@@ -396,16 +396,24 @@ class BrewViewModelTest {
     private val espresso = v60.copy(id = "esp", name = "Espresso", mode = BrewMode.ESPRESSO, method = "Espresso", doseGrams = 18.0, targetRatio = 2.4)
 
     @Test
-    fun theFirstRecipeIsPreselectedWhenNoneWasChosenBefore() = kotlinx.coroutines.test.runTest {
+    fun filterStartsFreeEvenWhenRecipesExist() = kotlinx.coroutines.test.runTest {
         recipes.save(v60)
         recipes.save(espresso)
         val vm = viewModel(BrewMode.FILTER)
         vm.begin()
         val state = vm.uiState.value
         assertEquals(listOf("v60"), state.recipes.map { it.id })
-        assertEquals("v60", state.recipe?.id)
-        assertEquals(15.0, state.dose!!, 0.0)
-        assertEquals(16.0, state.targetRatio, 0.0)
+        assertNull(state.recipe)
+        assertEquals(SettingsStore.defaultDose(BrewMode.FILTER), state.dose!!, 0.0)
+        assertEquals(SettingsStore.defaultTargetRatio(BrewMode.FILTER), state.targetRatio, 0.0)
+    }
+
+    @Test
+    fun espressoStillStartsWithItsFirstRecipe() = kotlinx.coroutines.test.runTest {
+        recipes.save(espresso)
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        assertEquals("esp", vm.uiState.value.recipe?.id)
     }
 
     @Test
@@ -563,7 +571,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun theLastChoiceIsRememberedPerModeIncludingFreeBrew() = kotlinx.coroutines.test.runTest {
+    fun filterStartsFreeAfterSelectingARecipeForThePreviousBrew() = kotlinx.coroutines.test.runTest {
         recipes.save(v60)
         settings.setLastDose(BrewMode.FILTER, 20.0)
         val vm = viewModel(BrewMode.FILTER)
@@ -578,7 +586,7 @@ class BrewViewModelTest {
         vm.selectRecipe(v60)
         vm.end()
         vm.begin()
-        assertEquals("v60", vm.uiState.value.recipe?.id)
+        assertNull(vm.uiState.value.recipe)
     }
 
     @Test
@@ -614,6 +622,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
+        vm.selectRecipe(v60.copy(steps = steps, targetMinMs = targetMinMs, targetMaxMs = targetMaxMs))
         val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         vm.setDose(15.0)
         vm.ready()
@@ -762,6 +771,7 @@ class BrewViewModelTest {
         val collecting = CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         hold(320.0, 0.2)
         vm.begin()
+        vm.selectRecipe(v60.copy(steps = steps))
         vm.setDose(15.0)
         vm.ready()
         hold(320.0, 0.1)
@@ -820,6 +830,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
+        vm.selectRecipe(v60.copy(steps = twoPours))
         vm.setDose(15.0)
         vm.ready()
         hold(320.0, 0.1)

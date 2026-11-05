@@ -799,7 +799,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
         compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
-        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
         click(R.string.next)
         click(R.string.next)
         waitFor(R.string.prepare_filter_title)
@@ -947,7 +947,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
         compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
-        compose.onNode(hasText("V60 One and Done") and isSelectable()).performClick()
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
         compose.waitForIdle()
         click(R.string.next)
         val beanWeighTares = scale.tareCommands
@@ -976,10 +976,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         playUntilShown(scale, R.string.taring, 2_000)
     }
 
-    /** Free filter brew stays manual with its existing ratio and dose controls. */
+    /** Filter opens free with manual controls even when the last brew used a recipe. */
     @Test
     fun filterFreeBrewKeepsItsManualControls() {
-        settings.setLastRecipeId(BrewMode.FILTER, SettingsStore.FREE_BREW)
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
         open("idle-5min", 0)
         click(R.string.mode_filter)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
@@ -1007,6 +1007,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         open("idle-5min", 0)
         click(R.string.mode_filter)
         compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.onNode(hasText(recipe.name) and isSelectable()).performScrollTo().performClick()
         compose.waitForIdle()
 
         compose.onNodeWithText("${Format.grams(250.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
@@ -1046,6 +1047,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.mode_filter)
         // The recipe loads off the main thread: Next only takes the dose once its chip is selected.
         compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.onNode(hasText(recipe.name) and isSelectable()).performScrollTo().performClick()
         compose.waitForIdle()
         click(R.string.next)
         click(R.string.next)
