@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -177,7 +178,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             ) { (step, guided) ->
                 when (step) {
                     BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
-                    BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose)
+                    BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
@@ -303,7 +304,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
                     brew.durationMs,
                     "${stringResource(R.string.brew_detail_weight)} (${stringResource(R.string.unit_grams)})",
                     "${stringResource(R.string.brew_detail_flow)} (${stringResource(R.string.unit_grams_per_second)})",
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().testTag("brew-curve"),
                 )
             }
         }
@@ -379,9 +380,13 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier, countUp: Boolean = fa
 private fun countedText(target: Double, countUp: Boolean, format: @Composable (Double) -> String): String {
     val still = animationsOff()
     if (!countUp || still) return format(target)
-    val shown = remember { Animatable(0f) }
-    LaunchedEffect(target) { shown.animateTo(target.toFloat(), tween(COUNT_UP_MS, easing = Motion.EmphasizedDecelerate)) }
-    return format(shown.value.toDouble())
+    // The progress runs 0 to 1 and scales the Double target, so the count never goes through Float: the last text is exact.
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(COUNT_UP_MS, easing = Motion.EmphasizedDecelerate))
+    }
+    return if (progress.value >= 1f) format(target) else format(target * progress.value)
 }
 
 private const val COUNT_UP_MS = 800

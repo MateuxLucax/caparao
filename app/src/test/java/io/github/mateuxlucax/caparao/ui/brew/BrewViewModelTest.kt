@@ -487,6 +487,19 @@ class BrewViewModelTest {
         assertTrue(watchAlerts.isNotEmpty())
     }
 
+    /** The beans buzz and the guide's alerts share this: the phone vibrates only when Settings lets it (#198). */
+    @Test
+    fun thePhoneVibratesOnlyWhenSettingsAllowsIt() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        assertTrue(vm.phoneVibrates)
+        settings.guideVibrationOn = VibrationTarget.WATCH
+        assertFalse(vm.phoneVibrates)
+        settings.guideVibrationOn = VibrationTarget.BOTH
+        assertTrue(vm.phoneVibrates)
+        settings.guideVibration = false
+        assertFalse(vm.phoneVibrates)
+    }
+
     @Test
     fun aFreeFilterBrewHasNoGuide() {
         val vm = viewModel(BrewMode.FILTER)

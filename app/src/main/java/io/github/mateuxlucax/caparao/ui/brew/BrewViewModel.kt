@@ -75,6 +75,9 @@ class BrewViewModel(
     /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
     val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
 
+    /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
+    val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
+
     /** Follows a filter or French press recipe's steps; null for espresso, a free brew or a recipe without steps. */
     private var tracker: StepTracker? = null
     /** Starts only after the terminal press deadline, and never ends the brew. */
@@ -318,7 +321,7 @@ class BrewViewModel(
 
     private fun alert(event: StepEvent) {
         val target = settings.guideVibrationOn
-        val vibrate = settings.guideVibration && target.phone
+        val vibrate = phoneVibrates
         val sound = settings.guideSound
         if (settings.guideVibration && target.watch) onWatchAlert(event)
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))

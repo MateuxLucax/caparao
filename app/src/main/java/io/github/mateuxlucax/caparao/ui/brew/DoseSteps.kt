@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -74,6 +73,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
@@ -309,7 +309,7 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
  * the scale shows nothing.
  */
 @Composable
-fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) {
+fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit, vibrate: Boolean) {
     val locale = LocalConfiguration.current.locales[0]
     val dose = state.dose ?: 0.0
     val progress by animateFloatAsState(if (dose > 0) (state.weightGrams / dose).coerceIn(0.0, 1.0).toFloat() else 0f, Motion.standard(), label = "beans")
@@ -317,31 +317,30 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
     val reached = dose > 0 && state.weightGrams >= dose
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
-    // Espresso's ring pulses and the phone buzzes once when the weight reaches the dose; a screen opened already there stays quiet.
-    var reachedBefore by remember { mutableStateOf(reached) }
+    // Espresso's ring pulses, Next springs once and the phone buzzes (if Settings allows) when the weight first reaches the
+    // dose in this visit (#198). The latch keeps a scale that jitters around the dose from firing again; a screen opened
+    // already there stays quiet.
+    val openedAtDose = remember { reached }
+    var latched by remember { mutableStateOf(false) }
+    LaunchedEffect(reached) { if (reached) latched = true }
     val pulse = remember { Animatable(1f) }
-    LaunchedEffect(reached) {
-        if (espresso && reached && !reachedBefore) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    val nextScale = remember { Animatable(1f) }
+    LaunchedEffect(latched) {
+        if (latched && espresso && !openedAtDose) {
+            if (vibrate) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             if (!still) {
                 val bounce = spring<Float>(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
-                pulse.animateTo(1.06f, bounce)
-                pulse.animateTo(1f, bounce)
+                launch {
+                    pulse.animateTo(1.06f, bounce)
+                    pulse.animateTo(1f, bounce)
+                }
+                launch {
+                    nextScale.snapTo(1.06f)
+                    nextScale.animateTo(1f, bounce)
+                }
             }
         }
-        reachedBefore = reached
     }
-    // Next takes the primary color once the dose is reached.
-    val nextFill by animateColorAsState(
-        if (reached) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-        Motion.standardOrSnap(still),
-        label = "next fill",
-    )
-    val nextLabel by animateColorAsState(
-        if (reached) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
-        Motion.standardOrSnap(still),
-        label = "next label",
-    )
     BoxWithConstraints(Modifier.fillMaxSize().padding(24.dp)) {
         val compact = maxHeight < 500.dp
         val ringSize = minOf(260.dp, maxHeight * 0.4f)
@@ -373,9 +372,9 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
             Spacer(Modifier.weight(1f))
             Button(
                 onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
-                modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+                modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+                    .graphicsLayer { scaleX = nextScale.value; scaleY = nextScale.value },
                 shapes = ButtonDefaults.shapes(),
-                colors = if (espresso) ButtonDefaults.buttonColors(containerColor = nextFill, contentColor = nextLabel) else ButtonDefaults.buttonColors(),
             ) {
                 Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
             }
@@ -398,17 +397,16 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     )
     val still = animationsOff()
     val allChecked = checked.size == items.size
-    // Ready takes the primary color once every item is checked. It stays enabled: the checks never block it.
-    val readyFill by animateColorAsState(
-        if (allChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-        Motion.standardOrSnap(still),
-        label = "ready fill",
-    )
-    val readyLabel by animateColorAsState(
-        if (allChecked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
-        Motion.standardOrSnap(still),
-        label = "ready label",
-    )
+    // Ready springs once when every item is checked (#198). It rests in the default color and stays enabled: the checks never block it.
+    val readyScale = remember { Animatable(1f) }
+    LaunchedEffect(allChecked) {
+        if (allChecked && !still) {
+            readyScale.snapTo(1.06f)
+            readyScale.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        } else {
+            readyScale.snapTo(1f)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         GuideHeader(GuideStage.PREPARE_PORTAFILTER)
         Text(
@@ -426,9 +424,9 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
         }
         Button(
             onClick = onReady,
-            modifier = Modifier.testTag("portafilter-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            modifier = Modifier.testTag("portafilter-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+                .graphicsLayer { scaleX = readyScale.value; scaleY = readyScale.value },
             shapes = ButtonDefaults.shapes(),
-            colors = ButtonDefaults.buttonColors(containerColor = readyFill, contentColor = readyLabel),
         ) {
             Text(stringResource(R.string.prepare_ready), style = MaterialTheme.typography.titleMedium)
         }

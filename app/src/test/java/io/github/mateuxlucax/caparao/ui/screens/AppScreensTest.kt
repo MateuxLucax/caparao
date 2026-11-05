@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.screens
 
 import android.content.Context
 import android.os.SystemClock
+import android.provider.Settings
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
@@ -63,6 +64,7 @@ import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
+import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -422,10 +424,38 @@ class AppScreensTest {
         // The readings after the shortcut still reach the detector: the shot is saved and listed.
         hold(scale, 36.0, 6.0)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
-        compose.onNodeWithText(text(R.string.save)).performClick()
+        // The curve on the Done screen pushes Save below the fold.
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilDoesNotExist(hasText(text(R.string.brews_empty_title)), 5_000)
+    }
+
+    /** A shot's Done screen with animations on: the numbers count up to their saved values and the curve is drawn (#198). */
+    @Test
+    fun theDoneScreenCountsTheShotUpAndDrawsItsCurve() {
+        Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        try {
+            val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+            compose.setContent { AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") } }
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+            compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+            compose.onNodeWithText(text(R.string.next)).performClick()
+            compose.onNodeWithText(text(R.string.next)).performClick()
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+            compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
+            runEspressoToTheFirstDrops(scale)
+            hold(scale, 36.0, 6.0)
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
+            val yieldText = "${Format.grams(36.0, context.resources.configuration.locales[0])} ${text(R.string.unit_grams)}"
+            compose.waitUntilAtLeastOneExists(hasText(yieldText), 5_000)
+            compose.waitForIdle()
+            compose.onNodeWithText(yieldText).assertExists()
+            compose.onNodeWithTag("brew-curve").performScrollTo().assertExists()
+        } finally {
+            Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }
     }
 
     @Test
