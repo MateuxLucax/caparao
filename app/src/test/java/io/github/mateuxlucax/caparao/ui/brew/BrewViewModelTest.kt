@@ -509,4 +509,95 @@ class BrewViewModelTest {
         vm.editNotes(notes.copy(temp = "300"))
         assertFalse(vm.saveNotes())
     }
+
+    /** The alerts [vm] raises from now on, the way the screen plays them. */
+    private fun alertsFrom(vm: BrewViewModel): MutableList<GuideAlert> {
+        val alerts = mutableListOf<GuideAlert>()
+        CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        return alerts
+    }
+
+    /** An espresso brew from the cup to its first drop, poured on to [yieldTo] grams in 3 s (#193). */
+    private fun espressoPastFirstDrop(vm: BrewViewModel, yieldTo: Double) {
+        vm.begin()
+        vm.setDose(18.0)
+        pour(0.0, 150.0, 0.5) // the cup goes on
+        hold(150.0, 1.5)
+        hold(0.0, 1.0) // the tare confirms
+        hold(0.0, 3.0)
+        pour(0.0, yieldTo, 3.0) // the first drop, then the band
+    }
+
+    @Test
+    fun anEspressoWithoutARecipeAlertsOnceAtEachMoment() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        val events = listOf(StepEvent.CupDetected, StepEvent.TareConfirmed, StepEvent.FirstDrop, StepEvent.InTargetBand)
+        assertEquals(events, alerts.map { it.event })
+        assertEquals(events, watchAlerts)
+        assertTrue(alerts.all { it.vibrate })
+    }
+
+    @Test
+    fun anEspressoFromARecipeAlertsAtItsOwnBand() = kotlinx.coroutines.test.runTest {
+        recipes.save(espresso)
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 43.2) // 1:2.4, the recipe's target
+
+        assertEquals("esp", vm.uiState.value.recipe?.id)
+        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+        assertEquals(1, alerts.count { it.event == StepEvent.FirstDrop })
+    }
+
+    @Test
+    fun theBandAlertDoesNotRepeatWhenTheWeightHoversOnItsEdge() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 34.2) // 1:1.9, the lower edge of the band
+        listOf(34.1, 34.2, 34.1, 34.2, 34.1, 34.2).forEach { grams ->
+            now += 100
+            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
+        }
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+    }
+
+    @Test
+    fun turningTheVibrationOffSilencesTheEspressoAlerts() {
+        settings.guideVibration = false
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertTrue(alerts.isEmpty())
+        assertTrue(watchAlerts.isEmpty())
+    }
+
+    @Test
+    fun soundAloneStillPlaysTheEspressoAlertsWithoutVibration() {
+        settings.guideVibration = false
+        settings.guideSound = true
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertEquals(4, alerts.size)
+        assertTrue(alerts.all { !it.vibrate && it.sound })
+        assertTrue(watchAlerts.isEmpty())
+    }
+
+    @Test
+    fun theWatchOnlyVibratesWhenItIsTheVibrationTarget() {
+        settings.guideVibrationOn = VibrationTarget.PHONE
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertEquals(4, alerts.size)
+        assertTrue(watchAlerts.isEmpty())
+    }
 }

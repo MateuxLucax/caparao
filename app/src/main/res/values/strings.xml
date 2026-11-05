@@ -266,8 +266,8 @@
     <string name="diagnostics_reason_interrupted">App closed before recording finished. Start a new recording.</string>
     <string name="colors_system">System</string>
     <string name="colors_brand" translatable="false">Caparaó</string>
-    <string name="section_guide_alerts">Recipe alerts</string>
-    <string name="guide_alerts_text">The guide alerts you when a step starts, near its target, and in the last 5 seconds before the next step.</string>
+    <string name="section_guide_alerts">Brew alerts</string>
+    <string name="guide_alerts_text">The guide alerts you when a step starts, near its target, and in the last 5 seconds before the next step. Espresso alerts at the cup, the tare, the first drop and the target.</string>
     <string name="guide_vibration">Vibrate</string>
     <string name="guide_sound">Sound</string>
     <string name="vibrate_on_phone">Phone</string>

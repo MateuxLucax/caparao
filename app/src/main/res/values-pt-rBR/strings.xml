@@ -259,8 +259,8 @@
     <string name="diagnostics_reason_storage">Erro de armazenamento. Libere espaço e inicie outra gravação.</string>
     <string name="diagnostics_reason_interrupted">O app foi fechado antes do fim. Inicie outra gravação.</string>
     <string name="colors_system">Sistema</string>
-    <string name="section_guide_alerts">Alertas da receita</string>
-    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima.</string>
+    <string name="section_guide_alerts">Alertas do preparo</string>
+    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. No espresso, avisa a xícara, a tara, a primeira gota e o alvo.</string>
     <string name="guide_vibration">Vibrar</string>
     <string name="guide_sound">Som</string>
     <string name="vibrate_on_phone">Celular</string>
