@@ -39,8 +39,8 @@ data class BrewUiState(
     val recipes: List<Recipe> = emptyList(),
     /** The one being followed; null for a free brew. */
     val recipe: Recipe? = null,
-    /** Filter preparation checklist marks, kept if the setup needs to be lifted and tared again. */
-    val filterPreparationChecks: Set<Int> = emptySet(),
+    /** Filter and French press preparation checklist marks, kept if setup needs to be lifted and tared again. */
+    val preparationChecks: Set<Int> = emptySet(),
     /** Filter or French press with a recipe's steps, once brewing: where the guide stands (#103, #125). */
     val guide: StepState? = null,
     /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */

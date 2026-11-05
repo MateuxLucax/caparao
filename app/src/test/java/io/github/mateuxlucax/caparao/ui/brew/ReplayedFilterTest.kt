@@ -69,14 +69,14 @@ class ReplayedFilterTest {
         vm.begin()
         runCurrent()
         vm.setDose(15.0)
-        vm.setFilterPreparationCheck(1, true)
+        vm.setPreparationCheck(1, true)
         vm.ready()
         scale.resume()
 
         advanceTimeBy(3_100)
         runCurrent()
         assertEquals("lifting the dripper during preparation returns to the checklist", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
-        assertTrue("the checked grind item is kept", 1 in vm.uiState.value.filterPreparationChecks)
+        assertTrue("the checked grind item is kept", 1 in vm.uiState.value.preparationChecks)
 
         advanceTimeBy(200)
         runCurrent()
@@ -88,7 +88,7 @@ class ReplayedFilterTest {
         advanceTimeBy(2_100)
         runCurrent()
         assertEquals("a negative weight held during Pour returns to preparation", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
-        assertTrue("the checklist is still checked after Pour", 1 in vm.uiState.value.filterPreparationChecks)
+        assertTrue("the checklist is still checked after Pour", 1 in vm.uiState.value.preparationChecks)
         vm.end()
     }
 }

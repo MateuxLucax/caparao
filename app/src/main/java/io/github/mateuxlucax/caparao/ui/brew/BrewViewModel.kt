@@ -103,7 +103,7 @@ class BrewViewModel(
     private val smoother = FlowSmoother()
     private val filterConfig = FilterConfig()
     private var brewingSinceMs: Long? = null
-    /** A negative tared weight held for two seconds means the filter setup was lifted off the scale. */
+    /** A negative tared weight held for two seconds means filter or press setup was lifted before water. */
     private var filterLiftBeganAtMs: Long? = null
     /** Highest tared water weight for the current French press, held as the server is lifted off the scale. */
     private var frenchPressWaterGrams = 0.0
@@ -193,29 +193,34 @@ class BrewViewModel(
     /** Zero the scale, to weigh the beans without the container. */
     fun tare() = scale.tare()
 
-    /** The dose was weighed: keep it and move espresso or filter to preparation. */
+    /** The dose was weighed: keep it and move espresso, filter or French press to preparation. */
     fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE && _uiState.value.step != BrewStep.WEIGH) return
         if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
-        if (mode == BrewMode.ESPRESSO || mode == BrewMode.FILTER) {
+        if (mode == BrewMode.ESPRESSO || mode == BrewMode.FILTER || mode == BrewMode.FRENCH_PRESS) {
             _uiState.update { it.copy(step = BrewStep.PREPARE_PORTAFILTER, dose = grams) }
             return
         }
         armDetector(grams)
     }
 
-    /** Mark or unmark one filter preparation item; checks live only for this brew. */
-    fun setFilterPreparationCheck(index: Int, checked: Boolean) {
-        if (mode != BrewMode.FILTER || _uiState.value.step != BrewStep.PREPARE_PORTAFILTER || index !in 0..4) return
+    /** Mark or unmark one filter or French press preparation item; checks live only for this brew. */
+    fun setPreparationCheck(index: Int, checked: Boolean) {
+        val lastIndex = when (mode) {
+            BrewMode.FILTER -> 4
+            BrewMode.FRENCH_PRESS -> 3
+            BrewMode.ESPRESSO -> return
+        }
+        if (_uiState.value.step != BrewStep.PREPARE_PORTAFILTER || index !in 0..lastIndex) return
         _uiState.update {
-            it.copy(filterPreparationChecks = if (checked) it.filterPreparationChecks + index else it.filterPreparationChecks - index)
+            it.copy(preparationChecks = if (checked) it.preparationChecks + index else it.preparationChecks - index)
         }
     }
 
     /** Ready on the preparation step: arm detection from the current scale weight. */
     fun ready() {
         val state = _uiState.value
-        if ((mode != BrewMode.ESPRESSO && mode != BrewMode.FILTER) || state.step != BrewStep.PREPARE_PORTAFILTER) return
+        if (state.step != BrewStep.PREPARE_PORTAFILTER) return
         val dose = state.dose ?: return
         armDetector(dose, scale.reading.value)
     }
@@ -305,8 +310,12 @@ class BrewViewModel(
 
     private fun onReading(reading: ScaleReading) {
         val current = detector
-        if (mode == BrewMode.FILTER && current != null &&
-            (current.phase == BrewPhase.READY || current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED) &&
+        val shouldWatchLift = when (mode) {
+            BrewMode.FILTER -> current?.phase in setOf(BrewPhase.READY, BrewPhase.BREWING, BrewPhase.PAUSED)
+            BrewMode.FRENCH_PRESS -> current?.phase == BrewPhase.READY
+            BrewMode.ESPRESSO -> false
+        }
+        if (shouldWatchLift && current != null &&
             _uiState.value.step == BrewStep.LIVE
         ) {
             val since = if (reading.weightGrams < 0.0) {
@@ -316,7 +325,7 @@ class BrewViewModel(
                 null
             }
             if (since != null && clock() - since >= FILTER_PREPARE_LIFT_MS) {
-                returnToFilterPreparation(reading)
+                returnToPreparation(reading)
                 return
             }
         }
@@ -437,8 +446,8 @@ class BrewViewModel(
         }
     }
 
-    /** The filter setup was lifted: let the user put it back and tare again without losing checklist marks. */
-    private fun returnToFilterPreparation(reading: ScaleReading) {
+    /** The filter or French press setup was lifted: let the user put it back without losing checklist marks. */
+    private fun returnToPreparation(reading: ScaleReading) {
         detector = null
         filterLiftBeganAtMs = null
         readings.clear()

@@ -1309,6 +1309,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
         compose.onNodeWithTag("weigh-step-next").performClick()
 
+        waitFor(R.string.prepare_press_title)
+        val beanWeighTares = scale.tareCommands
+        compose.onNodeWithTag("press-prepare-picture").assertIsDisplayed()
+        listOf(R.string.prepare_rdt, R.string.prepare_grind, R.string.prepare_add_grounds, R.string.prepare_press_scale)
+            .forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        compose.onNodeWithTag("press-prepare-ready").assertIsDisplayed().assertIsEnabled()
+        play(scale, 0) // a reading after Beans cannot start the brew; the zeros after Ready finish the tare
+        compose.waitForIdle()
+        waitFor(R.string.prepare_press_title)
+        assertEquals("only Ready starts the tare", beanWeighTares, scale.tareCommands)
+        click(R.string.prepare_ready)
+        assertTrue("Ready starts the tare", scale.tareCommands > beanWeighTares)
+
         play(scale, 80_000)
         compose.waitForIdle()
         play(scale, 241_100)

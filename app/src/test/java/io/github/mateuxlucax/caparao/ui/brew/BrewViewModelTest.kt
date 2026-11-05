@@ -233,6 +233,8 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         assertEquals(BrewPhase.READY, vm.uiState.value.phase)
@@ -252,11 +254,41 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun frenchPressWaitsForReadyAndReturnsToPreparationIfLiftedBeforeWater() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.setPreparationCheck(1, true)
+        hold(600.0, 2.0) // the press goes on after Beans, while the optional checklist is open
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertTrue("placing the press does not tare before Ready", scale.commands.isEmpty())
+
+        vm.ready()
+        assertEquals(listOf("tare"), scale.commands)
+        hold(0.0, 1.0)
+        assertEquals(BrewPhase.READY, vm.uiState.value.phase)
+        hold(-2.0, 2.2)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertEquals("checklist marks survive the return", setOf(1), vm.uiState.value.preparationChecks)
+
+        hold(600.0, 0.3)
+        vm.ready()
+        assertEquals(listOf("tare", "tare"), scale.commands)
+        hold(0.0, 1.0)
+        pour(0.0, 10.0, 0.5)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        hold(-80.0, 2.5)
+        assertEquals("a lift after water does not return to preparation", BrewStep.LIVE, vm.uiState.value.step)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+    }
+
+    @Test
     fun aFrenchPressDisconnectDuringTheBrewSavesTheHighestWaterWeightAsInterrupted() {
         val vm = viewModel(BrewMode.FRENCH_PRESS)
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 120.0, 12.0)
@@ -862,6 +894,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 100.0, 10.0)
@@ -911,6 +944,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 100.0, 10.0)
