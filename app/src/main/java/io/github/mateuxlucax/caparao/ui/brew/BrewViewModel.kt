@@ -223,8 +223,12 @@ class BrewViewModel(
     fun stop() {
         val current = detector ?: return
         if (current.phase == BrewPhase.DONE) return
+        val before = current.phase
         diagnostics?.recordEvent(DiagnosticEvent.BrewStopRequested)
         current.stop(clock())
+        if (mode == BrewMode.FILTER && _uiState.value.recipe == null && before in setOf(BrewPhase.BREWING, BrewPhase.PAUSED)) {
+            alertOnce(StepEvent.AllDone)
+        }
         recordDiagnosticPhase(current.phase)
         finish(current)
     }
@@ -288,6 +292,7 @@ class BrewViewModel(
             }
         }
         espressoMoment(before, current.phase)
+        filterMoment(before, current.phase)
         recordDiagnosticPhase(current.phase)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
             brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
@@ -347,7 +352,24 @@ class BrewViewModel(
             val ratio = _uiState.value.ratio
             if (ratio != null && targetBand(ratio, _uiState.value.targetRatio) == TargetBand.AT) alertOnce(StepEvent.InTargetBand)
         }
-        if (current.phase == BrewPhase.DONE) finish(current)
+        if (mode == BrewMode.FILTER && _uiState.value.recipe == null && current.phase == BrewPhase.BREWING) {
+            // Free filter follows the water target; if one reading jumps across the band, both crossings still alert.
+            val ratio = _uiState.value.ratio
+            if (ratio != null) when (targetBand(ratio, _uiState.value.targetRatio)) {
+                TargetBand.BELOW -> Unit
+                TargetBand.AT -> alertOnce(StepEvent.InTargetBand)
+                TargetBand.ABOVE -> {
+                    alertOnce(StepEvent.InTargetBand)
+                    alertOnce(StepEvent.PastTargetBand)
+                }
+            }
+        }
+        if (current.phase == BrewPhase.DONE) {
+            if (mode == BrewMode.FILTER && _uiState.value.recipe == null && before == BrewPhase.PAUSED && current.result?.interrupted != true) {
+                alertOnce(StepEvent.AllDone)
+            }
+            finish(current)
+        }
     }
 
     private fun onRecipes(list: List<Recipe>) {
@@ -389,6 +411,16 @@ class BrewViewModel(
             from == BrewPhase.WAITING_FOR_CUP && to == BrewPhase.TARING -> alertOnce(StepEvent.CupDetected)
             from == BrewPhase.TARING && to == BrewPhase.READY -> alertOnce(StepEvent.TareConfirmed)
             from == BrewPhase.READY && to == BrewPhase.BREWING -> alertOnce(StepEvent.FirstDrop)
+        }
+    }
+
+    /** Filter's first water is only a free-brew moment; pause and resume apply to both filter flows (#209). */
+    private fun filterMoment(from: BrewPhase, to: BrewPhase) {
+        if (mode != BrewMode.FILTER) return
+        when {
+            from == BrewPhase.READY && to == BrewPhase.BREWING && _uiState.value.recipe == null -> alertOnce(StepEvent.FirstWater)
+            from == BrewPhase.BREWING && to == BrewPhase.PAUSED -> alertOnce(StepEvent.Paused)
+            from == BrewPhase.PAUSED && to == BrewPhase.BREWING -> alertOnce(StepEvent.Resumed)
         }
     }
 

@@ -126,5 +126,9 @@ class WatchMirrorTest {
         assertEquals(WatchAlert.TARE_CONFIRMED, WatchMirror.alert(StepEvent.TareConfirmed))
         assertEquals(WatchAlert.FIRST_DROP, WatchMirror.alert(StepEvent.FirstDrop))
         assertEquals(WatchAlert.IN_TARGET_BAND, WatchMirror.alert(StepEvent.InTargetBand))
+        assertEquals(WatchAlert.FIRST_WATER, WatchMirror.alert(StepEvent.FirstWater))
+        assertEquals(WatchAlert.PAST_TARGET_BAND, WatchMirror.alert(StepEvent.PastTargetBand))
+        assertEquals(WatchAlert.PAUSED, WatchMirror.alert(StepEvent.Paused))
+        assertEquals(WatchAlert.RESUMED, WatchMirror.alert(StepEvent.Resumed))
     }
 }

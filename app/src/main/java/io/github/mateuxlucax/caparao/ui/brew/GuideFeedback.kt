@@ -14,7 +14,8 @@ data class GuideAlert(val event: StepEvent, val vibrate: Boolean, val sound: Boo
 /**
  * Plays [GuideAlert]s: short patterns on the phone's vibrator and tones from [ToneGenerator], so no audio files ship.
  * A step starting is a short buzz and a beep, near the target a light pulse, the target a double buzz and a beep, each
- * of the last 5 s a tick, the end a long buzz and a longer tone. The visual cue on screen is always there.
+ * of the last 5 s a tick, and the end a long buzz and a longer tone. Filter start, target and pause moments have their
+ * own short patterns. The visual cue on screen is always there.
  */
 class GuideFeedback(context: Context) {
     private val vibrator = (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
@@ -33,6 +34,10 @@ class GuideFeedback(context: Context) {
             StepEvent.TareConfirmed -> ToneGenerator.TONE_PROP_PROMPT to 60
             StepEvent.FirstDrop -> ToneGenerator.TONE_PROP_BEEP2 to 200
             StepEvent.InTargetBand -> ToneGenerator.TONE_PROP_ACK to 200
+            StepEvent.FirstWater -> ToneGenerator.TONE_PROP_BEEP2 to 200
+            StepEvent.PastTargetBand -> ToneGenerator.TONE_PROP_ACK to 300
+            StepEvent.Paused -> ToneGenerator.TONE_PROP_PROMPT to 100
+            StepEvent.Resumed -> ToneGenerator.TONE_PROP_BEEP to 100
         }
         if (alert.vibrate) vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
         if (alert.sound && tone != null) tones?.startTone(tone.first, tone.second)

@@ -536,6 +536,8 @@ class BrewViewModelTest {
         assertTrue("the deadline is reached only after active time resumes", activeEndTime - frozenTime in 5_000L..5_200L)
 
         collecting.cancel()
+        assertEquals(1, alerts.count { it.event == StepEvent.Paused })
+        assertEquals(1, alerts.count { it.event == StepEvent.Resumed })
         vm.stop()
         rolled()
         val brew = vm.uiState.value.saved!!
@@ -723,6 +725,62 @@ class BrewViewModelTest {
         hold(0.0, 1.0)
         pour(0.0, 40.0, 8.0)
         assertNull(vm.uiState.value.guide)
+    }
+
+    @Test
+    fun aFreeFilterAlertsAtFirstWaterTargetBandPauseResumeAndEndOnce() {
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+
+        pour(0.0, 2.0, 0.4)
+        pour(2.0, 230.0, 10.0) // enters the ±5% band at 228 g
+        hold(230.0, 1.1)
+        pour(230.0, 260.0, 2.0) // passes the +5% edge at 252 g
+        hold(260.0, 1.1)
+        pour(260.0, 0.0, 0.5)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        hold(0.0, 0.2)
+        pour(0.0, 260.0, 0.5)
+        hold(260.0, 1.2)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+
+        // Hovering on and around the band edges doesn't repeat either milestone.
+        listOf(251.8, 252.0, 251.8, 252.0, 260.0).forEach { grams ->
+            now += 100
+            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
+        }
+        vm.stop()
+
+        val events = alerts.map { it.event }
+        assertEquals(1, events.count { it == StepEvent.FirstWater })
+        assertEquals(1, events.count { it == StepEvent.InTargetBand })
+        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
+        assertEquals(1, events.count { it == StepEvent.Paused })
+        assertEquals(1, events.count { it == StepEvent.Resumed })
+        assertEquals(1, events.count { it == StepEvent.AllDone })
+        assertTrue(alerts.all { it.vibrate && !it.sound })
+        assertEquals(events, watchAlerts)
+    }
+
+    @Test
+    fun freeFilterAlertsRespectTheExistingOffSettings() {
+        settings.guideVibration = false
+        settings.guideSound = false
+        val vm = viewModel(BrewMode.FILTER)
+        val alerts = alertsFrom(vm)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 2.0, 0.4)
+        assertTrue(alerts.isEmpty())
+        assertTrue(watchAlerts.isEmpty())
     }
 
     @Test

@@ -37,8 +37,20 @@ sealed interface StepEvent {
     /** Espresso: the first drop starts the brew (#193). */
     data object FirstDrop : StepEvent
 
-    /** Espresso: the live ratio enters the ±5% band around the target (#193). */
+    /** Free filter: the first water starts the brew (#209). */
+    data object FirstWater : StepEvent
+
+    /** The live ratio enters the ±5% band around the target (#193, #209). */
     data object InTargetBand : StepEvent
+
+    /** Filter water passes the upper edge of the ±5% band around its target (#209). */
+    data object PastTargetBand : StepEvent
+
+    /** The filter dripper is lifted from the scale (#209). */
+    data object Paused : StepEvent
+
+    /** The filter dripper has returned to the scale (#209). */
+    data object Resumed : StepEvent
 }
 
 /** Where the guide stands after a reading. */
