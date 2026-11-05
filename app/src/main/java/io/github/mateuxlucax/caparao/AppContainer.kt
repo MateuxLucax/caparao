@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.ViewModelProvider
@@ -138,6 +139,7 @@ class AppContainer(context: Context) {
                 clock = { (scale as? ScaleClock)?.nowMs ?: SystemClock.elapsedRealtime() },
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
                 onWatchAlert = watch::alert, diagnostics = diagnostics,
+                animations = ValueAnimator::areAnimatorsEnabled,
             )
         }
     }

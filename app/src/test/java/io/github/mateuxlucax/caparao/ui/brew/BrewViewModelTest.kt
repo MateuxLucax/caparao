@@ -52,11 +52,11 @@ class BrewViewModelTest {
     /** What the watch was asked to vibrate for. */
     private val watchAlerts = mutableListOf<StepEvent>()
 
-    private fun viewModel(mode: BrewMode, diagnostics: DiagnosticRecorder? = null) = BrewViewModel(
+    private fun viewModel(mode: BrewMode, diagnostics: DiagnosticRecorder? = null, animations: () -> Boolean = { true }) = BrewViewModel(
         mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
         onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
         onDiscarded = { id -> uploads += "discarded $id" },
-        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics,
+        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics, animations = animations,
     )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
@@ -69,6 +69,9 @@ class BrewViewModelTest {
     }
 
     private fun hold(weight: Double, seconds: Double) = pour(weight, weight, seconds)
+
+    /** Lets the timer roll back to the saved time, then the summary open (#197). */
+    private fun rolled() = main.dispatcher.scheduler.advanceUntilIdle()
 
     @Test
     fun anEspressoIsDetectedAndSavedWithItsDose() {
@@ -88,6 +91,7 @@ class BrewViewModelTest {
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals(2.0, vm.uiState.value.ratio!!, 0.01)
         hold(36.0, 6.0) // flow stopped
+        rolled()
 
         val state = vm.uiState.value
         assertEquals(BrewStep.SUMMARY, state.step)
@@ -100,6 +104,62 @@ class BrewViewModelTest {
         assertEquals(listOf("brew-1"), dao.brews.value.map { it.id })
         assertTrue("the curve is saved", dao.samples.getValue("brew-1").size > 200)
         assertEquals(18.0, settings.lastDose(BrewMode.ESPRESSO), 0.0)
+    }
+
+    /** An espresso brew whose live timer runs on past the saved end, as the detector dates it back (#197). */
+    private fun shotThatEndsOnAFlatWeight(vm: BrewViewModel) {
+        vm.begin()
+        vm.setDose(18.0)
+        pour(0.0, 150.0, 0.5)
+        hold(150.0, 1.5)
+        hold(0.0, 1.0)
+        hold(0.0, 3.0)
+        pour(0.0, 36.0, 25.0)
+        hold(36.0, 6.0)
+    }
+
+    @Test
+    fun theTimerRollsBackToTheSavedTimeBeforeTheSummaryOpens() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        shotThatEndsOnAFlatWeight(vm)
+
+        val live = vm.uiState.value
+        assertEquals(BrewStep.LIVE, live.step)
+        assertEquals(BrewPhase.DONE, live.phase)
+        val savedMs = live.saved!!.durationMs
+        assertTrue("the shown time runs past the saved end", live.elapsedMs / 1000 > savedMs / 1000)
+
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        val midRoll = vm.uiState.value
+        assertEquals(BrewStep.LIVE, midRoll.step)
+        assertTrue("the timer is between the two", midRoll.elapsedMs in savedMs until live.elapsedMs)
+
+        rolled()
+        val summary = vm.uiState.value
+        assertEquals(BrewStep.SUMMARY, summary.step)
+        assertEquals("the live timer and the summary end on the same number", savedMs / 1000, summary.elapsedMs / 1000)
+        assertEquals("the saved brew is unchanged", savedMs, summary.saved!!.durationMs)
+    }
+
+    @Test
+    fun theRollPassesThroughTheRecipesWindowColour() {
+        recipes.run { kotlinx.coroutines.runBlocking { save(espresso.copy(targetMinMs = 22_000, targetMaxMs = 26_000)) } }
+        val vm = viewModel(BrewMode.ESPRESSO)
+        shotThatEndsOnAFlatWeight(vm)
+
+        assertEquals("the shown time is past the window", BrewUiState.Window.PAST, vm.uiState.value.window)
+        rolled()
+        assertEquals("the saved time is inside it", BrewUiState.Window.INSIDE, vm.uiState.value.window)
+    }
+
+    @Test
+    fun withAnimationsOffTheTimerJumpsToTheSavedTime() {
+        val vm = viewModel(BrewMode.ESPRESSO, animations = { false })
+        shotThatEndsOnAFlatWeight(vm)
+
+        val state = vm.uiState.value
+        assertEquals(BrewStep.SUMMARY, state.step)
+        assertEquals(state.saved!!.durationMs, state.elapsedMs)
     }
 
     @Test
@@ -389,6 +449,7 @@ class BrewViewModelTest {
         assertEquals(frenchPress.steps.size, vm.uiState.value.guide?.index)
 
         vm.stop()
+        rolled()
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
         assertEquals(BrewMode.FRENCH_PRESS, vm.uiState.value.saved?.mode)
         assertNull(vm.uiState.value.saved?.timeToFirstDropMs)
