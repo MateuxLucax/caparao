@@ -56,6 +56,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 import io.github.mateuxlucax.caparao.ui.theme.flex
@@ -176,9 +177,16 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
 }
 
 /**
+ * The beans actually weighed, when the reading is a dose; otherwise the planned one. Beans left on the scale (0.1 g) or
+ * a cup (150 g) don't become the dose (#195).
+ */
+fun weighedDose(connected: Boolean, readingGrams: Double, plannedDose: Double): Double =
+    if (connected && readingGrams in RecipeForm.DOSE) readingGrams else plannedDose
+
+/**
  * Weighing the beans before grinding: a ring fills toward the dose around the live weight.
  * The ring and gaps adapt on short screens so Next stays reachable. It takes what was weighed, or the planned dose when
- * the scale shows nothing.
+ * the scale shows nothing or the weight is outside the dose limits.
  */
 @Composable
 fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) {
@@ -215,7 +223,7 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit) 
             }
             Spacer(Modifier.weight(1f))
             Button(
-                onClick = { onNext(if (state.connected && state.weightGrams > 0) state.weightGrams else dose) },
+                onClick = { onNext(weighedDose(state.connected, state.weightGrams, dose)) },
                 modifier = Modifier.testTag("weigh-step-next").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
                 shapes = ButtonDefaults.shapes(),
             ) {
