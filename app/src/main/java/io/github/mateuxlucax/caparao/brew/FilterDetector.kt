@@ -16,8 +16,10 @@ data class FilterConfig(
     val settledWeightHoldMs: Long = 1_000,
     /** A fall larger than this keeps a candidate provisional until it returns or a lift is confirmed. */
     val settledWeightToleranceGrams: Double = 1.0,
-    /** Filter water cannot rise faster than this; faster steps are provisional handling loads. */
+    /** Rises faster than this stay provisional longer; rate alone never rejects a rise. */
     val maxWaterRiseGramsPerSecond: Double = 25.0,
+    /** A fast rise must stay above the previous water level this long before it is confirmed. */
+    val fastRiseHoldMs: Long = 2_000,
     /** Filter recipe targets must be held this long before the guide advances. */
     val stepTargetHoldMs: Long = 1_000,
     /** French press keeps running when the carafe is lifted to serve. */
@@ -51,9 +53,9 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     private var candidateLastGrams = 0.0
     private var candidateFell = false
     private var candidateReturnedAtMs: Long? = null
+    private var candidateRequiresFastRiseHold = false
     private var decreaseStartedAtMs: Long? = null
     private var decreaseMinGrams = 0.0
-    private var ignoringHandlingPeak = false
     /** Set while the weight is down from the max: when the drop began. */
     private var dropBeganAtMs: Long? = null
     private var dropYieldGrams = 0.0
@@ -153,24 +155,12 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
 
     private fun followFilterBrew(reading: TimedReading, prev: TimedReading?) {
         val grams = reading.reading.weightGrams
-        if (ignoringHandlingPeak) {
-            if (grams <= maxGrams) {
-                ignoringHandlingPeak = false
-            } else {
-                return
-            }
-        }
-
         val previousGrams = prev?.reading?.weightGrams
+        var fastRise = false
         if (previousGrams != null && grams > previousGrams) {
             val elapsedMs = (reading.atMs - prev.atMs).coerceAtLeast(1L)
             val maxRise = config.maxWaterRiseGramsPerSecond * elapsedMs / 1_000.0
-            if (grams - previousGrams > maxRise) {
-                // A load placed on the scale jumps faster than a pour; ignore it until the old water level returns.
-                clearCandidate()
-                ignoringHandlingPeak = true
-                return
-            }
+            fastRise = grams - previousGrams > maxRise
         }
 
         val pendingPeakGrams = candidateMaxGrams
@@ -194,12 +184,17 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         dropBeganAtMs = null
         dropYieldGrams = maxGrams
         if (grams <= maxGrams) {
+            if (candidateRequiresFastRiseHold) {
+                // A fast rise that returns to settled water was handling, even if a later drop is a real lift.
+                clearCandidate()
+            }
             if (candidateStartedAtMs != null && candidateReturnedAtMs == null) candidateReturnedAtMs = reading.atMs
             if (candidateReturnedAtMs?.let { reading.atMs - it >= config.settledWeightHoldMs } == true) clearCandidate()
             if (grams < maxGrams) updateSettledDecrease(reading) else clearDecreaseCandidate()
         } else {
             clearDecreaseCandidate()
             if (candidateReturnedAtMs != null) clearCandidate()
+            if (fastRise) candidateRequiresFastRiseHold = true
             updateSettledCandidate(reading)
         }
     }
@@ -224,7 +219,8 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         val nextMax = maxOf(candidateMaxGrams, grams)
         candidateMaxGrams = nextMax
         candidateLastGrams = grams
-        if (!candidateFell && reading.atMs - startedAt >= config.settledWeightHoldMs) {
+        val holdMs = if (candidateRequiresFastRiseHold) config.fastRiseHoldMs else config.settledWeightHoldMs
+        if (!candidateFell && reading.atMs - startedAt >= holdMs) {
             maxGrams = maxOf(maxGrams, candidateMaxGrams)
             clearCandidate()
         }
@@ -236,6 +232,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
         candidateLastGrams = 0.0
         candidateFell = false
         candidateReturnedAtMs = null
+        candidateRequiresFastRiseHold = false
     }
 
     private fun updateSettledDecrease(reading: TimedReading) {
