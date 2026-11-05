@@ -325,6 +325,8 @@
     <string name="milestone_portafilter">Porta-filtro</string>
     <string name="milestone_shot">Extração</string>
     <string name="milestone_prepare">Filtro</string>
+    <string name="milestone_prepare_press">Prensa</string>
+    <string name="milestone_serve">Servir</string>
     <string name="milestone_brew">Preparo</string>
     <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Concluído</string>

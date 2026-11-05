@@ -155,21 +155,16 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            // Filter keeps its milestone bar while the recipe guide runs; other modes keep their existing transition.
+            // The milestone bar stays while the recipe guide runs. French press past its last step is serving: remove, press, serve.
+            val serving = state.guide?.let { it.index >= state.steps.size } == true
+            GuideIndicator(
+                state.mode,
+                guideStage(state.mode, state.step, state.phase, serving),
+                Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                steps = state.steps,
+                stepIndex = state.guide?.index,
+            )
             val still = animationsOff()
-            AnimatedVisibility(
-                visible = state.guide == null || state.mode == BrewMode.FILTER,
-                enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
-                exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
-            ) {
-                GuideIndicator(
-                    state.mode,
-                    guideStage(state.mode, state.step, state.phase),
-                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    steps = state.steps,
-                    stepIndex = state.guide?.index,
-                )
-            }
             val density = LocalDensity.current
             // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
             AnimatedContent(

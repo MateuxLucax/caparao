@@ -1299,17 +1299,25 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /** The progress bar's single TalkBack node names the current milestone, with the recipe step during Brew. */
+    private fun assertMilestone(name: Int) {
+        compose.onNode(hasContentDescription(text(name), substring = true)).assertIsDisplayed()
+    }
+
     /** The timer, post-timer removal prompt and plunger-only serve animation (#126). */
     @Test
     fun frenchPressGuide() {
         val scale = open("synthetic-french-press", 0)
         compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        assertMilestone(R.string.milestone_recipe)
         click(R.string.next)
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        assertMilestone(R.string.milestone_beans)
         compose.onNodeWithTag("weigh-step-next").performClick()
 
         waitFor(R.string.prepare_press_title)
+        assertMilestone(R.string.milestone_prepare_press)
         val beanWeighTares = scale.tareCommands
         compose.onNodeWithTag("press-prepare-picture").assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_grind, R.string.prepare_add_grounds, R.string.prepare_press_scale)
@@ -1324,12 +1332,18 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
         play(scale, 80_000)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_brew)
         play(scale, 241_100)
         waitFor(R.string.guide_remove_press)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_serve)
         play(scale, 255_000)
         waitFor(R.string.guide_press_serve)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_serve)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        waitFor(R.string.brew_saved)
+        assertMilestone(R.string.milestone_done)
     }
 
     /**

@@ -332,6 +332,8 @@
     <string name="milestone_portafilter">Portafilter</string>
     <string name="milestone_shot">Shot</string>
     <string name="milestone_prepare">Prepare</string>
+    <string name="milestone_prepare_press">Prepare</string>
+    <string name="milestone_serve">Serve</string>
     <string name="milestone_brew">Brew</string>
     <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Done</string>
