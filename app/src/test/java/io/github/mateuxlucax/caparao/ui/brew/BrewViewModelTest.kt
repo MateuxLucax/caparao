@@ -52,11 +52,11 @@ class BrewViewModelTest {
     /** What the watch was asked to vibrate for. */
     private val watchAlerts = mutableListOf<StepEvent>()
 
-    private fun viewModel(mode: BrewMode, diagnostics: DiagnosticRecorder? = null) = BrewViewModel(
+    private fun viewModel(mode: BrewMode, diagnostics: DiagnosticRecorder? = null, animations: () -> Boolean = { true }) = BrewViewModel(
         mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
         onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
         onDiscarded = { id -> uploads += "discarded $id" },
-        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics,
+        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics, animations = animations,
     )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
@@ -69,6 +69,9 @@ class BrewViewModelTest {
     }
 
     private fun hold(weight: Double, seconds: Double) = pour(weight, weight, seconds)
+
+    /** Lets the timer roll back to the saved time, then the summary open (#197). */
+    private fun rolled() = main.dispatcher.scheduler.advanceUntilIdle()
 
     @Test
     fun anEspressoIsDetectedAndSavedWithItsDose() {
@@ -97,6 +100,7 @@ class BrewViewModelTest {
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals(2.0, vm.uiState.value.ratio!!, 0.01)
         hold(36.0, 6.0) // flow stopped
+        rolled()
 
         val state = vm.uiState.value
         assertEquals(BrewStep.SUMMARY, state.step)
@@ -109,6 +113,80 @@ class BrewViewModelTest {
         assertEquals(listOf("brew-1"), dao.brews.value.map { it.id })
         assertTrue("the curve is saved", dao.samples.getValue("brew-1").size > 200)
         assertEquals(18.0, settings.lastDose(BrewMode.ESPRESSO), 0.0)
+    }
+
+    /** An espresso brew whose live timer runs on past the saved end, as the detector dates it back (#197). */
+    private fun shotThatEndsOnAFlatWeight(vm: BrewViewModel) {
+        vm.begin()
+        vm.setDose(18.0)
+        vm.ready()
+        pour(0.0, 150.0, 0.5)
+        hold(150.0, 1.5)
+        hold(0.0, 1.0)
+        hold(0.0, 3.0)
+        pour(0.0, 36.0, 25.0)
+        hold(36.0, 6.0)
+    }
+
+    @Test
+    fun theTimerRollsBackToTheSavedTimeBeforeTheSummaryOpens() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        shotThatEndsOnAFlatWeight(vm)
+
+        val live = vm.uiState.value
+        assertEquals(BrewStep.LIVE, live.step)
+        assertEquals(BrewPhase.DONE, live.phase)
+        val savedMs = live.saved!!.durationMs
+        assertTrue("the shown time runs past the saved end", live.elapsedMs / 1000 > savedMs / 1000)
+
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        val midRoll = vm.uiState.value
+        assertEquals(BrewStep.LIVE, midRoll.step)
+        assertTrue("the timer is between the two", midRoll.elapsedMs in savedMs until live.elapsedMs)
+
+        rolled()
+        val summary = vm.uiState.value
+        assertEquals(BrewStep.SUMMARY, summary.step)
+        assertEquals("the live timer and the summary end on the same number", savedMs / 1000, summary.elapsedMs / 1000)
+        assertEquals("the saved brew is unchanged", savedMs, summary.saved!!.durationMs)
+    }
+
+    @Test
+    fun theRollPassesThroughTheRecipesWindowColour() {
+        recipes.run { kotlinx.coroutines.runBlocking { save(espresso.copy(targetMinMs = 22_000, targetMaxMs = 26_000)) } }
+        val vm = viewModel(BrewMode.ESPRESSO)
+        shotThatEndsOnAFlatWeight(vm)
+
+        assertEquals("the shown time is past the window", BrewUiState.Window.PAST, vm.uiState.value.window)
+        rolled()
+        assertEquals("the saved time is inside it", BrewUiState.Window.INSIDE, vm.uiState.value.window)
+    }
+
+    @Test
+    fun withAnimationsOffTheTimerJumpsToTheSavedTime() {
+        val vm = viewModel(BrewMode.ESPRESSO, animations = { false })
+        shotThatEndsOnAFlatWeight(vm)
+
+        val state = vm.uiState.value
+        assertEquals(BrewStep.SUMMARY, state.step)
+        assertEquals(state.saved!!.durationMs, state.elapsedMs)
+    }
+
+    @Test
+    fun aFilterBrewEndedByALiftDatedBackDoesNotRoll() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2) // dripper and server on the scale
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 250.0, 120.0)
+        pour(250.0, 0.0, 0.5) // the dripper lifted...
+        hold(0.0, 6.0) // ...and held past the lift hold, so the brew ends at the drop
+
+        val state = vm.uiState.value
+        assertEquals("the brew is dated back to the drop, not the end of the hold", 120.0, state.saved!!.durationMs / 1000.0, 0.5)
+        assertEquals("the summary opens at once, with no roll", BrewStep.SUMMARY, state.step)
     }
 
     @Test
@@ -244,6 +322,30 @@ class BrewViewModelTest {
         val brew = vm.uiState.value.saved!!
         assertTrue(brew.interrupted)
         assertEquals(20.0, brew.yieldGrams, 0.3)
+    }
+
+    @Test
+    fun retryTareWhileDisconnectedKeepsTheErrorAndSendsNothing() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.setDose(18.0)
+        vm.ready()
+        vm.armNow()
+        hold(150.0, 9.0) // never zeroes: the retry goes out at 3 s, the timeout shows at 8 s
+        assertTrue(vm.uiState.value.tareTimedOut)
+        assertEquals(listOf("tare", "tare"), scale.commands)
+
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        vm.retryTare()
+        // The Dot drops the command while disconnected, so Retry must neither send nor clear the error.
+        assertEquals(listOf("tare", "tare"), scale.commands)
+        assertTrue(vm.uiState.value.tareTimedOut)
+        assertEquals(BrewPhase.TARING, vm.uiState.value.phase)
+
+        scale.state.value = ScaleState.Connected(null)
+        vm.retryTare()
+        assertEquals(listOf("tare", "tare", "tare"), scale.commands)
+        assertFalse(vm.uiState.value.tareTimedOut)
     }
 
     @Test
@@ -418,6 +520,7 @@ class BrewViewModelTest {
         assertEquals(frenchPress.steps.size, vm.uiState.value.guide?.index)
 
         vm.stop()
+        rolled()
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
         assertEquals(BrewMode.FRENCH_PRESS, vm.uiState.value.saved?.mode)
         assertNull(vm.uiState.value.saved?.timeToFirstDropMs)
@@ -550,5 +653,97 @@ class BrewViewModelTest {
 
         vm.editNotes(notes.copy(temp = "300"))
         assertFalse(vm.saveNotes())
+    }
+
+    /** The alerts [vm] raises from now on, the way the screen plays them. */
+    private fun alertsFrom(vm: BrewViewModel): MutableList<GuideAlert> {
+        val alerts = mutableListOf<GuideAlert>()
+        CoroutineScope(Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        return alerts
+    }
+
+    /** An espresso brew from the cup to its first drop, poured on to [yieldTo] grams in 3 s (#193). */
+    private fun espressoPastFirstDrop(vm: BrewViewModel, yieldTo: Double) {
+        vm.begin()
+        vm.setDose(18.0)
+        vm.ready()
+        pour(0.0, 150.0, 0.5) // the cup goes on
+        hold(150.0, 1.5)
+        hold(0.0, 1.0) // the tare confirms
+        hold(0.0, 3.0)
+        pour(0.0, yieldTo, 3.0) // the first drop, then the band
+    }
+
+    @Test
+    fun anEspressoWithoutARecipeAlertsOnceAtEachMoment() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        val events = listOf(StepEvent.CupDetected, StepEvent.TareConfirmed, StepEvent.FirstDrop, StepEvent.InTargetBand)
+        assertEquals(events, alerts.map { it.event })
+        assertEquals(events, watchAlerts)
+        assertTrue(alerts.all { it.vibrate })
+    }
+
+    @Test
+    fun anEspressoFromARecipeAlertsAtItsOwnBand() = kotlinx.coroutines.test.runTest {
+        recipes.save(espresso)
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 43.2) // 1:2.4, the recipe's target
+
+        assertEquals("esp", vm.uiState.value.recipe?.id)
+        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+        assertEquals(1, alerts.count { it.event == StepEvent.FirstDrop })
+    }
+
+    @Test
+    fun theBandAlertDoesNotRepeatWhenTheWeightHoversOnItsEdge() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 34.2) // 1:1.9, the lower edge of the band
+        listOf(34.1, 34.2, 34.1, 34.2, 34.1, 34.2).forEach { grams ->
+            now += 100
+            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
+        }
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+    }
+
+    @Test
+    fun turningTheVibrationOffSilencesTheEspressoAlerts() {
+        settings.guideVibration = false
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertTrue(alerts.isEmpty())
+        assertTrue(watchAlerts.isEmpty())
+    }
+
+    @Test
+    fun soundAloneStillPlaysTheEspressoAlertsWithoutVibration() {
+        settings.guideVibration = false
+        settings.guideSound = true
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertEquals(4, alerts.size)
+        assertTrue(alerts.all { !it.vibrate && it.sound })
+        assertTrue(watchAlerts.isEmpty())
+    }
+
+    @Test
+    fun theWatchOnlyVibratesWhenItIsTheVibrationTarget() {
+        settings.guideVibrationOn = VibrationTarget.PHONE
+        val vm = viewModel(BrewMode.ESPRESSO)
+        val alerts = alertsFrom(vm)
+        espressoPastFirstDrop(vm, yieldTo = 36.0)
+
+        assertEquals(4, alerts.size)
+        assertTrue(watchAlerts.isEmpty())
     }
 }
