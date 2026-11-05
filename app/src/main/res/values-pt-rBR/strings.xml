@@ -314,6 +314,7 @@
     <string name="ratio_less">Menos água</string>
     <string name="ratio_more">Mais água</string>
     <string name="water_field">Água em ml</string>
+    <string name="espresso_window">%1$s–%2$s s</string>
     <string name="unit_ml">ml</string>
     <string name="unit_l">L</string>
     <string name="unit_mg">mg</string>
