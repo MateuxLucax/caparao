@@ -925,15 +925,41 @@ class BrewViewModelTest {
         assertNull(vm.uiState.value.saved)
         assertEquals(frenchPress.steps.size, vm.uiState.value.guide?.index)
 
+        val elapsedAtDone = vm.uiState.value.elapsedMs
         vm.stop()
         rolled()
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
         assertEquals(BrewMode.FRENCH_PRESS, vm.uiState.value.saved?.mode)
         assertNull(vm.uiState.value.saved?.timeToFirstDropMs)
         assertEquals(300.0, vm.uiState.value.saved?.yieldGrams ?: 0.0, 0.5)
+        // The 10 s between the removal and Done are not part of the saved time (#223).
+        val savedMs = vm.uiState.value.saved!!.durationMs
+        assertEquals(elapsedAtDone - 10_000.0, savedMs.toDouble(), 700.0)
+        assertTrue(savedMs >= 240_000L)
+        assertEquals(savedMs, vm.uiState.value.elapsedMs)
         val curve = dao.samples.getValue("brew-1")
         assertTrue("the off-scale weight is not a curve sample", curve.all { it.weightGrams > 0.0 })
         assertEquals(300.0, curve.last().weightGrams, 0.5)
+    }
+
+    @Test
+    fun aFrenchPressDoneWithNoRemovalSavesTheTimeOfDone() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 300.0, 20.0)
+        hold(300.0, 230.0)
+        assertFalse(vm.uiState.value.frenchPressRemoved)
+
+        val elapsedAtDone = vm.uiState.value.elapsedMs
+        vm.stop()
+        rolled()
+
+        assertEquals(elapsedAtDone.toDouble(), vm.uiState.value.saved!!.durationMs.toDouble(), 300.0)
     }
 
     @Test

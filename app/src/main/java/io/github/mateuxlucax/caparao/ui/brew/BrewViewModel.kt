@@ -544,10 +544,17 @@ class BrewViewModel(
     }
 
     private fun finish(done: BrewDetector) {
-        val result = done.result
-        if (result == null) {
+        val detected = done.result
+        if (detected == null) {
             _uiState.update { it.copy(step = BrewStep.SUMMARY, phase = BrewPhase.DONE, saved = null) }
             return
+        }
+        // French press time runs to the confirmed removal even when Done comes later (#223); with none, it is Done's.
+        val removedAtMs = if (mode == BrewMode.FRENCH_PRESS) frenchPressFinishTracker?.removedAtMs else null
+        val result = if (removedAtMs != null && removedAtMs in detected.startedAtMs until detected.endedAtMs) {
+            detected.copy(endedAtMs = removedAtMs)
+        } else {
+            detected
         }
         diagnostics?.recordEvent(DiagnosticEvent.BrewResultReady)
         val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
