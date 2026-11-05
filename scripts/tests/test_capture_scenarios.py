@@ -23,6 +23,12 @@ class CaptureScenarioTests(unittest.TestCase):
             self.assertEqual(sorted(plan), plan, path.name)
             self.assertEqual(len({name for _, name in plan}), len(plan), path.name)
 
+    def test_espresso_capture_waits_for_named_dose_and_keeps_portafilter(self):
+        source = SCRIPT.read_text()
+        self.assertIn('tap_text("Free brew")', source)
+        self.assertIn('wait_for_text("Weigh the beans" if path.stem == "espresso"', source)
+        self.assertIn('wait_for_text("Prepare the portafilter")', source)
+
     def test_french_press_plan_captures_steep_and_press_and_serve(self):
         plan = capture_scenarios.scenario_plan(capture_scenarios.SCENARIO_DIR / "french-press.json")
         names = [name for _, name in plan]

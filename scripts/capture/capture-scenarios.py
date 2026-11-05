@@ -140,12 +140,13 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             api("POST", "/event", {"event": "connected"})
             screenshot("home")
             tap_text(mode_label)
-            wait_for_text("Step 1 of", contains=True)
             if path.stem == "espresso":
                 tap_text("Free brew")
+            else:
+                wait_for_text("Step 1 of", contains=True)
             screenshot("dose")
             tap_text("Next")
-            wait_for_text("Step 2 of", contains=True)
+            wait_for_text("Weigh the beans" if path.stem == "espresso" else "Step 2 of", contains=path.stem != "espresso")
             dose = float(scenario.get("dose_g", 18))
             api("POST", "/reading", {"weight_g": dose})
             time.sleep(0.35)
