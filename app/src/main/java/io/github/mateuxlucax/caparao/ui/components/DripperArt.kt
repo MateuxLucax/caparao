@@ -27,11 +27,11 @@ object DripperArt {
             translate(ART_OFFSET_X, ART_OFFSET_Y) {
                 scale(ART_SCALE, pivot = Offset.Zero) {
                     val ghost = primary.copy(alpha = GHOST_ALPHA)
-                    listOf(Part.FLANGE, Part.CONE, Part.PLATE, Part.SERVER, Part.HANDLE).forEach { part ->
+                    listOf(Part.FLANGE, Part.CONE, Part.PLATE, Part.HANDLE, Part.SERVER).forEach { part ->
                         drawPart(part, ghost, ghost)
                     }
-                    parts.forEachIndexed { index, part ->
-                        val amount = reveal[index].coerceIn(0f, 1f)
+                    listOf(Part.HANDLE, Part.SERVER, Part.PLATE, Part.CONE, Part.FLANGE).forEach { part ->
+                        val amount = reveal[parts.indexOf(part)].coerceIn(0f, 1f)
                         if (amount > 0f) {
                             translate(top = -(1f - amount) * PART_SLIDE) {
                                 drawPart(part, primary.copy(alpha = amount), handle.copy(alpha = amount))
@@ -73,8 +73,8 @@ object DripperArt {
 
     private val server by lazy {
         Path().apply {
-            moveTo(46f, 60.5f)
-            lineTo(74f, 60.5f)
+            moveTo(46f, 60f)
+            lineTo(74f, 60f)
             lineTo(74f, 64f)
             quadraticTo(74f, 66.5f, 75.5f, 68.5f)
             lineTo(84.5f, 81f)
@@ -93,23 +93,23 @@ object DripperArt {
 
     private val handlePath by lazy {
         Path().apply {
-            moveTo(79.5f, 69.5f)
+            moveTo(74f, 69.5f)
             lineTo(89f, 69.5f)
             quadraticTo(96f, 69.5f, 96f, 76.5f)
             lineTo(96f, 80f)
             quadraticTo(96f, 87f, 89f, 87f)
-            lineTo(87f, 87f)
+            lineTo(83f, 87f)
         }
     }
 
     private val cone by lazy {
         Path().apply {
-            moveTo(33f, 34.5f)
-            lineTo(87f, 34.5f)
+            moveTo(33f, 34f)
+            lineTo(87f, 34f)
             lineTo(70.5f, 54f)
-            quadraticTo(69f, 56f, 66.5f, 56f)
-            lineTo(53.5f, 56f)
-            quadraticTo(51f, 56f, 49.5f, 54f)
+            quadraticTo(69f, 56.5f, 66.5f, 56.5f)
+            lineTo(53.5f, 56.5f)
+            quadraticTo(51f, 56.5f, 49.5f, 54f)
             close()
         }
     }
