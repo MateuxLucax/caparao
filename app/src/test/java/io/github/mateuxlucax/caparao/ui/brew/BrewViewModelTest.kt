@@ -75,10 +75,19 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.setDose(18.0)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertTrue(scale.commands.isEmpty())
+        pour(0.0, 320.0, 0.5) // portafilter placed on the scale during preparation
+        hold(320.0, 1.5)
+        assertTrue("preparation does not tare", scale.commands.isEmpty())
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
         assertEquals(BrewPhase.WAITING_FOR_CUP, vm.uiState.value.phase)
-
-        pour(0.0, 150.0, 0.5) // the cup goes on
-        hold(150.0, 1.5)
+        vm.ready()
+        assertEquals(BrewPhase.WAITING_FOR_CUP, vm.uiState.value.phase)
+        hold(320.0, 1.5) // the portafilter weight is the baseline, not a cup
+        assertTrue("the Ready baseline is not treated as a cup", scale.commands.isEmpty())
+        pour(320.0, 350.0, 0.5) // the cup goes on
+        hold(350.0, 1.5)
         assertEquals(listOf("tare"), scale.commands)
         hold(0.0, 1.0) // the scale zeroed
         assertEquals(BrewPhase.READY, vm.uiState.value.phase)
@@ -170,6 +179,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         hold(0.0, 1.0)
         vm.stop()
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
@@ -188,6 +198,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO, diagnostics)
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         hold(0.0, 10.0) // a quiet false start: no cup or first drop was detected
         assertEquals(BrewPhase.WAITING_FOR_CUP, vm.uiState.value.phase)
         vm.stop()
@@ -210,6 +221,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.setDose(18.0)
+        vm.ready()
         vm.armNow()
         hold(0.0, 1.0)
         pour(0.0, 20.0, 10.0)
@@ -224,6 +236,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         vm.armNow()
         hold(0.0, 1.0)
         pour(0.0, 30.0, 20.0)
@@ -301,6 +314,7 @@ class BrewViewModelTest {
         vm.setDose(18.0)
         // The recipe's dose stays the last free dose only for free brews.
         assertEquals(SettingsStore.defaultDose(BrewMode.ESPRESSO), settings.lastDose(BrewMode.ESPRESSO), 0.0)
+        vm.ready()
         vm.armNow()
         hold(0.0, 1.0)
         pour(0.0, 43.0, 28.0)

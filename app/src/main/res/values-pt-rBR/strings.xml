@@ -94,6 +94,15 @@
     <string name="dose_title">Dose de café</string>
     <string name="dose_field">Dose em gramas</string>
     <string name="next">Continuar</string>
+    <string name="prepare_portafilter_title">Prepare o porta-filtro</string>
+    <string name="prepare_dose">Dose de %1$s g</string>
+    <string name="prepare_rdt">RDT</string>
+    <string name="prepare_grind">Moer</string>
+    <string name="prepare_grind_with_setting">Moer · %1$s</string>
+    <string name="prepare_wdt">WDT</string>
+    <string name="prepare_tamp">Tampar</string>
+    <string name="prepare_puck_screen">Tela do puck</string>
+    <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
     <string name="cup_on">Coloquei a xícara</string>
@@ -284,6 +293,7 @@
     <string name="step_of_named">Etapa %1$d de %2$d · %3$s</string>
     <string name="stage_ratio">Razão</string>
     <string name="stage_beans">Pesar os grãos</string>
+    <string name="stage_prepare">Preparar o porta-filtro</string>
     <string name="stage_cup">Xícara</string>
     <string name="stage_tare">Tara</string>
     <string name="stage_first_drop">Primeira gota</string>
