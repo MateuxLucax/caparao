@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ColorScheme
@@ -110,8 +111,13 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
                 }
             }
         }
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
-            Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium)
+        val doneModifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+        val doneLabel: @Composable () -> Unit = { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
+        // French press: Done is secondary while the steep runs and primary once the deadline has passed (#222).
+        if (state.mode == BrewMode.FRENCH_PRESS && !state.frenchPressDeadlineReached) {
+            FilledTonalButton(onClick = onDone, modifier = doneModifier, shapes = ButtonDefaults.shapes()) { doneLabel() }
+        } else {
+            Button(onClick = onDone, modifier = doneModifier, shapes = ButtonDefaults.shapes()) { doneLabel() }
         }
     }
 }

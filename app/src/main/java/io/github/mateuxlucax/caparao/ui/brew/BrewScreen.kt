@@ -208,7 +208,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                     } else {
                         PortafilterStep(state, viewModel::ready)
                     }
-                    BrewStep.LIVE -> LiveStep(state, viewModel, guided)
+                    BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
@@ -217,13 +217,14 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
     if (state.phase == BrewPhase.PAUSED) {
         FilterPausedStep(state, viewModel::stop)
         return
     }
     if (guided) {
-        GuidedStep(state, viewModel::stop)
+        // A French press steep still running asks first; one stray tap would end it for good (#222).
+        GuidedStep(state, onDone = { if (state.mode == BrewMode.FRENCH_PRESS && !state.frenchPressDeadlineReached) onConfirmStop() else viewModel.stop() })
         return
     }
     val brewing = state.phase == BrewPhase.BREWING
