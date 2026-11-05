@@ -617,6 +617,33 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /**
+     * With animations off, the espresso pictures are still frames: the cup, the LED and the open ring show the same
+     * state as the animated ones, and the weight, timer and flow stay on screen through the shot (#194).
+     */
+    @Test
+    fun espressoMotionStill() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.taring, 15_000)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.espresso_ready, 20_000)
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+        playUntilShown(scale, R.string.brewing_espresso, 60_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
+    }
+
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */
     @Test
     fun filter() {

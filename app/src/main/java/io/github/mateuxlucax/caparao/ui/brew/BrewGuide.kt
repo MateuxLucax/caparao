@@ -206,13 +206,18 @@ private fun Milestones(milestones: List<GuideMilestone>, stage: GuideStage, modi
 
 /** The current stage's animation, title and instruction, moving along the shared X axis when the stage changes. */
 @Composable
-fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier) {
+fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Boolean = false) {
     val density = LocalDensity.current
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
         if (stage.pictured) {
             MorphingShape(stage.ordinal, Modifier.padding(bottom = 20.dp).size(128.dp)) {
-                AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                // Espresso's picture follows the scale across stages (#194), so it is not swapped per stage.
+                if (espresso) {
+                    EspressoPicture(stage)
+                } else {
+                    AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                }
             }
         }
         AnimatedContent(

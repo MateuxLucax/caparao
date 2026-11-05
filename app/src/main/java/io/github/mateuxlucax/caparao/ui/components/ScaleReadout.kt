@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -51,6 +52,9 @@ private val Tabular = TabularFlex
 private const val ARC_START = 135f
 private const val ARC_SWEEP = 270f
 
+/** The flow, in g/s, at which the espresso flow cue is full. */
+private const val FLOW_CUE_FULL = 4.0
+
 /** The live ratio against the one to stop at, for [ScaleReadout]'s ring. */
 data class RatioTarget(val ratio: Double?, val target: Double, val progress: Float, val onTarget: Boolean)
 
@@ -75,10 +79,20 @@ fun ScaleReadout(
     spacious: Boolean = false,
     /** Home: whether the scale is connected; the weight is light until it is. */
     live: Boolean = true,
+    /** Espresso waits for the first drop with the ring closed; it opens when this turns true (#194). */
+    started: Boolean = true,
+    /** Espresso's tare: the weight rolls down to zero on a longer tween while this is true (#194). */
+    rolling: Boolean = false,
+    /** Espresso's extraction: a thin ring inside the open ring thickens with the live flow (#194). */
+    flowCue: Boolean = false,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
-    val weight by animateFloatAsState(weightGrams.toFloat(), tween(100, easing = LinearEasing), label = "weight")
+    val weight by animateFloatAsState(
+        weightGrams.toFloat(),
+        if (rolling) tween(400, easing = Motion.EmphasizedDecelerate) else tween(100, easing = LinearEasing),
+        label = "weight",
+    )
     val flow = flowGramsPerSecond.coerceIn(0.0, 99.9)
     val flowText = "${Format.flow(flow, locale)} ${stringResource(R.string.unit_grams_per_second)}"
     val shownTimerColor by animateColorAsState(
@@ -168,6 +182,15 @@ fun ScaleReadout(
         label = "progress",
     )
     val colors = MaterialTheme.colorScheme
+    val still = animationsOff()
+    // The ring opens from its start on the first drop, then the progress fills it; with animations off it is open at once.
+    val open by animateFloatAsState(if (started) 1f else 0f, if (still) snap() else spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow), label = "open")
+    // The live flow as the thickness of a thin ring inside the open one: a cue, not a number, so it stays under the numbers.
+    val flowShown by animateFloatAsState(
+        if (flowCue) (flow / FLOW_CUE_FULL).coerceIn(0.0, 1.0).toFloat() else 0f,
+        if (still) snap() else spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow),
+        label = "flowCue",
+    )
     val colorSpec = tween<Color>(500, easing = Motion.Standard)
     val outerColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.primary, colorSpec, label = "outer")
     val ratioColor by animateColorAsState(if (ratio.onTarget) colors.tertiary else colors.onSurface, colorSpec, label = "ratio")
@@ -175,7 +198,6 @@ fun ScaleReadout(
     val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
     // One glow out of the outer ring the moment the target is reached.
     val glow = remember { Animatable(0f) }
-    val still = animationsOff()
     LaunchedEffect(ratio.onTarget, still) {
         if (ratio.onTarget && !still) {
             glow.snapTo(1f)
@@ -196,8 +218,22 @@ fun ScaleReadout(
                     val wide = outer * (1f + 1.5f * (1f - glow.value))
                     drawArc(outerColor.copy(alpha = 0.35f * glow.value), ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = Stroke(wide, cap = StrokeCap.Round))
                 }
-                drawArc(colors.surfaceContainerHighest, ARC_START, ARC_SWEEP, false, Offset(o, o), outerSize, style = outerStyle)
+                if (open > 0.005f) drawArc(colors.surfaceContainerHighest, ARC_START, ARC_SWEEP * open, false, Offset(o, o), outerSize, style = outerStyle)
                 if (progress > 0.005f) drawArc(outerColor, ARC_START, ARC_SWEEP * progress, false, Offset(o, o), outerSize, style = outerStyle)
+                if (flowShown > 0.005f) {
+                    val width = 2.dp.toPx() + 8.dp.toPx() * flowShown
+                    // Centered in the gap just inside the outer ring, 4 dp clear of it.
+                    val radius = size.width / 2 - outer - 4.dp.toPx() - width / 2
+                    drawArc(
+                        colors.secondary.copy(alpha = 0.6f),
+                        ARC_START,
+                        ARC_SWEEP,
+                        false,
+                        Offset(size.width / 2 - radius, size.height / 2 - radius),
+                        Size(radius * 2, radius * 2),
+                        style = Stroke(width, cap = StrokeCap.Round),
+                    )
+                }
             }
             weightAndTimer()
         }

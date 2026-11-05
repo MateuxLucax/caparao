@@ -197,7 +197,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        GuideHeader(guideStage(state.mode, state.step, state.phase))
+        val espresso = state.mode == BrewMode.ESPRESSO
+        GuideHeader(guideStage(state.mode, state.step, state.phase), espresso = espresso)
         if (!state.connected) {
             Text(stringResource(R.string.scale_needed), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
@@ -209,6 +210,10 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
+                // Espresso's ring opens on the first drop, the tare rolls the weight to zero, and the flow thickens a cue (#194).
+                started = !espresso || brewing || state.phase == BrewPhase.DONE,
+                rolling = espresso && state.phase == BrewPhase.TARING,
+                flowCue = espresso,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
                     BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
