@@ -112,6 +112,21 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun readyWithoutAReadingTakesTheFirstReadingAsBaselineNotACup() {
+        // Ready after a disconnect: the scale has no reading yet, so the portafilter's weight is the first one.
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.setDose(18.0)
+        vm.ready()
+        hold(320.0, 2.0)
+        assertTrue("the first reading is the baseline, not a cup", scale.commands.isEmpty())
+        assertEquals(BrewPhase.WAITING_FOR_CUP, vm.uiState.value.phase)
+        pour(320.0, 350.0, 0.5) // the cup goes on, 30 g above the baseline
+        hold(350.0, 1.5)
+        assertEquals(listOf("tare"), scale.commands)
+    }
+
+    @Test
     fun aFilterPourEndsWithDone() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2) // dripper and server on the scale

@@ -63,15 +63,20 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         return ScaleCommand.TARE
     }
 
-    /** Starts cup detection from the current scale reading after portafilter preparation. */
-    fun beginWaitingFromBaseline(reading: TimedReading) {
+    /**
+     * Starts cup detection after portafilter preparation, from the scale's reading at Ready. Without one, the first
+     * reading becomes the baseline. Either way the portafilter is never a cup: only a later rise counts.
+     */
+    fun beginWaitingFromBaseline(reading: TimedReading?) {
         phase = BrewPhase.WAITING_FOR_CUP
-        baselineGrams = reading.reading.weightGrams
-        firstAtMs = reading.atMs
+        baselineGrams = reading?.reading?.weightGrams
+        firstAtMs = reading?.atMs
         checkedAlreadyPlaced = true
         recent.clear()
-        remember(reading)
-        lastGrams = reading.reading.weightGrams
+        if (reading != null) {
+            remember(reading)
+            lastGrams = reading.reading.weightGrams
+        }
     }
 
     override fun onReading(reading: TimedReading): ScaleCommand? {
