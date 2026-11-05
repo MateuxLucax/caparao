@@ -921,6 +921,50 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         playUntilShown(scale, R.string.taring, 2_000)
     }
 
+    /** Free filter brew stays manual with its existing ratio and dose controls. */
+    @Test
+    fun filterFreeBrewKeepsItsManualControls() {
+        settings.setLastRecipeId(BrewMode.FILTER, SettingsStore.FREE_BREW)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_less)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.ratio_more)).assertIsDisplayed()
+    }
+
+    /** A filter recipe makes water primary, adjusts only this brew and shows scaled targets alongside their times. */
+    @Test
+    fun filterRecipeWaterScalesItsSteps() {
+        val recipe = Recipe(
+            id = "screen-test-water", name = "V60 water test", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        runBlocking { recipes.save(recipe) }
+        settings.setLastRecipeId(BrewMode.FILTER, recipe.id)
+        open("idle-5min", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(recipe.name), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("${Format.grams(250.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        repeat(15) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
+        compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("00:30").assertIsDisplayed()
+        compose.onNodeWithText("01:00").assertIsDisplayed()
+    }
+
     /**
      * The guided filter brew (wireframes 3a–3e) on the synthetic filter session, following a recipe shaped like it:
      * bloom to 50 g, a wait, then pours to 100, 150 and 200 g at 0:35, 0:50 and 1:00 from the first water (20 s in).

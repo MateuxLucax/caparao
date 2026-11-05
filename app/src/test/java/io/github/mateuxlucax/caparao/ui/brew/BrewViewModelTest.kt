@@ -408,6 +408,29 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun filterRecipeWaterAndDoseChangesScaleOnlyThisBrew() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+
+        vm.setFilterRecipeWater(400.0)
+        assertEquals(listOf(72.0, 144.0, 400.0), vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams })
+        assertEquals(400.0 / 16.7, vm.uiState.value.dose!!, 1e-9)
+        vm.setFilterRecipeDose(20.0)
+        assertEquals(listOf(60.0, 120.0, 334.0), vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams })
+        assertEquals(20.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
     fun theLastChoiceIsRememberedPerModeIncludingFreeBrew() = kotlinx.coroutines.test.runTest {
         recipes.save(v60)
         settings.setLastDose(BrewMode.FILTER, 20.0)

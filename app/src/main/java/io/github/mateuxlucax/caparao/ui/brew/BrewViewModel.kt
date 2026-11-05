@@ -19,6 +19,7 @@ import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepTracker
+import io.github.mateuxlucax.caparao.brew.scaleRecipeToWater
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
@@ -106,6 +107,10 @@ class BrewViewModel(
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
+    /** This brew's filter scaling is local to the dose step and never written back to the recipe store. */
+    private var filterRecipeEdited = false
+    /** The selected filter recipe is the stable basis for repeated water changes; rounding never compounds. */
+    private var filterRecipeBase: Recipe? = null
     private var lastDiagnosticPhase: BrewPhase? = null
 
     /** The brew screen opened: start from the dose, listening to the scale. Does nothing while a brew is open. */
@@ -134,8 +139,26 @@ class BrewViewModel(
     fun selectRecipe(recipe: Recipe?) {
         if (_uiState.value.step != BrewStep.DOSE) return
         recipeChosen = true
+        filterRecipeEdited = false
+        filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
         settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
         apply(recipe)
+    }
+
+    /** Change this filter brew's water target in ml/g; recipe pours scale while their times and ratio stay fixed. */
+    fun setFilterRecipeWater(grams: Double) {
+        val state = _uiState.value
+        val recipe = filterRecipeBase?.takeIf { state.recipe?.id == it.id && mode == BrewMode.FILTER } ?: return
+        if (state.step != BrewStep.DOSE || grams !in 1.0..2000.0) return
+        val scaled = scaleRecipeToWater(recipe, grams)
+        filterRecipeEdited = true
+        _uiState.update { it.copy(recipe = scaled, dose = scaled.doseGrams) }
+    }
+
+    /** Change this filter brew's dose while keeping its recipe ratio. */
+    fun setFilterRecipeDose(grams: Double) {
+        if (grams !in RecipeForm.DOSE) return
+        setFilterRecipeWater(grams * _uiState.value.targetRatio)
     }
 
     /** On the dose step: brew at 1:[ratio]. A free brew remembers it for next time. */
@@ -365,7 +388,10 @@ class BrewViewModel(
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
         // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
-        val current = state.recipe?.let { chosen -> list.find { it.id == chosen.id }?.takeIf { state.step == BrewStep.DOSE } ?: chosen }
+        val current = state.recipe?.let { chosen ->
+            list.find { it.id == chosen.id }?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: chosen
+        }
+        if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { it.mode == BrewMode.FILTER }
         _uiState.update { it.copy(recipes = list, recipe = current) }
         if (recipeChosen || state.step != BrewStep.DOSE) return
         recipeChosen = true
@@ -374,12 +400,15 @@ class BrewViewModel(
         apply(if (last == null) list.firstOrNull() else list.find { it.id == last })
     }
 
-    private fun apply(recipe: Recipe?) = _uiState.update {
-        it.copy(
-            recipe = recipe,
-            dose = recipe?.doseGrams ?: settings.lastDose(mode),
-            targetRatio = recipe?.targetRatio ?: settings.targetRatio(mode),
-        )
+    private fun apply(recipe: Recipe?) {
+        filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
+        _uiState.update {
+            it.copy(
+                recipe = recipe,
+                dose = recipe?.doseGrams ?: settings.lastDose(mode),
+                targetRatio = recipe?.targetRatio ?: settings.targetRatio(mode),
+            )
+        }
     }
 
     private fun onScaleState(state: ScaleState) {
@@ -499,6 +528,8 @@ class BrewViewModel(
         tracker = null
         frenchPressFinishTracker = null
         recipeChosen = false
+        filterRecipeEdited = false
+        filterRecipeBase = null
         lastDiagnosticPhase = null
         _uiState.value = BrewUiState(
             mode,

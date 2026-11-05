@@ -182,7 +182,15 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 label = "step",
             ) { (step, guided) ->
                 when (step) {
-                    BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
+                    BrewStep.DOSE -> DoseStep(
+                        state,
+                        viewModel::selectRecipe,
+                        viewModel::setRatio,
+                        viewModel::planDose,
+                        viewModel::setFilterRecipeWater,
+                        viewModel::setFilterRecipeDose,
+                        viewModel::weigh,
+                    )
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> if (state.mode == BrewMode.FILTER) {
                         FilterPrepareStep(state, viewModel::setFilterPreparationCheck, viewModel::ready)

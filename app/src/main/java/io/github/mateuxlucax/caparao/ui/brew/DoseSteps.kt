@@ -90,10 +90,12 @@ import androidx.compose.ui.graphics.StrokeJoin
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
+import io.github.mateuxlucax.caparao.ui.recipes.label
 
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
@@ -101,18 +103,27 @@ import io.github.mateuxlucax.caparao.ui.theme.flex
 import java.util.Locale
 
 /**
- * The ratio first: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
+ * The ratio first for a free brew: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
  * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
- * as a summary, and a free brew calculates the water instead of editing it.
+ * as a summary. A filter recipe makes water the control and scales its steps for this brew (#204).
  */
 @Composable
-fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) -> Unit, onDose: (Double) -> Unit, onNext: () -> Unit) {
+fun DoseStep(
+    state: BrewUiState,
+    onRecipe: (Recipe?) -> Unit,
+    onRatio: (Double) -> Unit,
+    onDose: (Double) -> Unit,
+    onFilterWater: (Double) -> Unit,
+    onFilterDose: (Double) -> Unit,
+    onNext: () -> Unit,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val step = when (state.mode) {
         BrewMode.ESPRESSO -> 0.1
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
     val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
+    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER }
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     val espresso = state.mode == BrewMode.ESPRESSO
@@ -128,7 +139,10 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         AnimatedVisibility(visible = espressoRecipe != null, enter = reveal(still), exit = conceal(still)) {
             summaryRecipe?.let { EspressoRecipeSummary(it, locale, still) }
         }
-        AnimatedVisibility(visible = espressoRecipe == null, enter = reveal(still), exit = conceal(still)) {
+        AnimatedVisibility(visible = filterRecipe != null, enter = reveal(still), exit = conceal(still)) {
+            filterRecipe?.let { FilterRecipePlan(state, it, locale, onWater = onFilterWater) { editing = Editing.DOSE } }
+        }
+        AnimatedVisibility(visible = espressoRecipe == null && filterRecipe == null, enter = reveal(still), exit = conceal(still)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AnimatedContent(state.targetRatio, label = "ratio") { ratio ->
                     Text(
@@ -170,11 +184,79 @@ fun DoseStep(state: BrewUiState, onRecipe: (Recipe?) -> Unit, onRatio: (Double) 
         GramsDialog(
             label = if (field == Editing.DOSE) R.string.dose_field else R.string.water_field,
             initial = initial?.let { Format.grams(it, locale) } ?: "",
-            onDone = { grams -> onDose(if (field == Editing.DOSE) grams else grams / state.targetRatio); editing = null },
+            onDone = { grams ->
+                if (filterRecipe != null) {
+                    if (field == Editing.DOSE) onFilterDose(grams) else onFilterWater(grams)
+                } else {
+                    onDose(if (field == Editing.DOSE) grams else grams / state.targetRatio)
+                }
+                editing = null
+            },
             onDismiss = { editing = null },
         )
     }
 }
+
+private const val FILTER_WATER_STEP_ML = 10.0
+
+@Composable
+private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale, onWater: (Double) -> Unit, onDose: () -> Unit) {
+    val water = recipe.steps.lastOrNull { it.kind.pours }?.targetWeightGrams ?: state.plannedWater ?: recipe.targetYieldGrams
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(Format.grams(water, locale) + " ${stringResource(R.string.unit_ml)}", style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800, 100)))
+        Text(stringResource(R.string.label_water), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            FilledTonalIconButton(
+                onClick = { onWater((water - FILTER_WATER_STEP_ML).coerceAtLeast(1.0)) },
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(28.dp))
+            }
+            FilledTonalIconButton(
+                onClick = { onWater((water + FILTER_WATER_STEP_ML).coerceAtMost(2000.0)) },
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(28.dp))
+            }
+        }
+        Row(
+            Modifier.padding(top = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Amount(state.dose, R.string.unit_grams, locale, onDose)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.label_ratio), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                recipe.steps.forEach { step ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(step.kind.label), style = MaterialTheme.typography.bodyMedium)
+                        Text(Format.timer((step.targetAtMs / 1000).toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        step.targetWeightGrams?.let { Text("${Format.grams(it, locale)} ${stringResource(R.string.unit_grams)}", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+                idealTime(recipe.notes)?.let { time ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.label_time), style = MaterialTheme.typography.bodyMedium)
+                        Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Built-in filter recipes keep their ideal time in the existing note; show its final time range when present. */
+private fun idealTime(notes: String?): String? = notes
+    ?.let { Regex("\\d+:\\d{2}(?:\\s*[–-]\\s*\\d+:\\d{2})?").findAll(it).lastOrNull()?.value?.replace('-', '–') }
 
 private enum class Editing { DOSE, WATER }
 
