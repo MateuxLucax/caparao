@@ -103,7 +103,7 @@
     <string name="cup_on">Cup\'s on</string>
     <string name="taring">Taring…</string>
     <string name="tare_failed_title">The scale didn\'t reach zero</string>
-    <string name="tare_failed_hint">Clear the scale and retry.</string>
+    <string name="tare_failed_hint">Keep the cup still and retry.</string>
     <string name="brewing_filter_text">Pour at your pace. Remove the dripper or tap Done to finish.</string>
     <string name="french_press_brewing_text">The timer starts with the first water. Tap Done to finish.</string>
     <string name="step_of">Step %1$d of %2$d</string>
