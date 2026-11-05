@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.assertIsSelected
@@ -242,7 +243,8 @@ class EndToEndTest {
             assertFalse(finishAlerts.single().sound)
             assertEquals(null, viewModel.get()?.uiState?.value?.saved)
 
-            compose.onNodeWithText(text(R.string.done)).performClick()
+            // The progress bar also reads "Done", so target the button.
+            compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 10_000)
             val dao = container.database.brews()
             compose.waitUntil(10_000) { runBlocking(Dispatchers.IO) { dao.all().size == 1 } }
