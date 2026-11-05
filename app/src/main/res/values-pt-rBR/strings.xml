@@ -307,11 +307,14 @@
     <string name="stage_extracting">Extraindo</string>
     <string name="stage_brewing">Passando</string>
     <string name="stage_done">Pronto</string>
-    <!-- Espresso progress milestones (#191). -->
+    <!-- Brew progress milestones (#191, #205). -->
     <string name="milestone_recipe">Receita</string>
     <string name="milestone_beans">Grãos</string>
     <string name="milestone_portafilter">Porta-filtro</string>
     <string name="milestone_shot">Extração</string>
+    <string name="milestone_prepare">Filtro</string>
+    <string name="milestone_brew">Preparo</string>
+    <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Concluído</string>
     <string name="weigh_beans_title">Pese os grãos</string>
     <string name="weigh_beans_text">Tare o recipiente e coloque os grãos.</string>

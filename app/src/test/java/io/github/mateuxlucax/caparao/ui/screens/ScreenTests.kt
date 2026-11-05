@@ -871,7 +871,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 60_000)
         compose.waitForIdle()
         play(scale, 91_000)
-        click(R.string.done)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
@@ -901,6 +901,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
         waitFor(R.string.prepare_filter_title)
         assertEquals("the filter is not tared during preparation", beanWeighTares, scale.tareCommands)
+        compose.onNodeWithContentDescription(text(R.string.milestone_prepare)).assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
         listOf(
             R.string.prepare_rdt,
@@ -951,9 +952,17 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 24_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_bloom, Format.grams(50.0, locale))), 5_000)
         compose.waitForIdle()
+        val counterPrefix = context.getString(R.string.step_of, 1, recipe.steps.size).substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_bloom)),
+        ).assertIsDisplayed()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
         compose.waitForIdle()
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_wait)),
+        ).assertIsDisplayed()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
         compose.waitForIdle()

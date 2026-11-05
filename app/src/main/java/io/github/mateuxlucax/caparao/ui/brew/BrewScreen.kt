@@ -155,15 +155,20 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            // A guided filter brew counts its recipe's steps instead.
-            // The indicator fades out and its space closes when the guide takes over the live step.
+            // Filter keeps its milestone bar while the recipe guide runs; other modes keep their existing transition.
             val still = animationsOff()
             AnimatedVisibility(
-                visible = state.guide == null,
+                visible = state.guide == null || state.mode == BrewMode.FILTER,
                 enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
                 exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
             ) {
-                GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                GuideIndicator(
+                    state.mode,
+                    guideStage(state.mode, state.step, state.phase),
+                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    steps = state.steps,
+                    stepIndex = state.guide?.index,
+                )
             }
             val density = LocalDensity.current
             // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.

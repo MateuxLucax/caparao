@@ -76,7 +76,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val steps = state.steps
     val density = LocalDensity.current
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
+        if (state.mode != BrewMode.FILTER) StepProgress(guideProgress(state.mode, steps, guide.index, state.elapsedMs))
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
@@ -118,8 +118,9 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     )
     // A French press steeps until its deadline: say so instead of naming the press still to come.
     val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
+    val stepTitle = stringResource(stage)
     Text(
-        "${stringResource(stage)} · ${stringResource(R.string.step_of, index + 1, count)}",
+        if (state.mode == BrewMode.FILTER) stepTitle else "$stepTitle · ${stringResource(R.string.step_of, index + 1, count)}",
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
