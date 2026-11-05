@@ -81,7 +81,11 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
+import io.github.mateuxlucax.caparao.brew.StepState
+import io.github.mateuxlucax.caparao.ui.brew.BrewStep
+import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
@@ -896,6 +900,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             steps = listOf(
                 RecipeStep(StepKind.BLOOM, 50.0, 0),
                 RecipeStep(StepKind.WAIT, null, 10_000),
+                RecipeStep(StepKind.SWIRL, null, 30_000),
                 RecipeStep(StepKind.POUR, 100.0, 35_000),
                 RecipeStep(StepKind.POUR, 150.0, 50_000),
                 RecipeStep(StepKind.POUR, 200.0, 60_000),
@@ -917,6 +922,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         play(scale, 45_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_wait)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.waitForIdle()
+        play(scale, 52_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_swirl)), 5_000)
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         compose.waitForIdle()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
@@ -927,6 +937,40 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+    }
+
+    /** Every countdown step uses the same smooth ring in both filter and French press. */
+    @Test
+    fun guideCountdownRingCoversWaitSwirlAndSteep() {
+        val cases = listOf(
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.WAIT, null, 0), R.string.guide_wait),
+            Triple(BrewMode.FILTER, RecipeStep(StepKind.SWIRL, null, 0), R.string.guide_swirl),
+            Triple(BrewMode.FRENCH_PRESS, RecipeStep(StepKind.PRESS, null, 240_000), R.string.guide_steep),
+        )
+        fun stateFor(index: Int): BrewUiState {
+            val (mode, step) = cases[index]
+            val recipe = Recipe(
+                id = "screen-test-countdown-$index", name = "Countdown test", mode = mode,
+                method = if (mode == BrewMode.FRENCH_PRESS) "French press" else "V60", doseGrams = 15.0, targetRatio = 16.0,
+                steps = listOf(step), createdAt = 0, updatedAt = 0,
+            )
+            return BrewUiState(
+                mode = mode,
+                step = BrewStep.LIVE,
+                recipe = recipe,
+                guide = StepState(index = 0, progress = 0.5f, dueInMs = 10_000, pace = null, paceMs = null, overshootGrams = null),
+            )
+        }
+        var state by mutableStateOf(stateFor(0))
+        compose.setContent { AppTheme { GuidedStep(state) {} } }
+        cases.forEachIndexed { index, (_, _, label) ->
+            if (index > 0) {
+                state = stateFor(index)
+                compose.waitForIdle()
+            }
+            compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
+            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        }
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */

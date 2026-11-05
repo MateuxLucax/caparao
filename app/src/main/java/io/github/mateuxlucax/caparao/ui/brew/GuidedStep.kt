@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -38,13 +39,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.material3.CircularWavyProgressIndicator
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -358,19 +359,29 @@ private fun CupToTarget(fill: Float, color: Color) {
     }
 }
 
-/** A wavy ring that empties as the wait runs out. */
+/** The brew readout's smooth open ring, emptying as the wait runs out. */
 @Composable
 private fun CountdownRing(progress: Float, color: Color, centerContent: @Composable () -> Unit = {}) {
-    val shown by animateFloatAsState(progress, tween(200, easing = LinearEasing), label = "ring")
-    Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
-        CircularWavyProgressIndicator(
-            progress = { 1f - shown },
-            modifier = Modifier.fillMaxSize(),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            stroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-            trackStroke = Stroke(with(LocalDensity.current) { 12.dp.toPx() }, cap = StrokeCap.Round),
-        )
+    val still = animationsOff()
+    val shown by animateFloatAsState(
+        progress,
+        if (still) snap() else tween(200, easing = LinearEasing),
+        label = "ring",
+    )
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    Box(Modifier.size(160.dp).testTag("countdown-ring"), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val strokeWidth = 12.dp.toPx()
+            val inset = strokeWidth / 2
+            val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+            val arcTopLeft = Offset(inset, inset)
+            val style = Stroke(strokeWidth, cap = StrokeCap.Round)
+            drawArc(track, 135f, 270f, false, arcTopLeft, arcSize, style = style)
+            val remaining = 1f - shown
+            if (remaining > 0.005f) {
+                drawArc(color, 135f, 270f * remaining, false, arcTopLeft, arcSize, style = style)
+            }
+        }
         centerContent()
     }
 }
