@@ -27,6 +27,8 @@ data class BrewUiState(
     val flowGramsPerSecond: Double = 0.0,
     /** Since the first drop or first water; 0 before. */
     val elapsedMs: Long = 0,
+    /** Time until an unattended filter pause ends at the lift; null outside a pause. */
+    val pauseRemainingMs: Long? = null,
     /** The saved brew, on the summary; null there when nothing was recorded. */
     val saved: Brew? = null,
     /** The saved brew's curve, drawn on the espresso summary (#198). */
@@ -71,7 +73,7 @@ data class BrewUiState(
 
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
     val ratio: Double?
-        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.DONE) }?.let { weightGrams / it }
+        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED || phase == BrewPhase.DONE) }?.let { weightGrams / it }
 
     /** How far [ratio] is toward [targetRatio], 0 to 1. */
     val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()

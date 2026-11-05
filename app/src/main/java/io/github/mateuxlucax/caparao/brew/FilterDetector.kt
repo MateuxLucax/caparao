@@ -10,8 +10,6 @@ data class FilterConfig(
     /** ...or this fraction of it (and at least [liftMinDropGrams], so noise early in the pour never counts)... */
     val liftDropFraction: Double = 0.12,
     val liftMinDropGrams: Double = 5.0,
-    /** ...held this long means the dripper was lifted, not bumped. */
-    val liftHoldMs: Long = 5_000,
     /** A new filter weight must stay above the previous water level without a large fall for this long. */
     val settledWeightHoldMs: Long = 1_000,
     /** A fall larger than this keeps a candidate provisional until it returns or a lift is confirmed. */
@@ -20,14 +18,20 @@ data class FilterConfig(
     val maxWaterRiseGramsPerSecond: Double = 25.0,
     /** Filter recipe targets must be held this long before the guide advances. */
     val stepTargetHoldMs: Long = 1_000,
+    /** A lifted dripper can stay off the scale this long before the brew ends at the lift. */
+    val pauseTimeoutMs: Long = 30_000,
+    /** Weight must return this close to the pre-lift water level to resume. */
+    val pauseReturnToleranceGrams: Double = 3.0,
+    /** The returned weight must hold before the timer resumes. */
+    val pauseResumeHoldMs: Long = 1_000,
     /** French press keeps running when the carafe is lifted to serve. */
     val liftDetectionEnabled: Boolean = true,
 )
 
 /**
  * Free-pour filter detection. The screen opens with dripper and server on the scale, so it tares straight away; the
- * first water starts the brew, and the user tapping done or lifting the dripper off ends it. French press reuses this
- * detector with lift detection disabled, so serving from the carafe cannot finish the brew.
+ * first water starts the brew, and the user tapping done ends it. A filter dripper lift pauses at once and ends at the
+ * lift after the timeout; French press reuses this detector with lift detection disabled.
  */
 class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDetector {
     override var phase: BrewPhase = BrewPhase.TARING
@@ -57,6 +61,14 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     /** Set while the weight is down from the max: when the drop began. */
     private var dropBeganAtMs: Long? = null
     private var dropYieldGrams = 0.0
+    /** Physical start of the current pause; the live timer freezes here. */
+    var pauseStartedAtMs: Long? = null
+        private set
+    private var resumeCandidateAtMs: Long? = null
+    private var pausedDurationMs = 0L
+
+    /** Last water level before the pause, including an unconfirmed pour peak. */
+    val pausedWeightGrams: Double get() = dropYieldGrams
 
     override fun onReading(reading: TimedReading): ScaleCommand? {
         val prev = previous
@@ -65,6 +77,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             BrewPhase.TARING -> taring(reading)
             BrewPhase.READY -> { awaitWater(reading); null }
             BrewPhase.BREWING -> { followBrew(reading, prev); null }
+            BrewPhase.PAUSED -> { followPause(reading); null }
             BrewPhase.WAITING_FOR_CUP, BrewPhase.DONE -> null
         }
     }
@@ -78,18 +91,18 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
 
     override fun interrupt(atMs: Long) = end(atMs, interrupted = true)
 
-    /** Stopped while the weight is down (server or dripper off before the lift hold ran out): it ended at the drop. */
+    /** Stopped while paused: the brew ends at the lift, even if the scale is still reading a lower weight. */
     private fun end(atMs: Long, interrupted: Boolean) {
         val began = dropBeganAtMs
         when {
-            began != null -> finish(began, dropYieldGrams, interrupted)
-            else -> finish(atMs, maxGrams, interrupted)
+            phase == BrewPhase.PAUSED && began != null -> finish(began - pausedDurationMs, dropYieldGrams, interrupted)
+            else -> finish(atMs - pausedDurationMs, maxGrams, interrupted)
         }
     }
 
     private fun finish(atMs: Long, yieldGrams: Double, interrupted: Boolean) {
         if (phase == BrewPhase.DONE) return
-        result = if (phase == BrewPhase.BREWING) {
+        result = if (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED) {
             BrewResult(requireNotNull(startedAtMs), atMs, yieldGrams, taredAtMs, interrupted)
         } else {
             null
@@ -135,20 +148,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
 
         // French press intentionally keeps the original running maximum behavior until its own review (#214).
         val grams = reading.reading.weightGrams
-        val drop = maxGrams - grams
-        val lifted = config.liftDetectionEnabled && (
-            drop >= config.liftDropGrams ||
-                (drop >= config.liftMinDropGrams && drop >= maxGrams * config.liftDropFraction)
-            )
-        if (!lifted) {
-            // Back up (or never down): a bump, keep brewing.
-            dropBeganAtMs = null
-            maxGrams = maxOf(maxGrams, grams)
-            return
-        }
-        // The drop began at the last reading before the weight fell.
-        val began = dropBeganAtMs ?: (prev?.atMs ?: reading.atMs).also { dropBeganAtMs = it }
-        if (reading.atMs - began >= config.liftHoldMs) finish(began, maxGrams, interrupted = false)
+        maxGrams = maxOf(maxGrams, grams)
     }
 
     private fun followFilterBrew(reading: TimedReading, prev: TimedReading?) {
@@ -187,7 +187,9 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
                 dropBeganAtMs = it
                 dropYieldGrams = maxOf(maxGrams, pendingPeakGrams)
             }
-            if (reading.atMs - began >= config.liftHoldMs) finish(began, dropYieldGrams, interrupted = false)
+            pauseStartedAtMs = began
+            resumeCandidateAtMs = null
+            phase = BrewPhase.PAUSED
             return
         }
 
@@ -201,6 +203,33 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             clearDecreaseCandidate()
             if (candidateReturnedAtMs != null) clearCandidate()
             updateSettledCandidate(reading)
+        }
+    }
+
+    private fun followPause(reading: TimedReading) {
+        val pausedAt = pauseStartedAtMs ?: return
+        if (reading.atMs - pausedAt >= config.pauseTimeoutMs) {
+            finish(pausedAt - pausedDurationMs, dropYieldGrams, interrupted = false)
+            return
+        }
+
+        val returned = reading.reading.weightGrams >= dropYieldGrams - config.pauseReturnToleranceGrams
+        if (!returned) {
+            resumeCandidateAtMs = null
+            return
+        }
+        val candidate = resumeCandidateAtMs
+        if (candidate == null) {
+            resumeCandidateAtMs = reading.atMs
+            return
+        }
+        if (reading.atMs - candidate >= config.pauseResumeHoldMs) {
+            pausedDurationMs += reading.atMs - pausedAt
+            pauseStartedAtMs = null
+            resumeCandidateAtMs = null
+            dropBeganAtMs = null
+            dropYieldGrams = maxGrams
+            phase = BrewPhase.BREWING
         }
     }
 

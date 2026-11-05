@@ -859,6 +859,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
         click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+        click(R.string.free_brew)
         click(R.string.next)
         // Weigh the beans: the scale shows nothing yet, so Next keeps the planned dose.
         click(R.string.next)
@@ -866,10 +869,17 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.filter_ready, 7_000)
         compose.waitForIdle()
-        // Pours from 20 s, the last one ends at 88 s and everything leaves the scale at 90 s.
+        // Pours from 20 s, then the dripper lifts at 90 s and pauses the brew.
         play(scale, 60_000)
         compose.waitForIdle()
+        play(scale, 90_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.filter_paused_hint)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
         play(scale, 93_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
         click(R.string.done)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
@@ -927,6 +937,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+        play(scale, 93_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
     }
 
     /** The third mode selector and its preselected built-in French press recipe. */

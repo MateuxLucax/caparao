@@ -18,6 +18,9 @@ enum class BrewPhase {
 
     BREWING,
 
+    /** Filter only: the dripper is lifted and the brew clock is stopped. */
+    PAUSED,
+
     /** Ended; [BrewDetector.result] holds the outcome. */
     DONE,
 }

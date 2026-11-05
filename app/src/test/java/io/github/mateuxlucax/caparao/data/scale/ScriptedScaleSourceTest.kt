@@ -36,7 +36,8 @@ class ScriptedScaleSourceTest {
             source.reading.value?.let { detector.onReading(TimedReading(atMs, it)) }
         }
 
-        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        detector.stop(89_000L)
         assertEquals(60.0, detector.result!!.yieldGrams, 0.3)
     }
 

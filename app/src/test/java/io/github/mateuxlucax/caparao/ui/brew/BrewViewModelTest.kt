@@ -181,8 +181,10 @@ class BrewViewModelTest {
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 250.0, 120.0)
-        pour(250.0, 0.0, 0.5) // the dripper lifted...
-        hold(0.0, 6.0) // ...and held past the lift hold, so the brew ends at the drop
+        pour(250.0, 0.0, 0.5) // the dripper lifted, so the timer pauses at the drop
+        hold(0.0, 6.0)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        vm.stop()
 
         val state = vm.uiState.value
         assertEquals("the brew is dated back to the drop, not the end of the hold", 120.0, state.saved!!.durationMs / 1000.0, 0.5)
@@ -482,6 +484,51 @@ class BrewViewModelTest {
         assertTrue(alerts.all { it.vibrate && !it.sound })
         vm.stop()
         assertEquals("V60", vm.uiState.value.saved!!.recipeName)
+    }
+
+    @Test
+    fun aFilterPauseFreezesTheRecipeDeadlineAndRebasesTheSavedCurve() = kotlinx.coroutines.test.runTest {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 50.0, 0),
+            RecipeStep(StepKind.WAIT, null, 0),
+            RecipeStep(StepKind.POUR, 100.0, 25_000),
+        )
+        recipes.save(v60.copy(steps = steps))
+        settings.setLastRecipeId(BrewMode.FILTER, v60.id)
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 50.0, 4.0)
+        hold(50.0, 1.1)
+        assertEquals(1, vm.uiState.value.guide!!.index)
+        hold(50.0, 12.0)
+
+        pour(50.0, 0.0, 0.3)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        val frozenTime = vm.uiState.value.elapsedMs
+        val frozenDue = vm.uiState.value.guide!!.dueInMs
+        hold(0.0, 5.0)
+        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
+        assertEquals(frozenDue, vm.uiState.value.guide!!.dueInMs)
+
+        pour(0.0, 50.0, 0.3)
+        hold(50.0, 1.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals("the wait still has time left after the pause", 1, vm.uiState.value.guide!!.index)
+        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
+        hold(50.0, 8.0)
+        assertEquals(2, vm.uiState.value.guide!!.index)
+
+        vm.stop()
+        rolled()
+        val brew = vm.uiState.value.saved!!
+        assertEquals("pause time is absent from the duration", frozenTime + 8_000L, brew.durationMs)
+        val curve = dao.samples.getValue(brew.id)
+        assertTrue("samples during the pause are omitted", curve.all { it.weightGrams >= 1.0 })
+        assertEquals("the curve ends at the saved duration", brew.durationMs, curve.last().atMs)
     }
 
     @Test

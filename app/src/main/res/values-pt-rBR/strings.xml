@@ -147,6 +147,9 @@
     <string name="cancel">Cancelar</string>
     <string name="brewing_espresso">Extraindo</string>
     <string name="brewing_filter">Passando</string>
+    <string name="filter_paused">Pausado</string>
+    <string name="filter_paused_hint">Coloque o coador de volta na balança para continuar.</string>
+    <string name="filter_finishing_in">Termina em %1$s</string>
     <!-- Servidor e envios -->
     <string name="nothing_synced_yet">Servidor configurado. Nada sincronizado ainda.</string>
     <string name="server_title">Seu servidor</string>

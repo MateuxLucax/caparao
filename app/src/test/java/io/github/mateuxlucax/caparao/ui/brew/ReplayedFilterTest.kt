@@ -4,6 +4,7 @@ import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
@@ -19,12 +20,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 /**
  * The whole chain on the JVM for a filter brew: the synthetic session with the server lifted at 90 s, replayed into
- * [BrewViewModel], with Done tapped before the lift hold runs out.
+ * [BrewViewModel], with Done tapped during the pause.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReplayedFilterTest {
@@ -34,7 +36,7 @@ class ReplayedFilterTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun theServerLiftedBeforeDoneKeepsTheWater() = TestScope(dispatcher).runTest {
+    fun theServerLiftedBeforeDoneKeepsTheWaterAndTheFrozenTime() = TestScope(dispatcher).runTest {
         Dispatchers.setMain(dispatcher)
         val lines = File("src/test/resources/sessions/synthetic-filter-lift.jsonl").readLines()
         val scale = ReplayScaleSource(backgroundScope, lines)
@@ -43,8 +45,10 @@ class ReplayedFilterTest {
         scale.start()
         vm.begin()
         vm.setDose(15.0)
-        // Everything leaves the scale at 90 s; Done is tapped 2 s later, inside the lift hold.
+        // Everything leaves the scale at 90 s; Done is tapped 2 s later, during the pause.
         advanceTimeBy(92_000)
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertTrue(kotlin.math.abs(70_000L - vm.uiState.value.elapsedMs) <= 500L)
         vm.stop()
 
         val brew = vm.uiState.value.saved!!

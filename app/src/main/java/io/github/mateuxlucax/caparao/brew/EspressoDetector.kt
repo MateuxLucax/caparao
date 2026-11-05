@@ -96,7 +96,7 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
             BrewPhase.TARING -> tare.onReading(reading).also { if (tare.zeroedAtMs != null) becomeReady() }
             BrewPhase.READY -> { awaitFirstDrop(reading); null }
             BrewPhase.BREWING -> { followBrew(reading); null }
-            BrewPhase.DONE -> null
+            BrewPhase.PAUSED, BrewPhase.DONE -> null
         }
     }
 

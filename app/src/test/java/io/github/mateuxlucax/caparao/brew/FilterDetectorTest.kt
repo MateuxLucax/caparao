@@ -102,19 +102,30 @@ class FilterDetectorTest {
     }
 
     @Test
-    fun dripperLiftedEndsAtTheLiftWithTheWaterPoured() {
+    fun dripperLiftPausesAtOnceAndReturningResumesTheClock() {
         openAndTare()
         pourWithBloom()
-        val liftAt = session.nowMs - SyntheticSession.STEP_MS
+        val liftAt = session.nowMs
         // The dripper (and the water still in it) leaves; the server keeps 190 g.
-        session.ramp(250.0, 190.0, 0.3).hold(190.0, 4.5)
+        session.ramp(250.0, 190.0, 0.3)
+        detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        assertEquals(liftAt, detector.pauseStartedAtMs)
+
+        session.ramp(190.0, 250.0, 0.3).hold(250.0, 2.0)
+        val returnedAt = session.readings.first { it.reading.weightGrams >= 247.0 }.atMs
+        val resumedAt = returnedAt + 1_000L
         detector.feed(session)
         assertEquals(BrewPhase.BREWING, detector.phase)
+        assertEquals(null, detector.pauseStartedAtMs)
 
-        session.hold(190.0, 1.0)
-        detector.feed(session)
+        detector.stop(session.nowMs)
         val result = detector.result!!
-        assertEquals(liftAt.toDouble(), result.endedAtMs.toDouble(), 100.0)
+        assertEquals(
+            (session.nowMs - SyntheticSession.STEP_MS - (resumedAt - liftAt)).toDouble(),
+            result.endedAtMs.toDouble(),
+            100.0,
+        )
         assertEquals(250.0, result.yieldGrams, 0.3)
     }
 
@@ -123,7 +134,7 @@ class FilterDetectorTest {
         openAndTare()
         pourWithBloom()
         val liftAt = session.nowMs - SyntheticSession.STEP_MS
-        // Everything off the scale: below the tare, and done tapped before the lift hold ran out.
+        // Everything off the scale: below the tare, and Done tapped during the pause.
         session.ramp(250.0, -280.0, 0.3).hold(-280.0, 2.0)
         detector.feed(session)
         detector.stop(session.nowMs)
@@ -133,20 +144,31 @@ class FilterDetectorTest {
     }
 
     @Test
-    fun smallBrewLiftedByFractionEnds() {
+    fun smallBrewLiftedByFractionPausesAndEndsAfterTimeout() {
         openAndTare()
-        session.ramp(0.0, 100.0, 20.0).hold(100.0, 2.0).hold(85.0, 6.0) // 15 %, below 30 g
+        session.ramp(0.0, 100.0, 20.0).hold(100.0, 2.0) // 15 %, below 30 g
+        val liftAt = session.nowMs - SyntheticSession.STEP_MS
+        session.hold(85.0, 6.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        session.hold(85.0, 22.0)
+        detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        session.hold(85.0, 6.0)
         detector.feed(session)
         assertEquals(100.0, detector.result!!.yieldGrams, 0.01)
+        assertEquals(liftAt, detector.result!!.endedAtMs)
     }
 
     @Test
     fun dripperBumpedAndPutBackKeepsBrewing() {
         openAndTare()
         pourWithBloom()
-        session.ramp(250.0, 180.0, 0.2).hold(180.0, 3.0).ramp(180.0, 250.0, 0.3).hold(250.0, 10.0)
+        session.ramp(250.0, 225.0, 0.2).hold(225.0, 3.0).ramp(225.0, 250.0, 2.0).hold(250.0, 10.0)
         detector.feed(session)
         assertEquals(BrewPhase.BREWING, detector.phase)
+        detector.stop(session.nowMs)
+        assertEquals(250.0, detector.result!!.yieldGrams, 0.5)
     }
 
     @Test
@@ -162,7 +184,8 @@ class FilterDetectorTest {
         session.ramp(45.0, 60.0, 3.0).hold(60.0, 2.0).hold(45.0, 6.0)
         detector.feed(session)
 
-        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        detector.stop(session.nowMs)
         assertEquals(60.0, detector.result!!.yieldGrams, 0.1)
     }
 
@@ -200,7 +223,8 @@ class FilterDetectorTest {
         session.ramp(45.0, 60.0, 1.5).hold(60.0, 0.2).hold(45.0, 5.5)
         detector.feed(session)
 
-        assertEquals(BrewPhase.DONE, detector.phase)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+        detector.stop(session.nowMs)
         assertEquals(60.0, detector.result!!.yieldGrams, 0.1)
     }
 

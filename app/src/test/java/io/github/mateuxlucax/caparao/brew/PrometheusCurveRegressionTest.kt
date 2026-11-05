@@ -140,7 +140,8 @@ class PrometheusCurveRegressionTest {
         val readings = curve.points.map { (t, grams) -> reading(HARNESS_MS + t, grams) }
         readings.forEach { detector.onReading(it) }
 
-        assertEquals("no reviewed curve ends early", BrewPhase.BREWING, detector.phase)
+        val expectedPhase = if (case == "p16-filter-handling") BrewPhase.PAUSED else BrewPhase.BREWING
+        assertEquals("reviewed curve stays active or pauses at its removal", expectedPhase, detector.phase)
         detector.stop(readings.last().atMs)
         val result = requireNotNull(detector.result)
         val mode = if (curve.mode == "espresso") BrewMode.ESPRESSO else BrewMode.FILTER

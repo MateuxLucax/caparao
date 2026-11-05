@@ -34,11 +34,12 @@ object WatchMirror {
         }
         val watchState = when {
             live.step == BrewStep.SUMMARY || live.phase == BrewPhase.DONE -> WatchState.DONE
-            live.phase == BrewPhase.BREWING -> WatchState.BREWING
+            live.phase == BrewPhase.BREWING || live.phase == BrewPhase.PAUSED -> WatchState.BREWING
             else -> WatchState.READY
         }
         return WatchSnapshot(
-            watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs, timerRunning, guide(live),
+            watchState, live.weightGrams.toFloat(), live.flowGramsPerSecond.toFloat(), live.elapsedMs,
+            live.phase == BrewPhase.BREWING, guide(live),
         )
     }
 

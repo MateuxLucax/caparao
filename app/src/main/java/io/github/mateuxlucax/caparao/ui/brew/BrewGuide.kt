@@ -99,7 +99,7 @@ fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase): GuideStage = w
             BrewMode.ESPRESSO -> GuideStage.FIRST_DROP
             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> GuideStage.POUR
         }
-        BrewPhase.BREWING, BrewPhase.DONE -> when (mode) {
+        BrewPhase.BREWING, BrewPhase.PAUSED, BrewPhase.DONE -> when (mode) {
             BrewMode.ESPRESSO -> GuideStage.BREWING_ESPRESSO
             BrewMode.FILTER -> GuideStage.BREWING_FILTER
             BrewMode.FRENCH_PRESS -> GuideStage.BREWING_FRENCH_PRESS
