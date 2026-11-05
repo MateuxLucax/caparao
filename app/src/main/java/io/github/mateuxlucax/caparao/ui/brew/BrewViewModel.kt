@@ -305,7 +305,10 @@ class BrewViewModel(
 
     private fun onReading(reading: ScaleReading) {
         val current = detector
-        if (mode == BrewMode.FILTER && current != null && (current.phase == BrewPhase.READY || current.phase == BrewPhase.BREWING) && _uiState.value.step == BrewStep.LIVE) {
+        if (mode == BrewMode.FILTER && current != null &&
+            (current.phase == BrewPhase.READY || current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED) &&
+            _uiState.value.step == BrewStep.LIVE
+        ) {
             val since = if (reading.weightGrams < 0.0) {
                 filterLiftBeganAtMs ?: clock().also { filterLiftBeganAtMs = it }
             } else {

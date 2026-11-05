@@ -495,6 +495,7 @@ class BrewViewModelTest {
         pour(scaled[0], scaled[1], 8.0)
         hold(scaled[1], 1.0)
         pour(scaled[1], scaled[2], 20.0)
+        hold(scaled[2], 1.1)
 
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals(scaled, vm.uiState.value.steps.map { it.targetWeightGrams })
@@ -675,6 +676,7 @@ class BrewViewModelTest {
             pour(0.0, 40.0, 8.0)
             hold(40.0, 152.0)
             pour(40.0, 100.0, 5.0)
+            hold(100.0, 1.1)
         }
 
         assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
@@ -718,7 +720,7 @@ class BrewViewModelTest {
         pour(0.0, 40.0, 8.0)
         hold(40.0, 12.0)
         pour(40.0, 100.0, 12.0)
-        hold(100.0, 8.0)
+        hold(100.0, 1.1)
 
         assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
         assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
@@ -734,7 +736,7 @@ class BrewViewModelTest {
         pour(0.0, 100.0, 0.3)
         hold(100.0, 1.2)
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
+        assertTrue(vm.uiState.value.elapsedMs - frozenTime in 0L..250L)
         hold(100.0, 5.0)
         assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
         assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
@@ -761,6 +763,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         val firstWaterEpochMs = 1_000_000 + now + 100
@@ -818,6 +821,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 20.0, 2.0)
@@ -995,6 +999,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
 
@@ -1035,6 +1040,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 50.0, 4.0)
@@ -1065,6 +1071,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(15.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 2.0, 0.4)

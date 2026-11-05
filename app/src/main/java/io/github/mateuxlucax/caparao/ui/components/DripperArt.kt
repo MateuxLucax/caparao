@@ -71,8 +71,8 @@ object DripperArt {
     private const val FLANGE_HEIGHT = 5f
     private const val FLANGE_RADIUS = 2.5f
 
-    private val server = ServerArt.bodyPath(top = 60f)
-    private val handlePath = ServerArt.handlePath()
+    private val server by lazy { ServerArt.bodyPath(top = 60f) }
+    private val handlePath by lazy { ServerArt.handlePath() }
 
     private val cone by lazy {
         Path().apply {

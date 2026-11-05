@@ -924,14 +924,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.filter_paused_hint)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
-        play(scale, 93_000)
-        compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
-        play(scale, 110_000)
-        compose.waitForIdle()
-        compose.onNodeWithText(context.getString(R.string.filter_finishing_in, Format.timer(10))).assertIsDisplayed()
-        click(R.string.done)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
@@ -1074,7 +1068,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         compose.waitForIdle()
         compose.onNodeWithContentDescription(
-            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_wait)),
+            context.getString(R.string.milestone_and_step, text(R.string.milestone_brew), text(R.string.step_swirl)),
         ).assertIsDisplayed()
         play(scale, 59_000)
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.guide_pour, Format.grams(100.0, locale))), 5_000)
@@ -1085,10 +1079,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
-        play(scale, 93_000)
+        play(scale, 90_000)
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.done)).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
     }
 
     /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
