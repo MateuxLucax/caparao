@@ -961,6 +961,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
         compose.onNodeWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
         compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        val ratio = context.getString(R.string.ratio_value, Format.ratio(recipe.targetRatio, locale))
+        compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
         compose.onNodeWithText("00:30").assertIsDisplayed()
         compose.onNodeWithText("01:00").assertIsDisplayed()
     }

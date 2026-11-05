@@ -408,7 +408,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun filterRecipeWaterAndDoseChangesScaleOnlyThisBrew() = kotlinx.coroutines.test.runTest {
+    fun filterRecipeWaterOutsideTheDoseLimitsDoesNotChangeThePlan() = kotlinx.coroutines.test.runTest {
         val recipe = v60.copy(
             targetRatio = 16.7,
             steps = listOf(
@@ -420,12 +420,107 @@ class BrewViewModelTest {
         recipes.save(recipe)
         val vm = viewModel(BrewMode.FILTER)
         vm.begin()
+        vm.selectRecipe(recipe)
 
-        vm.setFilterRecipeWater(400.0)
-        assertEquals(listOf(72.0, 144.0, 400.0), vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams })
-        assertEquals(400.0 / 16.7, vm.uiState.value.dose!!, 1e-9)
+        vm.setFilterRecipeWater(1700.0)
+        assertEquals(15.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe.steps, vm.uiState.value.recipe!!.steps)
+        vm.setFilterRecipeWater(1.0)
+        assertEquals(15.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(recipe.steps, vm.uiState.value.recipe!!.steps)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
+    fun selectingTheAlreadySelectedRecipeKeepsThisBrewsScaledWater() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0), RecipeStep(StepKind.POUR, 250.0, 30_000)),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setFilterRecipeWater(300.0)
+
+        val scaled = vm.uiState.value.recipe
+        vm.selectRecipe(recipe)
+
+        assertEquals(scaled, vm.uiState.value.recipe)
+        assertEquals(300.0, vm.uiState.value.recipe!!.steps.last().targetWeightGrams!!, 0.0)
+    }
+
+    @Test
+    fun aRecipeUpdatedElsewhereRefreshesDoseAndRatioBeforeBrewing() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(targetRatio = 16.7, steps = listOf(RecipeStep(StepKind.POUR, 250.0, 0)))
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        val updated = recipe.copy(doseGrams = 18.0, targetRatio = 17.0, updatedAt = 1)
+
+        recipes.save(updated)
+        main.dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(updated, vm.uiState.value.recipe)
+        assertEquals(18.0, vm.uiState.value.dose!!, 0.0)
+        assertEquals(17.0, vm.uiState.value.targetRatio, 0.0)
+    }
+
+    @Test
+    fun aRunningGuideUsesTheRecipeStepsScaledByWater() {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 0),
+                RecipeStep(StepKind.POUR, 250.0, 0),
+            ),
+        )
+        runBlocking { recipes.save(recipe) }
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.selectRecipe(recipe)
+        vm.setFilterRecipeWater(310.0)
+        val scaled = listOf(55.8, 111.6, 310.0)
+
+        vm.setDose(vm.uiState.value.dose!!)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, scaled[0], 8.0)
+        hold(scaled[0], 1.0)
+        pour(scaled[0], scaled[1], 8.0)
+        hold(scaled[1], 1.0)
+        pour(scaled[1], scaled[2], 20.0)
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(scaled, vm.uiState.value.steps.map { it.targetWeightGrams })
+        assertEquals(recipe.steps.size, vm.uiState.value.guide!!.index)
+    }
+
+    @Test
+    fun filterRecipeDoseChangesScaleOnlyThisBrew() = kotlinx.coroutines.test.runTest {
+        val recipe = v60.copy(
+            targetRatio = 16.7,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 45.0, 0),
+                RecipeStep(StepKind.POUR, 90.0, 30_000),
+                RecipeStep(StepKind.POUR, 250.0, 60_000),
+            ),
+        )
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
         vm.setFilterRecipeDose(20.0)
-        assertEquals(listOf(60.0, 120.0, 334.0), vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams })
+
+        val targets = vm.uiState.value.recipe!!.steps.map { it.targetWeightGrams!! }
+        assertEquals(60.12, targets[0], 1e-9)
+        assertEquals(120.24, targets[1], 1e-9)
+        assertEquals(334.0, targets[2], 0.0)
         assertEquals(20.0, vm.uiState.value.dose!!, 0.0)
         assertEquals(recipe, recipes.get(recipe.id))
     }

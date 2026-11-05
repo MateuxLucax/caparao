@@ -137,7 +137,12 @@ class BrewViewModel(
 
     /** On the dose step: follow [recipe], or none for a free brew. Its dose fills the dose field. */
     fun selectRecipe(recipe: Recipe?) {
-        if (_uiState.value.step != BrewStep.DOSE) return
+        val state = _uiState.value
+        if (state.step != BrewStep.DOSE) return
+        if (mode == BrewMode.FILTER && filterRecipeEdited && state.recipe?.id == recipe?.id) {
+            settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
+            return
+        }
         recipeChosen = true
         filterRecipeEdited = false
         filterRecipeBase = recipe?.takeIf { mode == BrewMode.FILTER && it.mode == BrewMode.FILTER }
@@ -149,7 +154,7 @@ class BrewViewModel(
     fun setFilterRecipeWater(grams: Double) {
         val state = _uiState.value
         val recipe = filterRecipeBase?.takeIf { state.recipe?.id == it.id && mode == BrewMode.FILTER } ?: return
-        if (state.step != BrewStep.DOSE || grams !in 1.0..2000.0) return
+        if (state.step != BrewStep.DOSE || grams !in 1.0..2000.0 || grams / recipe.targetRatio !in RecipeForm.DOSE) return
         val scaled = scaleRecipeToWater(recipe, grams)
         filterRecipeEdited = true
         _uiState.update { it.copy(recipe = scaled, dose = scaled.doseGrams) }
@@ -388,11 +393,18 @@ class BrewViewModel(
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
         // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
-        val current = state.recipe?.let { chosen ->
-            list.find { it.id == chosen.id }?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: chosen
-        }
+        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }
+        val current = savedRecipe?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: state.recipe
         if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { it.mode == BrewMode.FILTER }
-        _uiState.update { it.copy(recipes = list, recipe = current) }
+        val refreshPlan = savedRecipe?.takeIf { mode == BrewMode.FILTER && state.step == BrewStep.DOSE && !filterRecipeEdited }
+        _uiState.update {
+            it.copy(
+                recipes = list,
+                recipe = current,
+                dose = refreshPlan?.doseGrams ?: it.dose,
+                targetRatio = refreshPlan?.targetRatio ?: it.targetRatio,
+            )
+        }
         if (recipeChosen || state.step != BrewStep.DOSE) return
         recipeChosen = true
         // Never chosen in this mode: the first recipe; free brew only when it was the last choice.
