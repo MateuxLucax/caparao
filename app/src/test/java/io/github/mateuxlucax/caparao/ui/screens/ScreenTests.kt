@@ -969,6 +969,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("filter-prepare-row-0").performClick()
         compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+        (1..4).forEach { index ->
+            compose.onNodeWithTag("filter-prepare-row-$index").performClick()
+        }
+        compose.onAllNodes(isToggleable()).assertAll(isOn())
+        compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
 
         click(R.string.prepare_ready)
         compose.waitForIdle()
@@ -1014,9 +1019,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         repeat(15) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
         compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
         compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(24.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
         compose.onNodeWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
         compose.onNodeWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
         compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        // Reduced motion switches the whole scaled plan together, with no stale outgoing recipe values left behind.
+        compose.onAllNodesWithText("${Format.grams(45.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(0)
+        compose.onAllNodesWithText("${Format.grams(90.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(0)
+        compose.onAllNodesWithText("${Format.grams(250.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(0)
+        compose.onAllNodesWithText("${Format.grams(15.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(0)
+        compose.onAllNodesWithText("${Format.grams(24.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(1)
+        compose.onAllNodesWithText("${Format.grams(72.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(1)
+        compose.onAllNodesWithText("${Format.grams(144.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(1)
+        compose.onAllNodesWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertCountEquals(1)
         val ratio = context.getString(R.string.ratio_value, Format.ratio(recipe.targetRatio, locale))
         compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
         compose.onNodeWithText("00:30").assertIsDisplayed()

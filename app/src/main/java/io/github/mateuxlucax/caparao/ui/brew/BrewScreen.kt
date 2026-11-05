@@ -234,9 +234,13 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
-                // Espresso's ring opens on the first drop, the tare rolls the weight to zero, and the flow thickens a cue (#194).
-                started = !espresso || brewing || state.phase == BrewPhase.DONE,
-                rolling = espresso && state.phase == BrewPhase.TARING,
+                // Espresso opens on its first drop (#194); filter opens on first water. Both roll through tare.
+                started = when (state.mode) {
+                    BrewMode.ESPRESSO, BrewMode.FILTER -> brewing || state.phase == BrewPhase.DONE
+                    BrewMode.FRENCH_PRESS -> true
+                },
+                rolling = (espresso || state.mode == BrewMode.FILTER) && state.phase == BrewPhase.TARING,
+                respectMotionSetting = state.mode == BrewMode.FILTER,
                 flowCue = espresso,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary

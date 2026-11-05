@@ -88,12 +88,19 @@ fun ScaleReadout(
     flowCue: Boolean = false,
     /** Filter pause: soften the ring while keeping the held weight readable. */
     ringAlpha: Float = 1f,
+    /** Filter motion follows the system setting without changing espresso's established readout. */
+    respectMotionSetting: Boolean = false,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    val motionOff = respectMotionSetting && animationsOff()
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
     val weight by animateFloatAsState(
         weightGrams.toFloat(),
-        if (rolling) tween(400, easing = Motion.EmphasizedDecelerate) else tween(100, easing = LinearEasing),
+        when {
+            motionOff -> snap()
+            rolling -> tween(400, easing = Motion.EmphasizedDecelerate)
+            else -> tween(100, easing = LinearEasing)
+        },
         label = "weight",
     )
     val flow = flowGramsPerSecond.coerceIn(0.0, 99.9)

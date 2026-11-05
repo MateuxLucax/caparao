@@ -2,6 +2,8 @@ package io.github.mateuxlucax.caparao.ui.brew
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -228,6 +230,7 @@ private fun Milestones(
     splitBrew: Boolean,
 ) {
     val milestone = milestoneIndex(milestones, stage)
+    val still = splitBrew && animationsOff()
     val names = milestones.map { stringResource(it.name) }
     val weights = names.map { it.length.coerceAtLeast(1).toFloat() }
     val brewMilestone = milestones.indexOfFirst { GuideStage.BREWING_FILTER in it.stages }
@@ -267,7 +270,7 @@ private fun Milestones(
                             i < currentSegment -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                             else -> MaterialTheme.colorScheme.surfaceContainerHighest
                         },
-                        Motion.standard(),
+                        Motion.standardOrSnap(still),
                         label = "milestone",
                     )
                     Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
@@ -309,6 +312,8 @@ private fun Milestones(
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Boolean = false) {
     val density = LocalDensity.current
+    val filterMotion = stage == GuideStage.PREPARE_FILTER || stage == GuideStage.TARE || stage == GuideStage.POUR || stage == GuideStage.BREWING_FILTER
+    val still = filterMotion && animationsOff()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
         if (stage.pictured) {
@@ -317,14 +322,24 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Bool
                 if (espresso) {
                     EspressoPicture(stage)
                 } else {
-                    AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                    AnimatedContent(
+                        stage,
+                        transitionSpec = {
+                            if (still) EnterTransition.None togetherWith ExitTransition.None
+                            else fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4))
+                        },
+                        label = "picture",
+                    ) { StageAnimation(it) }
                 }
             }
         }
         AnimatedContent(
             stage,
             Modifier.fillMaxWidth(),
-            transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+            transitionSpec = {
+                if (still) EnterTransition.None togetherWith ExitTransition.None
+                else Motion.springAxisX(targetState.ordinal > initialState.ordinal, density)
+            },
             label = "stage",
         ) { shown ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
