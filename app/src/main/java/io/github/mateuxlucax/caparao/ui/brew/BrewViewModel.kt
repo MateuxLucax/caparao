@@ -178,11 +178,13 @@ class BrewViewModel(
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
         diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
-        if (new is EspressoDetector && espressoBaseline != null) {
-            new.beginWaitingFromBaseline(TimedReading(clock(), espressoBaseline))
+        // Espresso without a reading (Ready after a disconnect) takes the first one as its baseline.
+        if (new is EspressoDetector) {
+            new.beginWaitingFromBaseline(espressoBaseline?.let { TimedReading(clock(), it) })
+        } else {
+            // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
+            scale.reading.value?.let(::onReading)
         }
-        // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
-        if (new !is EspressoDetector || espressoBaseline == null) scale.reading.value?.let(::onReading)
     }
 
     /** Espresso: the cup on the scale is already tared, skip waiting for it. */

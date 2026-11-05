@@ -23,6 +23,9 @@ import androidx.compose.ui.test.assertAll
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -176,6 +179,16 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     private fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
 
     private fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
+
+    /** A node whose whole text matches [pattern]: the readout's weight (a decimal) and timer (mm:ss). */
+    private fun textMatching(pattern: Regex) =
+        SemanticsMatcher("text matching $pattern") { node -> node.config.getOrNull(SemanticsProperties.Text)?.any { pattern.matches(it.text) } == true }
+
+    /** The live readout's weight and timer, which stay on screen through the shot. */
+    private fun assertWeightAndTimerShown() {
+        compose.onNode(textMatching(Regex("\\d+[.,]\\d"))).assertIsDisplayed()
+        compose.onNode(textMatching(Regex("\\d\\d:\\d\\d"))).assertIsDisplayed()
+    }
 
     private fun open(
         session: String,
@@ -650,7 +663,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.next)
         waitFor(R.string.prepare_portafilter_title)
         compose.onNode(hasContentDescription(text(R.string.milestone_portafilter))).assertIsDisplayed()
-        compose.onAllNodes(hasText("Step ", substring = true)).assertCountEquals(0)
+        // The localized counter's own prefix ("Step " or "Etapa "), so the check means something in pt-BR too.
+        val counterPrefix = context.getString(R.string.step_of_named, 1, 8, "").substringBefore("1")
+        compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.prepare_grind_with_setting, "10")).assertIsDisplayed()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
@@ -712,6 +727,54 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onAllNodes(isToggleable()).assertAll(isOn())
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithText(text(R.string.prepare_ready)).assertIsDisplayed()
+    }
+
+    /**
+     * The same espresso path with animations on (#194): the cup lands, the tare rolls the weight to zero and the first
+     * drop falls. The milestone, weight, timer and flow stay on screen through each stage. The ring's open state is
+     * covered by ScaleReadoutRingTest, since the Canvas has no semantics to query here.
+     */
+    @Test
+    fun espressoMotionAnimated() {
+        val before = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        try {
+            val scale = open("synthetic-espresso-guide", 0)
+            click(R.string.mode_espresso)
+            compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+            compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+            click(R.string.next)
+            click(R.string.next)
+            click(R.string.prepare_ready)
+            compose.waitForIdle()
+            playUntilShown(scale, R.string.taring, 15_000)
+            compose.waitForIdle()
+            // The tare rolls the weight down to zero on its 400 ms tween; the readout keeps its labels while it does.
+            while (compose.onAllNodes(hasText(Format.grams(0.0, locale))).fetchSemanticsNodes().isEmpty()) {
+                check(scale.nowMs < 20_000) { "the weight never rolled to zero" }
+                compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+                compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+                play(scale, scale.nowMs + 100)
+                compose.waitForIdle()
+            }
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+            playUntilShown(scale, R.string.espresso_ready, 20_000)
+            compose.waitForIdle()
+            compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            playUntilShown(scale, R.string.brewing_espresso, 60_000)
+            compose.waitForIdle()
+            compose.onNode(hasContentDescription(text(R.string.milestone_shot))).assertIsDisplayed()
+            assertWeightAndTimerShown()
+            compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
+        } finally {
+            Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, before)
+        }
     }
 
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */
