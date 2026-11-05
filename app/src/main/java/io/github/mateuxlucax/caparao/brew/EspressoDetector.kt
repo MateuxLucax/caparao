@@ -32,6 +32,8 @@ data class TareConfig(
     val zeroHoldMs: Long = 500,
     /** Without zero after this long, the tare is sent once more. */
     val retryAfterMs: Long = 3_000,
+    /** Still no zero this long after that retry: the screen offers Retry. The wait goes on, so a late zero still counts. */
+    val giveUpAfterRetryMs: Long = 5_000,
 )
 
 /**
@@ -44,6 +46,7 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
         private set
     override var result: BrewResult? = null
         private set
+    override val tareTimedOut: Boolean get() = tare.timedOut
 
     private val tare = TareWatcher(config.tare)
     private val recent = ArrayDeque<TimedReading>()
@@ -59,6 +62,11 @@ class EspressoDetector(private val config: EspressoConfig = EspressoConfig()) : 
 
     /** The cup is already on the scale and tared, or the user wants to skip waiting: tare now and get ready. */
     fun armNow(atMs: Long): ScaleCommand {
+        startTaring(atMs)
+        return ScaleCommand.TARE
+    }
+
+    override fun retryTare(atMs: Long): ScaleCommand {
         startTaring(atMs)
         return ScaleCommand.TARE
     }
@@ -204,7 +212,12 @@ internal const val EPSILON = 1e-6
 internal class TareWatcher(private val config: TareConfig) {
     private var requestedAtMs = 0L
     private var retried = false
+    private var retriedAtMs = 0L
     private var zeroSinceMs: Long? = null
+
+    /** The tare was retried and the scale still did not read zero for [TareConfig.giveUpAfterRetryMs] after it. */
+    var timedOut = false
+        private set
 
     /** When zero was first read in the run that confirmed the tare; null until then. */
     var zeroedAtMs: Long? = null
@@ -215,20 +228,26 @@ internal class TareWatcher(private val config: TareConfig) {
         retried = false
         zeroSinceMs = null
         zeroedAtMs = null
+        timedOut = false
     }
 
     fun onReading(reading: TimedReading): ScaleCommand? {
         val now = reading.atMs
         if (abs(reading.reading.weightGrams) <= config.zeroToleranceGrams + EPSILON) {
             val since = zeroSinceMs ?: now.also { zeroSinceMs = it }
-            if (now - since >= config.zeroHoldMs) zeroedAtMs = since
+            if (now - since >= config.zeroHoldMs) {
+                zeroedAtMs = since
+                timedOut = false
+            }
             return null
         }
         zeroSinceMs = null
         if (!retried && now - requestedAtMs >= config.retryAfterMs) {
             retried = true
+            retriedAtMs = now
             return ScaleCommand.TARE
         }
+        if (retried && now - retriedAtMs >= config.giveUpAfterRetryMs) timedOut = true
         return null
     }
 }

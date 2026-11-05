@@ -13,8 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isSelectable
@@ -50,6 +53,8 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.ScaleError
+import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
 import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
@@ -645,6 +650,47 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         playUntilShown(scale, R.string.espresso_ready, 20_000)
         compose.waitForIdle()
+    }
+
+    /**
+     * The cup lands at 8 s but the scale never reads zero: taring times out after the retry and shows the error. Retry
+     * with the scale zeroing again tares, and the guide carries on to the first drop.
+     */
+    @Test
+    fun espressoTareTimesOut() {
+        val scale = open("synthetic-espresso-guide", 0)
+        scale.zeroOnTare = false
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.taring, 15_000)
+        playUntilShown(scale, R.string.tare_failed_title, 40_000)
+        compose.onNodeWithText(text(R.string.tare_failed_hint)).assertIsDisplayed()
+        scale.zeroOnTare = true
+        click(R.string.retry)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.espresso_ready, 55_000)
+        compose.onAllNodes(hasText(text(R.string.tare_failed_title))).assertCountEquals(0)
+    }
+
+    /** Retry is greyed out while the scale is disconnected, and the error stays on screen; it works again once connected. */
+    @Test
+    fun espressoTareRetryNeedsAConnectedScale() {
+        val scale = open("synthetic-espresso-guide", 0)
+        scale.zeroOnTare = false
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.tare_failed_title, 40_000)
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.retry)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.tare_failed_title)).assertIsDisplayed()
+        scale.state.value = ScaleState.Connected(battery = null)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.retry)).assertIsEnabled()
     }
 
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */
