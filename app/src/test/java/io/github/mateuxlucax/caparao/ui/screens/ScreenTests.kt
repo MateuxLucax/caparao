@@ -14,7 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isSelectable
@@ -43,6 +46,7 @@ import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.BuiltInRecipes
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SeedBuiltInRecipes
@@ -52,6 +56,8 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.ScaleError
+import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
 import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
@@ -558,6 +564,49 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /** Espresso with a recipe: a target, so its values are shown and nothing changes the dose or ratio (#189). */
+    @Test
+    fun espressoRecipeIsReadOnly() {
+        settings.setLastRecipeId(BrewMode.ESPRESSO, BuiltInRecipes.ESPRESSO_ID)
+        open("idle-5min", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster"), 5_000)
+        compose.waitForIdle()
+
+        val grams = text(R.string.unit_grams)
+        compose.onNodeWithText("${Format.grams(19.0, locale)} $grams").assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithText("${Format.grams(19.0 * 2.2, locale)} $grams").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.2, locale))).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.espresso_window, "27", "33")).assertIsDisplayed()
+        compose.onNodeWithText("10").assertIsDisplayed()
+        compose.onNodeWithText("92 ${text(R.string.unit_celsius)}").assertIsDisplayed()
+        compose.onNodeWithText("Pirados por Café", substring = true).assertIsDisplayed()
+
+        // No ratio or dose controls: to change the recipe, the user edits it in Recipes.
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.ratio_less)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.ratio_more)).assertDoesNotExist()
+    }
+
+    /** Espresso free brew: the water follows the dose and the ratio, and can't be edited (#189). */
+    @Test
+    fun espressoFreeBrewCalculatesWater() {
+        settings.setLastRecipeId(BrewMode.ESPRESSO, SettingsStore.FREE_BREW)
+        open("idle-5min", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.waitForIdle()
+
+        fun water(ratio: Double) = "${Format.grams(18.0 * ratio, locale)} ${text(R.string.unit_ml)}"
+        compose.onNodeWithText(water(2.0)).assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(water(2.1)), 5_000)
+
+        // The dose is still the user's to set.
+        compose.onNodeWithText("${Format.grams(18.0, locale)} ${text(R.string.unit_grams)}").performClick()
+        compose.onNodeWithText(text(R.string.dose_field)).assertExists()
+    }
+
     /** The 320dp runner width from #145: keep the weigh action in the rendered viewport. */
     @Test
     fun smallScreenWeigh() {
@@ -660,6 +709,29 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     /**
+     * The cup lands at 8 s but the scale never reads zero: taring times out after the retry and shows the error. Retry
+     * with the scale zeroing again tares, and the guide carries on to the first drop.
+     */
+    @Test
+    fun espressoTareTimesOut() {
+        val scale = open("synthetic-espresso-guide", 0)
+        scale.zeroOnTare = false
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.taring, 15_000)
+        playUntilShown(scale, R.string.tare_failed_title, 40_000)
+        compose.onNodeWithText(text(R.string.tare_failed_hint)).assertIsDisplayed()
+        scale.zeroOnTare = true
+        click(R.string.retry)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.espresso_ready, 55_000)
+        compose.onAllNodes(hasText(text(R.string.tare_failed_title))).assertCountEquals(0)
+    }
+
+    /**
      * The same espresso path with animations on (#194): the cup lands, the tare rolls the weight to zero and the first
      * drop falls. The milestone, weight, timer and flow stay on screen through each stage. The ring's open state is
      * covered by ScaleReadoutRingTest, since the Canvas has no semantics to query here.
@@ -705,6 +777,26 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         } finally {
             Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, before)
         }
+    }
+
+    /** Retry is greyed out while the scale is disconnected, and the error stays on screen; it works again once connected. */
+    @Test
+    fun espressoTareRetryNeedsAConnectedScale() {
+        val scale = open("synthetic-espresso-guide", 0)
+        scale.zeroOnTare = false
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.tare_failed_title, 40_000)
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.retry)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.tare_failed_title)).assertIsDisplayed()
+        scale.state.value = ScaleState.Connected(battery = null)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.retry)).assertIsEnabled()
     }
 
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */

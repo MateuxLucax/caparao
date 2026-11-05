@@ -120,5 +120,9 @@ class WatchMirrorTest {
         assertEquals(WatchAlert.TARGET_REACHED, WatchMirror.alert(StepEvent.Reached(1)))
         assertEquals(WatchAlert.COUNTDOWN, WatchMirror.alert(StepEvent.Countdown(1, 3)))
         assertEquals(WatchAlert.ALL_DONE, WatchMirror.alert(StepEvent.AllDone))
+        assertEquals(WatchAlert.CUP_DETECTED, WatchMirror.alert(StepEvent.CupDetected))
+        assertEquals(WatchAlert.TARE_CONFIRMED, WatchMirror.alert(StepEvent.TareConfirmed))
+        assertEquals(WatchAlert.FIRST_DROP, WatchMirror.alert(StepEvent.FirstDrop))
+        assertEquals(WatchAlert.IN_TARGET_BAND, WatchMirror.alert(StepEvent.InTargetBand))
     }
 }

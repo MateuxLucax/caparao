@@ -251,7 +251,24 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
+            BrewPhase.TARING -> if (state.tareTimedOut) {
+                TareFailed(connected = state.connected, onRetry = viewModel::retryTare)
+            } else {
+                Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
+            }
             else -> Spacer(Modifier.height(ButtonDefaults.MediumContainerHeight))
+        }
+    }
+}
+
+/** The tare never read zero, even after the retry: the problem, what to do, and Retry. Nothing is recorded. */
+@Composable
+private fun TareFailed(connected: Boolean, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.tare_failed_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.tare_failed_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = connected) {
+            Text(stringResource(R.string.retry), style = MaterialTheme.typography.titleMedium)
         }
     }
 }
