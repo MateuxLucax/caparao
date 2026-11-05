@@ -18,6 +18,8 @@ data class BrewUiState(
     /** As typed or weighed; null until set (the last one is suggested).*/
     val dose: Double? = null,
     val phase: BrewPhase = BrewPhase.WAITING_FOR_CUP,
+    /** Taring and no zero even after the retry: the tare screen offers Retry until a zero comes. */
+    val tareTimedOut: Boolean = false,
     val connected: Boolean = false,
     val weightGrams: Double = 0.0,
     /** Smoothed from the weights, not the scale's raw flow. */
