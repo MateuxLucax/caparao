@@ -445,9 +445,14 @@ class BrewViewModelTest {
     }
 
     /** A filter brew following [steps]: tared, then poured as [pours] describes; the alerts it raised. */
-    private fun guidedFilter(steps: List<RecipeStep>, pours: () -> Unit): Pair<BrewViewModel, List<GuideAlert>> {
+    private fun guidedFilter(
+        steps: List<RecipeStep>,
+        targetMinMs: Long? = null,
+        targetMaxMs: Long? = null,
+        pours: () -> Unit,
+    ): Pair<BrewViewModel, List<GuideAlert>> {
         val alerts = mutableListOf<GuideAlert>()
-        recipes.run { kotlinx.coroutines.runBlocking { save(v60.copy(steps = steps)) } }
+        recipes.run { kotlinx.coroutines.runBlocking { save(v60.copy(steps = steps, targetMinMs = targetMinMs, targetMaxMs = targetMaxMs)) } }
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
@@ -481,6 +486,24 @@ class BrewViewModelTest {
         assertTrue(alerts.all { it.vibrate && !it.sound })
         vm.stop()
         assertEquals("V60", vm.uiState.value.saved!!.recipeName)
+    }
+
+    @Test
+    fun filterDrainRangeAlertsOnceWhenItBeginsAndWhenItPasses() {
+        settings.guideSound = true
+        val (vm, alerts) = guidedFilter(twoPours, targetMinMs = 28_000, targetMaxMs = 34_000) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            hold(100.0, 8.0)
+        }
+
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertTrue(alerts.filter { it.event == StepEvent.DrainTimeEntered || it.event == StepEvent.DrainTimePassed }.all { it.vibrate && it.sound })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimeEntered })
+        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
     }
 
     @Test

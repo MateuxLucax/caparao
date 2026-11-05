@@ -31,6 +31,22 @@ class RecipeFormTest {
     }
 
     @Test
+    fun filterTimeWindowIsOptionalButMustBeACompleteOrderedPair() {
+        assertEquals(emptySet<Field>(), filter.validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "120").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(maxSeconds = "150").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "bad", maxSeconds = "150").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "151", maxSeconds = "150").validate())
+
+        val withRange = filter.copy(minSeconds = "120", maxSeconds = "150")
+        assertEquals(emptySet<Field>(), withRange.validate())
+        val recipe = withRange.toRecipe("filter", 0, 1)
+        assertEquals(120_000L, recipe.targetMinMs)
+        assertEquals(150_000L, recipe.targetMaxMs)
+        assertEquals(withRange, RecipeForm.of(recipe, Locale.US))
+    }
+
+    @Test
     fun optionalFlowTargetIsParsedValidatedAndKeptByTheForm() {
         val targeted = filter.copy(steps = listOf(StepForm(StepKind.BLOOM, "45", "0:00", "5,5")))
         assertEquals(emptySet<Field>(), targeted.validate())

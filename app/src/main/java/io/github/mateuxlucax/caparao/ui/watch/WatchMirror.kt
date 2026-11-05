@@ -53,6 +53,8 @@ object WatchMirror {
         StepEvent.TareConfirmed -> WatchAlert.TARE_CONFIRMED
         StepEvent.FirstDrop -> WatchAlert.FIRST_DROP
         StepEvent.InTargetBand -> WatchAlert.IN_TARGET_BAND
+        StepEvent.DrainTimeEntered -> WatchAlert.DRAIN_TIME_ENTERED
+        StepEvent.DrainTimePassed -> WatchAlert.DRAIN_TIME_PASSED
     }
 
     /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */

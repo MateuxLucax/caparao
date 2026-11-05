@@ -163,7 +163,17 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
             }
             if (Field.WINDOW in errors) ErrorText(R.string.recipe_error_window)
         }
-        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
+        BrewMode.FILTER -> {
+            Text(stringResource(R.string.recipe_total_time), style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val s = stringResource(R.string.unit_seconds)
+                TextField(form.minSeconds, { v -> viewModel.edit { it.copy(minSeconds = v) } }, R.string.recipe_window_min, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
+                TextField(form.maxSeconds, { v -> viewModel.edit { it.copy(maxSeconds = v) } }, R.string.recipe_window_max, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
+            }
+            if (Field.WINDOW in errors) ErrorText(R.string.recipe_error_total_time)
+            Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
+        }
+        BrewMode.FRENCH_PRESS -> Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
     }
     TextField(form.notes, { v -> viewModel.edit { it.copy(notes = v) } }, R.string.recipe_notes, false, R.string.required, text = true, singleLine = false)
 }

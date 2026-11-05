@@ -311,6 +311,15 @@ class BrewViewModel(
                 frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
             )
         }
+        if (mode == BrewMode.FILTER && current.phase == BrewPhase.BREWING) {
+            val live = _uiState.value
+            val min = live.recipe?.targetMinMs
+            val max = live.recipe?.targetMaxMs
+            if (min != null && max != null && min <= max && live.drainWindow != null) {
+                if (live.elapsedMs >= min) alertOnce(StepEvent.DrainTimeEntered)
+                if (live.elapsedMs > max) alertOnce(StepEvent.DrainTimePassed)
+            }
+        }
         if (mode == BrewMode.ESPRESSO && current.phase == BrewPhase.BREWING) {
             // The band is the ring's (#192): a hover on its edge alerts once, as the latch is per brew.
             val ratio = _uiState.value.ratio

@@ -207,7 +207,7 @@ private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale, still: Boolean
             SummaryRow(stringResource(R.string.label_ratio), stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)), still)
             val min = recipe.targetMinMs
             val max = recipe.targetMaxMs
-            if (min != null && max != null) {
+            if (recipe.mode == BrewMode.ESPRESSO && min != null && max != null) {
                 SummaryRow(
                     stringResource(R.string.recipe_window),
                     stringResource(R.string.espresso_window, (min / 1000).toString(), (max / 1000).toString()),

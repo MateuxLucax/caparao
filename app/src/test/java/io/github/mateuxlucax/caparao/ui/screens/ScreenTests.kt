@@ -83,6 +83,7 @@ import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.brew.Pace
+import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -357,6 +358,20 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
+    }
+
+    @Test
+    fun filterRecipeEditorShowsIdealTotalTime() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
+        compose.onNodeWithText("V60 One and Done").performClick()
+        waitFor(R.string.recipe_name)
+        compose.onNodeWithText(text(R.string.recipe_total_time)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_min)).onFirst().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.recipe_window_max)).onFirst().assertIsDisplayed()
+        compose.onNodeWithText("120").assertIsDisplayed()
+        compose.onNodeWithText("150").assertIsDisplayed()
     }
 
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
@@ -972,6 +987,51 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         }
+    }
+
+    /** The ideal drain-time bar follows the timer before, within and after its range; recipes without one stay unchanged. */
+    @Test
+    fun filterDrawdownShowsThreeDrainTimeStatesAndOmitsTheBarWithoutARange() {
+        val recipe = Recipe(
+            id = "drain-time-screen", name = "Drain time", mode = BrewMode.FILTER, method = "V60",
+            doseGrams = 15.0, targetRatio = 16.0,
+            targetMinMs = 120_000, targetMaxMs = 150_000,
+            steps = listOf(RecipeStep(StepKind.POUR, 240.0, 0)), createdAt = 0, updatedAt = 0,
+        )
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe) = BrewUiState(
+            mode = shownRecipe.mode,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            elapsedMs = elapsedMs,
+            recipe = shownRecipe,
+            guide = StepState(1, 1f, null, null, null, null),
+        )
+
+        var current by mutableStateOf(state(100_000))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        compose.onNodeWithTag("drain-time-before").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_ideal_range, "02:00", "02:30")).assertIsDisplayed()
+
+        current = state(132_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-inside").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.drain_time_in_range)).assertIsDisplayed()
+
+        current = state(161_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-past").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.drain_time_past_range, 11)).assertIsDisplayed()
+
+        current = state(132_000, recipe.copy(targetMinMs = null, targetMaxMs = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+
+        current = state(132_000, recipe.copy(mode = BrewMode.FRENCH_PRESS, method = "French press"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
+        current = state(132_000, recipe.copy(mode = BrewMode.ESPRESSO, method = "Espresso"))
+        compose.waitForIdle()
+        compose.onNodeWithTag("drain-time-progress").assertDoesNotExist()
     }
 
     /** Live flow stays current with animations disabled, and the optional target only adds its ideal band. */

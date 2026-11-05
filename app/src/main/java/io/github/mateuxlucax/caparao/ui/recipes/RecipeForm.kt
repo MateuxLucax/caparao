@@ -18,7 +18,7 @@ data class RecipeForm(
     val ratio: String = "",
     val grind: String = "",
     val temp: String = "",
-    /** Espresso: the shot window in seconds. */
+    /** Espresso shot or filter total-time window in seconds. */
     val minSeconds: String = "",
     val maxSeconds: String = "",
     val notes: String = "",
@@ -40,6 +40,13 @@ data class RecipeForm(
                 if (min != null && max != null && min > max) add(Field.WINDOW)
             }
             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> {
+                val min = seconds(minSeconds)
+                val max = seconds(maxSeconds)
+                val hasMin = minSeconds.isNotBlank()
+                val hasMax = maxSeconds.isNotBlank()
+                if (mode == BrewMode.FILTER && (hasMin != hasMax || (hasMin && (min == null || max == null || min > max)))) {
+                    add(Field.WINDOW)
+                }
                 if (steps.isEmpty()) add(Field.STEPS)
                 var lastStart = -1L
                 var lastWeight = 0.0

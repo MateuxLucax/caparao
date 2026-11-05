@@ -39,6 +39,12 @@ sealed interface StepEvent {
 
     /** Espresso: the live ratio enters the ±5% band around the target (#193). */
     data object InTargetBand : StepEvent
+
+    /** Filter: the drawdown timer enters the recipe's ideal total-time range (#206). */
+    data object DrainTimeEntered : StepEvent
+
+    /** Filter: the drawdown timer passes the recipe's ideal total-time range (#206). */
+    data object DrainTimePassed : StepEvent
 }
 
 /** Where the guide stands after a reading. */

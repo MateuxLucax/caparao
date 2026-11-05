@@ -199,6 +199,7 @@
     <string name="recipe_grind">Grind</string>
     <string name="recipe_temp">Water temperature</string>
     <string name="recipe_window">Time from the first drop</string>
+    <string name="recipe_total_time">Ideal total time</string>
     <string name="recipe_window_min">From</string>
     <string name="recipe_window_max">To</string>
     <string name="unit_seconds" translatable="false">s</string>
@@ -221,6 +222,7 @@
     <string name="recipe_error_ratio">From 1:0.5 to 1:30</string>
     <string name="recipe_error_temp">From 1 to 100 °C</string>
     <string name="recipe_error_window">Whole seconds, the first not above the second.</string>
+    <string name="recipe_error_total_time">Use whole seconds for both times, or leave both blank. The first must not be above the second.</string>
     <string name="recipe_error_steps">Each step starts at or after the one before, as m:ss. Each pour goes higher than the one before. Flow targets must be positive.</string>
     <string name="recipe_error_no_steps">Add at least one step.</string>
     <string name="delete_recipe_title">Delete this recipe?</string>
@@ -242,6 +244,9 @@
     <string name="guide_flow">Flow %1$s g/s</string>
     <string name="guide_drawdown">Let it drain</string>
     <string name="guide_drawdown_text">Tap Done when the dripper is empty, or lift it.</string>
+    <string name="drain_time_ideal_range">Ideal: %1$s–%2$s</string>
+    <string name="drain_time_in_range">In the ideal time</string>
+    <string name="drain_time_past_range">%1$d s past the ideal time</string>
     <string name="guide_steep">Steep</string>
     <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>

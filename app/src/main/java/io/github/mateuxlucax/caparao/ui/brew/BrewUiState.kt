@@ -67,6 +67,22 @@ data class BrewUiState(
             }
         }
 
+    /** Filter drain-time state, once the last guided step is done; time runs from the first pour. */
+    val drainWindow: Window?
+        get() {
+            if (mode != BrewMode.FILTER || phase != BrewPhase.BREWING) return null
+            val guidedSteps = steps
+            if (guidedSteps.isEmpty() || guide?.allDone(guidedSteps.size) != true) return null
+            val min = recipe?.targetMinMs ?: return null
+            val max = recipe.targetMaxMs ?: return null
+            if (min > max) return null
+            return when {
+                elapsedMs < min -> Window.BEFORE
+                elapsedMs <= max -> Window.INSIDE
+                else -> Window.PAST
+            }
+        }
+
     enum class Window { BEFORE, INSIDE, PAST }
 
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */

@@ -237,11 +237,62 @@ private fun Drawdown(state: BrewUiState) {
     ReachedCheck(null)
     Text(stringResource(R.string.guide_drawdown), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
+    DrainTimeBar(state, Modifier.fillMaxWidth().padding(horizontal = 24.dp))
     Note(
         "${Format.grams(state.weightGrams, locale)} ${stringResource(R.string.unit_grams)} · " +
             stringResource(R.string.ratio_value, Format.ratio(state.ratio ?: 0.0, locale)),
     )
     Note(stringResource(R.string.guide_drawdown_text))
+}
+
+/** The filter recipe's ideal drain-time range, shown only after the guided pours finish. */
+@Composable
+fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
+    val window = state.drainWindow ?: return
+    val min = state.recipe?.targetMinMs ?: return
+    val max = state.recipe?.targetMaxMs ?: return
+    val domain = max + maxOf(max - min, 15_000L)
+    val progress = (state.elapsedMs.toFloat() / domain).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        progress,
+        Motion.standardOrSnap(animationsOff(), 120),
+        label = "drainTimeProgress",
+    )
+    val colors = MaterialTheme.colorScheme
+    val fill = when (window) {
+        BrewUiState.Window.BEFORE -> colors.primaryContainer
+        BrewUiState.Window.INSIDE -> colors.primary
+        BrewUiState.Window.PAST -> colors.onPrimaryContainer
+    }
+    val status = when (window) {
+        BrewUiState.Window.BEFORE -> stringResource(R.string.drain_time_ideal_range, Format.timer((min / 1000).toInt()), Format.timer((max / 1000).toInt()))
+        BrewUiState.Window.INSIDE -> stringResource(R.string.drain_time_in_range)
+        BrewUiState.Window.PAST -> stringResource(R.string.drain_time_past_range, ((state.elapsedMs - max) / 1000).toInt())
+    }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(14.dp).testTag("drain-time-progress")) {
+            val radius = CornerRadius(size.height / 2)
+            drawRoundRect(colors.surfaceContainerHighest, cornerRadius = radius)
+            drawRoundRect(fill, size = Size(size.width * animatedProgress, size.height), cornerRadius = radius)
+            val minX = size.width * (min.toFloat() / domain).coerceIn(0f, 1f)
+            val maxX = size.width * (max.toFloat() / domain).coerceIn(0f, 1f)
+            drawLine(colors.onSurfaceVariant, Offset(minX, 0f), Offset(minX, size.height), strokeWidth = 2.dp.toPx())
+            drawLine(colors.onSurfaceVariant, Offset(maxX, 0f), Offset(maxX, size.height), strokeWidth = 2.dp.toPx())
+            val currentX = size.width * animatedProgress
+            drawCircle(colors.onSurface, radius = 4.dp.toPx(), center = Offset(currentX, size.height / 2))
+        }
+        Text(
+            status,
+            Modifier.fillMaxWidth().testTag("drain-time-${window.name.lowercase()}"),
+            style = MaterialTheme.typography.labelLarge,
+            color = when (window) {
+                BrewUiState.Window.BEFORE -> colors.onSurfaceVariant
+                BrewUiState.Window.INSIDE -> colors.primary
+                BrewUiState.Window.PAST -> colors.onPrimaryContainer
+            },
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 /** Shows the correct post-timer phase; the plunger-only animation accompanies the second phase. */
