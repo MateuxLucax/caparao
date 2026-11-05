@@ -40,6 +40,7 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex
 import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -174,8 +175,9 @@ fun ScaleReadout(
     val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
     // One glow out of the outer ring the moment the target is reached.
     val glow = remember { Animatable(0f) }
-    LaunchedEffect(ratio.onTarget) {
-        if (ratio.onTarget) {
+    val still = animationsOff()
+    LaunchedEffect(ratio.onTarget, still) {
+        if (ratio.onTarget && !still) {
             glow.snapTo(1f)
             glow.animateTo(0f, tween(900, easing = Motion.EmphasizedDecelerate))
         } else {

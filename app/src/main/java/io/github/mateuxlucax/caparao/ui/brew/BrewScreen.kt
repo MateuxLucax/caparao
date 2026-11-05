@@ -1,8 +1,15 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -80,6 +87,7 @@ import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animatedFlex
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
@@ -145,19 +153,31 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             // A guided filter brew counts its recipe's steps instead.
-            if (state.guide == null) GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            // The indicator fades out and its space closes when the guide takes over the live step.
+            val still = animationsOff()
+            AnimatedVisibility(
+                visible = state.guide == null,
+                enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
+                GuideIndicator(state.mode, guideStage(state.mode, state.step, state.phase), Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            }
             val density = LocalDensity.current
+            // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
             AnimatedContent(
-                state.step,
+                state.step to (state.guide != null),
                 Modifier.weight(1f).fillMaxWidth(),
-                transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+                transitionSpec = {
+                    val forward = if (initialState.first == targetState.first) targetState.second else targetState.first.ordinal > initialState.first.ordinal
+                    if (still) EnterTransition.None togetherWith ExitTransition.None else Motion.springAxisX(forward, density)
+                },
                 label = "step",
-            ) { step ->
+            ) { (step, guided) ->
                 when (step) {
                     BrewStep.DOSE -> DoseStep(state, viewModel::selectRecipe, viewModel::setRatio, viewModel::planDose, viewModel::weigh)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose)
                     BrewStep.PREPARE_PORTAFILTER -> PortafilterStep(state, viewModel::ready)
-                    BrewStep.LIVE -> LiveStep(state, viewModel)
+                    BrewStep.LIVE -> LiveStep(state, viewModel, guided)
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
@@ -166,8 +186,8 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel) {
-    if (state.guide != null) {
+private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+    if (guided) {
         GuidedStep(state, viewModel::stop)
         return
     }
@@ -255,7 +275,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
             return@Column
         }
         // The result springs open.
-        val still = LocalContext.current.let { remember { Settings.Global.getFloat(it.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } }
+        val still = animationsOff()
         val open = remember { Animatable(if (still) 1f else 0.85f) }
         LaunchedEffect(Unit) { open.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
         Column(

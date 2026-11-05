@@ -50,6 +50,7 @@ import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.format.hint
 import io.github.mateuxlucax.caparao.ui.format.label
 import io.github.mateuxlucax.caparao.ui.format.title
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.launch
 
 /** Connection state with its icon on the left and, when connected, the battery on the right (Home wireframe). */
@@ -109,8 +110,11 @@ fun ScaleErrorCard(error: ScaleError, retrying: Boolean, actions: AppActions, on
 /** The logo with rings pulsing out of it while [searching]; still once connected. */
 @Composable
 fun SearchingLogo(searching: Boolean, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "search")
-    val pulse by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "pulse")
+    // With animations off, one ring held halfway out: still says "searching" without the loop.
+    val pulse = if (animationsOff()) 0.5f else {
+        val transition = rememberInfiniteTransition(label = "search")
+        transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "pulse").value
+    }
     val ring = MaterialTheme.colorScheme.primary
     Box(modifier.size(200.dp), contentAlignment = Alignment.Center) {
         if (searching) {

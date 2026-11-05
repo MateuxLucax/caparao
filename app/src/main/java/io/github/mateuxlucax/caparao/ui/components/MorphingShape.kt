@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.components
 
-import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -21,9 +20,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.platform.LocalContext
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.toPath
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
 /**
  * A Material shape behind [content] that springs into the shape of [index] (#109):
@@ -36,8 +35,7 @@ fun MorphingShape(
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val still = animationsOff()
     var from by remember { mutableStateOf(if (still) shapeAt(index) else MaterialShapes.Circle) }
     var to by remember { mutableStateOf(shapeAt(index)) }
     val progress = remember { Animatable(if (still) 1f else 0f) }

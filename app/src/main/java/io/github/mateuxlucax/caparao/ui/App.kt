@@ -160,8 +160,8 @@ private fun Main(
         ?: comparing?.let { Destination.Compare(it.split(',')) }
         ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
     val density = LocalDensity.current
-    // A brew or a saved brew comes in from the right over the tabs and goes back out the same way.
-    AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState != Destination.Tabs, density) }, label = "screen") { shown ->
+    // Deeper destinations come in from the right and go back out to the left, whichever screen they open over.
+    AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState.depth > initialState.depth, density) }, label = "screen") { shown ->
         when (shown) {
             is Destination.Detail -> {
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
@@ -227,7 +227,7 @@ private fun Main(
 private class OpenBrew(val mode: BrewMode, val running: () -> Boolean, val close: () -> Unit)
 
 /** What fills the screen under [Main]. */
-private sealed interface Destination {
+internal sealed interface Destination {
     data object Tabs : Destination
     data object Coffees : Destination
     data class Brew(val mode: BrewMode) : Destination
@@ -236,6 +236,17 @@ private sealed interface Destination {
     data class Trends(val key: TrendKey) : Destination
     data class Recipe(val key: String) : Destination
 }
+
+/**
+ * How far a destination is from the tabs: Compare and Trends open over a saved brew, so going from them back to the brew
+ * is a step back (R2), not a step forward.
+ */
+internal val Destination.depth: Int
+    get() = when (this) {
+        Destination.Tabs -> 0
+        is Destination.Compare, is Destination.Trends -> 2
+        else -> 1
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

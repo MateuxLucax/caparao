@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.animation.ValueAnimator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -60,6 +59,7 @@ import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.label
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -229,7 +229,7 @@ private fun FrenchPressReady(state: BrewUiState) {
 /** The carafe stays still; only the plunger lowers, after the user has removed the press from the scale. */
 @Composable
 private fun FrenchPressPlungerAnimation() {
-    val still = stillAnimations()
+    val still = animationsOff()
     val progress = remember { Animatable(if (still) 1f else 0f) }
     val spatialMotion = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     LaunchedEffect(still) {
@@ -299,20 +299,32 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 @Composable
 private fun StepProgress(progress: Float) {
     val shown by animateFloatAsState(progress, Motion.standard(), label = "steps")
-    // Only the wave, always moving: no track and no stop dot after it.
-    LinearWavyProgressIndicator(
-        progress = { shown },
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        trackColor = Color.Transparent,
-        stopSize = 0.dp,
-        amplitude = { 1f },
-    )
+    // Only the wave, always moving: no track and no stop dot after it. With animations off, the wave holds still.
+    val modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+    if (animationsOff()) {
+        LinearWavyProgressIndicator(
+            progress = { shown },
+            modifier = modifier,
+            trackColor = Color.Transparent,
+            stopSize = 0.dp,
+            amplitude = { 1f },
+            waveSpeed = 0.dp,
+        )
+    } else {
+        LinearWavyProgressIndicator(
+            progress = { shown },
+            modifier = modifier,
+            trackColor = Color.Transparent,
+            stopSize = 0.dp,
+            amplitude = { 1f },
+        )
+    }
 }
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */
 @Composable
 private fun ReachedCheck(label: String?) {
-    val still = stillAnimations()
+    val still = animationsOff()
     val t = remember { Animatable(if (still) 1f else 0f) }
     LaunchedEffect(Unit) { t.animateTo(1f, tween(900, easing = Motion.EmphasizedDecelerate)) }
     val color = MaterialTheme.colorScheme.tertiary
@@ -361,9 +373,4 @@ private fun CountdownRing(progress: Float, color: Color, centerContent: @Composa
         )
         centerContent()
     }
-}
-
-@Composable
-private fun stillAnimations(): Boolean {
-    return remember { !ValueAnimator.areAnimatorsEnabled() }
 }

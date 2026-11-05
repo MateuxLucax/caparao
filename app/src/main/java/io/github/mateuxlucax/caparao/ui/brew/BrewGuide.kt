@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import android.provider.Settings
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -38,7 +37,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -56,6 +54,7 @@ import io.github.mateuxlucax.caparao.ui.components.CupArt.drawCup
 import io.github.mateuxlucax.caparao.ui.components.CupArt.drawScale
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import io.github.mateuxlucax.caparao.ui.theme.flex
 import kotlin.math.PI
 import kotlin.math.sin
@@ -246,8 +245,7 @@ private const val LOOP_MS = 2_400
 @Composable
 private fun StageAnimation(stage: GuideStage) {
     if (!stage.pictured) return
-    val context = LocalContext.current
-    val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val still = animationsOff()
     val t = if (still) {
         0.7f
     } else {

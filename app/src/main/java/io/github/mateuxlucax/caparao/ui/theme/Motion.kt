@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.theme
 
+import android.provider.Settings
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -15,9 +16,22 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+
+/**
+ * Whether the system asks for no animation (animations off in developer options or accessibility). The one place that
+ * reads it: every looping or glowing animation checks this, so they agree. Read once per composition, like the rest.
+ */
+@Composable
+fun animationsOff(): Boolean {
+    val context = LocalContext.current
+    return remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+}
 
 /**
  * Material 3 motion tokens (m3.material.io/styles/motion/easing-and-duration/tokens-specs) and the transition patterns
