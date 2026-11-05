@@ -170,10 +170,10 @@ class BrewViewModel(
         _uiState.update { it.copy(phase = espresso.phase) }
     }
 
-    /** Taring timed out: asks for the tare once more. Does nothing outside the tare. */
+    /** Taring timed out: asks for the tare once more. Does nothing outside the tare or while the scale is disconnected. */
     fun retryTare() {
         val current = detector ?: return
-        if (current.phase != BrewPhase.TARING) return
+        if (current.phase != BrewPhase.TARING || !_uiState.value.connected) return
         send(current.retryTare(clock()))
         _uiState.update { it.copy(tareTimedOut = false) }
     }

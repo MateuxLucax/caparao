@@ -220,6 +220,29 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun retryTareWhileDisconnectedKeepsTheErrorAndSendsNothing() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.setDose(18.0)
+        vm.armNow()
+        hold(150.0, 9.0) // never zeroes: the retry goes out at 3 s, the timeout shows at 8 s
+        assertTrue(vm.uiState.value.tareTimedOut)
+        assertEquals(listOf("tare", "tare"), scale.commands)
+
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        vm.retryTare()
+        // The Dot drops the command while disconnected, so Retry must neither send nor clear the error.
+        assertEquals(listOf("tare", "tare"), scale.commands)
+        assertTrue(vm.uiState.value.tareTimedOut)
+        assertEquals(BrewPhase.TARING, vm.uiState.value.phase)
+
+        scale.state.value = ScaleState.Connected(null)
+        vm.retryTare()
+        assertEquals(listOf("tare", "tare", "tare"), scale.commands)
+        assertFalse(vm.uiState.value.tareTimedOut)
+    }
+
+    @Test
     fun discardDeletesTheSavedBrew() {
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
