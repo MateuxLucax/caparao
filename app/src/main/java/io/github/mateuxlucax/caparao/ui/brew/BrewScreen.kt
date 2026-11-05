@@ -232,7 +232,9 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
         val espresso = state.mode == BrewMode.ESPRESSO
         GuideHeader(guideStage(state.mode, state.step, state.phase), espresso = espresso)
         if (!state.connected) {
-            Text(stringResource(R.string.scale_needed), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+            // A French press pouring when the scale drops keeps counting; say so instead of asking to start a brew.
+            val dropped = state.mode == BrewMode.FRENCH_PRESS && brewing
+            Text(stringResource(if (dropped) R.string.guide_scale_dropped else R.string.scale_needed), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             ScaleReadout(
