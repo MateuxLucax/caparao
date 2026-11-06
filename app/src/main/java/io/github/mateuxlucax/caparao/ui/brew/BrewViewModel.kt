@@ -15,6 +15,7 @@ import io.github.mateuxlucax.caparao.brew.EspressoDetector
 import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.FilterDetector
 import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
+import io.github.mateuxlucax.caparao.brew.FrenchPressWater
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
@@ -688,10 +689,16 @@ class BrewViewModel(
         }
         // French press time runs to the confirmed removal even when Done comes later (#223); with none, it is Done's.
         val removedAtMs = if (mode == BrewMode.FRENCH_PRESS) frenchPressFinishTracker?.removedAtMs else null
-        val result = if (removedAtMs != null && removedAtMs in detected.startedAtMs until detected.endedAtMs) {
+        val bounded = if (removedAtMs != null && removedAtMs in detected.startedAtMs until detected.endedAtMs) {
             detected.copy(endedAtMs = removedAtMs)
         } else {
             detected
+        }
+        // The French press saves its settled water, not the running maximum: a spoon or a lid is not water (#214).
+        val result = if (mode == BrewMode.FRENCH_PRESS) {
+            FrenchPressWater.of(readings, bounded.startedAtMs, bounded.endedAtMs)?.let { bounded.copy(yieldGrams = it) } ?: bounded
+        } else {
+            bounded
         }
         diagnostics?.recordEvent(DiagnosticEvent.BrewResultReady)
         val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
