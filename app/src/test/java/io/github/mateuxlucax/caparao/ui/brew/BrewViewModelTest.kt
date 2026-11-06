@@ -203,8 +203,8 @@ class BrewViewModelTest {
         hold(0.0, 1.0)
         pour(0.0, 50.0, 4.0)
         hold(50.0, 1.1)
-        pour(50.0, 0.0, 0.3)
-        hold(0.0, 10.0) // far past the 2 s that sends a lift back to Prepare before the first water
+        pour(50.0, -90.0, 0.3) // the dripper lifted: the scale reads negative, as on the real Dot
+        hold(-90.0, 10.0) // far past the 2 s that sends a lift back to Prepare before the first water
         assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
         assertEquals(BrewStep.LIVE, vm.uiState.value.step)
     }
@@ -972,14 +972,14 @@ class BrewViewModelTest {
         assertEquals(frozenDue, vm.uiState.value.guide!!.dueInMs)
         assertEquals("no countdown alert fires while paused", countdownsBeforePause, alerts.count { it.event is StepEvent.Countdown })
 
-        pour(0.0, 80.0, 0.3)
-        hold(80.0, 1.0)
+        pour(0.0, 50.0, 0.3) // back on the water level it paused at
+        hold(50.0, 1.0)
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals("the wait still has time left after the pause", 1, vm.uiState.value.guide!!.index)
         val resumedTime = vm.uiState.value.elapsedMs
         assertTrue("the active timer resumes from its frozen value", resumedTime - frozenTime in 0L..100L)
         assertEquals("flow starts fresh after resuming", 0.0, vm.uiState.value.flowGramsPerSecond, 0.01)
-        hold(80.0, 3.0)
+        pour(50.0, 80.0, 3.0) // water added once the dripper is back on the scale: a steady ~10 g/s pour, not a spike
         assertEquals("the active wait still has time left", 1, vm.uiState.value.guide!!.index)
         hold(80.0, 2.0)
         assertEquals(2, vm.uiState.value.guide!!.index)

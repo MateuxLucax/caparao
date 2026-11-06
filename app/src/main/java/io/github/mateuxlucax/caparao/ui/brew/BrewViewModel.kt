@@ -388,8 +388,10 @@ class BrewViewModel(
             before == BrewPhase.PAUSED && current.phase == BrewPhase.BREWING -> {
                 val pauseStart = openPauseAtMs
                 if (pauseStart != null) {
-                    pauseIntervals += pauseStart to timed.atMs
-                    brewingSinceMs = (brewingSinceMs ?: pauseStart) + (timed.atMs - pauseStart)
+                    // A sustained pour resumes from when the dripper came back, which is earlier than this reading.
+                    val resumedAt = (current as? FilterDetector)?.lastResumedAtMs ?: timed.atMs
+                    pauseIntervals += pauseStart to resumedAt
+                    brewingSinceMs = (brewingSinceMs ?: pauseStart) + (resumedAt - pauseStart)
                 }
                 openPauseAtMs = null
                 smoother.reset()
