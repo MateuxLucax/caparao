@@ -24,6 +24,8 @@ data class FilterConfig(
     val pauseTimeoutMs: Long = 30_000,
     /** Weight must return this close to the pre-lift water level to resume. */
     val pauseReturnToleranceGrams: Double = 3.0,
+    /** ...and no more than this above it, so a hand pressing on the dripper cannot open the resume window. */
+    val pauseReturnAboveGrams: Double = 10.0,
     /** The returned weight must hold before the timer resumes. */
     val pauseResumeHoldMs: Long = 1_000,
     /** Provisional handling settle window after a dripper return; tuned in #200. */
@@ -216,7 +218,9 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             return
         }
 
-        val returned = reading.reading.weightGrams >= maxGrams - config.pauseReturnToleranceGrams
+        // Back on the scale means the water level again, not a hand pressing on the dripper above it.
+        val weight = reading.reading.weightGrams
+        val returned = weight >= maxGrams - config.pauseReturnToleranceGrams && weight <= maxGrams + config.pauseReturnAboveGrams
         if (!returned) {
             resumeCandidateAtMs = null
             return

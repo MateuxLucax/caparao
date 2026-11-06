@@ -131,6 +131,24 @@ class FilterDetectorTest {
     }
 
     @Test
+    fun aHandPressingAboveTheWaterDoesNotResumeThePause() {
+        openAndTare()
+        pourWithBloom()
+        session.ramp(250.0, 190.0, 0.3)
+        detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+
+        // A hand pressing on the dripper reads well above the 250 g of water: the pause holds.
+        session.ramp(190.0, 300.0, 0.3).hold(300.0, 2.0)
+        detector.feed(session)
+        assertEquals("a hand over the water level does not resume", BrewPhase.PAUSED, detector.phase)
+
+        session.ramp(300.0, 250.0, 0.3).hold(250.0, 2.0)
+        detector.feed(session)
+        assertEquals("the dripper back on the water resumes", BrewPhase.BREWING, detector.phase)
+    }
+
+    @Test
     fun handPressOnReturnDoesNotBecomeWaterOrStartAnotherPause() {
         openAndTare()
         pourWithBloom()
@@ -148,19 +166,23 @@ class FilterDetectorTest {
     }
 
     @Test
-    fun waterAddedWhileLiftedIsConfirmedAfterTheResumeSettleWindow() {
+    fun waterAboveThePreLiftLevelResumesOnlyOnceBackInTheBand() {
         openAndTare()
         pourWithBloom()
         session.ramp(250.0, 0.0, 0.3)
         detector.feed(session)
         assertEquals(BrewPhase.PAUSED, detector.phase)
 
+        // More than 10 g above the 250 g water level is not the dripper back, so it does not resume.
         session.ramp(0.0, 280.0, 0.3).hold(280.0, 4.0)
         detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
 
+        session.ramp(280.0, 250.0, 0.3).hold(250.0, 2.0)
+        detector.feed(session)
         assertEquals(BrewPhase.BREWING, detector.phase)
         detector.stop(session.nowMs)
-        assertEquals(280.0, detector.result!!.yieldGrams, 0.3)
+        assertEquals(250.0, detector.result!!.yieldGrams, 0.3)
     }
 
     @Test
