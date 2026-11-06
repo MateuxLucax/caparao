@@ -26,8 +26,30 @@ class CaptureScenarioTests(unittest.TestCase):
     def test_espresso_capture_waits_for_named_dose_and_keeps_portafilter(self):
         source = SCRIPT.read_text()
         self.assertIn('tap_text("Free brew")', source)
-        self.assertIn('wait_for_text("Weigh the beans" if path.stem == "espresso"', source)
+        self.assertIn('wait_for_text("Weigh the beans")', source)
         self.assertIn('wait_for_text("Prepare the portafilter")', source)
+        self.assertIn('wait_for_text("Start the shot")', source)
+
+    def test_filter_capture_selects_the_built_in_recipe(self):
+        source = SCRIPT.read_text()
+        self.assertIn('tap_text("Melitta 102")', source)
+        self.assertIn('wait_for_text("1:15", contains=True)', source)
+
+    def test_capture_starts_from_home_instead_of_a_restored_brew(self):
+        source = SCRIPT.read_text()
+        self.assertIn('"am", "start", "-S"', source)
+        self.assertIn('"0x10008000"', source)
+
+    def test_filter_capture_waits_for_its_preparation_step(self):
+        source = SCRIPT.read_text()
+        self.assertIn('wait_for_text("Prepare the filter")', source)
+        self.assertIn('wait_for_bottom("Done")', source)
+
+    def test_french_press_capture_waits_for_its_preparation_step(self):
+        source = SCRIPT.read_text()
+        self.assertIn('wait_for_text("Prepare the press")', source)
+        self.assertIn('tap_text("Ready")', source)
+        self.assertIn('wait_for_bottom("Done")', source)
 
     def test_french_press_plan_captures_steep_and_press_and_serve(self):
         plan = capture_scenarios.scenario_plan(capture_scenarios.SCENARIO_DIR / "french-press.json")
