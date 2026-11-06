@@ -12,10 +12,13 @@ import com.google.android.gms.wearable.WearableListenerService
 import io.github.mateuxlucax.caparao.watch.WatchAlert
 import io.github.mateuxlucax.caparao.watch.WatchPaths
 
+/** A heads-up's title and text, as string resources. */
+internal data class HeadsUp(val title: Int, val text: Int)
+
 /** The heads-up for [alert], or null when it has none. Only the brew's final moments get one, and each once per brew. */
-internal fun headsUpFor(alert: WatchAlert): Int? = when (alert) {
-    WatchAlert.ALL_DONE -> R.string.finish_filter
-    WatchAlert.FRENCH_PRESS_DEADLINE -> R.string.finish_press
+internal fun headsUpFor(alert: WatchAlert): HeadsUp? = when (alert) {
+    WatchAlert.ALL_DONE -> HeadsUp(R.string.finish_filter_title, R.string.finish_filter_text)
+    WatchAlert.FRENCH_PRESS_DEADLINE -> HeadsUp(R.string.finish_press_title, R.string.finish_press_text)
     else -> null
 }
 
@@ -37,13 +40,14 @@ class AlertListenerService : WearableListenerService() {
      * A heads-up the wrist can read without opening the app, naming what to do next: the filter's last pour is done
      * (drawdown follows), or the French press steep is over (remove the press, then press and serve).
      */
-    private fun notifyFinish(text: Int) {
+    private fun notifyFinish(heads: HeadsUp) {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.finish_channel), NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, WatchActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle(getString(text))
+            .setContentTitle(getString(heads.title))
+            .setContentText(getString(heads.text))
             .setContentIntent(open)
             .setAutoCancel(true)
             .setTimeoutAfter(TIMEOUT_MS)

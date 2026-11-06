@@ -26,6 +26,8 @@
     <string name="pace_behind">%d s behind</string>
     <string name="pace_on_time">On time</string>
     <string name="finish_channel">Brew alerts</string>
-    <string name="finish_filter">Last pour done · Let it drain.</string>
-    <string name="finish_press">Steep\'s over · Remove the press, then press and serve.</string>
+    <string name="finish_filter_title">Last pour done</string>
+    <string name="finish_filter_text">Let it drain.</string>
+    <string name="finish_press_title">Steep\'s over</string>
+    <string name="finish_press_text">Remove the press, then press and serve.</string>
 </resources>

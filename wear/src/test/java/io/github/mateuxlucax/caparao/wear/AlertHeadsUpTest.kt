@@ -15,15 +15,16 @@ class AlertHeadsUpTest {
 
     @Test
     fun filterLastPourSaysToLetItDrain() {
-        assertEquals("Last pour done · Let it drain.", context.getString(headsUpFor(WatchAlert.ALL_DONE)!!))
+        val heads = headsUpFor(WatchAlert.ALL_DONE)!!
+        assertEquals("Last pour done", context.getString(heads.title))
+        assertEquals("Let it drain.", context.getString(heads.text))
     }
 
     @Test
     fun frenchPressDeadlineSaysToRemoveThePressFirst() {
-        assertEquals(
-            "Steep's over · Remove the press, then press and serve.",
-            context.getString(headsUpFor(WatchAlert.FRENCH_PRESS_DEADLINE)!!),
-        )
+        val heads = headsUpFor(WatchAlert.FRENCH_PRESS_DEADLINE)!!
+        assertEquals("Steep's over", context.getString(heads.title))
+        assertEquals("Remove the press, then press and serve.", context.getString(heads.text))
     }
 
     @Test
