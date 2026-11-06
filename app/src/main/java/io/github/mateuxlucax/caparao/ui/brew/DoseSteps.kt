@@ -44,6 +44,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -118,6 +120,7 @@ fun DoseStep(
     onFilterDose: (Double) -> Unit,
     onNext: () -> Unit,
     onSteep: (Long) -> Unit = {},
+    onRetryScale: () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val step = when (state.mode) {
@@ -183,7 +186,14 @@ fun DoseStep(
             }
         }
         Spacer(Modifier.weight(1f))
-        Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.dose != null) {
+        // The dose needs no scale: it stays editable while the scale connects (#182).
+        ScaleConnection(state, onRetryScale, Modifier.padding(bottom = 8.dp))
+        Button(
+            onClick = onNext,
+            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(),
+            enabled = state.dose != null && !state.waitingForScale,
+        ) {
             Text(stringResource(R.string.next), style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -499,6 +509,36 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
  */
 fun weighedDose(connected: Boolean, readingGrams: Double, plannedDose: Double): Double =
     if (connected && readingGrams in RecipeForm.DOSE) readingGrams else plannedDose
+
+/**
+ * The scale before the brew starts (#182): a quiet line while it connects, and after ten seconds the not-found card
+ * with Retry. The app keeps listening either way, so a scale that arrives later goes on by itself.
+ */
+@Composable
+internal fun ScaleConnection(state: BrewUiState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    if (state.connected) return
+    if (!state.scaleTimedOut) {
+        Text(
+            stringResource(R.string.scale_connecting),
+            modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        return
+    }
+    Card(
+        modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.error_not_found), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(stringResource(R.string.hint_not_found), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onRetry) { Text(stringResource(R.string.retry)) }
+        }
+    }
+}
 
 /**
  * Weighing the beans before grinding: a ring fills toward the dose around the live weight.
