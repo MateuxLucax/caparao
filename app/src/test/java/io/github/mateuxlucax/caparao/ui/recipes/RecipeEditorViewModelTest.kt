@@ -77,4 +77,24 @@ class RecipeEditorViewModelTest {
     fun aMissingRecipeClosesTheEditor() = runTest {
         assertTrue(editor(Target.Edit("gone")).state.value.closed)
     }
+
+    @Test
+    fun onlyAChangedFormIsDirty() = runTest {
+        val vm = editor(Target.New(BrewMode.FILTER))
+        assertFalse(vm.state.value.dirty)
+        vm.edit { it.copy(name = "Kalita") }
+        assertTrue(vm.state.value.dirty)
+        // Typing the name back out leaves the form as it opened, so nothing is lost by leaving.
+        vm.edit { it.copy(name = "") }
+        assertFalse(vm.state.value.dirty)
+    }
+
+    @Test
+    fun aLoadedRecipeIsCleanUntilEdited() = runTest {
+        repository.save(BuiltInRecipes.all(1)[1])
+        val vm = editor(Target.Edit(BuiltInRecipes.V60_ID))
+        assertFalse(vm.state.value.dirty)
+        vm.edit { it.copy(name = "V60 short") }
+        assertTrue(vm.state.value.dirty)
+    }
 }

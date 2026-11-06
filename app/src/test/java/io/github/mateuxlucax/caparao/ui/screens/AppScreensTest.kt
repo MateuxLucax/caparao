@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
@@ -425,9 +426,9 @@ class AppScreensTest {
         // The readings after the shortcut still reach the detector: the shot is saved and listed.
         hold(scale, 36.0, 6.0)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
-        // The curve on the Done screen pushes Save below the fold.
+        // The curve on the Done screen pushes Done below the fold.
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
-        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()

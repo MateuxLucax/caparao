@@ -23,6 +23,8 @@ data class RecipeEditorState(
     val errors: Set<RecipeForm.Field> = emptySet(),
     /** Saved or deleted: the screen closes. */
     val closed: Boolean = false,
+    /** The form differs from the one the editor opened with: leaving asks first (#181). */
+    val dirty: Boolean = false,
 )
 
 /** Creates or edits one recipe ([target]); steps are kept in the order typed. */
@@ -41,8 +43,11 @@ class RecipeEditorViewModel(
 
     private var existing: Recipe? = null
 
+    /** The form as it opened, to tell an untouched editor from one with changes to lose. */
+    private var initial: RecipeForm? = (target as? Target.New)?.let { RecipeForm.new(it.mode) }
+
     private val _state = MutableStateFlow(
-        RecipeEditorState(form = (target as? Target.New)?.let { RecipeForm.new(it.mode) }, isNew = target is Target.New),
+        RecipeEditorState(form = initial, isNew = target is Target.New),
     )
     val state: StateFlow<RecipeEditorState> = _state.asStateFlow()
 
@@ -51,7 +56,9 @@ class RecipeEditorViewModel(
             viewModelScope.launch {
                 val recipe = repository.get(target.id)
                 existing = recipe
-                _state.update { if (recipe == null) it.copy(closed = true) else it.copy(form = RecipeForm.of(recipe, locale)) }
+                val form = recipe?.let { RecipeForm.of(it, locale) }
+                initial = form
+                _state.update { if (form == null) it.copy(closed = true) else it.copy(form = form, dirty = false) }
             }
         }
     }
@@ -59,7 +66,7 @@ class RecipeEditorViewModel(
     fun edit(change: (RecipeForm) -> RecipeForm) = _state.update { state ->
         val form = state.form?.let(change) ?: return@update state
         // Once shown, errors follow the edits, so they clear as the fields are fixed.
-        state.copy(form = form, errors = if (state.errors.isEmpty()) emptySet() else form.validate())
+        state.copy(form = form, errors = if (state.errors.isEmpty()) emptySet() else form.validate(), dirty = form != initial)
     }
 
     /** Adds a step after the last one: a pour, starting 30 s after it. */

@@ -119,6 +119,19 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
 @Composable
 private fun BagDialog(form: BagForm, viewModel: CoffeeBagsViewModel) {
     var picking by remember { mutableStateOf(false) }
+    // Deleting a bag takes its brews' coffee name with it, so it asks first (#181).
+    var confirmDelete by remember { mutableStateOf(false) }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
+            title = { Text(stringResource(R.string.delete_coffee_title)) },
+            text = { Text(stringResource(R.string.delete_coffee_text)) },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false; viewModel.delete() }) { Text(stringResource(R.string.delete)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+        return
+    }
     AlertDialog(
         onDismissRequest = viewModel::cancel,
         title = { Text(stringResource(if (form.id == null) R.string.coffee_add else R.string.coffee_edit)) },
@@ -137,7 +150,7 @@ private fun BagDialog(form: BagForm, viewModel: CoffeeBagsViewModel) {
                         Checkbox(form.finished, null)
                         Text(stringResource(R.string.coffee_mark_finished), Modifier.padding(start = 8.dp))
                     }
-                    TextButton(onClick = viewModel::delete, shapes = ButtonDefaults.shapes()) {
+                    TextButton(onClick = { confirmDelete = true }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
