@@ -24,7 +24,9 @@
     <string name="pace_ahead">%d s adiantado</string>
     <string name="pace_behind">%d s atrasado</string>
     <string name="pace_on_time">No tempo</string>
-    <string name="finish_title">Hora de finalizar</string>
     <string name="finish_channel">Avisos do preparo</string>
-    <string name="finish_text">Última etapa finalizada.</string>
+    <string name="finish_filter_title">Último despejo feito</string>
+    <string name="finish_filter_text">Deixe escorrer.</string>
+    <string name="finish_press_title">Fim da infusão</string>
+    <string name="finish_press_text">Retire a prensa, depois pressione e sirva.</string>
 </resources>

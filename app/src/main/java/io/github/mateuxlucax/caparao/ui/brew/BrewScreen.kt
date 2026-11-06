@@ -205,7 +205,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
-                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
+                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() })
                 }
             }
         }
@@ -360,8 +360,8 @@ private fun TareFailed(connected: Boolean, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit, onClose: () -> Unit) {
-    val brew = state.saved
+private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit) {
+    val brew = state.saved ?: return
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
         AlertDialog(
@@ -377,11 +377,6 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        if (brew == null) {
-            Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.headlineSmall)
-            Button(onClick = onClose, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.close), style = MaterialTheme.typography.titleMedium) }
-            return@Column
-        }
         // The result springs open.
         val still = animationsOff()
         val open = remember { Animatable(if (still) 1f else 0.85f) }

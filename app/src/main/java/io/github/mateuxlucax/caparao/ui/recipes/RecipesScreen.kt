@@ -50,7 +50,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
             BrewModeGroup(mode, viewModel::show, Modifier.padding(vertical = 12.dp))
             val recipes = all?.get(mode) ?: return@Column
             if (recipes.isEmpty()) {
-                EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), stringResource(R.string.no_recipes_text), Modifier.padding(top = 48.dp))
+                EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), Modifier.padding(top = 48.dp))
             } else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     itemsIndexed(recipes, key = { _, recipe -> recipe.id }) { index, recipe ->
