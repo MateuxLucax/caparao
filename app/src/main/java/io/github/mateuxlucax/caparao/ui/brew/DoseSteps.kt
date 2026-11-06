@@ -129,8 +129,10 @@ fun DoseStep(
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     val espresso = state.mode == BrewMode.ESPRESSO
+    val filter = state.mode == BrewMode.FILTER
     // A tick on the ratio buttons, for espresso's free brew (#198); the other modes' ratio stays as it was.
     fun tick() { if (espresso) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+    fun filterTick() { if (filter) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
     // The summary keeps the last recipe while it folds away, so switching to Free brew doesn't blank it first.
     var summaryRecipe by remember { mutableStateOf(espressoRecipe) }
     LaunchedEffect(espressoRecipe) { espressoRecipe?.let { summaryRecipe = it } }
@@ -143,7 +145,9 @@ fun DoseStep(
             summaryRecipe?.let { EspressoRecipeSummary(it, locale, still) }
         }
         AnimatedVisibility(visible = filterRecipe != null, enter = reveal(still), exit = conceal(still)) {
-            filterRecipe?.let { FilterRecipePlan(state, it, locale, onWater = onFilterWater) { editing = Editing.DOSE } }
+            filterRecipe?.let {
+                FilterRecipePlan(state, it, locale, still, onWater = onFilterWater, onNudge = ::filterTick) { editing = Editing.DOSE }
+            }
         }
         AnimatedVisibility(visible = espressoRecipe == null && filterRecipe == null, enter = reveal(still), exit = conceal(still)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -211,20 +215,34 @@ fun DoseStep(
 private const val FILTER_WATER_STEP_ML = 10.0
 
 @Composable
-private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale, onWater: (Double) -> Unit, onDose: () -> Unit) {
+private fun FilterRecipePlan(
+    state: BrewUiState,
+    recipe: Recipe,
+    locale: Locale,
+    still: Boolean,
+    onWater: (Double) -> Unit,
+    onNudge: () -> Unit,
+    onDose: () -> Unit,
+) {
     val water = recipe.steps.lastOrNull { it.kind.pours }?.targetWeightGrams ?: state.plannedWater ?: recipe.targetYieldGrams
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(Format.grams(water, locale) + " ${stringResource(R.string.unit_ml)}", style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800, 100)))
+        AnimatedContent(
+            targetState = Format.grams(water, locale) + " ${stringResource(R.string.unit_ml)}",
+            transitionSpec = { filterNumberRoll(still) },
+            label = "filter water",
+        ) { shown ->
+            Text(shown, style = MaterialTheme.typography.displayMedium.merge(TabularFlex).merge(flex(800, 100)))
+        }
         Text(stringResource(R.string.label_water), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             FilledTonalIconButton(
-                onClick = { onWater((water - FILTER_WATER_STEP_ML).coerceAtLeast(1.0)) },
+                onClick = { onNudge(); onWater((water - FILTER_WATER_STEP_ML).coerceAtLeast(1.0)) },
                 modifier = Modifier.size(56.dp),
             ) {
                 Icon(painterResource(R.drawable.ic_remove), stringResource(R.string.ratio_less), Modifier.size(28.dp))
             }
             FilledTonalIconButton(
-                onClick = { onWater((water + FILTER_WATER_STEP_ML).coerceAtMost(2000.0)) },
+                onClick = { onNudge(); onWater((water + FILTER_WATER_STEP_ML).coerceAtMost(2000.0)) },
                 modifier = Modifier.size(56.dp),
             ) {
                 Icon(painterResource(R.drawable.ic_add), stringResource(R.string.ratio_more), Modifier.size(28.dp))
@@ -235,7 +253,7 @@ private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Amount(state.dose, R.string.unit_grams, locale, onDose)
+            Amount(state.dose, R.string.unit_grams, locale, rollChanges = true, still = still, onClick = onDose)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.label_ratio), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.ratio_value, ratioText(recipe.targetRatio, locale)), style = MaterialTheme.typography.titleMedium)
@@ -251,7 +269,15 @@ private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale,
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(step.kind.label), style = MaterialTheme.typography.bodyMedium)
                         Text(Format.timer((step.targetAtMs / 1000).toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        step.targetWeightGrams?.let { Text("${Format.grams(it, locale)} ${stringResource(R.string.unit_grams)}", style = MaterialTheme.typography.bodyMedium) }
+                        step.targetWeightGrams?.let { target ->
+                            AnimatedContent(
+                                targetState = "${Format.grams(target, locale)} ${stringResource(R.string.unit_grams)}",
+                                transitionSpec = { filterNumberRoll(still) },
+                                label = "filter step weight",
+                            ) { shown ->
+                                Text(shown, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
                 idealTime(recipe.notes)?.let { time ->
@@ -263,6 +289,14 @@ private fun FilterRecipePlan(state: BrewUiState, recipe: Recipe, locale: Locale,
             }
         }
     }
+}
+
+/** Roll changed recipe amounts in together; reduced motion swaps directly to the complete new plan. */
+private fun filterNumberRoll(still: Boolean) = if (still) {
+    EnterTransition.None togetherWith ExitTransition.None
+} else {
+    (slideInVertically(Motion.standard()) { it / 2 } + fadeIn(Motion.standard())) togetherWith
+        (slideOutVertically(Motion.standard()) { -it / 2 } + fadeOut(Motion.standard()))
 }
 
 /** Built-in filter recipes keep their ideal time in the existing note; show its final time range when present. */
@@ -381,13 +415,24 @@ private fun RecipeChips(state: BrewUiState, onRecipe: (Recipe?) -> Unit) {
 
 /** An amount on a filled pill, in g for the beans and ml for the water; a tap edits it. */
 @Composable
-private fun Amount(grams: Double?, @StringRes unit: Int, locale: Locale, onClick: () -> Unit) {
+private fun Amount(
+    grams: Double?,
+    @StringRes unit: Int,
+    locale: Locale,
+    rollChanges: Boolean = false,
+    still: Boolean = false,
+    onClick: () -> Unit,
+) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.clip(MaterialTheme.shapes.extraLarge).clickable(onClick = onClick)) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${grams?.let { Format.grams(it, locale) } ?: "–"} ${stringResource(unit)}",
-                style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)),
-            )
+            val shown = "${grams?.let { Format.grams(it, locale) } ?: "–"} ${stringResource(unit)}"
+            if (rollChanges) {
+                AnimatedContent(shown, transitionSpec = { filterNumberRoll(still) }, label = "filter dose") { value ->
+                    Text(value, style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)))
+                }
+            } else {
+                Text(shown, style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)))
+            }
         }
     }
 }

@@ -212,9 +212,14 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     }
 }
 
+private const val PAUSED_RING_ALPHA = 0.45f
+
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
+    // The ring comes back from its paused color instead of jumping when the brew resumes.
+    var wasPaused by remember { mutableStateOf(false) }
     if (state.phase == BrewPhase.PAUSED) {
+        wasPaused = true
         FilterPausedStep(state, viewModel::stop)
         return
     }
@@ -244,9 +249,14 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 timerRunning = brewing,
                 modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
-                // Espresso's ring opens on the first drop, the tare rolls the weight to zero, and the flow thickens a cue (#194).
-                started = !espresso || brewing || state.phase == BrewPhase.DONE,
-                rolling = espresso && state.phase == BrewPhase.TARING,
+                // Espresso opens on its first drop (#194); filter opens on first water. Both roll through tare.
+                started = when (state.mode) {
+                    BrewMode.ESPRESSO, BrewMode.FILTER -> brewing || state.phase == BrewPhase.DONE
+                    BrewMode.FRENCH_PRESS -> true
+                },
+                rolling = (espresso || state.mode == BrewMode.FILTER) && state.phase == BrewPhase.TARING,
+                respectMotionSetting = state.mode == BrewMode.FILTER,
+                initialRingAlpha = if (wasPaused) PAUSED_RING_ALPHA else 1f,
                 flowCue = espresso,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
@@ -320,7 +330,7 @@ private fun FilterPausedStep(state: BrewUiState, onDone: () -> Unit) {
                 modifier = Modifier.padding(top = 12.dp).widthIn(max = 320.dp).fillMaxWidth(0.85f),
                 ratio = RatioTarget(state.ratio, state.targetRatio, state.ratioProgress, state.onTarget),
                 started = true,
-                ringAlpha = 0.45f,
+                ringAlpha = PAUSED_RING_ALPHA,
             )
             state.pauseRemainingMs?.takeIf { it in 1L..10_000L }?.let { remaining ->
                 Text(

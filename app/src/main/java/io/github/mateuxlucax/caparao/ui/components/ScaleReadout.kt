@@ -88,12 +88,21 @@ fun ScaleReadout(
     flowCue: Boolean = false,
     /** Filter pause: soften the ring while keeping the held weight readable. */
     ringAlpha: Float = 1f,
+    /** Filter motion follows the system setting without changing espresso's established readout. */
+    respectMotionSetting: Boolean = false,
+    /** Where the ring's color starts when it comes back from a pause, so it returns instead of jumping. */
+    initialRingAlpha: Float = ringAlpha,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    val motionOff = respectMotionSetting && animationsOff()
     // Readings come at 10 Hz: glide between them so the number rolls instead of jumping.
     val weight by animateFloatAsState(
         weightGrams.toFloat(),
-        if (rolling) tween(400, easing = Motion.EmphasizedDecelerate) else tween(100, easing = LinearEasing),
+        when {
+            motionOff -> snap()
+            rolling -> tween(400, easing = Motion.EmphasizedDecelerate)
+            else -> tween(100, easing = LinearEasing)
+        },
         label = "weight",
     )
     val flow = flowGramsPerSecond.coerceIn(0.0, 99.9)
@@ -186,7 +195,9 @@ fun ScaleReadout(
     )
     val colors = MaterialTheme.colorScheme
     val still = animationsOff()
-    val shownRingAlpha by animateFloatAsState(ringAlpha, if (still) snap() else tween(300), label = "ringAlpha")
+    val ringFade = remember { Animatable(initialRingAlpha) }
+    LaunchedEffect(ringAlpha, still) { if (still) ringFade.snapTo(ringAlpha) else ringFade.animateTo(ringAlpha, tween(300)) }
+    val shownRingAlpha = ringFade.value
     // The ring opens from its start on the first drop, then the progress fills it; with animations off it is open at once.
     val open by animateFloatAsState(if (started) 1f else 0f, if (still) snap() else spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow), label = "open")
     // The live flow as the thickness of a thin ring inside the open one: a cue, not a number, so it stays under the numbers.
