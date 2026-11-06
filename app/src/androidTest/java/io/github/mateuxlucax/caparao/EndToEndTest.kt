@@ -169,7 +169,7 @@ class EndToEndTest {
             assertTrue("expected a full curve, got $sampleCount samples", sampleCount > 100)
             assertFalse("the replayed shot should finish normally", brew.interrupted)
 
-            compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.done)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.tab_brews)).performClick()
             // "Synced 16:52": the server confirmed it.
             val synced = text(R.string.synced_at).substringBefore("%1\$s").trim()
@@ -259,7 +259,7 @@ class EndToEndTest {
             assertTrue("the lifted carafe is excluded from the curve", samples.all { it.weightGrams > 0.0 })
             assertEquals(300.0, samples.last().weightGrams, 0.5)
 
-            compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.done)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.tab_brews)).performClick()
             // Both mode uploads must reach the server in the script's assertion below.
             val synced = text(R.string.synced_at).substringBefore("%1\$s").trim()
