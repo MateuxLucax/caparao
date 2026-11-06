@@ -76,7 +76,7 @@ fun BrewsScreen(
     if (!state.loading && state.sections.isEmpty()) {
         Column(modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
             SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
-            EmptyState(R.drawable.ic_receipt_long, stringResource(R.string.brews_empty_title), stringResource(R.string.brews_empty_text), Modifier.padding(top = 48.dp))
+            EmptyState(R.drawable.ic_receipt_long, stringResource(R.string.brews_empty_title), Modifier.padding(top = 48.dp))
         }
         return
     }

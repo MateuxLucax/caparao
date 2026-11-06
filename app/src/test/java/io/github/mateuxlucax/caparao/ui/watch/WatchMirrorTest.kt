@@ -132,6 +132,7 @@ class WatchMirrorTest {
         assertEquals(WatchAlert.RESUMED, WatchMirror.alert(StepEvent.Resumed))
         assertEquals(WatchAlert.DRAIN_TIME_ENTERED, WatchMirror.alert(StepEvent.DrainTimeEntered))
         assertEquals(WatchAlert.DRAIN_TIME_PASSED, WatchMirror.alert(StepEvent.DrainTimePassed))
+        assertEquals(WatchAlert.FRENCH_PRESS_DEADLINE, WatchMirror.alert(StepEvent.FrenchPressDeadline))
         assertEquals(WatchAlert.FRENCH_PRESS_REMINDER, WatchMirror.alert(StepEvent.FrenchPressReminder))
     }
 }

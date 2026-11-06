@@ -237,7 +237,7 @@ class EndToEndTest {
             assertEquals(BrewStep.LIVE, viewModel.get()?.uiState?.value?.step)
             assertEquals(BrewPhase.BREWING, viewModel.get()?.uiState?.value?.phase)
             assertEquals(300.0, viewModel.get()?.uiState?.value?.weightGrams ?: 0.0, 0.5)
-            val finishAlerts = alerts.filter { it.event == StepEvent.AllDone }
+            val finishAlerts = alerts.filter { it.event == StepEvent.FrenchPressDeadline }
             assertEquals(1, finishAlerts.size)
             assertTrue(finishAlerts.single().vibrate)
             assertFalse(finishAlerts.single().sound)

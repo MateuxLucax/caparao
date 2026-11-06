@@ -56,9 +56,9 @@ fun BodyText(text: String) {
     Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/** Centered icon, title and text for a list or screen that has nothing to show yet. */
+/** Centered icon and line for a list or screen that has nothing to show yet. */
 @Composable
-fun EmptyState(@DrawableRes icon: Int, title: String, text: String, modifier: Modifier = Modifier) {
+fun EmptyState(@DrawableRes icon: Int, title: String, modifier: Modifier = Modifier) {
     Column(
         modifier.fillMaxWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -66,12 +66,6 @@ fun EmptyState(@DrawableRes icon: Int, title: String, text: String, modifier: Mo
     ) {
         Icon(painterResource(icon), contentDescription = null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
     }
 }
 
