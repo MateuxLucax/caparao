@@ -48,6 +48,7 @@ data class RecipeForm(
                     add(Field.WINDOW)
                 }
                 if (steps.isEmpty()) add(Field.STEPS)
+                if (mode == BrewMode.FRENCH_PRESS && steps.lastOrNull()?.kind != StepKind.PRESS) add(Field.STEPS)
                 var lastStart = -1L
                 var lastWeight = 0.0
                 for ((index, step) in steps.withIndex()) {
@@ -111,6 +112,7 @@ data class RecipeForm(
         val RATIO = 0.5..30.0
         val TEMP = 1..100
         private const val MAX_WATER = 2000.0
+        private const val DEFAULT_STEEP = "4:00"
 
         private fun flowRate(text: String): Double? = number(text)?.takeIf { it.isFinite() }
 
@@ -139,16 +141,23 @@ data class RecipeForm(
                     clockText(it.targetAtMs),
                     it.targetFlowGramsPerSecond?.let { rate -> plain(rate, locale) }.orEmpty(),
                 )
+            }.let { steps ->
+                if (recipe.mode == BrewMode.FRENCH_PRESS && steps.lastOrNull()?.kind != StepKind.PRESS) {
+                    steps + StepForm(StepKind.PRESS, start = DEFAULT_STEEP)
+                } else {
+                    steps
+                }
             },
         )
 
-        /** A new pour-based recipe: one bloom at 0:00. */
+        /** A new pour-based recipe: one bloom at 0:00, plus the French press steep deadline. */
         fun new(mode: BrewMode) = RecipeForm(
             mode = mode,
             method = METHODS.getValue(mode).first(),
             steps = when (mode) {
                 BrewMode.ESPRESSO -> emptyList()
-                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> listOf(StepForm(StepKind.BLOOM, start = "0:00"))
+                BrewMode.FILTER -> listOf(StepForm(StepKind.BLOOM, start = "0:00"))
+                BrewMode.FRENCH_PRESS -> listOf(StepForm(StepKind.BLOOM, start = "0:00"), StepForm(StepKind.PRESS, start = DEFAULT_STEEP))
             },
         )
 

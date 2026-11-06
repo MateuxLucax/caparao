@@ -233,6 +233,8 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         assertEquals(BrewPhase.READY, vm.uiState.value.phase)
@@ -252,11 +254,41 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun frenchPressWaitsForReadyAndReturnsToPreparationIfLiftedBeforeWater() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.setPreparationCheck(1, true)
+        hold(600.0, 2.0) // the press goes on after Beans, while the optional checklist is open
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertTrue("placing the press does not tare before Ready", scale.commands.isEmpty())
+
+        vm.ready()
+        assertEquals(listOf("tare"), scale.commands)
+        hold(0.0, 1.0)
+        assertEquals(BrewPhase.READY, vm.uiState.value.phase)
+        hold(-2.0, 2.2)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertEquals("checklist marks survive the return", setOf(1), vm.uiState.value.preparationChecks)
+
+        hold(600.0, 0.3)
+        vm.ready()
+        assertEquals(listOf("tare", "tare"), scale.commands)
+        hold(0.0, 1.0)
+        pour(0.0, 10.0, 0.5)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        hold(-80.0, 2.5)
+        assertEquals("a lift after water does not return to preparation", BrewStep.LIVE, vm.uiState.value.step)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+    }
+
+    @Test
     fun aFrenchPressDisconnectDuringTheBrewSavesTheHighestWaterWeightAsInterrupted() {
         val vm = viewModel(BrewMode.FRENCH_PRESS)
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 120.0, 12.0)
@@ -543,6 +575,43 @@ class BrewViewModelTest {
         assertEquals(5.0, vm.uiState.value.recipe!!.steps.single().targetFlowGramsPerSecond!!, 0.0)
         assertEquals(8_000L, vm.uiState.value.recipe!!.targetMinMs)
         assertEquals(12_000L, vm.uiState.value.recipe!!.targetMaxMs)
+    }
+
+    @Test
+    fun frenchPressWaterScalesDoseAndStepWeightsButNotTimesOrTheSavedRecipe() = kotlinx.coroutines.test.runTest {
+        val recipe = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeWater(400.0)
+
+        val scaled = vm.uiState.value.recipe!!
+        assertEquals(26.7, vm.uiState.value.dose!!, 0.05)
+        assertEquals(15.0, vm.uiState.value.targetRatio, 0.0)
+        assertEquals(listOf(133.3, null, 400.0, null), scaled.steps.map { it.targetWeightGrams?.let { w -> Math.round(w * 10) / 10.0 } })
+        assertEquals(400.0, scaled.steps[2].targetWeightGrams!!, 0.0)
+        assertEquals(recipe.steps.map { it.targetAtMs }, scaled.steps.map { it.targetAtMs })
+        assertEquals(240_000L, scaled.steps.last().targetAtMs)
+        assertEquals(recipe, recipes.get(recipe.id))
+    }
+
+    @Test
+    fun anOlderFrenchPressRecipeScalesWithItsDefaultSteep() = kotlinx.coroutines.test.runTest {
+        val full = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
+        val recipe = full.copy(steps = full.steps.dropLast(1))
+        recipes.save(recipe)
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.selectRecipe(recipe)
+
+        vm.setFilterRecipeWater(150.0)
+
+        val steps = vm.uiState.value.recipe!!.steps
+        assertEquals(StepKind.PRESS, steps.last().kind)
+        assertEquals(240_000L, steps.last().targetAtMs)
+        assertEquals(150.0, steps[2].targetWeightGrams!!, 0.0)
     }
 
     @Test
@@ -862,6 +931,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 100.0, 10.0)
@@ -888,15 +958,42 @@ class BrewViewModelTest {
         assertNull(vm.uiState.value.saved)
         assertEquals(frenchPress.steps.size, vm.uiState.value.guide?.index)
 
+        val elapsedAtDone = vm.uiState.value.elapsedMs
         vm.stop()
         rolled()
         assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
         assertEquals(BrewMode.FRENCH_PRESS, vm.uiState.value.saved?.mode)
         assertNull(vm.uiState.value.saved?.timeToFirstDropMs)
         assertEquals(300.0, vm.uiState.value.saved?.yieldGrams ?: 0.0, 0.5)
+        // The 10 s between the removal and Done are not part of the saved time (#223).
+        val savedMs = vm.uiState.value.saved!!.durationMs
+        assertEquals(elapsedAtDone - 10_000.0, savedMs.toDouble(), 700.0)
+        assertTrue(savedMs >= 240_000L)
+        assertEquals(savedMs, vm.uiState.value.elapsedMs)
         val curve = dao.samples.getValue("brew-1")
         assertTrue("the off-scale weight is not a curve sample", curve.all { it.weightGrams > 0.0 })
         assertEquals(300.0, curve.last().weightGrams, 0.5)
+    }
+
+    @Test
+    fun aFrenchPressDoneWithNoRemovalSavesTheTimeOfDone() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 300.0, 20.0)
+        hold(300.0, 230.0)
+        assertFalse(vm.uiState.value.frenchPressRemoved)
+
+        val elapsedAtDone = vm.uiState.value.elapsedMs
+        vm.stop()
+        rolled()
+
+        assertEquals(elapsedAtDone.toDouble(), vm.uiState.value.saved!!.durationMs.toDouble(), 300.0)
     }
 
     @Test
@@ -911,6 +1008,7 @@ class BrewViewModelTest {
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
+        vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 100.0, 10.0)
@@ -946,6 +1044,109 @@ class BrewViewModelTest {
         val curve = dao.samples.getValue("brew-1")
         assertTrue("the off-scale weight is not a curve sample", curve.all { it.weightGrams > 0.0 })
         assertEquals(180.0, curve.last().weightGrams, 0.5)
+    }
+
+    @Test
+    fun frenchPressDeadlineRepeatsEveryFifteenSecondsAndResumesAfterWeightReturns() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        hold(300.0, 176.0)
+
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressReminder })
+        assertTrue(vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressReminder })
+
+        pour(300.0, -400.0, 0.1)
+        hold(-400.0, 1.0)
+        assertEquals("a removal candidate stops reminders", 1, alerts.count { it.event == StepEvent.FrenchPressReminder })
+        pour(-400.0, 300.0, 0.1)
+        assertEquals("the reminder resumes when weight returns", 2, alerts.count { it.event == StepEvent.FrenchPressReminder })
+
+        vm.stop()
+        collecting.cancel()
+    }
+
+    @Test
+    fun aFrenchPressSteepKeepsCountingWhenTheScaleDropsAndAlertsAtTheDeadline() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        try {
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        hold(300.0, 60.0)
+
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertFalse(vm.uiState.value.connected)
+        assertTrue(alerts.none { it.event == StepEvent.AllDone })
+
+        now += 110_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertTrue(vm.uiState.value.frenchPressDeadlineReached)
+
+        now += 15_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals("it keeps repeating until Done, as removal can't be seen", 1, alerts.count { it.event == StepEvent.FrenchPressReminder })
+
+        vm.stop()
+        rolled()
+        val brew = vm.uiState.value.saved!!
+        assertEquals(300.0, brew.yieldGrams, 0.5)
+        assertFalse(brew.interrupted)
+        } finally {
+            vm.end()
+            collecting.cancel()
+        }
+    }
+
+    @Test
+    fun frenchPressDeadlineScreenRemainsVisibleWhenSettingsSilenceAlerts() = kotlinx.coroutines.test.runTest {
+        settings.guideVibration = false
+        settings.guideSound = false
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        hold(300.0, 161.0)
+
+        assertTrue(alerts.isEmpty())
+        assertTrue(vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(0, watchAlerts.count { it == StepEvent.AllDone })
+        collecting.cancel()
     }
 
     @Test

@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -141,11 +142,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
         )
     }
+    val pressDeadline = state.frenchPressDeadlineReached && !state.frenchPressRemoved
+    val screenColor = if (pressDeadline) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+    val contentColor = if (pressDeadline) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
     Scaffold(
+        containerColor = screenColor,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(state.mode.label), style = MaterialTheme.typography.titleLargeEmphasized) },
                 subtitle = { state.recipe?.let { Text(it.name) } },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = screenColor,
+                    titleContentColor = contentColor,
+                    subtitleContentColor = contentColor,
+                    navigationIconContentColor = contentColor,
+                ),
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
@@ -155,21 +166,16 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            // Filter keeps its milestone bar while the recipe guide runs; other modes keep their existing transition.
+            // The milestone bar stays while the recipe guide runs. French press past its last step is serving: remove, press, serve.
+            val serving = state.guide?.let { it.index >= state.steps.size } == true
+            GuideIndicator(
+                state.mode,
+                guideStage(state.mode, state.step, state.phase, serving),
+                Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                steps = state.steps,
+                stepIndex = state.guide?.index,
+            )
             val still = animationsOff()
-            AnimatedVisibility(
-                visible = state.guide == null || state.mode == BrewMode.FILTER,
-                enter = if (still) EnterTransition.None else fadeIn() + expandVertically(),
-                exit = if (still) ExitTransition.None else fadeOut() + shrinkVertically(),
-            ) {
-                GuideIndicator(
-                    state.mode,
-                    guideStage(state.mode, state.step, state.phase),
-                    Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    steps = state.steps,
-                    stepIndex = state.guide?.index,
-                )
-            }
             val density = LocalDensity.current
             // The guide is part of the live step, keyed apart so it can slide in on its own when the first step opens.
             AnimatedContent(
@@ -192,12 +198,11 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         viewModel::weigh,
                     )
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
-                    BrewStep.PREPARE_PORTAFILTER -> if (state.mode == BrewMode.FILTER) {
-                        FilterPrepareStep(state, viewModel::setFilterPreparationCheck, viewModel::ready)
-                    } else {
-                        PortafilterStep(state, viewModel::ready)
+                    BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
+                        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
+                        BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
-                    BrewStep.LIVE -> LiveStep(state, viewModel, guided)
+                    BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
                     BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() }, onClose = onClose)
                 }
             }
@@ -208,7 +213,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 private const val PAUSED_RING_ALPHA = 0.45f
 
 @Composable
-private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean) {
+private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
     // The ring comes back from its paused color instead of jumping when the brew resumes.
     var wasPaused by remember { mutableStateOf(false) }
     if (state.phase == BrewPhase.PAUSED) {
@@ -217,7 +222,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
         return
     }
     if (guided) {
-        GuidedStep(state, viewModel::stop)
+        // A French press steep still running asks first; one stray tap would end it for good (#222).
+        GuidedStep(state, onDone = { if (state.mode == BrewMode.FRENCH_PRESS && !state.frenchPressDeadlineReached) onConfirmStop() else viewModel.stop() })
         return
     }
     val brewing = state.phase == BrewPhase.BREWING
@@ -407,7 +413,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
 }
 
 /**
- * Yield, time, ratio, dose and flow of a saved brew, in a card. Shared with the brew detail. [countUp] counts the numbers
+ * Yield, time, ratio, dose and flow of a saved brew, in a card (French press has no average flow). Shared with the brew detail. [countUp] counts the numbers
  * up from zero on the save screen (#198); with animations off they show at once.
  */
 @Composable
@@ -444,19 +450,22 @@ fun BrewNumbers(brew: Brew, modifier: Modifier = Modifier, countUp: Boolean = fa
                     Modifier.weight(1f),
                 )
             }
-            Row(Modifier.fillMaxWidth()) {
-                Metric(
-                    stringResource(R.string.label_flow_avg),
-                    countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
-                    Modifier.weight(1f),
-                )
-                brew.timeToFirstDropMs?.let {
+            // French press steeps with no flow, so its average over the whole time says nothing (#224); the upload keeps the field.
+            if (brew.mode != BrewMode.FRENCH_PRESS) {
+                Row(Modifier.fillMaxWidth()) {
                     Metric(
-                        stringResource(R.string.label_first_drop),
-                        countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                        stringResource(R.string.label_flow_avg),
+                        countedText(brew.flowAvgGramsPerSecond, countUp) { "${Format.flow(it, locale)} $flowUnit" },
                         Modifier.weight(1f),
                     )
-                } ?: Spacer(Modifier.weight(1f))
+                    brew.timeToFirstDropMs?.let {
+                        Metric(
+                            stringResource(R.string.label_first_drop),
+                            countedText(it / 1000.0, countUp) { Format.timer(it.toInt()) },
+                            Modifier.weight(1f),
+                        )
+                    } ?: Spacer(Modifier.weight(1f))
+                }
             }
         }
     }

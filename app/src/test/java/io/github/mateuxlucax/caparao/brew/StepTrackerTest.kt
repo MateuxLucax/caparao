@@ -175,7 +175,7 @@ class StepTrackerTest {
     }
 
     @Test
-    fun terminalPressTriggersAllDoneOnceAtItsScheduledStartWithoutAlertCountdowns() {
+    fun terminalPressCountsDownItsLastFiveSecondsThenTriggersAllDoneAtItsDeadline() {
         val steps = listOf(
             RecipeStep(StepKind.BLOOM, 100.0, 0),
             RecipeStep(StepKind.WAIT, null, 0),
@@ -192,7 +192,10 @@ class StepTrackerTest {
         assertEquals(3, tracker.state.index)
         assertEquals(160_000L, tracker.state.dueInMs)
 
-        assertTrue(tracker.update(239_000, 300.0, 0.0).isEmpty())
+        val countdowns = (235_000L..239_000L step 1_000L).flatMap { at -> tracker.update(at, 300.0, 0.0) }
+            .filterIsInstance<StepEvent.Countdown>()
+            .map { it.secondsLeft }
+        assertEquals(listOf(5, 4, 3, 2, 1), countdowns)
         assertEquals(1_000L, tracker.state.dueInMs)
         assertEquals(listOf(StepEvent.AllDone), tracker.update(240_000, 300.0, 0.0))
         assertTrue(tracker.state.allDone(steps.size))

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.assertIsSelected
@@ -197,7 +198,8 @@ class EndToEndTest {
         val alertScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
         val viewModel = AtomicReference<BrewViewModel?>()
         try {
-            compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 10_000)
+            // The shortcut opens the built-in French press recipe, whose water is the control (no ratio caption).
+            compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 10_000)
             val brewViewModel = activity.viewModelStore.get("brew-FRENCH_PRESS") as? BrewViewModel
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }
@@ -205,6 +207,10 @@ class EndToEndTest {
             compose.onNodeWithText(text(R.string.next)).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
+            // Prepare waits for Ready; only then does the tare go out and the live step start.
+            compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_press_title)), 10_000)
+            assertEquals(BrewStep.PREPARE_PORTAFILTER, viewModel.get()?.uiState?.value?.step)
+            compose.onNodeWithTag("press-prepare-ready").assertIsEnabled().performClick()
             compose.waitUntil(10_000) { viewModel.get()?.uiState?.value?.step == BrewStep.LIVE }
 
             replay.resume()
@@ -237,7 +243,8 @@ class EndToEndTest {
             assertFalse(finishAlerts.single().sound)
             assertEquals(null, viewModel.get()?.uiState?.value?.saved)
 
-            compose.onNodeWithText(text(R.string.done)).performClick()
+            // The progress bar also reads "Done", so target the button.
+            compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 10_000)
             val dao = container.database.brews()
             compose.waitUntil(10_000) { runBlocking(Dispatchers.IO) { dao.all().size == 1 } }

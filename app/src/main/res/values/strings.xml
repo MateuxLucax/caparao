@@ -100,6 +100,7 @@
     <string name="next">Next</string>
     <string name="prepare_portafilter_title">Prepare the portafilter</string>
     <string name="prepare_filter_title">Prepare the filter</string>
+    <string name="prepare_press_title">Prepare the press</string>
     <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Grind</string>
@@ -109,6 +110,7 @@
     <string name="prepare_rinse_filter">Rinse the filter</string>
     <string name="prepare_add_grounds">Add the grounds</string>
     <string name="prepare_dripper_server">Dripper and server on the scale</string>
+    <string name="prepare_press_scale">Press on the scale</string>
     <string name="prepare_ready">Ready</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
     <string name="espresso_place_cup_text">The scale tares once the cup is steady.</string>
@@ -218,7 +220,7 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
-    <string name="step_press">Press</string>
+    <string name="step_press">Steep</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
     <string name="step_flow_target">Flow target</string>
@@ -257,6 +259,8 @@
     <string name="guide_steep">Steep</string>
     <string name="guide_steep_text">Let it steep</string>
     <string name="guide_remove_press">Remove the press from the scale.</string>
+    <string name="guide_time_up">Time’s up</string>
+    <string name="guide_scale_dropped">Scale disconnected</string>
     <string name="guide_press_serve">Press and serve</string>
     <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
@@ -316,6 +320,7 @@
     <string name="stage_beans">Weigh the beans</string>
     <string name="stage_prepare">Prepare the portafilter</string>
     <string name="stage_prepare_filter">Prepare the filter</string>
+    <string name="stage_prepare_press">Prepare the press</string>
     <string name="stage_cup">Cup</string>
     <string name="stage_tare">Tare</string>
     <string name="stage_first_drop">First drop</string>
@@ -329,6 +334,8 @@
     <string name="milestone_portafilter">Portafilter</string>
     <string name="milestone_shot">Shot</string>
     <string name="milestone_prepare">Prepare</string>
+    <string name="milestone_prepare_press">Prepare</string>
+    <string name="milestone_serve">Serve</string>
     <string name="milestone_brew">Brew</string>
     <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Done</string>

@@ -21,6 +21,7 @@ enum class WatchAlert(val pattern: LongArray) {
     RESUMED(longArrayOf(0, 50, 50, 50)),
     DRAIN_TIME_ENTERED(longArrayOf(0, 60, 80, 100)),
     DRAIN_TIME_PASSED(longArrayOf(0, 200)),
+    FRENCH_PRESS_REMINDER(longArrayOf(0, 400)),
     ;
 
     fun encode(): ByteArray = byteArrayOf(ordinal.toByte())

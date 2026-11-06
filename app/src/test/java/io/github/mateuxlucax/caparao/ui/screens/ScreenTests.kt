@@ -89,6 +89,7 @@ import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -1327,6 +1328,50 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
     }
 
+    /** French press shows live flow and its chart on bloom and pour only; wait and steep hide them (#224). */
+    @Test
+    fun frenchPressFlowShowsOnlyWhilePouring() {
+        val recipe = Recipe(
+            id = "press-flow", name = "Press flow", mode = BrewMode.FRENCH_PRESS, method = "French press", doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 100.0, 0),
+                RecipeStep(StepKind.WAIT, null, 0),
+                RecipeStep(StepKind.POUR, 300.0, 60_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        fun state(index: Int) = BrewUiState(
+            mode = BrewMode.FRENCH_PRESS,
+            step = BrewStep.LIVE,
+            flowGramsPerSecond = 3.0,
+            recipe = recipe,
+            guide = StepState(index = index, progress = 0.5f, dueInMs = 10_000, pace = null, paceMs = null, overshootGrams = null),
+        )
+        var current by mutableStateOf(state(0))
+        compose.setContent { AppTheme { GuidedStep(current) {} } }
+        listOf(0 to true, 1 to false, 2 to true, 3 to false).forEach { (index, shown) ->
+            current = state(index)
+            compose.waitForIdle()
+            compose.onAllNodes(hasTestTag("flow-chart-no-target")).assertCountEquals(if (shown) 1 else 0)
+            compose.onAllNodesWithText(context.getString(R.string.guide_flow, Format.flow(3.0, locale))).assertCountEquals(if (shown) 1 else 0)
+        }
+    }
+
+    /** The French press summary leaves out the average flow, which divides the water by the whole steep (#224). */
+    @Test
+    fun frenchPressSummaryHidesTheAverageFlow() {
+        fun brew(mode: BrewMode) = Brew("avg-flow-${mode.name}", mode, 0L, 240_000L, 20.0, 300.0, null, 1.25, 0.0, false)
+        var current by mutableStateOf(brew(BrewMode.FRENCH_PRESS))
+        compose.setContent { AppTheme { BrewNumbers(current) } }
+        compose.onNodeWithText(text(R.string.label_time)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.label_flow_avg)).assertCountEquals(0)
+
+        current = brew(BrewMode.FILTER)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.label_flow_avg)).assertIsDisplayed()
+    }
+
     /** The third mode selector and its preselected built-in French press recipe. */
     @Test
     fun frenchPressRecipeSelector() {
@@ -1339,24 +1384,105 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
     }
 
+    /** The progress bar's single TalkBack node names the current milestone, with the recipe step during Brew. */
+    private fun assertMilestone(name: Int) {
+        compose.onNode(hasContentDescription(text(name), substring = true)).assertIsDisplayed()
+    }
+
+    /** Water is the French press recipe's control: 400 ml scales the dose and weights, and the steep stays at 4:00 (#215). */
+    @Test
+    fun frenchPressRecipeWaterScalesItsSteps() {
+        open("idle-5min", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("${Format.grams(300.0, locale)} ${text(R.string.unit_ml)}").assertIsDisplayed()
+        repeat(10) { compose.onNodeWithContentDescription(text(R.string.ratio_more)).performClick() }
+        compose.waitUntilAtLeastOneExists(hasText("${Format.grams(400.0, locale)} ${text(R.string.unit_ml)}"), 5_000)
+        compose.onNodeWithText("${Format.grams(26.7, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(133.3, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("${Format.grams(400.0, locale)} ${text(R.string.unit_grams)}").assertIsDisplayed()
+        compose.onNodeWithText("04:00").assertIsDisplayed()
+        val ratio = context.getString(R.string.ratio_value, "15")
+        compose.onNodeWithText(ratio).assertIsDisplayed().assertHasNoClickAction()
+    }
+
     /** The timer, post-timer removal prompt and plunger-only serve animation (#126). */
     @Test
     fun frenchPressGuide() {
         val scale = open("synthetic-french-press", 0)
         compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        assertMilestone(R.string.milestone_recipe)
         click(R.string.next)
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        assertMilestone(R.string.milestone_beans)
         compose.onNodeWithTag("weigh-step-next").performClick()
+
+        waitFor(R.string.prepare_press_title)
+        assertMilestone(R.string.milestone_prepare_press)
+        val beanWeighTares = scale.tareCommands
+        compose.onNodeWithTag("press-prepare-picture").assertIsDisplayed()
+        listOf(R.string.prepare_rdt, R.string.prepare_grind, R.string.prepare_add_grounds, R.string.prepare_press_scale)
+            .forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        compose.onNodeWithTag("press-prepare-ready").assertIsDisplayed().assertIsEnabled()
+        play(scale, 0) // a reading after Beans cannot start the brew; the zeros after Ready finish the tare
+        compose.waitForIdle()
+        waitFor(R.string.prepare_press_title)
+        assertEquals("only Ready starts the tare", beanWeighTares, scale.tareCommands)
+        click(R.string.prepare_ready)
+        assertTrue("Ready starts the tare", scale.tareCommands > beanWeighTares)
 
         play(scale, 80_000)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_brew)
         play(scale, 241_100)
         waitFor(R.string.guide_remove_press)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_serve)
         play(scale, 255_000)
         waitFor(R.string.guide_press_serve)
         compose.waitForIdle()
+        assertMilestone(R.string.milestone_serve)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        waitFor(R.string.brew_saved)
+        assertMilestone(R.string.milestone_done)
+    }
+
+    private fun frenchPressSteep(): SessionScale {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_press_title)
+        click(R.string.prepare_ready)
+        return scale
+    }
+
+    /** Before the deadline Done asks first (#222). */
+    @Test
+    fun frenchPressDoneAsksBeforeTheDeadline() {
+        val scale = frenchPressSteep()
+        play(scale, 80_000)
+        compose.waitForIdle()
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        waitFor(R.string.finish_brew_title)
+        compose.onNodeWithText(text(R.string.keep_brewing)).assertIsDisplayed()
+    }
+
+    /** After the deadline Done ends the brew directly (#222). */
+    @Test
+    fun frenchPressDoneEndsDirectlyAfterTheDeadline() {
+        val scale = frenchPressSteep()
+        play(scale, 241_100)
+        waitFor(R.string.guide_remove_press)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText(text(R.string.finish_brew_title)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)
     }
 
     /**

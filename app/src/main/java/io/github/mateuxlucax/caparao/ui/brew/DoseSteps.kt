@@ -106,7 +106,7 @@ import java.util.Locale
 /**
  * The ratio first for a free brew: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
  * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
- * as a summary. A filter recipe makes water the control and scales its steps for this brew (#204).
+ * as a summary. A filter or French press recipe makes water the control and scales its steps for this brew (#204, #215).
  */
 @Composable
 fun DoseStep(
@@ -124,7 +124,7 @@ fun DoseStep(
         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> 0.5
     }
     val espressoRecipe = state.recipe?.takeIf { state.mode == BrewMode.ESPRESSO }
-    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER }
+    val filterRecipe = state.recipe?.takeIf { state.mode == BrewMode.FILTER || state.mode == BrewMode.FRENCH_PRESS }
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     val espresso = state.mode == BrewMode.ESPRESSO
@@ -604,20 +604,29 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     }
 }
 
-/** Filter preparation; checklist marks survive a return from the brew step, and never gate Ready. */
+/** Filter or French press preparation; checklist marks survive a return, and never gate Ready. */
 @Composable
-fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: () -> Unit) {
+fun PrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
-    val items = listOf(
-        PrepRowData(stringResource(R.string.prepare_rdt)),
-        PrepRowData(stringResource(R.string.prepare_grind), grind),
-        PrepRowData(stringResource(R.string.prepare_rinse_filter)),
-        PrepRowData(stringResource(R.string.prepare_add_grounds)),
-        PrepRowData(stringResource(R.string.prepare_dripper_server)),
-    )
+    val items = when (state.mode) {
+        BrewMode.FILTER -> listOf(
+            PrepRowData(stringResource(R.string.prepare_rdt)),
+            PrepRowData(stringResource(R.string.prepare_grind), grind),
+            PrepRowData(stringResource(R.string.prepare_rinse_filter)),
+            PrepRowData(stringResource(R.string.prepare_add_grounds)),
+            PrepRowData(stringResource(R.string.prepare_dripper_server)),
+        )
+        BrewMode.FRENCH_PRESS -> listOf(
+            PrepRowData(stringResource(R.string.prepare_rdt)),
+            PrepRowData(stringResource(R.string.prepare_grind), grind),
+            PrepRowData(stringResource(R.string.prepare_add_grounds)),
+            PrepRowData(stringResource(R.string.prepare_press_scale)),
+        )
+        BrewMode.ESPRESSO -> error("Espresso uses PortafilterStep")
+    }
     val still = animationsOff()
-    val allChecked = state.filterPreparationChecks.size == items.size
+    val allChecked = state.preparationChecks.size == items.size
     val readyScale = remember { Animatable(1f) }
     val pictureScale = remember { Animatable(1f) }
     LaunchedEffect(allChecked) {
@@ -636,16 +645,29 @@ fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onRea
     Box(Modifier.fillMaxSize().padding(24.dp)) {
         val compact = LocalConfiguration.current.screenHeightDp < 700
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            GuideHeader(GuideStage.PREPARE_FILTER)
-            if (!compact) FilterPicture(
-                state.filterPreparationChecks.size,
-                Modifier.padding(top = 4.dp).size(128.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value },
-            )
+            val press = state.mode == BrewMode.FRENCH_PRESS
+            GuideHeader(if (press) GuideStage.PREPARE_FRENCH_PRESS else GuideStage.PREPARE_FILTER)
+            if (!compact) {
+                if (press) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.padding(top = 4.dp).size(128.dp).testTag("press-prepare-picture"),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_french_press), null, Modifier.padding(28.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                } else {
+                    FilterPicture(
+                        state.preparationChecks.size,
+                        Modifier.padding(top = 4.dp).size(128.dp).graphicsLayer { scaleX = pictureScale.value; scaleY = pictureScale.value },
+                    )
+                }
+            }
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shape = MaterialTheme.shapes.small,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.testTag("filter-prepare-dose").padding(top = if (compact) 8.dp else 6.dp),
+                modifier = Modifier.testTag(if (press) "press-prepare-dose" else "filter-prepare-dose").padding(top = if (compact) 8.dp else 6.dp),
             ) {
                 Text(
                     stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
@@ -655,22 +677,22 @@ fun FilterPrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onRea
                 )
             }
             Column(
-                Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag("filter-prepare-list"),
+                Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag(if (press) "press-prepare-list" else "filter-prepare-list"),
                 verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
             ) {
                 items.forEachIndexed { index, item ->
                     PrepItem(
                         item,
                         index,
-                        checked = index in state.filterPreparationChecks,
+                        checked = index in state.preparationChecks,
                         still = still,
-                        tagPrefix = "filter-prepare",
+                        tagPrefix = if (press) "press-prepare" else "filter-prepare",
                     ) { isChecked -> onCheck(index, isChecked) }
                 }
             }
             Button(
                 onClick = onReady,
-                modifier = Modifier.testTag("filter-prepare-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
+                modifier = Modifier.testTag(if (press) "press-prepare-ready" else "filter-prepare-ready").fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
                     .graphicsLayer { scaleX = readyScale.value; scaleY = readyScale.value },
                 shapes = ButtonDefaults.shapes(),
             ) {

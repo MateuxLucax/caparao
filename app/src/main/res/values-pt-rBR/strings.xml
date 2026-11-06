@@ -96,6 +96,7 @@
     <string name="next">Continuar</string>
     <string name="prepare_portafilter_title">Prepare o porta-filtro</string>
     <string name="prepare_filter_title">Prepare o filtro</string>
+    <string name="prepare_press_title">Prepare a prensa</string>
     <string name="prepare_dose">%1$s g</string>
     <string name="prepare_rdt">RDT</string>
     <string name="prepare_grind">Moer</string>
@@ -105,6 +106,7 @@
     <string name="prepare_rinse_filter">Escalde o filtro</string>
     <string name="prepare_add_grounds">Coloque o café moído</string>
     <string name="prepare_dripper_server">Coloque o coador e a jarra na balança</string>
+    <string name="prepare_press_scale">Coloque a prensa na balança</string>
     <string name="prepare_ready">Pronto</string>
     <string name="espresso_place_cup">Coloque a xícara na balança</string>
     <string name="espresso_place_cup_text">Assim que você posicionar, a balança irá tarar.</string>
@@ -212,7 +214,7 @@
     <string name="step_pour">Despejo</string>
     <string name="step_wait">Espera</string>
     <string name="step_swirl">Agitar</string>
-    <string name="step_press">Prensar</string>
+    <string name="step_press">Infusão</string>
     <string name="step_weight">Até</string>
     <string name="step_start">Início</string>
     <string name="step_flow_target">Fluxo-alvo</string>
@@ -251,6 +253,8 @@
     <string name="guide_steep">Infusão</string>
     <string name="guide_steep_text">Deixe em infusão</string>
     <string name="guide_remove_press">Tire a prensa da balança.</string>
+    <string name="guide_time_up">Tempo esgotado</string>
+    <string name="guide_scale_dropped">Balança desconectada</string>
     <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
@@ -309,6 +313,7 @@
     <string name="stage_beans">Pesar os grãos</string>
     <string name="stage_prepare">Preparar o porta-filtro</string>
     <string name="stage_prepare_filter">Prepare o filtro</string>
+    <string name="stage_prepare_press">Prepare a prensa</string>
     <string name="stage_cup">Xícara</string>
     <string name="stage_tare">Tara</string>
     <string name="stage_first_drop">Primeira gota</string>
@@ -322,6 +327,8 @@
     <string name="milestone_portafilter">Porta-filtro</string>
     <string name="milestone_shot">Extração</string>
     <string name="milestone_prepare">Filtro</string>
+    <string name="milestone_prepare_press">Prensa</string>
+    <string name="milestone_serve">Servir</string>
     <string name="milestone_brew">Preparo</string>
     <string name="milestone_and_step">%1$s, %2$s</string>
     <string name="milestone_done">Concluído</string>

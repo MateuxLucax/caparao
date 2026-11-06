@@ -60,6 +60,7 @@ object WatchMirror {
         StepEvent.Resumed -> WatchAlert.RESUMED
         StepEvent.DrainTimeEntered -> WatchAlert.DRAIN_TIME_ENTERED
         StepEvent.DrainTimePassed -> WatchAlert.DRAIN_TIME_PASSED
+        StepEvent.FrenchPressReminder -> WatchAlert.FRENCH_PRESS_REMINDER
     }
 
     /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */
