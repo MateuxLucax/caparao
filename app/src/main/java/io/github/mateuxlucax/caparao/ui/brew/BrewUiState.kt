@@ -46,19 +46,23 @@ data class BrewUiState(
     val guide: StepState? = null,
     /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */
     val frenchPressRemoved: Boolean = false,
+    /** Free French press: how long to steep, from the first water; set on the dose step (#218). */
+    val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
+    /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
+    val freeSteps: List<RecipeStep> = emptyList(),
     /** On the summary: the saved brew's notes being typed, and past coffees to pick from. */
     val notes: NotesForm? = null,
     val coffees: List<String> = emptyList(),
 ) {
     /** The steps being followed, when the guide is on. */
-    val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps.orEmpty() else emptyList()
+    val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps ?: freeSteps else emptyList()
 
     /** True once the French press recipe reaches its terminal steep deadline. */
     val frenchPressDeadlineReached: Boolean
         get() {
-            val recipeSteps = recipe?.steps.orEmpty()
-            return mode == BrewMode.FRENCH_PRESS && recipeSteps.lastOrNull()?.kind == StepKind.PRESS &&
-                guide?.allDone(recipeSteps.size) == true
+            val guided = steps
+            return mode == BrewMode.FRENCH_PRESS && guided.lastOrNull()?.kind == StepKind.PRESS &&
+                guide?.allDone(guided.size) == true
         }
 
     /** Espresso with a recipe's time window: where the shot time stands; null without one or before the shot. */

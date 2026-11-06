@@ -115,7 +115,7 @@
     <string name="tare_failed_title">A balança não zerou</string>
     <string name="tare_failed_hint">Deixe a xícara parada e tente de novo.</string>
     <string name="brewing_filter_text">Despeje no seu ritmo. Tire o coador ou toque em Pronto para terminar.</string>
-    <string name="french_press_brewing_text">O timer começa com a primeira água. Toque em Pronto para terminar.</string>
+    <string name="french_press_brewing_text">Despeje no seu ritmo.</string>
     <string name="step_of">Etapa %1$d de %2$d</string>
     <string name="espresso_ready">Pode extrair</string>
     <string name="espresso_ready_text">O timer começa na primeira gota e para quando o fluxo para.</string>
@@ -153,6 +153,7 @@
     <string name="cancel">Cancelar</string>
     <string name="brewing_espresso">Extraindo</string>
     <string name="brewing_filter">Passando</string>
+    <string name="brewing_press">Despejando</string>
     <string name="filter_paused">Pausado</string>
     <string name="filter_paused_hint">Coloque o coador de volta na balança para continuar.</string>
     <string name="filter_finishing_in">Termina em %1$s</string>
@@ -252,6 +253,7 @@
     <string name="drain_time_past_range">%1$d %2$s além do tempo ideal</string>
     <string name="guide_steep">Infusão</string>
     <string name="guide_steep_text">Deixe em infusão</string>
+    <string name="steep_time_field">Tempo de infusão</string>
     <string name="guide_remove_press">Tire a prensa da balança.</string>
     <string name="guide_time_up">Tempo esgotado</string>
     <string name="guide_scale_dropped">Balança desconectada</string>

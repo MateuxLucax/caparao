@@ -283,8 +283,10 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFrenchPressDisconnectDuringTheBrewSavesTheHighestWaterWeightAsInterrupted() {
+    fun aFreePressKeepsCountingWhenTheScaleDropsDuringThePourAndSavesTheWaterAlreadyRead() {
+        val alerts = mutableListOf<GuideAlert>()
         val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
         hold(320.0, 0.2)
         vm.begin()
         vm.setDose(20.0)
@@ -295,12 +297,25 @@ class BrewViewModelTest {
         pour(120.0, 0.0, 0.4)
 
         scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertNull(vm.uiState.value.saved)
+        assertFalse(vm.uiState.value.connected)
 
+        now += 240_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("the deadline counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        collecting.cancel()
+
+        vm.stop()
+        rolled()
         val brew = vm.uiState.value.saved!!
         assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
         assertEquals(120.0, brew.yieldGrams, 0.5)
         assertNull(brew.timeToFirstDropMs)
-        assertTrue(brew.interrupted)
+        assertFalse(brew.interrupted)
+        vm.end()
     }
 
     @Test
@@ -1147,6 +1162,119 @@ class BrewViewModelTest {
         assertTrue(vm.uiState.value.frenchPressDeadlineReached)
         assertEquals(0, watchAlerts.count { it == StepEvent.AllDone })
         collecting.cancel()
+    }
+
+    /** A free French press brewing from the dose screen to the first water, with [steepMs] chosen when it is not the default. */
+    private fun freePressPouring(steepMs: Long? = null): BrewViewModel {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        hold(320.0, 0.2)
+        vm.begin()
+        steepMs?.let(vm::setSteep)
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        return vm
+    }
+
+    @Test
+    fun aFreePressSteepStartsAtFourMinutesAndRemembersTheLastOne() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        assertEquals(240_000L, vm.uiState.value.steepMs)
+        vm.setSteep(5 * 60_000L)
+        assertEquals(300_000L, vm.uiState.value.steepMs)
+        vm.setSteep(1_000L)
+        assertEquals("a steep under 10 s is ignored", 300_000L, vm.uiState.value.steepMs)
+
+        val next = viewModel(BrewMode.FRENCH_PRESS)
+        next.begin()
+        assertEquals("the next free brew starts from it", 300_000L, next.uiState.value.steepMs)
+    }
+
+    @Test
+    fun aFreePressSteepIsNotChosenOnceBrewingOrForARecipe() = kotlinx.coroutines.test.runTest {
+        val vm = freePressPouring()
+        vm.setSteep(90_000L)
+        assertEquals(240_000L, vm.uiState.value.steepMs)
+
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val withRecipe = viewModel(BrewMode.FRENCH_PRESS)
+        withRecipe.begin()
+        withRecipe.setSteep(90_000L)
+        assertEquals("a recipe carries its own steep", 240_000L, withRecipe.uiState.value.steepMs)
+    }
+
+    @Test
+    fun aFreePressPoursUnguidedThenSteepsOnReachingTheTargetWater() {
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = freePressPouring()
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        pour(0.0, 200.0, 15.0)
+        assertNull("the ring shows while pouring", vm.uiState.value.guide)
+        assertNull(vm.uiState.value.saved)
+
+        pour(200.0, 300.0, 8.0)
+        val steeping = vm.uiState.value
+        assertEquals(1, steeping.guide?.index)
+        assertEquals(listOf(StepKind.POUR, StepKind.PRESS), steeping.steps.map { it.kind })
+        assertEquals(240_000L, steeping.steps.last().targetAtMs)
+        assertNull("a free brew records no recipe", steeping.recipe)
+        assertTrue(steeping.guide!!.dueInMs!! in 200_000L..240_000L)
+
+        hold(300.0, 195.0)
+        assertFalse(vm.uiState.value.frenchPressDeadlineReached)
+        hold(300.0, 25.0)
+        assertTrue("4:00 counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        collecting.cancel()
+
+        vm.stop()
+        rolled()
+        val saved = vm.uiState.value.saved!!
+        assertNull(saved.recipeId)
+        assertEquals(300.0, saved.yieldGrams, 0.5)
+    }
+
+    @Test
+    fun aFreePressDoesNotSteepJustBecauseTheWeightRests() {
+        val vm = freePressPouring()
+        pour(0.0, 214.0, 15.0)
+        hold(214.0, 40.0)
+        assertNull("only the target water starts the steep", vm.uiState.value.guide)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+    }
+
+    @Test
+    fun aFreePressDeadlinePassingDuringThePourGoesStraightToTheAlert() {
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = freePressPouring(steepMs = 30_000L)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
+        pour(0.0, 100.0, 20.0)
+        assertNull(vm.uiState.value.guide)
+        pour(100.0, 150.0, 12.0)
+        assertTrue("the deadline counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
+        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        collecting.cancel()
+
+        vm.stop()
+        rolled()
+        assertEquals(150.0, vm.uiState.value.saved!!.yieldGrams, 0.5)
+    }
+
+    @Test
+    fun aFreePressSteepKeepsCountingWhenTheScaleDrops() {
+        val vm = freePressPouring()
+        pour(0.0, 300.0, 20.0)
+        assertEquals(1, vm.uiState.value.guide?.index)
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+        assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
+        now += 230_000
+        main.dispatcher.scheduler.advanceTimeBy(300)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(vm.uiState.value.frenchPressDeadlineReached)
+        vm.end()
     }
 
     @Test

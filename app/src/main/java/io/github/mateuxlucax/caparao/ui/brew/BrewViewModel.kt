@@ -33,6 +33,8 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
@@ -183,6 +185,14 @@ class BrewViewModel(
         val clamped = ratio.coerceIn(RecipeForm.RATIO.start, RecipeForm.RATIO.endInclusive)
         if (_uiState.value.recipe == null) settings.setTargetRatio(mode, clamped)
         _uiState.update { it.copy(targetRatio = clamped) }
+    }
+
+    /** On the dose step of a free French press: how long to steep; the next free one starts from it (#218). */
+    fun setSteep(ms: Long) {
+        val state = _uiState.value
+        if (state.step != BrewStep.DOSE || mode != BrewMode.FRENCH_PRESS || state.recipe != null || ms !in STEEP_RANGE_MS) return
+        settings.setLastSteepMs(ms)
+        _uiState.update { it.copy(steepMs = ms) }
     }
 
     /** On the dose step: the dose to weigh, typed or from the water. */
@@ -371,7 +381,14 @@ class BrewViewModel(
             when (mode) {
                 BrewMode.ESPRESSO -> Unit
                 BrewMode.FILTER -> if (steps.isNotEmpty()) tracker = StepTracker(steps, FilterConfig().stepTargetHoldMs)
-                BrewMode.FRENCH_PRESS -> if (steps.isNotEmpty()) tracker = StepTracker(steps)
+                BrewMode.FRENCH_PRESS -> if (steps.isNotEmpty()) {
+                    tracker = StepTracker(steps)
+                } else {
+                    // A free brew steeps too: pour the planned water, then steep for the chosen time (#218).
+                    val freeSteps = freePressSteps()
+                    _uiState.update { it.copy(freeSteps = freeSteps) }
+                    tracker = StepTracker(freeSteps)
+                }
             }
         }
         val since = brewingSinceMs
@@ -409,7 +426,7 @@ class BrewViewModel(
                 pauseRemainingMs = if (current.phase == BrewPhase.PAUSED) {
                     ((pauseState?.startedAtMs?.let { start -> filterConfig.pauseTimeoutMs - (timed.atMs - start) } ?: 0L).coerceAtLeast(0L))
                 } else null,
-                guide = guide ?: it.guide,
+                guide = visible(guide) ?: it.guide,
                 frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
             )
         }
@@ -510,7 +527,7 @@ class BrewViewModel(
         val current = detector ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
-        // A French press following a recipe keeps steeping instead (#221).
+        // A French press keeps steeping instead, free or with a recipe (#221, #218).
         if (state is ScaleState.Failed && mode == BrewMode.FRENCH_PRESS && tracker != null && current.phase == BrewPhase.BREWING) {
             keepSteepRunning()
             return
@@ -560,8 +577,19 @@ class BrewViewModel(
         val events = t.update(elapsedMs, guideWeight, flow)
         if (mode == BrewMode.FRENCH_PRESS && StepEvent.AllDone in events) frenchPressFinishTracker = FrenchPressFinishTracker()
         events.filterNot { mode == BrewMode.FRENCH_PRESS && it == StepEvent.AllDone }.forEach(::alert)
-        if (mode == BrewMode.FRENCH_PRESS) pressDeadlineAlerts(atMs, removalWeight, t.state.allDone(_uiState.value.recipe?.steps.orEmpty().size))
+        if (mode == BrewMode.FRENCH_PRESS) pressDeadlineAlerts(atMs, removalWeight, t.state.allDone(t.stepCount))
         return t.state
+    }
+
+    /** A free French press shows the ring while pouring; its guide opens with the steep (#218). */
+    private fun visible(guide: StepState?): StepState? = guide?.takeIf { _uiState.value.recipe != null || it.index >= 1 }
+
+    private fun freePressSteps(): List<RecipeStep> {
+        val state = _uiState.value
+        return listOf(
+            RecipeStep(StepKind.POUR, state.plannedWater ?: 0.0, 0L),
+            RecipeStep(StepKind.PRESS, null, state.steepMs),
+        )
     }
 
     /**
@@ -577,7 +605,7 @@ class BrewViewModel(
                 delay(STEEP_CLOCK_MS)
                 val now = clock()
                 val guide = advanceGuide(t, now, now - since, _uiState.value.weightGrams, 0.0, removalWeight = null)
-                _uiState.update { it.copy(elapsedMs = now - since, guide = guide) }
+                _uiState.update { it.copy(elapsedMs = now - since, guide = visible(guide) ?: it.guide) }
             }
         }
     }
@@ -734,6 +762,7 @@ class BrewViewModel(
             mode,
             dose = settings.lastDose(mode),
             targetRatio = settings.targetRatio(mode),
+            steepMs = settings.lastSteepMs(),
             connected = scale.state.value is ScaleState.Connected,
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
@@ -760,6 +789,9 @@ class BrewViewModel(
         private const val MAX_READINGS = 12_000
         private const val FILTER_PREPARE_LIFT_MS = 2_000L
         private const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
+
+        /** The steep a free French press accepts: 10 s to an hour. */
+        val STEEP_RANGE_MS = 10_000L..3_600_000L
         private const val STEEP_CLOCK_MS = 250L
 
         /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */

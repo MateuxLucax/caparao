@@ -78,7 +78,9 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -1448,6 +1450,86 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         waitFor(R.string.brew_saved)
         assertMilestone(R.string.milestone_done)
+    }
+
+    /** A free French press: the Steep field on the dose screen, the pour on the ring, then the steep like a recipe's (#218). */
+    @Test
+    fun frenchPressFreeBrewHasASteepFieldAndSteepsLikeARecipe() {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.free_brew)
+        compose.waitUntilAtLeastOneExists(hasTestTag("press-steep-field"), 5_000)
+        compose.onNodeWithTag("press-steep-field").assertIsDisplayed()
+        compose.onNodeWithText("4:00").assertIsDisplayed()
+        compose.onNodeWithTag("press-steep-field").performClick()
+        compose.onNodeWithTag("press-steep-input").performTextReplacement("4:30")
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("4:30"), 5_000)
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_press_title)
+        click(R.string.prepare_ready)
+
+        // The first water: the ring pours under a title of its own, with no steep yet.
+        play(scale, 8_000)
+        compose.waitForIdle()
+        waitFor(R.string.brewing_press)
+        compose.onAllNodesWithText(text(R.string.guide_steep_text)).assertCountEquals(0)
+        // The scale reads 300 g at 80 s, the target: the steep starts.
+        play(scale, 80_000)
+        waitFor(R.string.guide_steep_text)
+        compose.onAllNodesWithText(text(R.string.brewing_press)).assertCountEquals(0)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
+    }
+
+    /** Walks a free French press from the dose screen: the steep and the water typed first, then Next, Beans and Ready. */
+    private fun openFreePress(steep: String? = null, waterMl: String? = null): SessionScale {
+        val scale = open("synthetic-french-press", 0)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
+        click(R.string.free_brew)
+        compose.waitUntilAtLeastOneExists(hasTestTag("press-steep-field"), 5_000)
+        val confirm = hasText(text(R.string.done)) and hasClickAction()
+        steep?.let {
+            compose.onNodeWithTag("press-steep-field").performClick()
+            compose.onNodeWithTag("press-steep-input").performTextReplacement(it)
+            compose.onNode(confirm).performClick()
+        }
+        waterMl?.let {
+            compose.onNodeWithText("${Format.grams(300.0, locale)} ${text(R.string.unit_ml)}").performClick()
+            compose.onNode(hasSetTextAction()).performTextReplacement(it)
+            compose.onNode(confirm).performClick()
+        }
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_press_title)
+        click(R.string.prepare_ready)
+        return scale
+    }
+
+    /** Reaching the target water starts the steep at once (#218). */
+    @Test
+    fun frenchPressFreeBrewSteepsOnReachingTheTargetWater() {
+        val scale = openFreePress(waterMl = "90")
+        play(scale, 5_000) // the scale jumps to 100 g at 1.1 s, past the 90 g target
+        waitFor(R.string.guide_steep_text)
+        compose.onAllNodesWithText(text(R.string.brewing_press)).assertCountEquals(0)
+    }
+
+    /** A steep that ends before the pour does goes straight to the alert (#218). */
+    @Test
+    fun frenchPressFreeBrewDeadlineDuringThePourGoesStraightToTheAlert() {
+        val scale = openFreePress(steep = "0:10")
+        play(scale, 8_000)
+        waitFor(R.string.brewing_press)
+        // The session's next frame comes at 60 s: the deadline, 10 s after the first water, has long passed.
+        play(scale, 61_000)
+        waitFor(R.string.guide_remove_press)
+        compose.onAllNodesWithText(text(R.string.guide_steep_text)).assertCountEquals(0)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
     }
 
     private fun frenchPressSteep(): SessionScale {

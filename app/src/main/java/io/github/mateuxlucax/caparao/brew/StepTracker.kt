@@ -105,6 +105,9 @@ class StepTracker(
     private var targetReachedSinceMs: Long? = null
     private val countdownSent = HashSet<Int>()
 
+    /** How many steps it follows. */
+    val stepCount: Int get() = steps.size
+
     var state = StepState(0, 0f, null, null, null, null)
         private set
 

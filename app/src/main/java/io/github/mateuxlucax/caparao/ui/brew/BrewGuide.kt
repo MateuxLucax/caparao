@@ -86,7 +86,7 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
     POUR(R.string.filter_ready, R.string.filter_ready_text, R.string.stage_pour),
     BREWING_ESPRESSO(R.string.brewing_espresso, null, R.string.stage_extracting),
     BREWING_FILTER(R.string.brewing_filter, R.string.brewing_filter_text, R.string.stage_brewing),
-    BREWING_FRENCH_PRESS(R.string.brewing_filter, R.string.french_press_brewing_text, R.string.stage_brewing),
+    BREWING_FRENCH_PRESS(R.string.brewing_press, R.string.french_press_brewing_text, R.string.stage_brewing),
     /** French press after the steep: remove the press, press and serve. */
     SERVE(R.string.guide_press_serve, null, R.string.milestone_serve),
     DONE(R.string.brew_saved, null, R.string.stage_done),
