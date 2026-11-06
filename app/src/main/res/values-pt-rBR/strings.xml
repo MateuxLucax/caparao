@@ -39,8 +39,7 @@
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
-    <string name="brews_empty_title">Nenhum preparo ainda</string>
-    <string name="brews_empty_text">Os preparos que você registrar aparecem aqui.</string>
+    <string name="brews_empty_title">Você ainda não fez café.</string>
 
     <!-- Config -->
     <string name="section_server">Servidor</string>
@@ -124,7 +123,6 @@
     <string name="done">Pronto</string>
     <string name="brew_saved">Salvo</string>
     <string name="brew_interrupted">A balança desconectou. O progresso atual está salvo.</string>
-    <string name="nothing_recorded">Nada foi registrado.</string>
     <string name="discard">Descartar</string>
     <string name="stop_brew_title">Parar a extração?</string>
     <string name="finish_brew_title">Terminar o preparo?</string>
@@ -190,8 +188,7 @@
     <string name="tab_recipes">Receitas</string>
     <string name="new_recipe">Nova receita</string>
     <string name="edit_recipe">Editar receita</string>
-    <string name="no_recipes_title">Nenhuma receita ainda</string>
-    <string name="no_recipes_text">Nenhuma receita registrada.</string>
+    <string name="no_recipes_title">Nenhuma receita ainda.</string>
     <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g de água</string>
     <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
     <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
@@ -346,7 +343,7 @@
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Cafés</string>
-    <string name="coffees_empty">Adicione os pacotes que você tem para acompanhar quanto resta e há quantos dias foram torrados.</string>
+    <string name="coffees_empty">Nenhum café na prateleira.</string>
     <string name="coffee_add">Adicionar café</string>
     <string name="coffee_edit">Editar café</string>
     <string name="coffee_name">Café</string>

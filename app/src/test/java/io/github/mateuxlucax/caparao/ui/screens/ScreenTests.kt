@@ -357,6 +357,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     /** The three real brew modes at the top of Recipes. */
+    /** Each empty state is one line: the title alone, with no subtitle under it (#184). */
+    @Test
+    fun emptyStatesAreOneLine() {
+        // Every mode seeds a built-in recipe, so the espresso list starts empty only once its seed is gone.
+        runBlocking { recipes.all().filter { it.mode == BrewMode.ESPRESSO }.forEach { recipes.delete(it.id) } }
+        open("press-ramp", 38_300)
+        click(R.string.tab_brews)
+        waitFor(R.string.brews_empty_title)
+        compose.onNodeWithText(text(R.string.brews_empty_title)).assertIsDisplayed()
+        click(R.string.tab_recipes)
+        click(R.string.mode_espresso)
+        waitFor(R.string.no_recipes_title)
+        compose.onNodeWithText(text(R.string.no_recipes_title)).assertIsDisplayed()
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.section_coffees)).performScrollTo()
+        compose.onNodeWithText(text(R.string.coffees_empty)).assertIsDisplayed()
+    }
+
     @Test
     fun recipesModeSelector() {
         open("press-ramp", 38_300)

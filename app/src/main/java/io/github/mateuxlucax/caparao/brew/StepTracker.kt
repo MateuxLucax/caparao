@@ -60,6 +60,9 @@ sealed interface StepEvent {
 
     /** French press: repeat the deadline alert while the press is still on the scale (#217). */
     data object FrenchPressReminder : StepEvent
+
+    /** French press: the steep's deadline, the first alert of the press step (#217). The watch names the press from it (#184). */
+    data object FrenchPressDeadline : StepEvent
 }
 
 /** Where the guide stands after a reading. */

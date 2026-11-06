@@ -624,7 +624,7 @@ class BrewViewModel(
         }
         val last = frenchPressLastAlertAtMs
         if (last != null && atMs - last < FRENCH_PRESS_ALERT_INTERVAL_MS) return
-        alert(if (frenchPressDeadlineAlertSent) StepEvent.FrenchPressReminder else StepEvent.AllDone)
+        alert(if (frenchPressDeadlineAlertSent) StepEvent.FrenchPressReminder else StepEvent.FrenchPressDeadline)
         frenchPressDeadlineAlertSent = true
         frenchPressLastAlertAtMs = atMs
     }

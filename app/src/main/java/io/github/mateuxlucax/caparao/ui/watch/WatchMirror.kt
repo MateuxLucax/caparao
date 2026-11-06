@@ -60,6 +60,7 @@ object WatchMirror {
         StepEvent.Resumed -> WatchAlert.RESUMED
         StepEvent.DrainTimeEntered -> WatchAlert.DRAIN_TIME_ENTERED
         StepEvent.DrainTimePassed -> WatchAlert.DRAIN_TIME_PASSED
+        StepEvent.FrenchPressDeadline -> WatchAlert.FRENCH_PRESS_DEADLINE
         StepEvent.FrenchPressReminder -> WatchAlert.FRENCH_PRESS_REMINDER
     }
 

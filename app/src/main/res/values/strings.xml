@@ -43,8 +43,7 @@
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
-    <string name="brews_empty_title">No brews yet</string>
-    <string name="brews_empty_text">Brews you record show up here.</string>
+    <string name="brews_empty_title">You haven\'t brewed yet.</string>
 
     <!-- Settings -->
     <string name="section_server">Server</string>
@@ -128,7 +127,6 @@
     <string name="done">Done</string>
     <string name="brew_saved">Saved</string>
     <string name="brew_interrupted">The scale disconnected. Your progress is saved.</string>
-    <string name="nothing_recorded">Nothing was recorded.</string>
     <string name="discard">Discard</string>
     <string name="stop_brew_title">Stop the shot?</string>
     <string name="finish_brew_title">Finish the brew?</string>
@@ -194,8 +192,7 @@
     <string name="tab_recipes">Recipes</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
-    <string name="no_recipes_title">No recipes yet</string>
-    <string name="no_recipes_text">Create a recipe to get started.</string>
+    <string name="no_recipes_title">No recipes yet.</string>
     <string name="recipe_summary_filter">%1$s g · 1:%2$s · %3$s g of water</string>
     <string name="recipe_summary_espresso">%1$s g → %2$s g · %3$s–%4$s s</string>
     <string name="recipe_summary_espresso_no_window">%1$s g → %2$s g</string>
@@ -353,7 +350,7 @@
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="section_coffees">Coffees</string>
-    <string name="coffees_empty">Add your coffee bags to track how much is left and how many days ago they were roasted.</string>
+    <string name="coffees_empty">No coffee on the shelf.</string>
     <string name="coffee_add">Add coffee</string>
     <string name="coffee_edit">Edit coffee</string>
     <string name="coffee_name">Coffee</string>

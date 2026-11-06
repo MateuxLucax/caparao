@@ -235,7 +235,6 @@ class AppScreensTest {
         // Closed before the cup went on: nothing started, so straight back home without a summary.
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
-        compose.onNodeWithText(text(R.string.nothing_recorded)).assertDoesNotExist()
     }
 
     @Test

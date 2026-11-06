@@ -22,6 +22,9 @@ enum class WatchAlert(val pattern: LongArray) {
     DRAIN_TIME_ENTERED(longArrayOf(0, 60, 80, 100)),
     DRAIN_TIME_PASSED(longArrayOf(0, 200)),
     FRENCH_PRESS_REMINDER(longArrayOf(0, 400)),
+    // The French press deadline, sent once in place of ALL_DONE so the watch names the press step (#184). Older watches
+    // decode it as null: they stay quiet for this one moment and still get the reminders.
+    FRENCH_PRESS_DEADLINE(longArrayOf(0, 400)),
     ;
 
     fun encode(): ByteArray = byteArrayOf(ordinal.toByte())

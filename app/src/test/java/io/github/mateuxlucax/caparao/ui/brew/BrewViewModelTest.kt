@@ -305,7 +305,8 @@ class BrewViewModelTest {
         main.dispatcher.scheduler.advanceTimeBy(300)
         main.dispatcher.scheduler.runCurrent()
         assertTrue("the deadline counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
-        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
+        assertEquals(0, alerts.count { it.event == StepEvent.AllDone })
         collecting.cancel()
 
         vm.stop()
@@ -953,7 +954,7 @@ class BrewViewModelTest {
         hold(100.0, 50.0)
         hold(100.0, 0.2)
         pour(100.0, 300.0, 20.0)
-        val beforeFinish = alerts.count { it.event == StepEvent.AllDone }
+        val beforeFinish = alerts.count { it.event == StepEvent.FrenchPressDeadline }
         assertEquals(0, beforeFinish)
         hold(300.0, 161.0)
         assertEquals("the timer alert does not end the brew", BrewPhase.BREWING, vm.uiState.value.phase)
@@ -962,11 +963,11 @@ class BrewViewModelTest {
         hold(-400.0, 10.0)
         collecting.cancel()
 
-        val finishAlerts = alerts.filter { it.event == StepEvent.AllDone }
+        val finishAlerts = alerts.filter { it.event == StepEvent.FrenchPressDeadline }
         assertEquals(1, finishAlerts.size)
         assertTrue(finishAlerts.single().vibrate)
         assertFalse(finishAlerts.single().sound)
-        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
         assertEquals("the sustained lift does not end the brew", BrewPhase.BREWING, vm.uiState.value.phase)
         assertTrue(vm.uiState.value.frenchPressRemoved)
         assertEquals("the live readout keeps the on-scale water", 300.0, vm.uiState.value.weightGrams, 0.5)
@@ -1032,11 +1033,11 @@ class BrewViewModelTest {
         hold(180.0, 200.0)
         collecting.cancel()
 
-        val finishAlerts = alerts.filter { it.event == StepEvent.AllDone }
+        val finishAlerts = alerts.filter { it.event == StepEvent.FrenchPressDeadline }
         assertEquals(1, finishAlerts.size)
         assertTrue(finishAlerts.single().vibrate)
         assertFalse(finishAlerts.single().sound)
-        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
         assertTrue(vm.uiState.value.elapsedMs >= 240_000L)
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertEquals(180.0, vm.uiState.value.weightGrams, 0.5)
@@ -1078,10 +1079,10 @@ class BrewViewModelTest {
         pour(100.0, 300.0, 20.0)
         hold(300.0, 176.0)
 
-        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
         assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressReminder })
         assertTrue(vm.uiState.value.frenchPressDeadlineReached)
-        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
         assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressReminder })
 
         pour(300.0, -400.0, 0.1)
@@ -1115,12 +1116,12 @@ class BrewViewModelTest {
         scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
         assertEquals("the brew is not interrupted", BrewPhase.BREWING, vm.uiState.value.phase)
         assertFalse(vm.uiState.value.connected)
-        assertTrue(alerts.none { it.event == StepEvent.AllDone })
+        assertTrue(alerts.none { it.event == StepEvent.FrenchPressDeadline })
 
         now += 110_000
         main.dispatcher.scheduler.advanceTimeBy(300)
         main.dispatcher.scheduler.runCurrent()
-        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
         assertTrue(vm.uiState.value.frenchPressDeadlineReached)
 
         now += 15_000
@@ -1226,8 +1227,8 @@ class BrewViewModelTest {
         assertFalse(vm.uiState.value.frenchPressDeadlineReached)
         hold(300.0, 25.0)
         assertTrue("4:00 counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
-        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
-        assertEquals(1, watchAlerts.count { it == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
         collecting.cancel()
 
         vm.stop()
@@ -1255,7 +1256,8 @@ class BrewViewModelTest {
         assertNull(vm.uiState.value.guide)
         pour(100.0, 150.0, 12.0)
         assertTrue("the deadline counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
-        assertEquals(1, alerts.count { it.event == StepEvent.AllDone })
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
+        assertEquals(0, alerts.count { it.event == StepEvent.AllDone })
         collecting.cancel()
 
         vm.stop()
