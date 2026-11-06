@@ -27,6 +27,7 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.assertAll
@@ -1157,6 +1158,9 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             R.string.prepare_add_grounds,
             R.string.prepare_dripper_server,
         ).forEach { compose.onNodeWithText(text(it)).assertIsDisplayed() }
+        // The dripper and server go on the scale before the grounds (#278).
+        compose.onNodeWithTag("filter-prepare-row-3").assertTextContains(text(R.string.prepare_dripper_server))
+        compose.onNodeWithTag("filter-prepare-row-4").assertTextContains(text(R.string.prepare_add_grounds))
         compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("filter-prepare-row-0").performClick()
