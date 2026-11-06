@@ -2,9 +2,12 @@ package io.github.mateuxlucax.caparao.ui.brew
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +51,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -213,6 +220,7 @@ private fun Milestones(
     splitBrew: Boolean,
 ) {
     val milestone = milestoneIndex(milestones, stage)
+    val still = splitBrew && animationsOff()
     val names = milestones.map { stringResource(it.name) }
     val weights = names.map { it.length.coerceAtLeast(1).toFloat() }
     val brewMilestone = milestones.indexOfFirst { GuideStage.BREWING_FILTER in it.stages || GuideStage.BREWING_FRENCH_PRESS in it.stages }
@@ -252,10 +260,18 @@ private fun Milestones(
                             i < currentSegment -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                             else -> MaterialTheme.colorScheme.surfaceContainerHighest
                         },
-                        Motion.standard(),
+                        Motion.standardOrSnap(still),
                         label = "milestone",
                     )
-                    Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
+                    if (splitBrew) {
+                        // A filter step's segment fills in from the left when its step opens; reduced motion fills it at once.
+                        val filled by animateFloatAsState(if (i <= currentSegment) 1f else 0f, Motion.standardOrSnap(still, Motion.MEDIUM_2), label = "milestoneFill")
+                        Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                            if (filled > 0f) Box(Modifier.fillMaxHeight().fillMaxWidth(filled).background(color).testTag("milestone-fill-$i"))
+                        }
+                    } else {
+                        Box(Modifier.weight(segment.weight).height(4.dp).clip(CircleShape).background(color))
+                    }
                 }
             }
             if (labelSize == null) {
@@ -294,6 +310,8 @@ private fun Milestones(
 @Composable
 fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Boolean = false) {
     val density = LocalDensity.current
+    val filterMotion = stage == GuideStage.PREPARE_FILTER || stage == GuideStage.TARE || stage == GuideStage.POUR || stage == GuideStage.BREWING_FILTER
+    val still = filterMotion && animationsOff()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // The picture sits on a shape that morphs from stage to stage: taring, cup, first drop.
         if (stage.pictured) {
@@ -302,14 +320,24 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Bool
                 if (espresso) {
                     EspressoPicture(stage)
                 } else {
-                    AnimatedContent(stage, transitionSpec = { fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4)) }, label = "picture") { StageAnimation(it) }
+                    AnimatedContent(
+                        stage,
+                        transitionSpec = {
+                            if (still) EnterTransition.None togetherWith ExitTransition.None
+                            else fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4))
+                        },
+                        label = "picture",
+                    ) { StageAnimation(it) }
                 }
             }
         }
         AnimatedContent(
             stage,
             Modifier.fillMaxWidth(),
-            transitionSpec = { Motion.springAxisX(targetState.ordinal > initialState.ordinal, density) },
+            transitionSpec = {
+                if (still) EnterTransition.None togetherWith ExitTransition.None
+                else Motion.springAxisX(targetState.ordinal > initialState.ordinal, density)
+            },
             label = "stage",
         ) { shown ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -344,6 +372,9 @@ private fun StageAnimation(stage: GuideStage) {
         transition.animateFloat(0f, 1f, infiniteRepeatable(tween(LOOP_MS, easing = LinearEasing)), label = "t").value
     }
     val colors = MaterialTheme.colorScheme
+    // The confirmed tare lights the LED: it comes up from the taring glow when the pour stage opens (reduced motion: lit).
+    val lit = remember { Animatable(if (still || stage != GuideStage.POUR) 1f else 0.35f) }
+    LaunchedEffect(stage, still) { if (stage == GuideStage.POUR && !still) lit.animateTo(1f, tween(Motion.MEDIUM_2, easing = Motion.Standard)) else lit.snapTo(1f) }
     // Inset in the 128 dp shape, so the scale and the stream never touch its edges.
     Canvas(Modifier.size(72.dp)) {
         // Drawn in a 120-unit square: the scale at the bottom, the cup on it, the stream or drops above. Without anything
@@ -357,6 +388,7 @@ private fun StageAnimation(stage: GuideStage) {
             val led = when (stage) {
                 GuideStage.TARE -> 0.35f + 0.65f * (0.5f + 0.5f * sin(2 * PI * t * 2).toFloat())
                 GuideStage.CUP -> if (t > 0.55f) 1f else 0.25f
+                GuideStage.POUR -> lit.value
                 else -> 1f
             }
             drawScale(Rect(16f, 100f, 104f, 114f), colors.secondary, colors.onSecondary, led)
