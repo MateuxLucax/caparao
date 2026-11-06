@@ -10,9 +10,16 @@ import kotlin.math.abs
  * Pure: the readings of a brew in order, from its first water to its end.
  */
 object FrenchPressWater {
-    /** A rise this large within [LANDING_WINDOW_MS] is set on the scale, not poured: pours here run at 25 g/s or less. */
-    const val LANDING_GRAMS = 40.0
-    const val LANDING_WINDOW_MS = 1_000L
+    /**
+     * A rise this large within [LANDING_WINDOW_MS] is set on the scale, not poured: pours here reach about 12 g in half a
+     * second, a spoon about 22 g in under a third of one.
+     */
+    const val LANDING_GRAMS = 18.0
+    const val LANDING_WINDOW_MS = 500L
+
+    /** Something set on the scale stays until the weight is back at its level for [LEFT_MS]; a spoon that comes off does. */
+    const val LEFT_TOLERANCE_GRAMS = 2.0
+    const val LEFT_MS = 1_000L
 
     /** At or below this the press is off the scale; a lift that comes back is not the end of the brew. */
     const val OFF_SCALE_GRAMS = 5.0
@@ -28,11 +35,15 @@ object FrenchPressWater {
     fun of(readings: List<TimedReading>, startedAtMs: Long, endedAtMs: Long): Double? {
         val brew = readings.filter { it.atMs in startedAtMs..endedAtMs }
         var cut = brew.size
-        if (brew.lastOrNull()?.grams()?.let { it <= OFF_SCALE_GRAMS } == true) {
-            // The removal falls from the last level on the scale: step back over the fall to that level.
-            var last = brew.indexOfLast { it.grams() > OFF_SCALE_GRAMS }
-            while (last > 0 && brew[last - 1].grams() > brew[last].grams() + SETTLED_TOLERANCE_GRAMS) last--
-            cut = last + 1
+        // A fall in progress or a removal at the end: step back over the fall to the level before it.
+        var top = brew.indexOfLast { it.grams() > OFF_SCALE_GRAMS }
+        if (top >= 0 && brew.last().grams() <= OFF_SCALE_GRAMS) {
+            while (top > 0 && brew[top - 1].grams() > brew[top].grams() + SETTLED_TOLERANCE_GRAMS) top--
+            cut = top + 1
+        } else if (brew.size >= 2) {
+            var k = brew.size - 1
+            while (k > 0 && brew[k - 1].grams() > brew[k].grams() + SETTLED_TOLERANCE_GRAMS) k--
+            cut = k + 1
         }
         landing(brew)?.let { cut = minOf(cut, it) }
         if (cut <= 0) return null
@@ -44,8 +55,12 @@ object FrenchPressWater {
         return if (settled) median else last.grams()
     }
 
-    /** The index of the first reading that rises [LANDING_GRAMS] within [LANDING_WINDOW_MS] from weight on the scale. */
+    /**
+     * The index of the first reading that rises [LANDING_GRAMS] within [LANDING_WINDOW_MS] from weight on the scale and is
+     * still there: the weight has not gone back to that level for [LEFT_MS], and the last reading is above it.
+     */
     private fun landing(brew: List<TimedReading>): Int? {
+        val last = brew.lastOrNull() ?: return null
         for (i in brew.indices) {
             val at = brew[i].atMs
             var low = Double.POSITIVE_INFINITY
@@ -55,9 +70,29 @@ object FrenchPressWater {
                 j--
             }
             // A low reading is the press coming back after a lift, not something set on the scale.
-            if (low > OFF_SCALE_GRAMS && brew[i].grams() - low >= LANDING_GRAMS) return i
+            if (low <= OFF_SCALE_GRAMS || brew[i].grams() - low < LANDING_GRAMS) continue
+            if (!leftAfter(brew, i, low)) return i
         }
         return null
+    }
+
+    /**
+     * True once the weight has been back at [low] for [LEFT_MS] after [index]. Off the scale does not count: a removal
+     * at the end takes the lid with it.
+     */
+    private fun leftAfter(brew: List<TimedReading>, index: Int, low: Double): Boolean {
+        var runStart: Long? = null
+        for (k in index + 1 until brew.size) {
+            val r = brew[k]
+            if (r.grams() <= OFF_SCALE_GRAMS) continue
+            if (r.grams() <= low + LEFT_TOLERANCE_GRAMS) {
+                val start = runStart ?: r.atMs.also { runStart = it }
+                if (r.atMs - start >= LEFT_MS) return true
+            } else {
+                runStart = null
+            }
+        }
+        return false
     }
 
     private fun TimedReading.grams() = reading.weightGrams
