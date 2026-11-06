@@ -100,6 +100,8 @@ class BrewViewModel(
     private var frenchPressLastAlertAtMs: Long? = null
     /** Counts the steep on the phone's clock while the scale is gone (#221). */
     private var steepClockJob: Job? = null
+    /** Counts the seconds without a scale before the brew starts; the screen keeps listening (#182). */
+    private var scaleWatchJob: Job? = null
 
     private var job: Job? = null
     /** The timer rolling back to the saved time, before the summary opens (#197). */
@@ -129,6 +131,7 @@ class BrewViewModel(
         if (job?.isActive == true) return
         reset()
         diagnostics?.recordEvent(DiagnosticEvent.BrewScreenOpened)
+        watchScale()
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
             launch { _uiState.collect(onLive) }
@@ -201,11 +204,27 @@ class BrewViewModel(
         _uiState.update { it.copy(dose = grams) }
     }
 
-    /** From the dose to weighing the beans: tares, so a container already on the scale isn't counted. */
+    /**
+     * From the dose to weighing the beans: tares, so a container already on the scale isn't counted. Without the scale
+     * the dose waits and the weighing opens by itself once it connects (#182).
+     */
     fun weigh() {
-        if (_uiState.value.step != BrewStep.DOSE || _uiState.value.dose == null) return
-        _uiState.update { it.copy(step = BrewStep.WEIGH) }
+        val state = _uiState.value
+        if (state.step != BrewStep.DOSE || state.dose == null) return
+        if (!state.connected) {
+            _uiState.update { it.copy(waitingForScale = true) }
+            return
+        }
+        _uiState.update { it.copy(step = BrewStep.WEIGH, waitingForScale = false) }
         scale.tare()
+    }
+
+    /** The connection waited too long: ask the scale to try once more, and keep waiting for it (#182). */
+    fun retryScale() {
+        _uiState.update { it.copy(scaleTimedOut = false) }
+        scale.stop()
+        scale.start()
+        watchScale()
     }
 
     /** Zero the scale, to weigh the beans without the container. */
@@ -251,6 +270,8 @@ class BrewViewModel(
         }
         detector = new
         alerted.clear()
+        scaleWatchJob?.cancel()
+        scaleWatchJob = null
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
         diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
@@ -524,6 +545,16 @@ class BrewViewModel(
 
     private fun onScaleState(state: ScaleState) {
         _uiState.update { it.copy(connected = state is ScaleState.Connected) }
+        if (state is ScaleState.Connected) {
+            scaleWatchJob?.cancel()
+            scaleWatchJob = null
+            _uiState.update { it.copy(scaleTimedOut = false) }
+            // The dose that was waiting goes on to the weighing without another tap (#182).
+            if (_uiState.value.waitingForScale) weigh()
+        } else if (scaleWatchJob == null) {
+            // A flapping connection keeps the same ten seconds; only a fresh wait starts a new count.
+            watchScale()
+        }
         val current = detector ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
@@ -537,6 +568,21 @@ class BrewViewModel(
             current.interrupt(clock())
             recordDiagnosticPhase(current.phase)
             finish(current)
+        }
+    }
+
+    /**
+     * Before the brew the screen keeps listening: ten seconds without a connection and the step admits the scale
+     * wasn't found, with Retry, while a scale that arrives later still goes on by itself (#182).
+     */
+    private fun watchScale() {
+        scaleWatchJob?.cancel()
+        scaleWatchJob = null
+        val state = _uiState.value
+        if (state.connected || state.step == BrewStep.LIVE || state.step == BrewStep.SUMMARY) return
+        scaleWatchJob = viewModelScope.launch {
+            delay(SCALE_WAIT_TIMEOUT_MS)
+            if (!_uiState.value.connected) _uiState.update { it.copy(scaleTimedOut = true) }
         }
     }
 
@@ -741,6 +787,8 @@ class BrewViewModel(
         rollJob = null
         steepClockJob?.cancel()
         steepClockJob = null
+        scaleWatchJob?.cancel()
+        scaleWatchJob = null
         detector = null
         alerted.clear()
         readings.clear()
@@ -789,6 +837,9 @@ class BrewViewModel(
         private const val MAX_READINGS = 12_000
         private const val FILTER_PREPARE_LIFT_MS = 2_000L
         internal const val FRENCH_PRESS_ALERT_INTERVAL_MS = 15_000L
+
+        /** How long a pre-brew step waits for the scale before offering the not-found card (#182). */
+        internal const val SCALE_WAIT_TIMEOUT_MS = 10_000L
 
         /** The steep a free French press accepts: 10 s to an hour. */
         val STEEP_RANGE_MS = 10_000L..3_600_000L

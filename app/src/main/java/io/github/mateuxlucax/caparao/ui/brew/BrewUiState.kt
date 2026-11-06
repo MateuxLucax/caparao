@@ -23,6 +23,10 @@ data class BrewUiState(
     /** Taring and no zero even after the retry: the tare screen offers Retry until a zero comes. */
     val tareTimedOut: Boolean = false,
     val connected: Boolean = false,
+    /** Next was pressed on the dose without the scale: the weighing opens as soon as it connects (#182). */
+    val waitingForScale: Boolean = false,
+    /** Ten seconds without a connection before the brew started: the step offers the not-found card and Retry (#182). */
+    val scaleTimedOut: Boolean = false,
     val weightGrams: Double = 0.0,
     /** Smoothed from the weights, not the scale's raw flow. */
     val flowGramsPerSecond: Double = 0.0,
