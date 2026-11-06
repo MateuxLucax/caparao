@@ -7,9 +7,9 @@
 </p>
 
 A small, native Android app for the [Timemore Dot](https://www.timemore.com) coffee scale, with a Wear OS companion.
-It shows weight, flow and timer live, guides espresso and filter recipes step by step, records every brew with its
-curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to Prometheus
-and Grafana.
+It shows weight, flow and timer live, guides espresso, filter and French press brews step by step, records every brew
+with its curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to
+Prometheus and Grafana.
 
 Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+, Wear OS 3+.
 
@@ -17,14 +17,16 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 
 <table>
 <tr>
-<td width="33%" align="center"><img src="assets/demo/home-live.png" width="220" alt="Home showing the current brew weight, timer and flow"><br><b>Live scale</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
-<td width="33%" align="center"><img src="assets/demo/dose.png" width="220" alt="Dose entry with the planned water amount"><br><b>Dose and ratio</b><br>Pick the ratio, weigh the beans (auto tare) and the water follows.</td>
-<td width="33%" align="center"><img src="assets/demo/guide-pour.png" width="220" alt="Guided filter pour showing the current step and weight"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
+<td width="25%" align="center"><img src="assets/demo/home-live.png" width="200" alt="Home in Manual mode showing the live weight, timer and flow"><br><b>Manual</b><br>Weight, timer and flow in real time, with tare and timer controls.</td>
+<td width="25%" align="center"><img src="assets/demo/dose.png" width="200" alt="Dose and ratio setup for a filter recipe with the water target"><br><b>Dose and ratio</b><br>Pick a recipe or a free brew, weigh the beans (auto tare) and the water follows.</td>
+<td width="25%" align="center"><img src="assets/demo/guide-pour.png" width="200" alt="Guided filter pour showing the target weight and flow pace"><br><b>Guided pours</b><br>Bloom, pours and waits by weight and time, with ahead or behind feedback and alerts.</td>
+<td width="25%" align="center"><img src="assets/demo/french-press.png" width="200" alt="French press press-and-serve step with the timer and press illustration"><br><b>French press</b><br>Water, steep timer and the press reminder, with a guided finish.</td>
 </tr>
 <tr>
-<td align="center"><img src="assets/demo/espresso-live.png" width="220" alt="Espresso extracting with its current yield, ratio and timer"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
-<td align="center"><img src="assets/demo/data.png" width="220" alt="Saved brew details with the weight and flow chart"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
-<td align="center"><img src="assets/demo/recipes.png" width="220" alt="Recipe list with espresso and filter recipes"><br><b>Recipes</b><br>Built-in espresso, V60 and Melitta recipes, and your own with dose, ratio, grind, temperature and steps.</td>
+<td align="center"><img src="assets/demo/espresso-live.png" width="200" alt="Espresso extracting with its yield, ratio and timer"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
+<td align="center"><img src="assets/demo/data.png" width="200" alt="Saved brew details with the weight and flow chart"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
+<td align="center"><img src="assets/demo/recipes.png" width="200" alt="Recipe list with Filter, Espresso and Press recipes"><br><b>Recipes</b><br>Built-in espresso, V60, Melitta and French press recipes, and your own with dose, ratio, grind, temperature and steps.</td>
+<td align="center"><img src="assets/demo/brews.png" width="200" alt="Brew list with saved brews and their upload status"><br><b>Brews</b><br>Every brew with its dose, yield, ratio and upload status; no server needed.</td>
 </tr>
 </table>
 
@@ -32,6 +34,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
   timer buttons, step vibration and a finish alert.
 - **Coffee bags:** name, roaster, origin and process, roast date, weight, notes and a finished flag; the brew notes
   suggest open bags first.
+- **Home-screen widget:** the last brew or a 7-day summary with brews, beverage, dose and caffeine.
 - **Offline-first:** no account and no server needed. Sync is an add-on.
 - **Your data:** brews go to any server that follows the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).
@@ -55,7 +58,8 @@ flowchart LR
 - **Kotlin, Jetpack Compose and Material 3**, one ViewModel per screen and manual dependency injection.
 - **Layers, one way:** `model ← data ← brew ← sync ← ui`, enforced by a test.
   - `data`: the Dot's BLE protocol (frame decoder, CRC, handshake, reconnect with backoff), Room storage, the upload client.
-  - `brew`: pure brew logic fed with timed readings: espresso and filter detectors, flow smoothing, recipe step tracking.
+  - `brew`: pure brew logic fed with timed readings: espresso and filter detectors, flow smoothing, French press
+    finish tracking and recipe step tracking.
   - `sync`: WorkManager uploads with retries and readable errors.
   - `ui`: onboarding, home, guided brew, recipes, brews and settings.
 - **Modules:** `app` (phone), `wear` (watch) and `wearlink` (shared watch snapshot).
@@ -93,7 +97,7 @@ optionally asks for your server's URL and token.
 | "Scale not found" | Turn the Dot on and bring it closer. It connects to one phone at a time: close the Timemore app or another phone using it. |
 | "Scale won't pair" | The Dot remembers one phone. Hold its button (under the scale) until the light blinks fast, then tap Retry. |
 | "Bluetooth not allowed" | App settings → Permissions → Nearby devices → Allow. |
-| The espresso doesn't start | Put the cup down and leave it still for a second: the app tares, then waits for the first drops. If the cup was already tared, tap "Cup already tared". |
+| The espresso doesn't start | Put the cup down and leave it still for a second: the app tares, then waits for the first drops. If the cup was already tared, tap "Cup's on". |
 | The espresso doesn't end | It ends about 4 s after the weight stops rising. Tap Stop to end it yourself. |
 | Brews stay "Only on this phone" | Brews tab shows the last upload error and its fix. Test the server in Settings. |
 | Server on your home network times out | Android 17 needs the local network permission: allow it when the app asks, or in App settings → Permissions → Nearby devices. |
@@ -162,6 +166,7 @@ an error), drop, overload or lift; `/clock`
 pauses, advances or changes playback speed; `/state` returns the connection, reading and scenario position. To capture
 the named checkpoints, attach `Pixel_10_Pro_XL`, set `ANDROID_SERIAL` to its emulator serial, then run
 `scripts/capture/capture-scenarios.py`. It writes one PNG per state under the git-ignored `captures/scripted-scale/`.
+The README screens come from these states, plus the saved-brew and recipe screens captured after a run.
 Scenario JSON files live in `app/src/test/resources/scenarios/`; JVM and instrumented tests load those same files and
 drive the virtual clock without HTTP.
 

@@ -55,13 +55,25 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
     checkpoints = scenario_plan(path)
     captured: list[Path] = []
 
-    def command(*args: str, binary: bool = False) -> bytes | str:
-        result = subprocess.run([adb, "-s", serial, *args], check=True, capture_output=True)
+    def command(*args: str, binary: bool = False, timeout: float = 30) -> bytes | str:
+        result = subprocess.run([adb, "-s", serial, *args], check=True, capture_output=True, timeout=timeout)
         return result.stdout if binary else result.stdout.decode("utf-8", errors="replace")
 
     def hierarchy() -> ET.Element:
-        command("shell", "uiautomator", "dump", "/sdcard/scripted-capture-window.xml")
-        return ET.fromstring(command("shell", "cat", "/sdcard/scripted-capture-window.xml"))
+        # uiautomator returns a non-zero exit and no root while a screen transition is running.
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                command("shell", "uiautomator", "dump", "/sdcard/scripted-capture-window.xml", timeout=15)
+                return ET.fromstring(command("shell", "cat", "/sdcard/scripted-capture-window.xml"))
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ET.ParseError):
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.2)
+
+    def bounds_of(node: ET.Element) -> tuple[int, int, int, int] | None:
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+        return tuple(int(part) for part in match.groups()) if match is not None else None
 
     def wait_for_text(value: str, *, contains: bool = False, timeout: float = 10) -> ET.Element:
         deadline = time.monotonic() + timeout
@@ -73,14 +85,35 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 raise RuntimeError(f"app did not show {value!r}")
             time.sleep(0.2)
 
+    def wait_for_bottom(value: str, *, timeout: float = 10) -> ET.Element:
+        # The progress bar labels the last milestone "Done" too; the live screen's button is the one near the bottom.
+        deadline = time.monotonic() + timeout
+        while True:
+            root = hierarchy()
+            if any(
+                (bounds_of(node) or (0, 0, 0, 0))[3] > 1600
+                for node in root.iter("node")
+                if node.get("text") == value
+            ):
+                return root
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"app did not show the {value!r} button")
+            time.sleep(0.2)
+
     def tap_text(value: str) -> None:
         root = wait_for_text(value)
-        node = next(node for node in root.iter("node") if node.get("text") == value and node.get("enabled") == "true")
-        bounds = node.get("bounds", "")
-        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
-        if match is None:
+        # A milestone label and a button can share a word ("Done"): the button sits lower on the screen.
+        nodes = sorted(
+            (node for node in root.iter("node") if node.get("text") == value),
+            key=lambda node: (bounds_of(node) or (0, 0, 0, 0))[3],
+            reverse=True,
+        )
+        # Compose puts the label on a child of the clickable control, so the text node itself can report enabled=false.
+        node = next((node for node in nodes if node.get("clickable") == "true"), nodes[0])
+        bounds = bounds_of(node)
+        if bounds is None:
             raise RuntimeError(f"app did not expose tap bounds for {value!r}")
-        left, top, right, bottom = (int(part) for part in match.groups())
+        left, top, right, bottom = bounds
         command("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
         time.sleep(0.35)
 
@@ -92,7 +125,8 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
 
     subprocess.run([adb, "-s", serial, "forward", "--remove", f"tcp:{port}"], check=False, capture_output=True)
     command("forward", f"tcp:{port}", f"tcp:{API_PORT}")
-    command("shell", "am", "start", "-S", "-n", ACTIVITY, "--ez", "scripted_api", "true", "--ez", "script_paused", "true")
+    # A restored brew screen would otherwise outlive the force stop: NEW_TASK | CLEAR_TASK starts at Home every run.
+    command("shell", "am", "start", "-S", "-n", ACTIVITY, "-f", "0x10008000", "--ez", "scripted_api", "true", "--ez", "script_paused", "true")
 
     def api(method: str, endpoint: str, payload: bytes | dict | None = None, content_type: str = "application/json") -> dict:
         data = json.dumps(payload).encode() if isinstance(payload, dict) else payload
@@ -113,6 +147,13 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             api("POST", "/clock", {"action": "advance", "ms": step})
             time.sleep(0.03)
             remaining -= step
+
+    def manual_reading() -> None:
+        # Home looks alive in the README: a steady 3.2 g/s ramp instead of an idle 0.0 g.
+        for delta_ms, grams in ((1000, 10.0), (500, 11.6), (500, 13.2)):
+            advance_clock(delta_ms)
+            api("POST", "/reading", {"weight_g": grams})
+        time.sleep(0.6)
 
     try:
         deadline = time.monotonic() + 10
@@ -138,15 +179,20 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
         mode_label = {"filter": "Filter", "espresso": "Espresso", "french-press": "Press"}.get(path.stem)
         if mode_label is not None:
             api("POST", "/event", {"event": "connected"})
+            manual_reading()
             screenshot("home")
             tap_text(mode_label)
+            # Let the mode's first screen settle before touching a recipe chip.
+            wait_for_text("Next")
             if path.stem == "espresso":
                 tap_text("Free brew")
-            else:
-                wait_for_text("Step 1 of", contains=True)
+            elif path.stem == "filter":
+                # Filter opens on a free brew; choose the built-in that matches the scenario for the guided flow.
+                tap_text("Melitta 102")
+                wait_for_text("1:15", contains=True)
             screenshot("dose")
             tap_text("Next")
-            wait_for_text("Weigh the beans" if path.stem == "espresso" else "Step 2 of", contains=path.stem != "espresso")
+            wait_for_text("Weigh the beans")
             dose = float(scenario.get("dose_g", 18))
             api("POST", "/reading", {"weight_g": dose})
             time.sleep(0.35)
@@ -156,19 +202,41 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             if path.stem == "espresso":
                 wait_for_text("Prepare the portafilter")
                 screenshot("prepare-portafilter")
+                # The cup is already on the scale when Ready arms the detector, so it tares from that reading.
+                api("POST", "/scenario", path.read_bytes())
+                api("POST", "/clock", {"action": "pause"})
+                advance_clock(2100)
                 tap_text("Ready")
                 wait_for_text("Put the cup on the scale")
+                # The cup is already there: arm from that reading instead of waiting for the steady-cup tare.
+                tap_text("Cup's on")
+                wait_for_text("Start the shot")
+                time.sleep(0.5)
+            elif path.stem == "filter":
+                wait_for_text("Prepare the filter")
+                screenshot("prepare-filter")
+                tap_text("Ready")
+                wait_for_bottom("Done")
+                api("POST", "/scenario", path.read_bytes())
             else:
-                wait_for_text("Ratio")
-            api("POST", "/scenario", path.read_bytes())
+                wait_for_text("Prepare the press")
+                screenshot("prepare-french-press")
+                tap_text("Ready")
+                wait_for_bottom("Done")
+                api("POST", "/scenario", path.read_bytes())
         else:
             api("POST", "/scenario", path.read_bytes())
 
         api("POST", "/clock", {"action": "pause"})
-        previous_ms = 0
+        previous_ms = 2100 if path.stem == "espresso" else 0
         for at_ms, name in checkpoints:
+            if at_ms < previous_ms:
+                continue
             advance_clock(at_ms - previous_ms)
             time.sleep(0.8)
+            if name == "summary" and path.stem == "filter":
+                # A lifted dripper pauses the brew; Done finishes it from the paused screen.
+                tap_text("Done")
             if name == "finished" or (path.stem == "filter" and name == "summary"):
                 wait_for_text("Saved", timeout=10)
             screenshot(name)
