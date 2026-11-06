@@ -1,11 +1,16 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -32,10 +37,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
@@ -88,6 +96,7 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
     val guide = state.guide ?: return
     val steps = state.steps
     val density = LocalDensity.current
+    val still = state.mode == BrewMode.FILTER && animationsOff()
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (state.mode == BrewMode.FRENCH_PRESS && !state.connected) {
             Text(stringResource(R.string.guide_scale_dropped), color = LocalContentColor.current, textAlign = TextAlign.Center)
@@ -95,7 +104,10 @@ fun GuidedStep(state: BrewUiState, onDone: () -> Unit) {
         AnimatedContent(
             guide.index,
             Modifier.weight(1f).fillMaxWidth(),
-            transitionSpec = { Motion.sharedAxisX(targetState > initialState, density) },
+            transitionSpec = {
+                if (still) EnterTransition.None togetherWith ExitTransition.None
+                else Motion.sharedAxisX(targetState > initialState, density)
+            },
             label = "guided",
         ) { index ->
             val step = steps.getOrNull(index)
@@ -126,7 +138,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     val colors = MaterialTheme.colorScheme
-    val still = animationsOff()
+    val still = state.mode == BrewMode.FILTER && animationsOff()
     val chartFlow by animateFloatAsState(
         state.flowGramsPerSecond.coerceAtLeast(0.0).toFloat(),
         Motion.standardOrSnap(still, 150),
@@ -149,7 +161,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
             step.kind == StepKind.POUR -> colors.primary
             else -> colors.secondary
         },
-        tween(500, easing = Motion.Standard),
+        Motion.standardOrSnap(still, 500),
         label = "kind",
     )
     // A French press steeps until its deadline: say so instead of naming the press still to come.
@@ -160,7 +172,7 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
-    previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g") }
+    previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
         CountdownRing(guide.progress, color) {
@@ -176,7 +188,11 @@ private fun Step(step: RecipeStep, index: Int, count: Int, guide: StepState, sta
         }
         Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
-        val fill by animateFloatAsState((state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(), tween(100, easing = LinearEasing), label = "fill")
+        val fill by animateFloatAsState(
+            (state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(),
+            Motion.standardOrSnap(still, 100),
+            label = "fill",
+        )
         val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
         if (state.mode == BrewMode.FILTER) {
             ServerToTarget(fill, targetColors.stroke)
@@ -270,7 +286,7 @@ private data class FlowPoint(val elapsedMs: Long, val flow: Double)
 @Composable
 private fun Drawdown(state: BrewUiState) {
     val locale = LocalConfiguration.current.locales[0]
-    ReachedCheck(null)
+    ReachedCheck(null, still = state.mode == BrewMode.FILTER && animationsOff())
     Text(stringResource(R.string.guide_drawdown), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
     DrainTimeBar(state, Modifier.fillMaxWidth().padding(horizontal = 24.dp))
@@ -294,6 +310,17 @@ fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
         Motion.standardOrSnap(animationsOff(), 120),
         label = "drainTimeProgress",
     )
+    val still = animationsOff()
+    val pulse = remember { Animatable(1f) }
+    var previousWindow by remember { mutableStateOf(window) }
+    LaunchedEffect(window, still) {
+        if (!still && previousWindow == BrewUiState.Window.BEFORE && window == BrewUiState.Window.INSIDE) {
+            pulse.snapTo(1f)
+            pulse.animateTo(1.14f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+            pulse.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        }
+        previousWindow = window
+    }
     val colors = MaterialTheme.colorScheme
     val ring = drainTimeRingColors(colors, window, isSystemInDarkTheme())
     val status = when (window) {
@@ -306,7 +333,7 @@ fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
         )
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Canvas(Modifier.fillMaxWidth().height(14.dp).testTag("drain-time-progress")) {
+        Canvas(Modifier.fillMaxWidth().height(14.dp).graphicsLayer { scaleY = pulse.value }.testTag("drain-time-progress")) {
             val radius = CornerRadius(size.height / 2)
             drawRoundRect(colors.surfaceContainerHighest, cornerRadius = radius)
             drawRoundRect(ring.stroke, size = Size(size.width * animatedProgress, size.height), cornerRadius = radius)
@@ -437,10 +464,11 @@ private fun seconds(ms: Long) = ceil(ms / 1000.0).toInt()
 
 /** A check that grows and fades when a step opens after its target was reached, with what was reached. */
 @Composable
-private fun ReachedCheck(label: String?) {
-    val still = animationsOff()
+private fun ReachedCheck(label: String?, still: Boolean) {
     val t = remember { Animatable(if (still) 1f else 0f) }
-    LaunchedEffect(Unit) { t.animateTo(1f, tween(900, easing = Motion.EmphasizedDecelerate)) }
+    LaunchedEffect(still) {
+        if (still) t.snapTo(1f) else t.animateTo(1f, tween(900, easing = Motion.EmphasizedDecelerate))
+    }
     val color = MaterialTheme.colorScheme.tertiary
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Canvas(Modifier.size(28.dp)) {
