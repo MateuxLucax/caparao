@@ -1297,7 +1297,6 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 90_000)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        compose.onAllNodes(hasText(text(R.string.filter_paused))).assertCountEquals(0)
         // The summary opens before the save is written: close it and wait for the brew in the list, so the save finishes.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)

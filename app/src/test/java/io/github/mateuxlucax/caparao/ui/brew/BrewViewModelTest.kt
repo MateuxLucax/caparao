@@ -210,6 +210,24 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFreeFilterLiftPastTheTargetBandAlsoEndsTheBrew() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0) // 240 g at 1:16
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 260.0, 10.0) // 17.3 : 1, past the +5% edge
+        hold(260.0, 1.2)
+        pour(260.0, 0.0, 0.5)
+
+        val state = vm.uiState.value
+        assertEquals("a lift past the band ends the brew with no Done", BrewStep.SUMMARY, state.step)
+        assertEquals(260.0, state.saved!!.yieldGrams, 0.3)
+    }
+
+    @Test
     fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheTargetBand() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
@@ -245,6 +263,22 @@ class BrewViewModelTest {
         }
         assertEquals("a lift before the last pour's target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
         assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    @Test
+    fun aGuidedFilterLiftRightAfterTheLastPourReachesItsTargetEndsTheBrew() {
+        // No hold at the target: the guide's own 1 s hold has not passed when the dripper comes off.
+        val (vm, _) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            pour(100.0, 0.0, 0.5)
+        }
+        val state = vm.uiState.value
+        assertEquals("the lift once the target is reached ends the brew", BrewStep.SUMMARY, state.step)
+        // The detector confirms a rise after a short settle, so the unconfirmed last few grams are not the yield (as Done).
+        assertTrue(state.saved!!.yieldGrams in 94.0..100.0)
         vm.end()
     }
 
@@ -1405,16 +1439,18 @@ class BrewViewModelTest {
         hold(0.0, 1.0)
 
         pour(0.0, 2.0, 0.4)
-        pour(2.0, 230.0, 10.0) // enters the ±5% band at 228 g
+        pour(2.0, 200.0, 9.0) // below the ±5% band, whose lower edge is 228 g
+        hold(200.0, 1.1)
+        pour(200.0, 0.0, 0.5) // a lift below the band pauses
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        hold(0.0, 0.2)
+        pour(0.0, 200.0, 0.5)
+        hold(200.0, 2.1) // the settling window after the dripper returns
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        pour(200.0, 230.0, 3.0) // enters the band at 228 g
         hold(230.0, 1.1)
         pour(230.0, 260.0, 2.0) // passes the +5% edge at 252 g
         hold(260.0, 1.1)
-        pour(260.0, 0.0, 0.5)
-        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
-        hold(0.0, 0.2)
-        pour(0.0, 260.0, 0.5)
-        hold(260.0, 1.2)
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
 
         // Hovering on and around the band edges doesn't repeat either milestone.
         listOf(251.8, 252.0, 251.8, 252.0, 260.0).forEach { grams ->

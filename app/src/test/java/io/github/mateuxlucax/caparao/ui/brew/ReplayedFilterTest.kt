@@ -48,7 +48,7 @@ class ReplayedFilterTest {
         val vm = BrewViewModel(BrewMode.FILTER, scale, BrewRepository(dao), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
         scale.start()
         vm.begin()
-        vm.setDose(15.0)
+        vm.setDose(20.0) // 255 g at 20 g is 1:12.8, below the band, so the lift pauses rather than ends
         vm.ready()
         // Everything leaves the scale at 90 s; the brew is paused at the lift.
         advanceTimeBy(92_000)
@@ -150,7 +150,8 @@ class ReplayedFilterTest {
         )
         val lines = File("src/test/resources/sessions/real-filter-guided-lift-end.jsonl").readLines()
         val scale = ReplayScaleSource(backgroundScope, lines, repeat = false)
-        val vm = BrewViewModel(BrewMode.FILTER, scale, BrewRepository(FakeBrewDao()), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
+        val dao = FakeBrewDao()
+        val vm = BrewViewModel(BrewMode.FILTER, scale, BrewRepository(dao), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
         scale.start()
         vm.begin()
         vm.selectRecipe(guided)
@@ -171,6 +172,10 @@ class ReplayedFilterTest {
         val brew = state.saved!!
         assertEquals("the saved water is the 148.4 g at the lift, not the 2.3 g left on the scale", 148.4, brew.yieldGrams, 0.3)
         assertEquals("the brew ends at the lift, about 119.6 s after first water", 119.6, brew.durationMs / 1000.0, 0.5)
+        // The saved curve is cut at the lift: its last sample is the yield, not the 152 g reading just before the drop.
+        val curve = dao.samples.getValue(brew.id)
+        assertEquals("the curve ends at the saved duration", brew.durationMs, curve.last().atMs)
+        assertEquals("the curve ends at the saved yield", brew.yieldGrams, curve.last().weightGrams, 0.3)
         vm.end()
     }
 }
