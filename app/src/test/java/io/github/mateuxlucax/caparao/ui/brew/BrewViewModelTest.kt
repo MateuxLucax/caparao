@@ -1013,6 +1013,41 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aRemovalThatBeganThreeSecondsBeforeTheDeadlineAlertsNothingAndSavesTheDrop() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        // The press leaves 3 s before the 4:00 deadline; the weight stays low past it, so the removal confirms after.
+        hold(300.0, (237_000 - vm.uiState.value.elapsedMs) / 1000.0)
+        val droppedAtMs = vm.uiState.value.elapsedMs
+        pour(300.0, -400.0, 0.1)
+        hold(-400.0, 10.0)
+        collecting.cancel()
+
+        assertTrue("the deadline passed while the press was off", vm.uiState.value.frenchPressDeadlineReached)
+        assertTrue(vm.uiState.value.frenchPressRemoved)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        assertTrue("no deadline alert", alerts.none { it.event == StepEvent.FrenchPressDeadline || it.event == StepEvent.FrenchPressReminder })
+        assertTrue("no watch alert", watchAlerts.none { it == StepEvent.FrenchPressDeadline || it == StepEvent.FrenchPressReminder })
+
+        vm.stop()
+        rolled()
+        // The saved time is when the weight first dropped, not when the 5 s hold ran out (#279).
+        assertEquals(droppedAtMs.toDouble(), vm.uiState.value.saved!!.durationMs.toDouble(), 500.0)
+        assertTrue(vm.uiState.value.saved!!.durationMs < 240_000L)
+    }
+
+    @Test
     fun aFrenchPressDeadlineAlertsBelowTheFinalWaterTargetAndDoneKeepsMeasuredWater() = kotlinx.coroutines.test.runTest {
         val frenchPress = io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0)
         recipes.save(frenchPress)

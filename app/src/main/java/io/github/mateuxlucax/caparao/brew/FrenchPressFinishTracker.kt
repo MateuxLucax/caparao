@@ -18,6 +18,22 @@ class FrenchPressFinishTracker(
     var removedAtMs: Long? = null
         private set
 
+    /**
+     * Starts the candidate at the first low reading of the run that ends at the newest of [readings], not before
+     * [sinceMs] (#279). The tracker is made at the deadline, so a removal that began earlier would otherwise start
+     * counting only from the deadline. Does nothing when the newest reading is not low.
+     */
+    fun backdateFrom(readings: List<TimedReading>, sinceMs: Long) {
+        if (removedAtMs != null) return
+        var began: Long? = null
+        for (timed in readings.asReversed()) {
+            val weight = timed.reading.weightGrams
+            if (timed.atMs < sinceMs || !weight.isFinite() || weight > removalThresholdGrams) break
+            began = timed.atMs
+        }
+        removalStartedAtMs = began ?: removalStartedAtMs
+    }
+
     /** True once the weight has stayed at or below the tare for [removalHoldMs]. It never changes brew completion. */
     fun update(atMs: Long, weightGrams: Double): Boolean {
         if (removedAtMs != null) return true
