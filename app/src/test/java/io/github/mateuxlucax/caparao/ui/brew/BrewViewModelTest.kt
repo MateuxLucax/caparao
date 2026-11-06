@@ -1535,4 +1535,102 @@ class BrewViewModelTest {
         assertEquals(4, alerts.size)
         assertTrue(watchAlerts.isEmpty())
     }
+
+    /** Moves the virtual clock by [ms] and runs what is due at exactly that time, such as the ten-second wait. */
+    private fun elapse(ms: Long) {
+        main.dispatcher.scheduler.advanceTimeBy(ms)
+        main.dispatcher.scheduler.runCurrent()
+    }
+
+    /** A brew screen open on the dose with no scale connected yet, the dose already typed in. */
+    private fun doseWaitingForScale(mode: BrewMode = BrewMode.ESPRESSO): BrewViewModel {
+        scale.state.value = ScaleState.Idle
+        return viewModel(mode).also {
+            it.begin()
+            it.planDose(18.0)
+        }
+    }
+
+    @Test
+    fun nextWithoutTheScaleWaitsOnTheDoseAndTheWeighingOpensWhenItConnects() {
+        val vm = doseWaitingForScale()
+        vm.weigh()
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        assertTrue(vm.uiState.value.waitingForScale)
+        assertFalse(scale.commands.contains("tare"))
+
+        scale.state.value = ScaleState.Connected(null)
+
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertFalse(vm.uiState.value.waitingForScale)
+        assertEquals(1, scale.commands.count { it == "tare" })
+    }
+
+    @Test
+    fun aScaleThatConnectsWithinTenSecondsContinuesWithoutAnotherTap() {
+        val vm = doseWaitingForScale()
+        vm.weigh()
+        elapse(4_000)
+
+        scale.state.value = ScaleState.Connected(null)
+        elapse(20_000)
+
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertFalse(vm.uiState.value.scaleTimedOut)
+    }
+
+    @Test
+    fun aScaleThatNeverConnectsShowsNotFoundAfterTenSecondsAndStillListens() {
+        val vm = doseWaitingForScale()
+        vm.weigh()
+        elapse(BrewViewModel.SCALE_WAIT_TIMEOUT_MS - 1)
+        assertFalse(vm.uiState.value.scaleTimedOut)
+
+        elapse(1)
+        assertTrue(vm.uiState.value.scaleTimedOut)
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        assertTrue(vm.uiState.value.waitingForScale)
+
+        scale.state.value = ScaleState.Connected(null)
+
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertFalse(vm.uiState.value.scaleTimedOut)
+    }
+
+    @Test
+    fun retryAsksTheScaleAgainAndStartsANewTenSecondWait() {
+        val vm = doseWaitingForScale()
+        vm.weigh()
+        elapse(BrewViewModel.SCALE_WAIT_TIMEOUT_MS)
+
+        vm.retryScale()
+        assertFalse(vm.uiState.value.scaleTimedOut)
+        assertEquals(listOf("stop", "start"), scale.commands)
+
+        elapse(BrewViewModel.SCALE_WAIT_TIMEOUT_MS - 1)
+        assertFalse(vm.uiState.value.scaleTimedOut)
+        elapse(1)
+        assertTrue(vm.uiState.value.scaleTimedOut)
+    }
+
+    @Test
+    fun aFlappingConnectionDoesNotPostponeTheNotFoundCard() {
+        val vm = doseWaitingForScale()
+        vm.weigh()
+        elapse(5_000)
+        scale.state.value = ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true)
+
+        elapse(BrewViewModel.SCALE_WAIT_TIMEOUT_MS - 5_000)
+
+        assertTrue(vm.uiState.value.scaleTimedOut)
+    }
+
+    @Test
+    fun aConnectedScaleNeverShowsNotFound() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        elapse(20_000)
+
+        assertFalse(vm.uiState.value.scaleTimedOut)
+    }
 }

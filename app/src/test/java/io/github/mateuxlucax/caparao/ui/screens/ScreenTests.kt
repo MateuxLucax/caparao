@@ -136,6 +136,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -628,7 +629,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText("Pirados por Café", substring = true).assertIsDisplayed()
 
         // No ratio or dose controls: to change the recipe, the user edits it in Recipes.
-        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+        compose.onAllNodes(hasText(text(R.string.ratio_caption))).assertCountEquals(0)
         compose.onNodeWithContentDescription(text(R.string.ratio_less)).assertDoesNotExist()
         compose.onNodeWithContentDescription(text(R.string.ratio_more)).assertDoesNotExist()
     }
@@ -906,6 +907,66 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         scale.state.value = ScaleState.Connected(battery = null)
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.retry)).assertIsEnabled()
+    }
+
+    /** #182 D1: the dose stays editable with a quiet Connecting line while no scale is connected. */
+    @Test
+    fun doseWithoutAScaleShowsConnecting() {
+        val scale = open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        click(R.string.free_brew)
+        compose.waitForIdle()
+        // Home opens a brew only with a scale, so the scale drops once the dose is on screen (#182).
+        scale.state.value = ScaleState.Idle
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.scale_connecting)).assertIsDisplayed()
+        compose.onAllNodes(hasText(text(R.string.error_not_found))).assertCountEquals(0)
+    }
+
+    /** #182 B1 and B2: Next waits with Connecting and is disabled; when the scale connects the weighing opens by itself. */
+    @Test
+    fun nextWithoutAScaleWaitsThenContinuesWhenItConnects() {
+        val scale = open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        click(R.string.free_brew)
+        compose.waitForIdle()
+        // Home opens a brew only with a scale, so the scale drops once the dose is on screen (#182).
+        scale.state.value = ScaleState.Idle
+        compose.waitForIdle()
+        click(R.string.next)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.next)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.scale_connecting)).assertIsDisplayed()
+
+        scale.state.value = ScaleState.Connected(battery = null)
+
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onAllNodes(hasText(text(R.string.scale_connecting))).assertCountEquals(0)
+    }
+
+    /** #182 B3: after ten seconds without a scale the card says so, with Retry; a scale that connects later still continues. */
+    @Test
+    fun aScaleThatNeverConnectsShowsNotFoundAndStillContinuesWhenItConnects() {
+        val scale = open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        click(R.string.free_brew)
+        compose.waitForIdle()
+        // Home opens a brew only with a scale, so the scale drops once the dose is on screen (#182).
+        scale.state.value = ScaleState.Idle
+        compose.waitForIdle()
+        click(R.string.next)
+        shadowOf(Looper.getMainLooper()).idleFor(10, TimeUnit.SECONDS)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.error_not_found)), 5_000)
+        compose.onNodeWithText(text(R.string.hint_not_found)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.retry)).assertIsEnabled()
+
+        scale.state.value = ScaleState.Connected(battery = null)
+
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onAllNodes(hasText(text(R.string.error_not_found))).assertCountEquals(0)
     }
 
     /** A filter brew: taring, pouring, brewing, then the server lifted and Done; its summary and chart. */
