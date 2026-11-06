@@ -177,7 +177,7 @@ class BrewViewModelTest {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2) // dripper and server on the scale
         vm.begin()
-        vm.setDose(15.0)
+        vm.setDose(17.0) // 250 g at 17 g is 1:14.7, below the band, so the lift pauses rather than ends
         vm.ready()
         hold(320.0, 0.1)
         hold(0.0, 1.0)
@@ -207,6 +207,61 @@ class BrewViewModelTest {
         hold(0.0, 10.0) // far past the 2 s that sends a lift back to Prepare before the first water
         assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
         assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+    }
+
+    @Test
+    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheTargetBand() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 200.0, 10.0) // 13.3 : 1, below the band
+        pour(200.0, 0.0, 0.5)
+        assertEquals("a lift before the target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
+        hold(0.0, 0.2)
+        pour(0.0, 200.0, 0.5)
+        hold(200.0, 2.1) // the settling window after the dripper returns
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+        pour(200.0, 240.0, 3.0) // 16 : 1, in the band
+        hold(240.0, 1.2)
+        pour(240.0, 0.0, 0.5)
+
+        val state = vm.uiState.value
+        assertEquals("a lift once in the band ends the brew at once, with no Done", BrewStep.SUMMARY, state.step)
+        assertEquals(BrewPhase.DONE, state.phase)
+        assertEquals(240.0, state.saved!!.yieldGrams, 0.3)
+    }
+
+    @Test
+    fun aGuidedFilterLiftEndsTheBrewOnlyAfterTheLastPourTarget() {
+        val (vm, _) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 60.0, 5.0) // short of the last pour's 100 g
+            pour(60.0, 0.0, 0.5)
+        }
+        assertEquals("a lift before the last pour's target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    @Test
+    fun aGuidedFilterLiftAfterTheLastPourTargetEndsTheBrewAtTheLift() {
+        val (vm, _) = guidedFilter(twoPours) {
+            pour(0.0, 40.0, 8.0)
+            hold(40.0, 12.0)
+            pour(40.0, 100.0, 12.0)
+            hold(100.0, 1.2)
+            pour(100.0, 0.0, 0.5)
+        }
+        val state = vm.uiState.value
+        assertEquals("a lift after the last pour ends the brew with no Done", BrewStep.SUMMARY, state.step)
+        assertEquals(BrewPhase.DONE, state.phase)
+        assertEquals(100.0, state.saved!!.yieldGrams, 0.3)
+        vm.end()
     }
 
     @Test
@@ -815,7 +870,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun filterDrainRangeAndAlertsFreezeWhilePaused() {
+    fun filterDrainRangeAlertsOnceAndALiftInsideItEndsTheBrew() {
         val recipe = v60.copy(steps = twoPours, targetMinMs = 28_000, targetMaxMs = 34_000)
         runBlocking { recipes.save(recipe) }
         val vm = viewModel(BrewMode.FILTER)
@@ -835,28 +890,15 @@ class BrewViewModelTest {
 
         assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
         assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        // The drain window only opens after the last guided pour, so a lift now is past it and ends the brew (#277).
         pour(100.0, 0.0, 0.5)
-        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
-        val frozenTime = vm.uiState.value.elapsedMs
-        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
+        assertEquals(BrewStep.SUMMARY, vm.uiState.value.step)
+        assertEquals(BrewPhase.DONE, vm.uiState.value.phase)
         hold(0.0, 5.0)
-        assertEquals(frozenTime, vm.uiState.value.elapsedMs)
-        assertEquals(BrewUiState.Window.INSIDE, vm.uiState.value.drainWindow)
-        assertEquals(0, alerts.count { it.event == StepEvent.DrainTimePassed })
-
-        pour(0.0, 100.0, 0.3)
-        hold(100.0, 1.2)
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        assertTrue(vm.uiState.value.elapsedMs - frozenTime in 0L..250L)
-        hold(100.0, 5.0)
-        assertEquals(BrewUiState.Window.PAST, vm.uiState.value.drainWindow)
-        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
-        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimePassed })
-        assertEquals(1, alerts.count { it.event == StepEvent.Paused })
-        assertEquals(1, alerts.count { it.event == StepEvent.Resumed })
-        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimeEntered })
-        assertEquals(1, watchAlerts.count { it == StepEvent.DrainTimePassed })
         collecting.cancel()
+        assertEquals(1, alerts.count { it.event == StepEvent.DrainTimeEntered })
+        assertEquals("the brew ended at the lift, so the drain time never passed", 0, alerts.count { it.event == StepEvent.DrainTimePassed })
+        assertEquals("ending at the lift is not a pause", 0, alerts.count { it.event == StepEvent.Paused })
     }
 
     @Test

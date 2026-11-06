@@ -376,6 +376,11 @@ class BrewViewModel(
         if (readings.size < MAX_READINGS) readings += timed
         val before = current.phase
         current.onReading(timed)?.let(::send)
+        // A lift once the water is past the last pour ends the brew at the lift, as Done would; before it, the brew pauses.
+        if (mode == BrewMode.FILTER && before == BrewPhase.BREWING && current.phase == BrewPhase.PAUSED && liftEndsBrew()) {
+            stop()
+            return
+        }
         val pauseState = current.pauseState
         when {
             before == BrewPhase.BREWING && current.phase == BrewPhase.PAUSED -> {
@@ -486,6 +491,21 @@ class BrewViewModel(
             }
             finish(current)
         }
+    }
+
+    /**
+     * Judged on the water before the lift (#277): a guided filter once the guide has moved past its last pour, a free
+     * filter once the water is in the target band.
+     */
+    private fun liftEndsBrew(): Boolean {
+        val state = _uiState.value
+        val guide = tracker
+        if (guide != null) {
+            val lastPour = state.recipe?.steps?.indexOfLast { it.kind.pours && it.targetWeightGrams != null } ?: -1
+            return lastPour >= 0 && guide.state.index > lastPour
+        }
+        val ratio = state.ratio ?: return false
+        return targetBand(ratio, state.targetRatio) == TargetBand.AT
     }
 
     /** The filter or French press setup was lifted before the first water: let the user put it back without losing checklist marks. */
