@@ -87,8 +87,45 @@ class ReplayedFilterTest {
 
         advanceTimeBy(2_100)
         runCurrent()
-        assertEquals("a negative weight held during Pour returns to preparation", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
-        assertTrue("the checklist is still checked after Pour", 1 in vm.uiState.value.preparationChecks)
+        assertEquals("a negative weight held during Pour pauses the brew", BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals("and does not return to preparation", BrewStep.LIVE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    @Test
+    fun aFilterLiftAfterWaterPausesAndResumesWithoutReturningToPrepare() = TestScope(dispatcher).runTest {
+        Dispatchers.setMain(dispatcher)
+        // Real Dot session 2026-11-06: the free filter lifted by hand at ~44.7 s into the replay, a hand pressing
+        // on the dripper up to ~353 g from ~49.4 s, and the dripper back at ~50.6 s on 74 g of water.
+        val lines = File("src/test/resources/sessions/real-filter-free-lift-hand.jsonl").readLines()
+        val scale = ReplayScaleSource(backgroundScope, lines, repeat = false)
+        val vm = BrewViewModel(BrewMode.FILTER, scale, BrewRepository(FakeBrewDao()), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()), clock = { currentTime })
+        scale.start()
+        vm.begin()
+        vm.setDose(15.0)
+        vm.ready()
+
+        advanceTimeBy(45_700)
+        runCurrent()
+        assertEquals("the lift pauses the brew at once", BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals("the lift after water does not return to preparation", BrewStep.LIVE, vm.uiState.value.step)
+        assertEquals("the paused scale shows the 74 g of water", 74.2, vm.uiState.value.weightGrams, 0.5)
+
+        advanceTimeBy(4_300)
+        runCurrent()
+        assertEquals("the hand on the dripper does not resume or end the brew", BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals("the dripper back on the scale resumes the brew", BrewPhase.BREWING, vm.uiState.value.phase)
+        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+
+        advanceTimeBy(500)
+        runCurrent()
+        vm.stop()
+        val brew = vm.uiState.value.saved!!
+        assertEquals("the saved water is the 74 g kept at the lift, not the hand's 353 g", 74.3, brew.yieldGrams, 0.5)
         vm.end()
     }
 }

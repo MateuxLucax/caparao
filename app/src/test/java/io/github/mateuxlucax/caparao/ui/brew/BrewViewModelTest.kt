@@ -193,6 +193,23 @@ class BrewViewModelTest {
     }
 
     @Test
+    fun aFilterLiftOfAnyLengthAfterWaterPausesAndNeverReturnsToPreparation() {
+        val vm = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(15.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 50.0, 4.0)
+        hold(50.0, 1.1)
+        pour(50.0, 0.0, 0.3)
+        hold(0.0, 10.0) // far past the 2 s that sends a lift back to Prepare before the first water
+        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
+        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
+    }
+
+    @Test
     fun readyWithoutAReadingTakesTheFirstReadingAsBaselineNotACup() {
         // Ready after a disconnect: the scale has no reading yet, so the portafilter's weight is the first one.
         val vm = viewModel(BrewMode.ESPRESSO)

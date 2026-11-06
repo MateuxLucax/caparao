@@ -349,9 +349,9 @@ class BrewViewModel(
 
     private fun onReading(reading: ScaleReading) {
         val current = detector
+        // Only before the first water: a lift after it pauses a filter brew (the detector) and keeps a French press running.
         val shouldWatchLift = when (mode) {
-            BrewMode.FILTER -> current?.phase in setOf(BrewPhase.READY, BrewPhase.BREWING, BrewPhase.PAUSED)
-            BrewMode.FRENCH_PRESS -> current?.phase == BrewPhase.READY
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> current?.phase == BrewPhase.READY
             BrewMode.ESPRESSO -> false
         }
         if (shouldWatchLift && current != null &&
@@ -488,7 +488,7 @@ class BrewViewModel(
         }
     }
 
-    /** The filter or French press setup was lifted: let the user put it back without losing checklist marks. */
+    /** The filter or French press setup was lifted before the first water: let the user put it back without losing checklist marks. */
     private fun returnToPreparation(reading: ScaleReading) {
         detector = null
         filterLiftBeganAtMs = null
