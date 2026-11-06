@@ -409,6 +409,69 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText("150").assertIsDisplayed()
     }
 
+    /** Opens the V60 recipe in its editor, as the recipes list leads to it. */
+    private fun openV60Editor() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
+        compose.onNodeWithText("V60 One and Done").performClick()
+        waitFor(R.string.recipe_name)
+    }
+
+    /** Back in an untouched recipe editor closes at once (#181, B1). */
+    @Test
+    fun untouchedRecipeEditorBackClosesAtOnce() {
+        openV60Editor()
+        tapBack()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.discard_changes_title)).assertDoesNotExist()
+    }
+
+    /** Back with changes asks first; Cancel keeps the editor, Discard closes it (#181, B1 → B2). */
+    @Test
+    fun changedRecipeEditorBackAsksBeforeDiscarding() {
+        openV60Editor()
+        compose.onNode(hasSetTextAction() and hasText("V60 One and Done")).performTextReplacement("V60 short")
+        compose.waitForIdle()
+        tapBack()
+        waitFor(R.string.discard_changes_title)
+        compose.onNodeWithText(text(R.string.discard)).assertIsDisplayed()
+        click(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_changes_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.recipe_name)).assertIsDisplayed()
+        tapBack()
+        waitFor(R.string.discard_changes_title)
+        click(R.string.discard)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it (#181, C1 → C2). */
+    @Test
+    fun coffeeBagDeleteAsksFirst() {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_settings)
+        compose.waitForIdle()
+        click(R.string.coffees_manage)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.coffee_edit)
+        click(R.string.delete)
+        waitFor(R.string.delete_coffee_title)
+        compose.onNodeWithText(text(R.string.delete_coffee_text)).assertIsDisplayed()
+        click(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.delete_coffee_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.coffee_edit)).assertIsDisplayed()
+        click(R.string.delete)
+        waitFor(R.string.delete_coffee_title)
+        click(R.string.delete)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Caparaó natural", substring = true).fetchSemanticsNodes().isEmpty() }
+    }
+
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
     @Test
     fun widget() {
@@ -616,7 +679,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         playUntilShown(scale, R.string.brew_saved, 60_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
-        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
         // The list loads the brew from the database off the main thread, so wait for its row before taking it.
@@ -626,6 +689,49 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         // The brew loads from the database off the main thread.
         waitFor(R.string.delete)
         compose.waitForIdle()
+    }
+
+    /** The espresso from the synthetic session, stopped on its summary: the notes and the Done button (#181). */
+    private fun espressoSummary() {
+        val scale = open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitForIdle()
+        click(R.string.next)
+        compose.waitForIdle()
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        play(scale, 21_000)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.brew_saved, 60_000)
+        compose.waitForIdle()
+    }
+
+    /** The top bar's arrow, which runs the same action as Back. */
+    private fun tapBack() = compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+
+    /** Back on the summary saves the typed notes into the saved brew and closes, with no dialog (#181, A1 → A2). */
+    @Test
+    fun summaryBackSavesNotesAndCloses() {
+        espressoSummary()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_coffee))).performTextReplacement("Kalita")
+        compose.waitForIdle()
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.discard_brew_title)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_saved)).assertDoesNotExist()
+        assertEquals("Kalita", runBlocking { brews.latest()?.coffee })
+    }
+
+    /** Discard on the summary still asks first, and Cancel keeps the brew (#181, A1). */
+    @Test
+    fun summaryDiscardStillAsks() {
+        espressoSummary()
+        // By action, not touch: the curve pushes Discard below the fold.
+        compose.onNode(hasText(text(R.string.discard)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        waitFor(R.string.discard_brew_title)
+        click(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_brew_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
     }
 
     /** Espresso with a recipe: a target, so its values are shown and nothing changes the dose or ratio (#189). */
@@ -1015,7 +1121,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
         // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
-        compose.onNodeWithText(text(R.string.save)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
         // The list loads the brew from the database off the main thread, so wait for its row before taking it.

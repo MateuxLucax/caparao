@@ -110,9 +110,16 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     DisposableEffect(feedback) { onDispose { feedback.release() } }
     LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
     // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
-    // closes, as nothing is recorded yet.
+    // closes, as nothing is recorded yet. On the summary it saves the notes like Save does (#181).
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    val back = { if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose() }
+    val finish = { if (viewModel.saveNotes()) onClose() }
+    val back = {
+        when {
+            state.step == BrewStep.SUMMARY -> finish()
+            state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED) -> confirmStop = true
+            else -> onClose()
+        }
+    }
     BackHandler(onBack = back)
     if (confirmStop) {
         AlertDialog(
@@ -205,7 +212,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
-                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onSave = { if (viewModel.saveNotes()) onClose() }, onDiscard = { viewModel.discard(); onClose() })
+                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onDone = finish, onDiscard = { viewModel.discard(); onClose() })
                 }
             }
         }
@@ -360,7 +367,7 @@ private fun TareFailed(connected: Boolean, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave: () -> Unit, onDiscard: () -> Unit) {
+private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone: () -> Unit, onDiscard: () -> Unit) {
     val brew = state.saved ?: return
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
@@ -406,7 +413,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onSave
         // Asked after the brew, never before, so the main flow stays a few taps (#105).
         state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium) }
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }
     }
 }

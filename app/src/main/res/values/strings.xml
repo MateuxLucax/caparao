@@ -132,6 +132,7 @@
     <string name="finish_brew_title">Finish the brew?</string>
     <string name="keep_brewing">Keep going</string>
     <string name="discard_brew_title">Discard this brew?</string>
+    <string name="discard_changes_title">Discard changes?</string>
     <string name="close">Close</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Yield</string>
@@ -362,6 +363,8 @@
     <string name="coffee_left">%1$s of %2$s g left</string>
     <string name="coffee_finished">Finished</string>
     <string name="coffee_mark_finished">Finished</string>
+    <string name="delete_coffee_title">Delete this coffee?</string>
+    <string name="delete_coffee_text">Brews that used it keep its name.</string>
     <plurals name="coffee_roasted_days">
         <item quantity="one">roasted %1$d day ago</item>
         <item quantity="other">roasted %1$d days ago</item>

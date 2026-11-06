@@ -128,6 +128,7 @@
     <string name="finish_brew_title">Terminar o preparo?</string>
     <string name="keep_brewing">Continuar</string>
     <string name="discard_brew_title">Descartar este preparo?</string>
+    <string name="discard_changes_title">Descartar alterações?</string>
     <string name="close">Fechar</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Bebida</string>
@@ -355,6 +356,8 @@
     <string name="coffee_left">Restam %1$s de %2$s g</string>
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Acabou</string>
+    <string name="delete_coffee_title">Apagar este café?</string>
+    <string name="delete_coffee_text">Os preparos que o usaram mantêm o nome dele.</string>
     <plurals name="coffee_roasted_days">
         <item quantity="one">torrado há %1$d dia</item>
         <item quantity="many">torrado há %1$d dias</item>

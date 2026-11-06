@@ -71,8 +71,20 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm.Field
 fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.closed) { if (state.closed) onClose() }
-    BackHandler(onBack = onClose)
+    // An untouched editor closes at once; one with changes asks before losing them (#181).
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val close = { if (state.dirty) confirmDiscard = true else onClose() }
+    BackHandler(onBack = close)
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; onClose() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -88,7 +100,7 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
             TopAppBar(
                 title = { Text(stringResource(if (state.isNew) R.string.new_recipe else R.string.edit_recipe), style = MaterialTheme.typography.titleLargeEmphasized) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = close) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close)) }
                 },
                 actions = {
                     if (!state.isNew) {
