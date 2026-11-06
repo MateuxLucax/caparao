@@ -149,6 +149,33 @@ class FilterDetectorTest {
     }
 
     @Test
+    fun dripperBackThenPourAtOnceResumesFromTheReturn() {
+        openAndTare()
+        pourWithBloom()
+        val liftAt = session.nowMs
+        session.ramp(250.0, 0.0, 0.3)
+        detector.feed(session)
+        assertEquals(BrewPhase.PAUSED, detector.phase)
+
+        // The dripper goes back and the pour starts at once, well above the 250 g level for longer than a hand spike.
+        session.ramp(0.0, 280.0, 0.3).hold(280.0, 4.0)
+        // feed() clears the session, so the moment the weight first came back is read before it.
+        val backAt = session.readings.first { it.reading.weightGrams >= 247.0 }.atMs
+        detector.feed(session)
+        assertEquals("a pour that stays above the band resumes the brew", BrewPhase.BREWING, detector.phase)
+        assertNull(detector.pauseState)
+
+        // The timer resumes from when the dripper came back on the scale, not three seconds later.
+        assertEquals(backAt, detector.lastResumedAtMs!!)
+        detector.stop(session.nowMs)
+        assertEquals(
+            (session.nowMs - SyntheticSession.STEP_MS - (backAt - liftAt)).toDouble(),
+            detector.result!!.endedAtMs.toDouble(),
+            100.0,
+        )
+    }
+
+    @Test
     fun handPressOnReturnDoesNotBecomeWaterOrStartAnotherPause() {
         openAndTare()
         pourWithBloom()
@@ -166,23 +193,19 @@ class FilterDetectorTest {
     }
 
     @Test
-    fun waterAboveThePreLiftLevelResumesOnlyOnceBackInTheBand() {
+    fun waterAddedWhileLiftedIsConfirmedAfterTheResumeSettleWindow() {
         openAndTare()
         pourWithBloom()
         session.ramp(250.0, 0.0, 0.3)
         detector.feed(session)
         assertEquals(BrewPhase.PAUSED, detector.phase)
 
-        // More than 10 g above the 250 g water level is not the dripper back, so it does not resume.
         session.ramp(0.0, 280.0, 0.3).hold(280.0, 4.0)
         detector.feed(session)
-        assertEquals(BrewPhase.PAUSED, detector.phase)
 
-        session.ramp(280.0, 250.0, 0.3).hold(250.0, 2.0)
-        detector.feed(session)
         assertEquals(BrewPhase.BREWING, detector.phase)
         detector.stop(session.nowMs)
-        assertEquals(250.0, detector.result!!.yieldGrams, 0.3)
+        assertEquals(280.0, detector.result!!.yieldGrams, 0.3)
     }
 
     @Test

@@ -28,6 +28,11 @@ data class FilterConfig(
     val pauseReturnAboveGrams: Double = 10.0,
     /** The returned weight must hold before the timer resumes. */
     val pauseResumeHoldMs: Long = 1_000,
+    /**
+     * Weight above the band for this long is a pour, not a hand: the brew resumes from the moment the dripper came
+     * back on the scale. A hand spike lasts about 1.4 s in the real capture.
+     */
+    val pauseSustainedAboveMs: Long = 3_000,
     /** Provisional handling settle window after a dripper return; tuned in #200. */
     val resumeSettleWindowMs: Long = 2_000,
     /** French press keeps running when the carafe is lifted to serve. */
@@ -71,8 +76,16 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     private var pauseStartedAtMs: Long? = null
         private set
     private var resumeCandidateAtMs: Long? = null
+    /** Since the weight first came back on the scale during this pause (at or above the band's bottom). */
+    private var backOnScaleAtMs: Long? = null
+    /** Since the weight went above the band during this pause. */
+    private var aboveBandSinceMs: Long? = null
     private var resumeSettleUntilMs: Long? = null
     private var pausedDurationMs = 0L
+
+    /** When the brew last resumed from a pause; the ViewModel dates the timer's resume to it. */
+    var lastResumedAtMs: Long? = null
+        private set
 
     override val pauseState: BrewPauseState?
         get() = pauseStartedAtMs?.takeIf { phase == BrewPhase.PAUSED }?.let { BrewPauseState(it, dropYieldGrams) }
@@ -218,29 +231,52 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             return
         }
 
-        // Back on the scale means the water level again, not a hand pressing on the dripper above it.
-        val weight = reading.reading.weightGrams
-        val returned = weight >= maxGrams - config.pauseReturnToleranceGrams && weight <= maxGrams + config.pauseReturnAboveGrams
-        if (!returned) {
+        val grams = reading.reading.weightGrams
+        if (grams < maxGrams - config.pauseReturnToleranceGrams) {
+            // Still lifted: nothing counts until the dripper is back on the scale.
+            backOnScaleAtMs = null
+            aboveBandSinceMs = null
             resumeCandidateAtMs = null
             return
         }
+        val backAt = backOnScaleAtMs ?: reading.atMs.also { backOnScaleAtMs = it }
+
+        if (grams > maxGrams + config.pauseReturnAboveGrams) {
+            // A hand on the dripper, or a pour straight after the dripper went back: only a sustained pour resumes.
+            resumeCandidateAtMs = null
+            val since = aboveBandSinceMs ?: reading.atMs.also { aboveBandSinceMs = it }
+            if (reading.atMs - since >= config.pauseSustainedAboveMs) {
+                // The pour is water: the level it has reached counts from the resume, not only after a settle window.
+                maxGrams = maxOf(maxGrams, grams)
+                resumeFromPause(resumedAtMs = backAt, settleFromMs = null)
+            }
+            return
+        }
+
+        // In the band: the water is back where it was, and it must hold before the timer resumes.
+        aboveBandSinceMs = null
         val candidate = resumeCandidateAtMs
         if (candidate == null) {
             resumeCandidateAtMs = reading.atMs
             return
         }
-        if (reading.atMs - candidate >= config.pauseResumeHoldMs) {
-            pausedDurationMs += reading.atMs - pausedAt
-            pauseStartedAtMs = null
-            resumeCandidateAtMs = null
-            dropBeganAtMs = null
-            dropYieldGrams = maxGrams
-            clearCandidate()
-            clearDecreaseCandidate()
-            resumeSettleUntilMs = reading.atMs + config.resumeSettleWindowMs
-            phase = BrewPhase.BREWING
-        }
+        if (reading.atMs - candidate >= config.pauseResumeHoldMs) resumeFromPause(resumedAtMs = reading.atMs, settleFromMs = reading.atMs)
+    }
+
+    private fun resumeFromPause(resumedAtMs: Long, settleFromMs: Long?) {
+        val pausedAt = pauseStartedAtMs ?: return
+        pausedDurationMs += resumedAtMs - pausedAt
+        lastResumedAtMs = resumedAtMs
+        pauseStartedAtMs = null
+        resumeCandidateAtMs = null
+        backOnScaleAtMs = null
+        aboveBandSinceMs = null
+        dropBeganAtMs = null
+        dropYieldGrams = maxGrams
+        clearCandidate()
+        clearDecreaseCandidate()
+        resumeSettleUntilMs = settleFromMs?.plus(config.resumeSettleWindowMs)
+        phase = BrewPhase.BREWING
     }
 
     private fun updateSettledCandidate(reading: TimedReading) {
