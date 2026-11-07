@@ -36,7 +36,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val brew = BrewRepository(db.brews()).get("a")!!
@@ -75,7 +75,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val brew = BrewRepository(db.brews()).get("existing")!!
@@ -107,7 +107,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first()
@@ -131,7 +131,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val bigBrew = RecipeRepository(db.recipes()).recipes.first().single { it.id == BuiltInRecipes.V60_BIG_ID }
@@ -157,7 +157,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first().associateBy { it.id }

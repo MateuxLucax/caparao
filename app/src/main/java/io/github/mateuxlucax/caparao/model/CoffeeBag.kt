@@ -1,8 +1,8 @@
 package io.github.mateuxlucax.caparao.model
 
 /**
- * A bag of coffee beans on the shelf. Brews point to it by name, through their coffee note, so the bag needs nothing
- * from the brew table or the server: [usedGrams] is the dose of every brew with that coffee since the bag was added.
+ * A bag of coffee beans on the shelf. Brews link to it on the phone only (#288), so the server never sees the bag.
+ * [usedGrams], [brewCount], [lastBrewedAt] and [averageRating] sum up the brews linked to the bag.
  */
 data class CoffeeBag(
     val id: String,
@@ -18,6 +18,11 @@ data class CoffeeBag(
     val finished: Boolean = false,
     val createdAt: Long,
     val usedGrams: Double = 0.0,
+    val brewCount: Int = 0,
+    /** Epoch millis of the newest linked brew's start; null when none. */
+    val lastBrewedAt: Long? = null,
+    /** Average rating of the linked brews that have one; null when none has one. */
+    val averageRating: Double? = null,
 ) {
     val leftGrams: Double get() = (weightGrams - usedGrams).coerceAtLeast(0.0)
 

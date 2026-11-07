@@ -40,6 +40,8 @@ data class BrewEntity(
     @ColumnInfo(name = "water_temp_celsius") val waterTempCelsius: Int? = null,
     val rating: Int? = null,
     val notes: String? = null,
+    /** The coffee bag this brew used; local only, never sent to the server (#288). No foreign key: deleting a bag unlinks its brews. */
+    @ColumnInfo(name = "bag_id") val bagId: String? = null,
 )
 
 /** One point of a brew's curve; deleted with its brew. */
@@ -127,7 +129,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 7,
+    version = 8,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -141,7 +143,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -215,6 +217,18 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
                     "WHERE id = '$id' AND mode = 'FILTER' AND created_at = updated_at",
             )
         }
+    }
+}
+
+/** Brews link to the bag they used (#288). Existing brews are matched once, by coffee name, as the used grams always were. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE brews ADD COLUMN bag_id TEXT")
+        db.execSQL(
+            "UPDATE brews SET bag_id = (SELECT coffee_bags.id FROM coffee_bags WHERE coffee_bags.name = brews.coffee " +
+                "AND brews.started_at >= coffee_bags.created_at ORDER BY coffee_bags.finished, coffee_bags.created_at DESC LIMIT 1) " +
+                "WHERE brews.coffee IS NOT NULL",
+        )
     }
 }
 
