@@ -29,7 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.coffees.wholeGrams
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
@@ -50,7 +50,7 @@ fun CoffeeStep(state: BrewUiState, onSelect: (String?) -> Unit, onNext: () -> Un
         ) {
             state.bags.forEach { bag ->
                 val details = buildList {
-                    add(stringResource(R.string.coffee_left, Format.grams(bag.leftGrams, locale), Format.grams(bag.weightGrams, locale)))
+                    add(stringResource(R.string.coffee_left, wholeGrams(bag.leftGrams, locale), wholeGrams(bag.weightGrams, locale)))
                     bag.daysSinceRoast(now)?.let { days -> add(pluralStringResource(R.plurals.coffee_roasted_days, days.toInt(), days.toInt())) }
                 }
                 val short = state.dose?.let { bag.leftGrams < it } == true
