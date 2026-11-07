@@ -1,32 +1,30 @@
 package io.github.mateuxlucax.caparao.ui.coffees
 
 import androidx.compose.foundation.clickable
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -36,10 +34,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,49 +47,53 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.CoffeeBag
-import io.github.mateuxlucax.caparao.ui.components.BodyText
+import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.format.Format
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
-/** The Settings card: how many bags are open, and the way to the coffees screen. */
-@Composable
-fun CoffeeBagsSection(viewModel: CoffeeBagsViewModel, onOpen: () -> Unit) {
-    val bags by viewModel.bags.collectAsStateWithLifecycle()
-    val open = bags?.count { !it.finished } ?: return
-    BodyText(if (open == 0) stringResource(R.string.coffees_empty) else pluralStringResource(R.plurals.coffees_open, open, open))
-    FilledTonalButton(onClick = onOpen, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffees_manage)) }
-}
-
-/** The coffees screen: open bags with what is left and the days since the roast, then the finished ones. */
+/**
+ * The Coffees tab (#289, C1 and C2): open bags first, each with what is left, the roast's age and what its brews
+ * say; the finished bags sit under a button, collapsed.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onClose: () -> Unit) {
+fun CoffeesScreen(viewModel: CoffeeBagsViewModel, modifier: Modifier = Modifier) {
     val bags by viewModel.bags.collectAsStateWithLifecycle()
     val editing by viewModel.editing.collectAsStateWithLifecycle()
-    BackHandler(onBack = onClose)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.section_coffees)) },
-                navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) { Icon(painterResource(R.drawable.ic_arrow_back), stringResource(R.string.close)) }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = viewModel::new) { Text(stringResource(R.string.coffee_add)) }
-        },
-    ) { padding ->
-        val all = bags ?: return@Scaffold
-        Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (all.isEmpty()) BodyText(stringResource(R.string.coffees_empty))
-            all.forEach { bag -> BagRow(bag, viewModel.now()) { viewModel.edit(bag) } }
+    var showFinished by rememberSaveable { mutableStateOf(false) }
+    Box(modifier.fillMaxSize()) {
+        bags?.let { all ->
+            val now = viewModel.now()
+            val open = all.filter { !it.finished }
+            val finished = all.filter { it.finished }
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (all.isEmpty()) {
+                    item(key = "empty") { EmptyState(R.drawable.ic_coffee, stringResource(R.string.coffees_empty), Modifier.padding(top = 48.dp)) }
+                }
+                items(open, key = { it.id }) { bag -> BagRow(bag, now) { viewModel.edit(bag) } }
+                if (finished.isNotEmpty()) {
+                    item(key = "finished") {
+                        TextButton(onClick = { showFinished = !showFinished }, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(R.string.coffees_finished_count, finished.size))
+                        }
+                    }
+                    if (showFinished) items(finished, key = { it.id }) { bag -> BagRow(bag, now) { viewModel.edit(bag) } }
+                }
+            }
         }
+        MediumExtendedFloatingActionButton(
+            onClick = viewModel::new,
+            icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+            text = { Text(stringResource(R.string.coffee_add)) },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
+        )
     }
     editing?.let { BagDialog(it, viewModel) }
 }
@@ -99,19 +103,29 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val dim = MaterialTheme.colorScheme.onSurfaceVariant
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
-    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            listOfNotNull(bag.name, bag.roaster).joinToString(" · "),
-            style = MaterialTheme.typography.titleMedium,
-            color = if (bag.finished) dim else MaterialTheme.colorScheme.onSurface,
-        )
-        val details = buildList {
-            if (bag.finished) add(stringResource(R.string.coffee_finished)) else add(stringResource(R.string.coffee_left, Format.grams(bag.leftGrams, locale), Format.grams(bag.weightGrams, locale)))
-            bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
-            bag.origin?.let { add(it) }
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                listOfNotNull(bag.name, bag.roaster).joinToString(" · "),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (bag.finished) dim else MaterialTheme.colorScheme.onSurface,
+            )
+            if (bag.finished) {
+                Text(stringResource(R.string.coffee_finished), style = MaterialTheme.typography.bodyMedium, color = dim)
+            } else {
+                Text(
+                    stringResource(R.string.coffee_left, wholeGrams(bag.leftGrams, locale), wholeGrams(bag.weightGrams, locale)),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                LinearProgressIndicator(progress = { (bag.leftGrams / bag.weightGrams).toFloat() }, modifier = Modifier.fillMaxWidth())
+            }
+            val details = buildList {
+                bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
+                add(pluralStringResource(R.plurals.coffee_brew_count, bag.brewCount, bag.brewCount))
+                bag.lastBrewedAt?.let { add(stringResource(R.string.coffee_last_brew, Format.dateTime(it, locale))) }
+                bag.averageRating?.let { add(stringResource(R.string.coffee_average_rating, Format.ratio(it, locale))) }
+            }
+            Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = dim)
         }
-        Text(details.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = dim)
-    }
     }
 }
 
@@ -181,6 +195,9 @@ private fun Field(value: String, label: Int, keyboard: KeyboardType = KeyboardTy
         label = { Text(stringResource(label)) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
     )
+
+/** Bag grams as the list shows them: whole grams, e.g. "142 of 250 g left". */
+private fun wholeGrams(value: Double, locale: Locale): String = String.format(locale, "%.0f", value)
 
 /** The date picker gives UTC midnight. */
 private fun day(millis: Long): String =

@@ -47,8 +47,6 @@ import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsSection
-import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.components.BodyText
 import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
@@ -71,8 +69,6 @@ fun SettingsScreen(
     targets: TargetRatioViewModel,
     export: ExportViewModel,
     diagnostics: DiagnosticsViewModel,
-    coffees: CoffeeBagsViewModel,
-    onCoffees: () -> Unit,
     actions: AppActions, versionName: String,
     modifier: Modifier = Modifier,
 ) {
@@ -80,7 +76,6 @@ fun SettingsScreen(
         modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SectionCard(stringResource(R.string.section_coffees)) { CoffeeBagsSection(coffees, onCoffees) }
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }

@@ -357,7 +357,7 @@
     <string name="unit_l">L</string>
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
-    <string name="section_coffees">Coffees</string>
+    <string name="tab_coffees">Coffees</string>
     <string name="coffees_empty">No coffee on the shelf.</string>
     <string name="coffee_add">Add coffee</string>
     <string name="coffee_edit">Edit coffee</string>
@@ -376,11 +376,13 @@
         <item quantity="one">roasted %1$d day ago</item>
         <item quantity="other">roasted %1$d days ago</item>
     </plurals>
-    <string name="coffees_manage">Manage coffees</string>
-    <plurals name="coffees_open">
-        <item quantity="one">%1$d open bag.</item>
-        <item quantity="other">%1$d open bags.</item>
+    <plurals name="coffee_brew_count">
+        <item quantity="one">%1$d brew</item>
+        <item quantity="other">%1$d brews</item>
     </plurals>
+    <string name="coffee_last_brew">Last brew %1$s</string>
+    <string name="coffee_average_rating">Average rating %1$s</string>
+    <string name="coffees_finished_count">Finished (%1$d)</string>
     <!-- Coffee step before weighing (#291). -->
     <string name="coffee_step_title">Which coffee?</string>
     <string name="stage_coffee">Coffee</string>
