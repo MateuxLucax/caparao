@@ -60,6 +60,7 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
@@ -121,6 +122,7 @@ class AppScreensTest {
             initializer { DiagnosticsViewModel(context, diagnostics) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
+        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.

@@ -14,6 +14,9 @@ class BrewRepository(
 ) {
     val brews: Flow<List<Brew>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
+    /** The brews that used a coffee bag, newest first. */
+    fun forBag(bagId: String): Flow<List<Brew>> = dao.observeForBag(bagId).map { rows -> rows.map { it.toModel() } }
+
     suspend fun save(brew: Brew, samples: List<BrewSample>) {
         dao.insertWithSamples(brew.toEntity(), samples.map { BrewSampleEntity(brew.id, it.atMs, it.weightGrams, it.flowGramsPerSecond) })
         refreshAfterChange()

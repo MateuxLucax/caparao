@@ -362,7 +362,11 @@
     <string name="coffee_roasted_on">Torrado em %1$s</string>
     <string name="coffee_left">Restam %1$s de %2$s g</string>
     <string name="coffee_finished">Acabou</string>
-    <string name="coffee_mark_finished">Acabou</string>
+    <string name="coffee_mark_finished">Marcar como acabado</string>
+    <string name="coffee_mark_open">Marcar como aberto</string>
+    <string name="coffee_more_details">Mais detalhes</string>
+    <string name="coffee_no_brews">Nenhum preparo com ele ainda.</string>
+    <string name="edit">Editar</string>
     <string name="delete_coffee_title">Apagar este café?</string>
     <string name="delete_coffee_text">Os preparos que o usaram mantêm o nome dele.</string>
     <plurals name="coffee_roasted_days">

@@ -48,7 +48,7 @@ data class BagForm(
     }
 }
 
-/** The coffee bags in Settings: the list and the bag being edited, if any. */
+/** The coffee bags: the list and the bag being added or edited in the sheet, if any. */
 class CoffeeBagsViewModel(
     private val repository: CoffeeBagRepository,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -59,12 +59,19 @@ class CoffeeBagsViewModel(
     private val _editing = MutableStateFlow<BagForm?>(null)
     val editing: StateFlow<BagForm?> = _editing.asStateFlow()
 
-    fun new() {
-        _editing.value = BagForm()
-    }
+    /** The form as it opened; the sheet asks before closing with other edits (#181). */
+    private var opened: BagForm? = null
 
-    fun edit(bag: CoffeeBag) {
-        _editing.value = BagForm.of(bag)
+    /** Whether [form] differs from how the sheet opened. */
+    fun dirty(form: BagForm): Boolean = form != opened
+
+    fun new() = open(BagForm())
+
+    fun edit(bag: CoffeeBag) = open(BagForm.of(bag))
+
+    private fun open(form: BagForm) {
+        opened = form
+        _editing.value = form
     }
 
     fun change(form: BagForm) = _editing.update { if (it == null) null else form }
@@ -77,12 +84,6 @@ class CoffeeBagsViewModel(
         val form = _editing.value?.takeIf { it.valid } ?: return
         _editing.value = null
         viewModelScope.launch { repository.save(form.toModel(clock(), newId)) }
-    }
-
-    fun delete() {
-        val id = _editing.value?.id ?: return
-        _editing.value = null
-        viewModelScope.launch { repository.delete(id) }
     }
 
     fun now(): Long = clock()

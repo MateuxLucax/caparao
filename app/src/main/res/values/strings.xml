@@ -369,7 +369,11 @@
     <string name="coffee_roasted_on">Roasted on %1$s</string>
     <string name="coffee_left">%1$s of %2$s g left</string>
     <string name="coffee_finished">Finished</string>
-    <string name="coffee_mark_finished">Finished</string>
+    <string name="coffee_mark_finished">Mark as finished</string>
+    <string name="coffee_mark_open">Mark as open</string>
+    <string name="coffee_more_details">More details</string>
+    <string name="coffee_no_brews">No brews with it yet.</string>
+    <string name="edit">Edit</string>
     <string name="delete_coffee_title">Delete this coffee?</string>
     <string name="delete_coffee_text">Brews that used it keep its name.</string>
     <plurals name="coffee_roasted_days">
