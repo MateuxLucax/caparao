@@ -32,7 +32,8 @@ data class Recipe(
 
 /**
  * One step of a filter or French press recipe. [targetWeightGrams] is cumulative, as the scale shows it, and null for
- * [StepKind.WAIT], [StepKind.SWIRL] and [StepKind.PRESS]; [targetAtMs] is when the step should start, from the first water.
+ * [StepKind.WAIT], [StepKind.SWIRL], [StepKind.STIR] and [StepKind.PRESS]; [targetAtMs] is when the step should start,
+ * from the first water.
  */
 data class RecipeStep(
     val kind: StepKind,
@@ -43,8 +44,8 @@ data class RecipeStep(
 )
 
 enum class StepKind {
-    BLOOM, POUR, WAIT, SWIRL, PRESS;
+    BLOOM, POUR, WAIT, SWIRL, STIR, PRESS;
 
-    /** Bloom and pour end on a weight; wait and swirl on a time. */
+    /** Bloom and pour end on a weight; wait, swirl and stir on a time. */
     val pours: Boolean get() = this == BLOOM || this == POUR
 }

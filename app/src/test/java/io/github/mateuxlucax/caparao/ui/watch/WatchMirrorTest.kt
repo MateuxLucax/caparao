@@ -106,6 +106,34 @@ class WatchMirrorTest {
     }
 
     @Test
+    fun aFrenchPressStirUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
+        val recipe = Recipe(
+            "stir", "French press", BrewMode.FRENCH_PRESS, "French press", 20.0, 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 62.0, 0),
+                RecipeStep(StepKind.STIR, null, 5_000),
+                RecipeStep(StepKind.POUR, 154.0, 70_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        val brew = BrewUiState(
+            BrewMode.FRENCH_PRESS,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = 62.0,
+            elapsedMs = 15_000,
+            recipe = recipe,
+            guide = StepState(1, 0.2f, 55_000, null, null, null),
+        )
+
+        val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
+
+        assertEquals(WatchGuide(1, 4, WatchStepKind.WAIT, null, 55_000, null), snapshot.guide)
+        assertEquals(WatchStepKind.WAIT.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
+    }
+
+    @Test
     fun throttleSendsFiveASecondButStateChangesAtOnce() {
         val throttle = SnapshotThrottle(intervalMs = 200)
         val scale = WatchSnapshot(WatchState.SCALE, 1f, 0f, 0, false)

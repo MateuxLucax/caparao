@@ -115,6 +115,26 @@ class RecipeFormTest {
     }
 
     @Test
+    fun aFrenchPressStirKeepsItsTimeOnlyShapeThroughTheForm() {
+        val frenchPress = RecipeForm.new(BrewMode.FRENCH_PRESS).copy(
+            name = "French press",
+            dose = "20",
+            ratio = "15",
+            steps = listOf(
+                StepForm(StepKind.BLOOM, "100", "0:00"),
+                StepForm(StepKind.STIR, start = "0:10"),
+                StepForm(StepKind.POUR, "300", "1:00"),
+                StepForm(StepKind.PRESS, start = "4:00"),
+            ),
+        )
+
+        assertEquals(emptySet<Field>(), frenchPress.validate())
+        val recipe = frenchPress.toRecipe("press", createdAt = 1, now = 2)
+        assertEquals(RecipeStep(StepKind.STIR, null, 10_000), recipe.steps[1])
+        assertEquals(frenchPress, RecipeForm.of(recipe, Locale.US))
+    }
+
+    @Test
     fun frenchPressRequiresSteepAsItsLastStep() {
         val noSteep = RecipeForm.new(BrewMode.FRENCH_PRESS).copy(
             name = "French press",

@@ -164,6 +164,28 @@ class StepTrackerTest {
     }
 
     @Test
+    fun aStirRunsInOrderAndEndsWhenTheNextStepIsDue() {
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 45.0, 0),
+            RecipeStep(StepKind.STIR, null, 10_000),
+            RecipeStep(StepKind.POUR, 240.0, 40_000),
+        )
+        val session = SyntheticSession().ramp(0.0, 45.0, 8.0).hold(45.0, 40.0)
+        val (_, events) = run(steps, session)
+
+        val started = events.filter { it.second is StepEvent.Started }.map { (it.second as StepEvent.Started).index to it.first }
+        assertEquals(listOf(1, 2), started.map { it.first })
+        // The bloom is done within 3 g of its 45 g target, at ~7.4 s on the 8 s ramp.
+        assertEquals(7_400.0, started[0].second.toDouble(), 100.0)
+        assertEquals(40_000.0, started[1].second.toDouble(), 100.0)
+        // Like a wait, the stir counts down its last five seconds, then the pour is due.
+        assertEquals(
+            listOf(5, 4, 3, 2, 1),
+            events.filter { (it.second as? StepEvent.Countdown)?.index == 1 }.map { (it.second as StepEvent.Countdown).secondsLeft },
+        )
+    }
+
+    @Test
     fun theWaitProgressFollowsTheClock() {
         val steps = listOf(RecipeStep(StepKind.BLOOM, 45.0, 0), RecipeStep(StepKind.WAIT, null, 0), RecipeStep(StepKind.POUR, 240.0, 40_000))
         val tracker = StepTracker(steps)

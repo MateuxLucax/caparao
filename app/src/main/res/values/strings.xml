@@ -134,6 +134,7 @@
     <string name="discard_brew_title">Discard this brew?</string>
     <string name="discard_changes_title">Discard changes?</string>
     <string name="close">Close</string>
+    <string name="close_brew">Close brew</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Yield</string>
     <string name="label_water">Water</string>
@@ -218,6 +219,7 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
+    <string name="step_stir">Stir</string>
     <string name="step_press">Steep</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
@@ -242,6 +244,8 @@
     <string name="guide_pour">Pour to %1$s g</string>
     <string name="guide_wait">Wait</string>
     <string name="guide_swirl">Swirl the dripper</string>
+    <string name="guide_stir">Stir</string>
+    <string name="guide_stir_text">A spoon doesn\'t count as water.</string>
     <string name="guide_starts_in">Starts in %1$s</string>
     <string name="guide_next_pour">Next pour to %1$s g</string>
     <string name="guide_on_time">On time</string>

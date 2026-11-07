@@ -69,9 +69,9 @@ sealed interface StepEvent {
 data class StepState(
     /** The current step; equals the number of steps once all are done. */
     val index: Int,
-    /** How far the current step is, 0 to 1: weight since the last target for a pour, time for a wait. */
+    /** How far the current step is, 0 to 1: weight since the last target for a pour, time for a wait, swirl or stir. */
     val progress: Float,
-    /** Milliseconds until the current step is due: a pour or PRESS start, or the end of a wait. */
+    /** Milliseconds until the current step is due: a pour or PRESS start, or the end of a wait, swirl or stir. */
     val dueInMs: Long?,
     /** Set once the current pour began: ahead or behind by [paceMs] (negative is ahead). */
     val pace: Pace?,
@@ -86,8 +86,8 @@ data class StepState(
  * Follows a filter or French press recipe's [steps] through the readings of a brew (#103, #125). Pure and in order
  * like the detectors: feed it the time since the first water, the weight and the smoothed flow.
  *
- * A pour is done within [TOLERANCE_GRAMS] of its cumulative target, a wait or swirl when the next step is due, and a
- * terminal PRESS step at its own start time; the guide then moves on, and pouring past a target never blocks it. The
+ * A pour is done within [TOLERANCE_GRAMS] of its cumulative target, a wait, swirl or stir when the next step is due,
+ * and a terminal PRESS step at its own start time; the guide then moves on, and pouring past a target never blocks it. The
  * pace is measured in time, once, when a pour begins (flow over [POUR_FLOW] after resting, or [CONTINUE_GRAMS] past the
  * last target), against the step's start.
  */

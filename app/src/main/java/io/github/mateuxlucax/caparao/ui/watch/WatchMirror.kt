@@ -84,10 +84,10 @@ object WatchMirror {
         return WatchGuide(
             index = state.index,
             count = steps.size,
-            // WatchSnapshot v2 already ships to older watches. Keep PRESS on the existing WAIT wire ordinal.
+            // WatchSnapshot v2 already ships to older watches. Keep PRESS and STIR on the existing WAIT wire ordinal.
             kind = step?.kind?.let { kind ->
                 when (kind) {
-                    StepKind.PRESS -> WatchStepKind.WAIT
+                    StepKind.PRESS, StepKind.STIR -> WatchStepKind.WAIT
                     else -> WatchStepKind.valueOf(kind.name)
                 }
             },
