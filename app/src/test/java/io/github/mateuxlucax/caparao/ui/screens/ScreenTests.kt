@@ -905,6 +905,45 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         waitForBrewClosed()
     }
 
+    /** The guided espresso from the synthetic session, on its brewing shot (#287). */
+    private fun espressoLive() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.brewing_espresso, 60_000)
+        compose.waitForIdle()
+    }
+
+    /** Back in Live asks to restart the brew, and Cancel keeps the shot running (#287). */
+    @Test
+    fun liveBackAsksToRestartAndCancelKeepsBrewing() {
+        espressoLive()
+        tapBack()
+        waitFor(R.string.restart_brew_title)
+        compose.onNodeWithText(text(R.string.restart_brew_text)).assertIsDisplayed()
+        click(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.restart_brew_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.brewing_espresso)).assertIsDisplayed()
+    }
+
+    /** Restart drops the shot and returns to Prepare, and nothing is saved (#287). */
+    @Test
+    fun liveRestartReturnsToPrepareAndSavesNothing() {
+        espressoLive()
+        tapBack()
+        waitFor(R.string.restart_brew_title)
+        click(R.string.restart)
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        compose.onAllNodesWithText(text(R.string.restart_brew_title)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.brew_saved)).assertCountEquals(0)
+        assertTrue(runBlocking { brews.latest() } == null)
+    }
+
     /** The filter checklist keeps its marks through a step back and forward again (#185, Prepare row). */
     @Test
     fun filterPrepareMarksSurviveAStepBack() {
