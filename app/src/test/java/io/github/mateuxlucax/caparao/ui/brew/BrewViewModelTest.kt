@@ -237,6 +237,7 @@ class BrewViewModelTest {
         hold(320.0, 0.1)
         hold(0.0, 1.0)
         pour(0.0, 200.0, 10.0) // 13.3 : 1, below the band
+        hold(200.0, 1.1) // the water settles before the dripper comes off
         pour(200.0, 0.0, 0.5)
         assertEquals("a lift before the target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
         hold(0.0, 0.2)
