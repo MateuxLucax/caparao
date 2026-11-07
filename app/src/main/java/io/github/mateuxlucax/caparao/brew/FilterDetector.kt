@@ -166,7 +166,7 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
             return
         }
 
-        // French press intentionally keeps the original running maximum behavior until its own review (#214).
+        // The live French press weight is the running maximum; the saved water is settled by FrenchPressWater (#214).
         val grams = reading.reading.weightGrams
         maxGrams = maxOf(maxGrams, grams)
     }

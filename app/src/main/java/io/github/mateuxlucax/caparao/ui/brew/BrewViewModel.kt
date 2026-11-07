@@ -15,6 +15,7 @@ import io.github.mateuxlucax.caparao.brew.EspressoDetector
 import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.FilterDetector
 import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
+import io.github.mateuxlucax.caparao.brew.FrenchPressWater
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
@@ -117,6 +118,9 @@ class BrewViewModel(
     private var filterLiftBeganAtMs: Long? = null
     /** Highest tared water weight for the current French press, held as the server is lifted off the scale. */
     private var frenchPressWaterGrams = 0.0
+
+    /** French press: the settled water shown for each brewing reading, by its clock time, for the saved curve (#214). */
+    private val frenchPressSettled = HashMap<Long, Double>()
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
@@ -427,7 +431,9 @@ class BrewViewModel(
         val shownWeight = if (mode == BrewMode.FILTER && current.phase == BrewPhase.PAUSED) {
             pauseState?.waterWeightGrams ?: reading.weightGrams
         } else if (mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING) {
-            frenchPressWaterGrams = maxOf(frenchPressWaterGrams, reading.weightGrams.coerceAtLeast(0.0))
+            // The settled water, the same number the saved yield gets from FrenchPressWater (#214).
+            frenchPressWaterGrams = FrenchPressWater.of(readings, brewingSinceMs ?: timed.atMs, timed.atMs) ?: frenchPressWaterGrams
+            frenchPressSettled[timed.atMs] = frenchPressWaterGrams
             frenchPressWaterGrams
         } else {
             reading.weightGrams
@@ -444,7 +450,7 @@ class BrewViewModel(
             current.phase == BrewPhase.PAUSED -> pauseState?.startedAtMs ?: timed.atMs
             else -> timed.atMs
         }
-        val guideWeight = if (current.phase == BrewPhase.PAUSED) shownWeight else reading.weightGrams
+        val guideWeight = if (current.phase == BrewPhase.PAUSED || mode == BrewMode.FRENCH_PRESS) shownWeight else reading.weightGrams
         val guide = tracker?.takeIf { since != null && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED) }
             ?.let { t -> advanceGuide(t, timed.atMs, activeAt!! - since!!, guideWeight, flow, removalWeight = reading.weightGrams) }
         val frenchPressRemoved = frenchPressFinishTracker?.removedAtMs != null
@@ -719,20 +725,24 @@ class BrewViewModel(
         }
         // French press time runs to the confirmed removal even when Done comes later (#223); with none, it is Done's.
         val removedAtMs = if (mode == BrewMode.FRENCH_PRESS) frenchPressFinishTracker?.removedAtMs else null
-        val result = if (removedAtMs != null && removedAtMs in detected.startedAtMs until detected.endedAtMs) {
+        val bounded = if (removedAtMs != null && removedAtMs in detected.startedAtMs until detected.endedAtMs) {
             detected.copy(endedAtMs = removedAtMs)
         } else {
             detected
         }
+        // The French press saves its settled water, not the running maximum: a spoon or a lid is not water (#214).
+        val result = if (mode == BrewMode.FRENCH_PRESS) {
+            FrenchPressWater.of(readings, bounded.startedAtMs, bounded.endedAtMs)?.let { bounded.copy(yieldGrams = it) } ?: bounded
+        } else {
+            bounded
+        }
         diagnostics?.recordEvent(DiagnosticEvent.BrewResultReady)
         val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
         val summaryReadings = if (mode == BrewMode.FRENCH_PRESS) {
-            var highestWater = 0.0
             readings.asSequence()
                 .filter { it.atMs in result.startedAtMs..result.endedAtMs && (removalAtMs == null || it.atMs < removalAtMs) }
-                .map { reading ->
-                    highestWater = maxOf(highestWater, reading.reading.weightGrams.coerceAtLeast(0.0))
-                    reading.copy(reading = reading.reading.copy(weightGrams = highestWater))
+                .mapNotNull { reading ->
+                    frenchPressSettled[reading.atMs]?.let { reading.copy(reading = reading.reading.copy(weightGrams = it)) }
                 }
                 .toList()
         } else if (mode == BrewMode.FILTER && (pauseIntervals.isNotEmpty() || openPauseAtMs != null)) {
@@ -829,6 +839,7 @@ class BrewViewModel(
         brewingSinceMs = null
         filterLiftBeganAtMs = null
         frenchPressWaterGrams = 0.0
+        frenchPressSettled.clear()
         tracker = null
         frenchPressFinishTracker = null
         frenchPressDeadlineAlertSent = false
