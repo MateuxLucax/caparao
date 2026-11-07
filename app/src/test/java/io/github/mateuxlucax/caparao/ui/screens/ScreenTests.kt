@@ -596,7 +596,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(context.getString(R.string.rating_stars, 4)).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.mode_filter), substring = true).performClick()
         waitFor(R.string.share)
-        tapBack()
+        // The brew detail's arrow is labelled Close.
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
         click(R.string.coffee_mark_finished)
         waitFor(R.string.coffee_mark_open)
