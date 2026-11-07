@@ -128,6 +128,9 @@
     <string name="finish_brew_title">Terminar o preparo?</string>
     <string name="keep_brewing">Continuar</string>
     <string name="discard_brew_title">Descartar este preparo?</string>
+    <string name="restart_brew_title">Recomeçar este preparo?</string>
+    <string name="restart_brew_text">O que foi gravado será descartado.</string>
+    <string name="restart">Recomeçar</string>
     <string name="discard_changes_title">Descartar alterações?</string>
     <string name="close">Fechar</string>
     <string name="close_brew">Fechar preparo</string>
