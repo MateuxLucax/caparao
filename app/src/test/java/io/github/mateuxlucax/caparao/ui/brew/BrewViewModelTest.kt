@@ -2020,4 +2020,63 @@ class BrewViewModelTest {
         assertEquals("Mantiqueira", changed.coffee)
         assertNull("the change waits for the upload again", changed.syncedAt)
     }
+
+    /** Beans back goes to Coffee, which keeps the bag picked there; Coffee back goes to Dose (#291). */
+    @Test
+    fun backFromBeansReturnsToCoffeeAndKeepsThePick() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1))
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.planDose(15.0)
+        vm.weigh()
+        vm.selectBag("b")
+        vm.continueToBeans()
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+
+        vm.backOneStep()
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertEquals("b", vm.uiState.value.bagId)
+        vm.backOneStep()
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    /** Back to Dose and on again keeps the coffee picked, rather than the last bag used (#291). */
+    @Test
+    fun theCoffeePickSurvivesGoingBackToDoseAndOnAgain() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1, lastBrewedAt = 500))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        assertEquals("the last bag used is suggested", "b", vm.uiState.value.bagId)
+        vm.selectBag("a")
+        vm.backOneStep()
+        vm.weigh()
+
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertEquals("a", vm.uiState.value.bagId)
+        vm.end()
+    }
+
+    /** Back from Coffee while it waits for the scale goes to Dose and drops the wait; the dose needs no scale (#291). */
+    @Test
+    fun backFromCoffeeWhileWaitingForTheScaleDropsTheWait() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó"))
+        scale.state.value = ScaleState.Idle
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.continueToBeans()
+        assertTrue(vm.uiState.value.waitingForScale)
+
+        vm.backOneStep()
+
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        assertFalse(vm.uiState.value.waitingForScale)
+        scale.state.value = ScaleState.Connected(null)
+        assertEquals("connecting alone does not weigh from Dose", BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
+    }
 }

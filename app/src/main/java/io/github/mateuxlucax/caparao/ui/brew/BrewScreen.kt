@@ -116,11 +116,11 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
-    // Back goes one step back before Live (#185): Beans to Dose, Prepare to Beans; on the Dose step it closes the brew.
+    // Back goes one step back before Live (#185): Beans to Coffee or Dose, Coffee to Dose, Prepare to Beans; on the Dose step it closes the brew.
     val back = {
         when (state.step) {
             BrewStep.SUMMARY -> finish()
-            BrewStep.WEIGH, BrewStep.PREPARE_PORTAFILTER -> viewModel.backOneStep()
+            BrewStep.COFFEE, BrewStep.WEIGH, BrewStep.PREPARE_PORTAFILTER -> viewModel.backOneStep()
             else -> closeBrew()
         }
     }

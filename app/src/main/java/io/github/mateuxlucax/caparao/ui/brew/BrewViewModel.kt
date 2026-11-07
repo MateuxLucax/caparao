@@ -128,6 +128,8 @@ class BrewViewModel(
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
+    /** The user picked a coffee on the coffee step, so going back to Dose and on keeps that pick (#291). */
+    private var coffeeBagChosen = false
     /** This brew's filter scaling is local to the dose step and never written back to the recipe store. */
     private var filterRecipeEdited = false
     /** The selected filter recipe is the stable basis for repeated water changes; rounding never compounds. */
@@ -224,13 +226,17 @@ class BrewViewModel(
             beginWeighing()
             return
         }
-        _uiState.update { it.copy(step = BrewStep.COFFEE, bagId = (lastUsedBag(it.bags) ?: it.bags.first()).id) }
+        // Back from the coffee keeps the pick: the last bag used is only the first suggestion.
+        _uiState.update {
+            it.copy(step = BrewStep.COFFEE, bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id)
+        }
     }
 
     /** On the coffee step: the bag this brew uses, or null for No bag. */
     fun selectBag(bagId: String?) {
         val state = _uiState.value
         if (state.step != BrewStep.COFFEE || bagId != null && state.bags.none { it.id == bagId }) return
+        coffeeBagChosen = true
         _uiState.update { it.copy(bagId = bagId) }
     }
 
@@ -291,16 +297,20 @@ class BrewViewModel(
     }
 
     /**
-     * Back one step before Live: Beans to Dose, Prepare to Beans (#185). The checklist marks stay, and going forward
-     * again tares on Ready as before. Other steps do nothing here; the screen closes the brew for them.
+     * Back one step before Live: Beans to Coffee (or to Dose without open bags), Coffee to Dose, Prepare to Beans (#185,
+     * #291). The coffee picked and the checklist marks stay, and going forward again tares on Ready as before. Other
+     * steps do nothing here; the screen closes the brew for them.
      */
     fun backOneStep() {
-        val previous = when (_uiState.value.step) {
-            BrewStep.WEIGH -> BrewStep.DOSE
+        val state = _uiState.value
+        val previous = when (state.step) {
+            BrewStep.WEIGH -> if (state.bags.isEmpty()) BrewStep.DOSE else BrewStep.COFFEE
+            BrewStep.COFFEE -> BrewStep.DOSE
             BrewStep.PREPARE_PORTAFILTER -> BrewStep.WEIGH
             else -> return
         }
-        _uiState.update { it.copy(step = previous) }
+        // A wait for the scale belongs to the step it was waiting on.
+        _uiState.update { it.copy(step = previous, waitingForScale = false) }
     }
 
     /** Ready on the preparation step: arm detection from the current scale weight. */
@@ -912,6 +922,7 @@ class BrewViewModel(
         frenchPressDeadlineAlertSent = false
         frenchPressLastAlertAtMs = null
         recipeChosen = false
+        coffeeBagChosen = false
         filterRecipeEdited = false
         filterRecipeBase = null
         lastDiagnosticPhase = null

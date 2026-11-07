@@ -465,13 +465,18 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
      * The coffee step before the beans, in [mode] (#291): the newest open bag is selected, No bag is offered, and a bag
      * with less than the dose left says so. Next then goes on to weighing.
      */
-    private fun coffeeStepBeforeTheBeans(session: String, pickMode: () -> Unit) {
+    /** Two open bags: the newest, with plenty left, and an older one with 10 g, under the dose of any mode. */
+    private fun seedCoffeeBags() {
         val day = 86_400_000L
         val now = System.currentTimeMillis()
         runBlocking {
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 10.0, createdAt = now - day))
         }
+    }
+
+    private fun coffeeStepBeforeTheBeans(session: String, pickMode: () -> Unit) {
+        seedCoffeeBags()
         open(session, 0)
         pickMode()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.milestone_coffee)), 5_000)
@@ -486,6 +491,38 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
         compose.onNode(hasTestTag("coffee-step-next")).performClick()
         compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+    }
+
+    /**
+     * Back rows with the coffee step (#291): Beans goes back to Coffee with its pick kept, Coffee goes back to Dose, and the
+     * X closes the brew from Coffee.
+     */
+    @Test
+    fun coffeeBackRowsKeepThePickAndTheXClosesFromCoffee() {
+        seedCoffeeBags()
+        espressoDose()
+        // The bags load off the main thread; Next goes to Coffee only once they are in.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.milestone_coffee)), 5_000)
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNodeWithText("Mantiqueira").performClick()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapBack()
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        tapBack()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.coffee_step_title))).fetchSemanticsNodes().isEmpty() }
+        compose.waitForIdle()
+        // The dose step again: its recipe chips and Next (the espresso recipe shows its summary, not the free ratio).
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).assertIsDisplayed()
+        // Next from the dose goes to Coffee again, with the same bag still picked.
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        tapCloseBrew()
+        waitForBrewClosed()
     }
 
     @Test
