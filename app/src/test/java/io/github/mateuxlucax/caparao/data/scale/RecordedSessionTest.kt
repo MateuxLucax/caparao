@@ -46,7 +46,7 @@ class RecordedSessionTest {
 
     @Test
     fun everyFrameOfARealSessionIsUnderstood() {
-        for (name in listOf("press-ramp", "idle-5min", "press-spoon-lift-removal")) {
+        for (name in listOf("press-ramp", "idle-5min", "press-spoon-lift-removal", "real-filter-guided-lift-end")) {
             val unknown = decode(name).filterIsInstance<ScaleMessage.Unknown>()
             assertEquals("$name: frames the decoder did not understand", emptyList<ScaleMessage>(), unknown)
         }

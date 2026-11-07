@@ -40,6 +40,14 @@ class FrenchPressWaterTest {
     }
 
     @Test
+    fun aBigSpoonInTheBloomThatComesOffIsNotWaterEither() {
+        // A 45 g spoon (twice the 22 g one) on the bloom for two seconds, then the pour to 154 g.
+        val bloom = ramp(0, 0.0, 62.0, 8.0) + hold(8_000, 62.0, 2.0) + hold(10_000, 107.0, 2.0) +
+            hold(12_000, 62.0, 2.0) + ramp(14_000, 62.0, 154.0, 20.0) + hold(34_000, 154.0, 4.0)
+        assertEquals(154.0, water(bloom)!!, 0.3)
+    }
+
+    @Test
     fun aLidThatLandsAfterTheSteepStartsIsNotWater() {
         val steep = ramp(0, 0.0, 154.0, 8.0) + hold(8_000, 154.0, 20.0)
         val lid = hold(28_000, 154.0 + 189.0 + 40.0, 0.5) + hold(28_500, 154.0 + 189.0, 10.0)

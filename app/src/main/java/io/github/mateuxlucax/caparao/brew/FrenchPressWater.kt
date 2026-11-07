@@ -14,19 +14,20 @@ object FrenchPressWater {
      * A rise this large within [LANDING_WINDOW_MS] is set on the scale, not poured: pours here reach about 12 g in half a
      * second, a spoon about 22 g in under a third of one.
      */
-    const val LANDING_GRAMS = 18.0
-    const val LANDING_WINDOW_MS = 500L
+    private const val LANDING_GRAMS = 18.0
+    private const val LANDING_WINDOW_MS = 500L
 
     /** Something set on the scale stays until the weight is back at its level for [LEFT_MS]; a spoon that comes off does. */
-    const val LEFT_TOLERANCE_GRAMS = 2.0
-    const val LEFT_MS = 1_000L
+    private const val LEFT_TOLERANCE_GRAMS = 2.0
+    private const val LEFT_MS = 1_000L
 
-    /** At or below this the press is off the scale; a lift that comes back is not the end of the brew. */
-    const val OFF_SCALE_GRAMS = 5.0
+    /** The same threshold that ends a French press brew on removal: at or below it the press is off the scale. */
+    private const val OFF_SCALE_GRAMS = FrenchPressFinishTracker.REMOVAL_THRESHOLD_GRAMS
 
-    /** Pour overshoot and scale noise: readings within this of each other are one level. */
-    const val SETTLED_TOLERANCE_GRAMS = 1.0
-    const val SETTLED_WINDOW_MS = 1_000L
+    /** Pour overshoot and scale noise, and how long a level must hold: the filter detector's settled-water rule (#201). */
+    private val settled = FilterConfig()
+    private val SETTLED_TOLERANCE_GRAMS = settled.settledWeightToleranceGrams
+    private val SETTLED_WINDOW_MS = settled.settledWeightHoldMs
 
     /**
      * The water in [readings] from [startedAtMs] to [endedAtMs], or null when nothing was read on the scale. The brew is
