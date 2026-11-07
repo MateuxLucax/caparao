@@ -234,7 +234,7 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
         compose.onNodeWithTag("portafilter-ready").assertIsEnabled()
         // Closed before the cup went on: nothing started, so straight back home without a summary.
-        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
     }
 
@@ -318,7 +318,7 @@ class AppScreensTest {
         assertEquals(1, consumed)
 
         // Closed: back on the tabs, and the consumed shortcut does not open the brew again.
-        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
         compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
     }
@@ -418,7 +418,8 @@ class AppScreensTest {
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
-        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        // The X keeps the stop dialog; Back in Live asks to restart instead (#287).
+        compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
         compose.onNodeWithText(text(R.string.stop_brew_title)).assertExists()
         compose.onNodeWithText(text(R.string.keep_brewing)).performClick()
 

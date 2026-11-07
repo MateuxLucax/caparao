@@ -109,18 +109,36 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     val feedback = remember { GuideFeedback(context) }
     DisposableEffect(feedback) { onDispose { feedback.release() } }
     LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
-    // Back while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
-    // closes, as nothing is recorded yet. On the summary it saves the notes like Save does (#181).
+    // Closing while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
+    // closes, as nothing is recorded yet. On the summary Back saves the notes like Save does (#181).
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     val finish = { if (viewModel.saveNotes()) onClose() }
+    val closeBrew = {
+        if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
+    }
+    // Back goes one step back before Live (#185): Beans to Dose, Prepare to Beans; on the Dose step it closes the brew.
+    // In Live it asks to restart the brew, which drops what was recorded (#287); the X keeps the stop dialog above.
+    var confirmRestart by rememberSaveable { mutableStateOf(false) }
     val back = {
-        when {
-            state.step == BrewStep.SUMMARY -> finish()
-            state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED) -> confirmStop = true
-            else -> onClose()
+        when (state.step) {
+            BrewStep.SUMMARY -> finish()
+            BrewStep.WEIGH, BrewStep.PREPARE_PORTAFILTER -> viewModel.backOneStep()
+            BrewStep.LIVE -> confirmRestart = true
+            else -> closeBrew()
         }
     }
     BackHandler(onBack = back)
+    if (confirmRestart) {
+        AlertDialog(
+            onDismissRequest = { confirmRestart = false },
+            title = { Text(stringResource(R.string.restart_brew_title)) },
+            text = { Text(stringResource(R.string.restart_brew_text)) },
+            confirmButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmRestart = false; viewModel.restart() }) { Text(stringResource(R.string.restart)) }
+            },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmRestart = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     if (confirmStop) {
         AlertDialog(
             onDismissRequest = { confirmStop = false },
@@ -164,10 +182,19 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                     titleContentColor = contentColor,
                     subtitleContentColor = contentColor,
                     navigationIconContentColor = contentColor,
+                    actionIconContentColor = contentColor,
                 ),
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = back) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
+                    }
+                },
+                // The X closes the whole brew from every step but the summary, which closes through Back (#185).
+                actions = {
+                    if (state.step != BrewStep.SUMMARY) {
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = closeBrew) {
+                            Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.close_brew))
+                        }
                     }
                 },
             )

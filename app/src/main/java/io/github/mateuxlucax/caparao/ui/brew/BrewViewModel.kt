@@ -258,6 +258,44 @@ class BrewViewModel(
         }
     }
 
+    /**
+     * Back one step before Live: Beans to Dose, Prepare to Beans (#185). The checklist marks stay, and going forward
+     * again tares on Ready as before. Other steps do nothing here; the screen closes the brew for them.
+     */
+    fun backOneStep() {
+        val previous = when (_uiState.value.step) {
+            BrewStep.WEIGH -> BrewStep.DOSE
+            BrewStep.PREPARE_PORTAFILTER -> BrewStep.WEIGH
+            else -> return
+        }
+        _uiState.update { it.copy(step = previous) }
+    }
+
+    /**
+     * Back in Live (#287): drops the brew in progress and what was recorded, and returns to Prepare with the checklist
+     * marks and the chosen recipe kept. Nothing is saved or uploaded; the next Ready starts a fresh brew.
+     */
+    fun restart() {
+        if (_uiState.value.step != BrewStep.LIVE) return
+        clearRun()
+        _uiState.update {
+            it.copy(
+                step = BrewStep.PREPARE_PORTAFILTER,
+                phase = BrewPhase.WAITING_FOR_CUP,
+                tareTimedOut = false,
+                weightGrams = scale.reading.value?.weightGrams ?: 0.0,
+                flowGramsPerSecond = 0.0,
+                elapsedMs = 0,
+                pauseRemainingMs = null,
+                guide = null,
+                freeSteps = emptyList(),
+                frenchPressRemoved = false,
+                frenchPressRemovalPending = false,
+            )
+        }
+        watchScale()
+    }
+
     /** Ready on the preparation step: arm detection from the current scale weight. */
     fun ready() {
         val state = _uiState.value
@@ -843,7 +881,8 @@ class BrewViewModel(
 
     private fun showSummary(savedMs: Long) = _uiState.update { it.copy(step = BrewStep.SUMMARY, elapsedMs = savedMs) }
 
-    private fun reset() {
+    /** Drops the brew in progress and everything recorded for it; the recipe and dose choices stay until [reset]. */
+    private fun clearRun() {
         rollJob?.cancel()
         rollJob = null
         steepClockJob?.cancel()
@@ -864,10 +903,14 @@ class BrewViewModel(
         frenchPressFinishTracker = null
         frenchPressDeadlineAlertSent = false
         frenchPressLastAlertAtMs = null
+        lastDiagnosticPhase = null
+    }
+
+    private fun reset() {
+        clearRun()
         recipeChosen = false
         filterRecipeEdited = false
         filterRecipeBase = null
-        lastDiagnosticPhase = null
         _uiState.value = BrewUiState(
             mode,
             dose = settings.lastDose(mode),

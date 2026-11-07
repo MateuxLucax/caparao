@@ -426,6 +426,130 @@ class BrewViewModelTest {
         vm.end()
     }
 
+    /** Back before Live: Beans to Dose and Prepare to Beans, in every mode (#185). */
+    @Test
+    fun backOneStepGoesFromBeansToDoseAndFromPrepareToBeans() {
+        listOf(BrewMode.ESPRESSO, BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
+            val vm = viewModel(mode)
+            vm.begin()
+            vm.planDose(18.0)
+            vm.weigh()
+            assertEquals("$mode: Beans", BrewStep.WEIGH, vm.uiState.value.step)
+            vm.backOneStep()
+            assertEquals("$mode: Beans back to Dose", BrewStep.DOSE, vm.uiState.value.step)
+            vm.weigh()
+            vm.setDose(18.0)
+            assertEquals("$mode: Prepare", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+            vm.backOneStep()
+            assertEquals("$mode: Prepare back to Beans", BrewStep.WEIGH, vm.uiState.value.step)
+            vm.end()
+        }
+    }
+
+    /** Dose has no step before it: Back closes the brew on the screen, and the ViewModel stays on Dose (#185). */
+    @Test
+    fun backOneStepOnTheDoseStepDoesNothing() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.backOneStep()
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    /** Going back from Prepare keeps the checklist marks; Ready tares again, as before (#185). */
+    @Test
+    fun backFromPrepareKeepsTheChecklistMarksAndReadyTaresAgain() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.setPreparationCheck(1, true)
+        vm.backOneStep()
+        vm.setDose(20.0)
+        assertEquals(setOf(1), vm.uiState.value.preparationChecks)
+        hold(600.0, 2.0) // the press is placed again; nothing tares until Ready
+        assertTrue("going back and forward does not tare", scale.commands.isEmpty())
+        vm.ready()
+        assertEquals(listOf("tare"), scale.commands)
+        vm.end()
+    }
+
+    /** Restart in Live drops the brew in progress: nothing is saved or uploaded, and the next Ready starts a fresh brew (#287). */
+    @Test
+    fun restartMidBrewSavesNothingAndTheNextReadyStartsAFreshBrew() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.setDose(18.0)
+        pour(0.0, 320.0, 0.5) // portafilter on the scale
+        hold(320.0, 1.5)
+        vm.ready()
+        hold(320.0, 1.5)
+        pour(320.0, 350.0, 0.5) // the cup goes on
+        hold(350.0, 1.5)
+        hold(0.0, 1.0)
+        hold(0.0, 3.0)
+        pour(0.0, 36.0, 25.0)
+        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
+
+        vm.restart()
+        val prepare = vm.uiState.value
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, prepare.step)
+        assertEquals(BrewPhase.WAITING_FOR_CUP, prepare.phase)
+        assertEquals(0L, prepare.elapsedMs)
+        assertEquals(18.0, prepare.dose!!, 0.0)
+        assertTrue("nothing is saved", dao.brews.value.isEmpty())
+        assertTrue("nothing is uploaded", uploads.isEmpty())
+
+        // The same brew again: the next Ready tares and times a fresh shot.
+        pour(0.0, 320.0, 0.5)
+        hold(320.0, 1.5)
+        vm.ready()
+        hold(320.0, 1.5)
+        pour(320.0, 350.0, 0.5)
+        hold(350.0, 1.5)
+        assertEquals(listOf("tare", "tare"), scale.commands)
+        hold(0.0, 1.0)
+        assertEquals(BrewPhase.READY, vm.uiState.value.phase)
+        hold(0.0, 3.0)
+        pour(0.0, 36.0, 25.0)
+        hold(36.0, 6.0)
+        rolled()
+
+        val brew = vm.uiState.value.saved!!
+        assertEquals(36.0, brew.yieldGrams, 0.3)
+        assertEquals(listOf("brew-1"), dao.brews.value.map { it.id })
+        assertEquals("only the fresh brew is uploaded", 1, uploads.size)
+        vm.end()
+    }
+
+    /** A filter and a French press restart from Live the same way, brewing or steeping, and keep the recipe (#287). */
+    @Test
+    fun restartFromABrewingFilterAndAFreePressReturnsToPrepareAndSavesNothing() {
+        val filter = viewModel(BrewMode.FILTER)
+        hold(320.0, 0.2)
+        filter.begin()
+        filter.setDose(15.0)
+        filter.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 40.0, 8.0)
+        assertEquals(BrewPhase.BREWING, filter.uiState.value.phase)
+        filter.restart()
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, filter.uiState.value.step)
+        assertNull(filter.uiState.value.guide)
+        assertEquals(15.0, filter.uiState.value.dose!!, 0.0)
+        filter.end()
+
+        val press = freePressPouring()
+        pour(0.0, 100.0, 3.0)
+        assertEquals(BrewPhase.BREWING, press.uiState.value.phase)
+        press.restart()
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, press.uiState.value.step)
+        assertEquals(20.0, press.uiState.value.dose!!, 0.0)
+        press.end()
+        assertTrue("nothing is saved", dao.brews.value.isEmpty())
+        assertTrue("nothing is uploaded", uploads.isEmpty())
+    }
+
     @Test
     fun stoppingBeforeTheFirstDropSavesNothing() {
         val vm = viewModel(BrewMode.ESPRESSO)
