@@ -37,6 +37,8 @@ class WatchMirrorTest {
         assertEquals(WatchSnapshot(WatchState.SCALE, 18.2f, 0f, 12_000, timerRunning = true), snapshot)
         // The dose step is still weighing, not brewing.
         assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO), false).state)
+        // Nor is the coffee step, which comes before the beans are weighed (#291).
+        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO, step = BrewStep.COFFEE), false).state)
     }
 
     @Test
@@ -101,6 +103,34 @@ class WatchMirrorTest {
         assertEquals(WatchGuide(1, 1, WatchStepKind.WAIT, null, null, 0), serving.guide)
         assertEquals("the watch keeps the measured water after serving", 300f, serving.weightGrams)
         assertEquals(0L, WatchSnapshot.decode(serving.encode())?.guide?.paceMs)
+    }
+
+    @Test
+    fun aFrenchPressStirUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
+        val recipe = Recipe(
+            "stir", "French press", BrewMode.FRENCH_PRESS, "French press", 20.0, 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 62.0, 0),
+                RecipeStep(StepKind.STIR, null, 5_000),
+                RecipeStep(StepKind.POUR, 154.0, 70_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        val brew = BrewUiState(
+            BrewMode.FRENCH_PRESS,
+            step = BrewStep.LIVE,
+            phase = BrewPhase.BREWING,
+            weightGrams = 62.0,
+            elapsedMs = 15_000,
+            recipe = recipe,
+            guide = StepState(1, 0.2f, 55_000, null, null, null),
+        )
+
+        val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
+
+        assertEquals(WatchGuide(1, 4, WatchStepKind.WAIT, null, 55_000, null), snapshot.guide)
+        assertEquals(WatchStepKind.WAIT.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
     }
 
     @Test

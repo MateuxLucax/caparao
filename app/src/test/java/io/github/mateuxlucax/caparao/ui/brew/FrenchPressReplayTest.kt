@@ -6,7 +6,10 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.FrameDecoder
 import io.github.mateuxlucax.caparao.data.scale.ScaleMessage
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.Recipe
+import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
 import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
@@ -42,10 +45,19 @@ class FrenchPressReplayTest {
     /** The weight the screen showed while the spoon (447–456 s) was on the scale. */
     private val spoonWeights = mutableListOf<Double>()
 
-    /** Plays the capture; [lidAtMs] sets a synthetic 189 g lid with a 40 g landing spike on the scale from then on. */
-    private fun savedYieldOf(lidAtMs: Long? = null): Double {
+    /** The step current while the spoon was on the scale, and every step the guide passed through. */
+    private val spoonKinds = mutableListOf<StepKind?>()
+    private val seenKinds = linkedSetOf<StepKind>()
+
+    /**
+     * Plays the capture; [lidAtMs] sets a synthetic 189 g lid with a 40 g landing spike on the scale from then on, and
+     * [recipe] guides the brew from the first water.
+     */
+    private fun savedYieldOf(lidAtMs: Long? = null, recipe: Recipe? = null): Double {
         lidWeights.clear()
         spoonWeights.clear()
+        spoonKinds.clear()
+        seenKinds.clear()
         val vm = BrewViewModel(
             BrewMode.FRENCH_PRESS, scale, BrewRepository(FakeBrewDao()), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()),
             clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
@@ -61,6 +73,7 @@ class FrenchPressReplayTest {
                 if (!armed && now >= 228_000) {
                     armed = true
                     vm.begin()
+                    recipe?.let(vm::selectRecipe)
                     vm.setDose(20.0)
                     vm.ready()
                 }
@@ -76,7 +89,13 @@ class FrenchPressReplayTest {
                         },
                     )
                     if (lidAtMs != null && now > lidAtMs + 600 && now < REMOVED_AT_MS) lidWeights += vm.uiState.value.weightGrams
-                    if (now in 447_000..456_000) spoonWeights += vm.uiState.value.weightGrams
+                    val state = vm.uiState.value
+                    val current = state.steps.getOrNull(state.guide?.index ?: -1)?.kind
+                    if (current != null) seenKinds += current
+                    if (now in 447_000..456_000) {
+                        spoonWeights += state.weightGrams
+                        spoonKinds += current
+                    }
                 }
             }
         now = STOP_AT_MS
@@ -108,5 +127,30 @@ class FrenchPressReplayTest {
         savedYieldOf()
         val spoon = spoonWeights
         assertTrue("the screen showed ${spoon.maxOrNull()} during the spoon", spoon.isNotEmpty() && spoon.max() <= 62.5)
+    }
+
+    /**
+     * The same capture following a recipe with a stir: the spoon is set and taken off while the stir is the current
+     * step, the water stays the bloom's ~62 g, and the second pour's 154 g is what is saved. Reaching the pour moves
+     * the guide to the terminal press step, which waits there until Done (the capture ends before its 240 s deadline).
+     */
+    @Test
+    fun aStirRunsInOrderAndTheSpoonDoesNotCountAsWater() {
+        val recipe = Recipe(
+            id = "press-stir", name = "French press with a stir", mode = BrewMode.FRENCH_PRESS, method = "French press",
+            doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 62.0, 0),
+                RecipeStep(StepKind.STIR, null, 5_000),
+                RecipeStep(StepKind.POUR, 154.0, 70_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+
+        assertEquals(154.0, savedYieldOf(recipe = recipe), 0.3)
+        assertEquals(listOf(StepKind.BLOOM, StepKind.STIR, StepKind.POUR, StepKind.PRESS), seenKinds.toList())
+        assertEquals(listOf(StepKind.STIR), spoonKinds.distinct())
+        assertTrue("the spoon never reached the water level", spoonWeights.isNotEmpty() && spoonWeights.max() <= 62.5)
     }
 }

@@ -179,7 +179,7 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // The coffee darkens as the steep runs out, inside the ring (#226).
                 if (state.mode == BrewMode.FRENCH_PRESS) {
-                    PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), size = 72.dp, showScale = false)
+                    PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 72.dp, showScale = false)
                 }
                 guide.dueInMs?.let {
                     Text(
@@ -225,10 +225,19 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     } else {
         CountdownRing(guide.progress, color)
         Text(
-            stringResource(if (step.kind == StepKind.SWIRL) R.string.guide_swirl else R.string.guide_wait),
+            stringResource(
+                when (step.kind) {
+                    StepKind.SWIRL -> R.string.guide_swirl
+                    StepKind.STIR -> R.string.guide_stir
+                    else -> R.string.guide_wait
+                },
+            ),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
+        if (step.kind == StepKind.STIR) {
+            Text(stringResource(R.string.guide_stir_text), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        }
         guide.dueInMs?.let { Text(Format.timer(seconds(it)), style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color) }
         state.steps.getOrNull(index + 1)?.let { next ->
             next.targetWeightGrams?.let { Note(stringResource(R.string.guide_next_pour, Format.grams(it, locale))) }
@@ -402,7 +411,7 @@ private fun FrenchPressReady(state: BrewUiState) {
                 val t = spread.value
                 if (t < 1f) drawCircle(burst.copy(alpha = 0.25f * (1f - t)), radius = size.minDimension / 2 * t, center = center)
             }
-            PressOnScale(1f, PressArt.steepColor(1f))
+            PressOnScale(1f, PressArt.steepColor(1f), lid = true)
         }
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(
@@ -432,7 +441,7 @@ private fun RemovedPress() {
             plunger.animateTo(1f, spatial)
         }
     }
-    PressOnScale(1f, PressArt.steepColor(1f), plunger = plunger.value, lift = lift.value)
+    PressOnScale(1f, PressArt.steepColor(1f), plunger = plunger.value, lid = true, lift = lift.value)
 }
 
 @Composable

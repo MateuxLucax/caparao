@@ -1,10 +1,14 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagEntity
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagUsage
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
+import io.github.mateuxlucax.caparao.ui.FakeCoffeeBagDao
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -53,7 +57,7 @@ class BrewDetailViewModelTest {
     fun editingNotesSavesThemUnsyncsAndSendsAgain() = runTest {
         repository.save(brew.copy(syncedAt = 5, coffee = "Caparaó"), curve)
         val sent = mutableListOf<String>()
-        val vm = BrewDetailViewModel("b1", repository) { sent += it }
+        val vm = BrewDetailViewModel("b1", repository, onEdited = { sent += it })
         vm.editNotes()
         assertEquals("Caparaó", vm.uiState.value.notes!!.coffee)
         vm.changeNotes(vm.uiState.value.notes!!.copy(rating = 4, notes = " Sweet "))
@@ -70,7 +74,7 @@ class BrewDetailViewModelTest {
     fun unchangedOrInvalidNotesSendNothing() = runTest {
         repository.save(brew, curve)
         val sent = mutableListOf<String>()
-        val vm = BrewDetailViewModel("b1", repository) { sent += it }
+        val vm = BrewDetailViewModel("b1", repository, onEdited = { sent += it })
         vm.editNotes()
         vm.saveNotes()
         vm.editNotes()
@@ -78,5 +82,19 @@ class BrewDetailViewModelTest {
         vm.saveNotes()
         assertTrue(sent.isEmpty())
         assertEquals("150", vm.uiState.value.notes!!.temp)
+    }
+
+    @Test
+    fun editingNotesOffersTheOpenBagsToPickFrom() = runTest {
+        repository.save(brew, curve)
+        val bagDao = FakeCoffeeBagDao().apply {
+            usages.value = listOf(
+                CoffeeBagUsage(CoffeeBagEntity("open", "Caparaó", null, null, null, 250.0, null, finished = false, createdAt = 2), 0.0, 0, null, null),
+                CoffeeBagUsage(CoffeeBagEntity("done", "Mantiqueira", null, null, null, 250.0, null, finished = true, createdAt = 1), 0.0, 0, null, null),
+            )
+        }
+        val vm = BrewDetailViewModel("b1", repository, coffeeBags = CoffeeBagRepository(bagDao))
+        vm.editNotes()
+        assertEquals(listOf("open"), vm.uiState.value.bags.map { it.id })
     }
 }

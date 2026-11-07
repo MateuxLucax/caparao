@@ -30,6 +30,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isNotSelected
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.assertAll
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isSelectable
@@ -243,7 +245,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             initializer {
                 BrewViewModel(
                     requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
-                    clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs },
+                    clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs }, coffeeBags = CoffeeBagRepository(db.coffeeBags()),
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
@@ -413,6 +415,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText("150").assertIsDisplayed()
     }
 
+    /** The editor offers the stir step for French press recipes (#219). The filter list is checked in RecipeEditorViewModelTest. */
+    @Test
+    fun frenchPressRecipeEditorOffersStir() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press"), 5_000)
+        compose.onNode(hasText("French press")).performClick()
+        waitFor(R.string.recipe_name)
+        compose.onAllNodesWithText(text(R.string.step_bloom)).onFirst().performClick()
+        compose.onNodeWithText(text(R.string.step_stir)).assertIsDisplayed()
+    }
+
     /** Opens the V60 recipe in its editor, as the recipes list leads to it. */
     private fun openV60Editor() {
         open("press-ramp", 38_300)
@@ -426,7 +441,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     @Test
     fun untouchedRecipeEditorBackClosesAtOnce() {
         openV60Editor()
-        tapBack()
+        tapEditorClose()
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.discard_changes_title)).assertDoesNotExist()
     }
@@ -437,16 +452,92 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         openV60Editor()
         compose.onNode(hasSetTextAction() and hasText("V60 One and Done")).performTextReplacement("V60 short")
         compose.waitForIdle()
-        tapBack()
+        tapEditorClose()
         waitFor(R.string.discard_changes_title)
         compose.onNodeWithText(text(R.string.discard)).assertIsDisplayed()
         click(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_changes_title)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.recipe_name)).assertIsDisplayed()
-        tapBack()
+        tapEditorClose()
         waitFor(R.string.discard_changes_title)
         click(R.string.discard)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /**
+     * The coffee step before the beans, in [mode] (#291): the newest open bag is selected, No bag is offered, and a bag
+     * with less than the dose left says so. Next then goes on to weighing.
+     */
+    /** Two open bags: the newest, with plenty left, and an older one with 10 g, under the dose of any mode. */
+    private fun seedCoffeeBags() {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 10.0, createdAt = now - day))
+        }
+    }
+
+    private fun coffeeStepBeforeTheBeans(session: String, pickMode: () -> Unit) {
+        seedCoffeeBags()
+        open(session, 0)
+        pickMode()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.milestone_coffee)), 5_000)
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Caparaó natural") and isSelected()).assertExists()
+        compose.onNode(hasText("Mantiqueira") and isNotSelected()).assertExists()
+        compose.onNodeWithText(text(R.string.coffee_below_dose)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.no_bag)).performClick()
+        compose.onNode(hasText(text(R.string.no_bag)) and isSelected()).assertExists()
+        compose.onNodeWithText("Mantiqueira").performClick()
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        compose.onNode(hasTestTag("coffee-step-next")).performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+    }
+
+    /**
+     * Back rows with the coffee step (#291): Beans goes back to Coffee with its pick kept, Coffee goes back to Dose, and the
+     * X closes the brew from Coffee.
+     */
+    @Test
+    fun coffeeBackRowsKeepThePickAndTheXClosesFromCoffee() {
+        seedCoffeeBags()
+        espressoDose()
+        // The bags load off the main thread; Next goes to Coffee only once they are in.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.milestone_coffee)), 5_000)
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNodeWithText("Mantiqueira").performClick()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapBack()
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        tapBack()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText(text(R.string.coffee_step_title))).fetchSemanticsNodes().isEmpty() }
+        compose.waitForIdle()
+        // The dose step again: its recipe chips and Next (the espresso recipe shows its summary, not the free ratio).
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).assertIsDisplayed()
+        // Next from the dose goes to Coffee again, with the same bag still picked.
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    @Test
+    fun coffeeStepBeforeTheBeansInEspresso() = coffeeStepBeforeTheBeans("synthetic-espresso") { click(R.string.mode_espresso) }
+
+    @Test
+    fun coffeeStepBeforeTheBeansInFilter() = coffeeStepBeforeTheBeans("synthetic-filter-lift") { click(R.string.mode_filter) }
+
+    /** The home selector names the press by its content description; its text is the short "Press". */
+    @Test
+    fun coffeeStepBeforeTheBeansInFrenchPress() = coffeeStepBeforeTheBeans("synthetic-french-press") {
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
     }
 
     /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it (#181, C1 → C2). */
@@ -753,7 +844,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     /** The top bar's arrow, which runs the same action as Back. */
-    private fun tapBack() = compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+    private fun tapBack() = compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+
+    /** The recipe editor's arrow, which is still labelled Close. */
+    private fun tapEditorClose() = compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+
+    /** The top bar's X, which closes the whole brew from the dose, beans and preparation steps (#185). */
+    private fun tapCloseBrew() = compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
 
     /** Back on the summary saves the typed notes into the saved brew and closes, with no dialog (#181, A1 → A2). */
     @Test
@@ -778,6 +875,145 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_brew_title)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
+    }
+
+    /** An espresso on its dose step, before anything is weighed (#185). */
+    private fun espressoDose() {
+        open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitForIdle()
+    }
+
+    /** Waits until the brew has closed and the tabs are back. */
+    private fun waitForBrewClosed() {
+        compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag("brew-screen")).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+    }
+
+    /** On the dose step, Back and the X both close the brew (#185, Dose row). */
+    @Test
+    fun doseBackClosesTheBrew() {
+        espressoDose()
+        tapBack()
+        waitForBrewClosed()
+    }
+
+    @Test
+    fun doseCloseBrewClosesTheBrew() {
+        espressoDose()
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** Back on the beans step returns to the dose (#185, Beans row); the X closes the brew. */
+    @Test
+    fun beansBackReturnsToTheDoseStep() {
+        espressoDose()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapBack()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag("weigh-step-next")).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertIsDisplayed()
+        // Next from the dose weighs the beans again.
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+    }
+
+    @Test
+    fun beansCloseBrewClosesTheBrew() {
+        espressoDose()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** Back on the espresso preparation returns to the beans, and the X closes the brew (#185, Prepare row). */
+    @Test
+    fun portafilterBackReturnsToTheBeansStep() {
+        espressoDose()
+        click(R.string.next)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("portafilter-ready").assertDoesNotExist()
+    }
+
+    @Test
+    fun portafilterCloseBrewClosesTheBrew() {
+        espressoDose()
+        click(R.string.next)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** The guided espresso from the synthetic session, on its brewing shot (#287). */
+    private fun espressoLive() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.brewing_espresso, 60_000)
+        compose.waitForIdle()
+    }
+
+    /** Back in Live asks to restart the brew, and Cancel keeps the shot running (#287). */
+    @Test
+    fun liveBackAsksToRestartAndCancelKeepsBrewing() {
+        espressoLive()
+        tapBack()
+        waitFor(R.string.restart_brew_title)
+        compose.onNodeWithText(text(R.string.restart_brew_text)).assertIsDisplayed()
+        click(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.restart_brew_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.brewing_espresso)).assertIsDisplayed()
+    }
+
+    /** Restart drops the shot and returns to Prepare, and nothing is saved (#287). */
+    @Test
+    fun liveRestartReturnsToPrepareAndSavesNothing() {
+        espressoLive()
+        tapBack()
+        waitFor(R.string.restart_brew_title)
+        click(R.string.restart)
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        compose.onAllNodesWithText(text(R.string.restart_brew_title)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.brew_saved)).assertCountEquals(0)
+        assertTrue(runBlocking { brews.latest() } == null)
+    }
+
+    /** The filter checklist keeps its marks through a step back and forward again (#185, Prepare row). */
+    @Test
+    fun filterPrepareMarksSurviveAStepBack() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-row-0").performClick()
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+    }
+
+    /** The summary closes through Back, which saves the notes; it has no X (#185, Summary row). */
+    @Test
+    fun summaryHasNoCloseBrewButton() {
+        espressoSummary()
+        compose.onAllNodes(hasContentDescription(text(R.string.close_brew))).assertCountEquals(0)
     }
 
     /** Espresso with a recipe: a target, so its values are shown and nothing changes the dose or ratio (#189). */
@@ -835,7 +1071,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
         click(R.string.free_brew)
         click(R.string.next)
-        val appBarClose = hasContentDescription(text(R.string.close))
+        val appBarClose = hasContentDescription(text(R.string.close_brew))
         val espressoTitle = hasText(text(R.string.mode_espresso))
         // Espresso shows its named milestone, not a step counter; TalkBack gets the current name as its description.
         val weighProgress = hasContentDescription(text(R.string.milestone_beans))
@@ -1481,16 +1717,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             return (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
         }
 
-        /** The pixel of a point in the server's 80 × 52 box, drawn under a [lift] of the scene (see PressOnScale). */
-        fun pixelAt(tag: String, viewX: Float, viewY: Float, lift: Float): Int {
+        /**
+         * The pixel of a point in the press's 80 × 90 box (PressArt.drawPress), drawn under a [lift] of the scene and a
+         * [scaleRoom] under it (0 without the scale, see PressOnScale).
+         */
+        fun pixelAt(tag: String, viewX: Float, viewY: Float, lift: Float, scaleRoom: Float = 0.12f): Int {
             val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
             val size = bitmap.width.toFloat()
-            val room = size * 0.12f
+            val room = size * scaleRoom
             val rise = size * 0.16f * lift
             val boxHeight = size - room
-            val scale = minOf(size / 80f, boxHeight / 52f)
-            val x = (size - 80f * scale) / 2f - 26f * scale + viewX * scale
-            val y = -rise + (boxHeight - 52f * scale) / 2f - 50f * scale + viewY * scale
+            val scale = minOf(size / 80f, boxHeight / 90f)
+            val x = (size - 80f * scale) / 2f + viewX * scale
+            val y = -rise + (boxHeight - 90f * scale) / 2f + viewY * scale
             return bitmap.getPixel(x.toInt(), y.toInt())
         }
 
@@ -1501,6 +1740,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onNodeWithTag("guided-server").assertIsDisplayed()
             assertEquals(band, targetBand(weight, 100.0))
             assertTrue("the fill follows the band", hasColor("guided-cup", scheme.ringStroke(band, dark)))
+            // The lid is not on yet: the spot where it sits in the steep is empty.
+            assertTrue("no lid before the steep", pixelAt("guided-cup", 24f, 19.5f, lift = 0f, scaleRoom = 0.12f) != scheme.outline.toArgb())
             compose.onNodeWithTag("guided-weight").assertIsDisplayed()
             compose.onNodeWithText("${Format.grams(weight, locale)} / ${Format.grams(100.0, locale)} g").assertIsDisplayed()
         }
@@ -1512,6 +1753,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
             compose.onNodeWithTag("steep-press").assertIsDisplayed()
             assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress)))
+            // The lid is on from the steep on: its bar sits above the frame.
+            assertEquals("the lid $progress", scheme.outline.toArgb(), pixelAt("steep-press", 24f, 19.5f, lift = 0f, scaleRoom = 0f))
             compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
         }
         assertTrue(PressArt.steepColor(1f).luminance() < PressArt.steepColor(0f).luminance())
@@ -1530,7 +1773,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
         compose.waitForIdle()
         compose.onNodeWithTag("guided-server").assertIsDisplayed()
-        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 75f, 88f, lift = 1f))
+        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 30f, 74f, lift = 1f))
         compose.onNodeWithText(text(R.string.guide_press_serve_text)).assertIsDisplayed()
     }
 
@@ -1566,6 +1809,36 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         }
+    }
+
+    /** The stir step counts down with the shared ring and says the spoon is not water (#219, R3b). */
+    @Test
+    fun guideStirShowsTheRingAndTheSpoonHint() {
+        val recipe = Recipe(
+            id = "screen-test-stir", name = "Stir test", mode = BrewMode.FRENCH_PRESS, method = "French press",
+            doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 62.0, 0),
+                RecipeStep(StepKind.STIR, null, 5_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        compose.setContent {
+            AppTheme {
+                GuidedStep(
+                    BrewUiState(
+                        mode = BrewMode.FRENCH_PRESS, step = BrewStep.LIVE, phase = BrewPhase.BREWING, connected = true,
+                        weightGrams = 62.0, elapsedMs = 8_000, recipe = recipe,
+                        guide = StepState(index = 1, progress = 0.5f, dueInMs = 15_000, pace = null, paceMs = null, overshootGrams = null),
+                    )
+                ) {}
+            }
+        }
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.guide_stir)).onFirst().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guide_stir_text)).assertIsDisplayed()
+        compose.onNodeWithText(Format.timer(15)).assertIsDisplayed()
     }
 
     /** The ideal drain-time bar follows the timer before, within and after its range; recipes without one stay unchanged. */
