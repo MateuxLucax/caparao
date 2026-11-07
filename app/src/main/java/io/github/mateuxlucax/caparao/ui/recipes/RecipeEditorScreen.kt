@@ -198,7 +198,7 @@ private fun Steps(mode: BrewMode, steps: List<StepForm>, error: Boolean, viewMod
         StepRow(
             step,
             error,
-            allowedKinds = StepKind.entries.filter { it != StepKind.PRESS || mode == BrewMode.FRENCH_PRESS },
+            allowedKinds = stepKindsFor(mode),
             onChange = { viewModel.updateStep(index, it) },
             onRemove = { viewModel.removeStep(index) },
         )
@@ -357,11 +357,16 @@ private fun TextField(
 @Composable
 private fun ErrorText(id: Int) = Text(stringResource(id), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
 
+/** The step kinds the editor offers: a French press stirs and steeps; a filter does neither. */
+internal fun stepKindsFor(mode: BrewMode): List<StepKind> =
+    StepKind.entries.filter { (it != StepKind.STIR && it != StepKind.PRESS) || mode == BrewMode.FRENCH_PRESS }
+
 val StepKind.label: Int
     get() = when (this) {
         StepKind.BLOOM -> R.string.step_bloom
         StepKind.POUR -> R.string.step_pour
         StepKind.WAIT -> R.string.step_wait
         StepKind.SWIRL -> R.string.step_swirl
+        StepKind.STIR -> R.string.step_stir
         StepKind.PRESS -> R.string.step_press
     }
