@@ -343,7 +343,7 @@
     <string name="unit_l">L</string>
     <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
-    <string name="section_coffees">Cafés</string>
+    <string name="tab_coffees">Cafés</string>
     <string name="coffees_empty">Nenhum café na prateleira.</string>
     <string name="coffee_add">Adicionar café</string>
     <string name="coffee_edit">Editar café</string>
@@ -363,10 +363,12 @@
         <item quantity="many">torrado há %1$d dias</item>
         <item quantity="other">torrado há %1$d dias</item>
     </plurals>
-    <string name="coffees_manage">Gerenciar cafés</string>
-    <plurals name="coffees_open">
-        <item quantity="one">%1$d pacote aberto.</item>
-        <item quantity="many">%1$d pacotes abertos.</item>
-        <item quantity="other">%1$d pacotes abertos.</item>
+    <plurals name="coffee_brew_count">
+        <item quantity="one">%1$d preparo</item>
+        <item quantity="many">%1$d preparos</item>
+        <item quantity="other">%1$d preparos</item>
     </plurals>
+    <string name="coffee_last_brew">Último preparo %1$s</string>
+    <string name="coffee_average_rating">Nota média %1$s</string>
+    <string name="coffees_finished_count">Acabados (%1$d)</string>
 </resources>

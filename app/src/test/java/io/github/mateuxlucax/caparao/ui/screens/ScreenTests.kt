@@ -60,6 +60,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
+import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.BuiltInRecipes
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -372,8 +373,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.mode_espresso)
         waitFor(R.string.no_recipes_title)
         compose.onNodeWithText(text(R.string.no_recipes_title)).assertIsDisplayed()
-        click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.section_coffees)).performScrollTo()
+        click(R.string.tab_coffees)
+        waitFor(R.string.coffees_empty)
         compose.onNodeWithText(text(R.string.coffees_empty)).assertIsDisplayed()
     }
 
@@ -455,9 +456,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
         }
         open("press-ramp", 38_300)
-        click(R.string.tab_settings)
-        compose.waitForIdle()
-        click(R.string.coffees_manage)
+        click(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
         compose.onNodeWithText("Caparaó natural", substring = true).performClick()
         waitFor(R.string.coffee_edit)
@@ -471,6 +470,52 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         waitFor(R.string.delete_coffee_title)
         click(R.string.delete)
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Caparaó natural", substring = true).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /** A brew that used [dose] grams of the bag [bagId], saved with its bag link (#288). */
+    private fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null) = runBlocking {
+        db.brews().insertWithSamples(
+            BrewEntity(
+                id = id, mode = "FILTER", startedAt = System.currentTimeMillis(), durationMs = 60_000, doseGrams = dose,
+                yieldGrams = 250.0, timeToFirstDropMs = null, flowAvg = 1.0, flowPeak = 2.0, interrupted = false,
+                syncedAt = null, coffee = null, rating = rating, bagId = bagId,
+            ),
+            emptyList(),
+        )
+    }
+
+    /**
+     * The Coffees tab (C2): open bags first, with what is left and what their brews say. The finished bag sits under
+     * its button, hidden until it is expanded, and hides again.
+     */
+    @Test
+    fun coffeesTabCollapsesFinishedBags() {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).apply {
+                save(CoffeeBag("bag-open", "Caparaó natural", roaster = "Torra Alta", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+                save(CoffeeBag("bag-low", "Mantiqueira", weightGrams = 250.0, createdAt = now - 1_000))
+                save(CoffeeBag("bag-done", "Bourbon amarelo", weightGrams = 250.0, finished = true, createdAt = now - 2_000))
+            }
+        }
+        linkBrew("brew-open", "bag-open", 18.0, rating = 4)
+        linkBrew("brew-low", "bag-low", 238.0)
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        // An open bag with grams left, and a nearly used one.
+        compose.onNodeWithText(context.getString(R.string.coffee_left, Format.grams(232.0, locale), Format.grams(250.0, locale))).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.coffee_left, Format.grams(12.0, locale), Format.grams(250.0, locale))).assertIsDisplayed()
+        // Both bags have one linked brew each.
+        compose.onAllNodesWithText(context.resources.getQuantityString(R.plurals.coffee_brew_count, 1, 1), substring = true).assertCountEquals(2)
+        // Collapsed: the finished bag is out of sight, behind its button with the count.
+        compose.onNodeWithText("Bourbon amarelo", substring = true).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.coffees_finished_count, 1)).performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Bourbon amarelo", substring = true), 5_000)
+        compose.onNodeWithText("Bourbon amarelo", substring = true).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.coffees_finished_count, 1)).performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Bourbon amarelo", substring = true).fetchSemanticsNodes().isEmpty() }
     }
 
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
@@ -624,7 +669,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         assertWidgetVisibility(emptyView, R.id.widget_weekly_content, View.GONE)
     }
 
-    /** The coffees screen from Settings, with an open bag and a finished one (#110). */
+    /** The Coffees tab, with an open bag and a finished one (#110). */
     @Test
     fun coffees() {
         val day = 86_400_000L
@@ -635,9 +680,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             bags.save(CoffeeBag("bag-2", "Mantiqueira", roaster = "Sul de Minas", roastedAt = now - 40 * day, weightGrams = 500.0, finished = true, createdAt = now - 30 * day))
         }
         open("press-ramp", 38_300)
-        click(R.string.tab_settings)
-        compose.waitForIdle()
-        click(R.string.coffees_manage)
+        click(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
         compose.onNodeWithText("Caparaó natural", substring = true).assertIsDisplayed()
     }
