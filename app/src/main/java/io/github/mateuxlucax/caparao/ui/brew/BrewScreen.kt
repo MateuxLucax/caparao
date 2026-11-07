@@ -149,10 +149,11 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmStop = false }) { Text(stringResource(R.string.keep_brewing)) } },
         )
     }
-    val pressDeadline = state.frenchPressDeadlineReached && !state.frenchPressRemoved
+    val pressDeadline = state.pressDeadline
     val screenColor = if (pressDeadline) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
     val contentColor = if (pressDeadline) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
     Scaffold(
+        modifier = Modifier.testTag("brew-screen"),
         containerColor = screenColor,
         topBar = {
             TopAppBar(

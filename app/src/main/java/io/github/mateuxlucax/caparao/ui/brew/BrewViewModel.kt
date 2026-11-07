@@ -451,9 +451,14 @@ class BrewViewModel(
             else -> timed.atMs
         }
         val guideWeight = if (current.phase == BrewPhase.PAUSED || mode == BrewMode.FRENCH_PRESS) shownWeight else reading.weightGrams
-        val guide = tracker?.takeIf { since != null && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED) }
-            ?.let { t -> advanceGuide(t, timed.atMs, activeAt!! - since!!, guideWeight, flow, removalWeight = reading.weightGrams) }
+        val guideTracker = tracker
+        val guide = if (since != null && guideTracker != null && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED)) {
+            advanceGuide(guideTracker, timed.atMs, since, activeAt!! - since, guideWeight, flow, removalWeight = reading.weightGrams)
+        } else {
+            null
+        }
         val frenchPressRemoved = frenchPressFinishTracker?.removedAtMs != null
+        val frenchPressRemovalPending = frenchPressFinishTracker?.removalStartedAtMs != null && !frenchPressRemoved
         _uiState.update {
             it.copy(
                 phase = current.phase,
@@ -466,6 +471,7 @@ class BrewViewModel(
                 } else null,
                 guide = visible(guide) ?: it.guide,
                 frenchPressRemoved = frenchPressRemoved || it.frenchPressRemoved,
+                frenchPressRemovalPending = frenchPressRemovalPending,
             )
         }
         if (mode == BrewMode.FILTER && current.phase == BrewPhase.BREWING) {
@@ -656,13 +662,21 @@ class BrewViewModel(
     }
 
     /** Advances the guide to [elapsedMs] and plays its events; [removalWeight] is null when the scale is gone. */
-    private fun advanceGuide(t: StepTracker, atMs: Long, elapsedMs: Long, guideWeight: Double, flow: Double, removalWeight: Double?): StepState {
+    private fun advanceGuide(
+        t: StepTracker,
+        atMs: Long,
+        sinceMs: Long,
+        elapsedMs: Long,
+        guideWeight: Double,
+        flow: Double,
+        removalWeight: Double?,
+    ): StepState {
         val events = t.update(elapsedMs, guideWeight, flow)
         if (mode == BrewMode.FRENCH_PRESS && StepEvent.AllDone in events) {
             // A removal that began before the deadline counts from when the weight dropped (#279). Without a live
             // weight the last readings are stale (the scale is gone), so they are not evidence of a removal.
             frenchPressFinishTracker = FrenchPressFinishTracker().also {
-                if (removalWeight != null) it.backdateFrom(readings, brewingSinceMs ?: atMs)
+                if (removalWeight != null) it.backdateFrom(readings, sinceMs, atMs)
             }
         }
         events.filterNot { mode == BrewMode.FRENCH_PRESS && it == StepEvent.AllDone }.forEach(::alert)
@@ -693,7 +707,7 @@ class BrewViewModel(
             while (true) {
                 delay(STEEP_CLOCK_MS)
                 val now = clock()
-                val guide = advanceGuide(t, now, now - since, _uiState.value.weightGrams, 0.0, removalWeight = null)
+                val guide = advanceGuide(t, now, since, now - since, _uiState.value.weightGrams, 0.0, removalWeight = null)
                 _uiState.update { it.copy(elapsedMs = now - since, guide = visible(guide) ?: it.guide) }
             }
         }

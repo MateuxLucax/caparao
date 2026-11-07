@@ -375,7 +375,7 @@ internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window
 /** Shows the correct post-timer phase; the plunger lowers only after the press has left the scale (#226). */
 @Composable
 private fun FrenchPressReady(state: BrewUiState) {
-    if (state.frenchPressRemoved) {
+    if (state.frenchPressRemoved || state.frenchPressRemovalPending) {
         RemovedPress()
         Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)

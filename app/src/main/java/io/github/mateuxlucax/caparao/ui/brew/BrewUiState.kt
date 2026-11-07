@@ -50,6 +50,8 @@ data class BrewUiState(
     val guide: StepState? = null,
     /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */
     val frenchPressRemoved: Boolean = false,
+    /** A French press removal is being confirmed: the press is likely off the scale (#279). */
+    val frenchPressRemovalPending: Boolean = false,
     /** Free French press: how long to steep, from the first water; set on the dose step (#218). */
     val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
     /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
@@ -68,6 +70,10 @@ data class BrewUiState(
             return mode == BrewMode.FRENCH_PRESS && guided.lastOrNull()?.kind == StepKind.PRESS &&
                 guide?.allDone(guided.size) == true
         }
+
+    /** The red deadline state, off while a removal candidate is being confirmed so a press lifted before it never flashes red (#279). */
+    val pressDeadline: Boolean
+        get() = frenchPressDeadlineReached && !frenchPressRemoved && !frenchPressRemovalPending
 
     /** Espresso with a recipe's time window: where the shot time stands; null without one or before the shot. */
     val window: Window?

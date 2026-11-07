@@ -1125,10 +1125,19 @@ class BrewViewModelTest {
         hold(300.0, (237_000 - vm.uiState.value.elapsedMs) / 1000.0)
         val droppedAtMs = vm.uiState.value.elapsedMs
         pour(300.0, -400.0, 0.1)
-        hold(-400.0, 10.0)
+        var checkedAfterDeadline = false
+        repeat(50) {
+            hold(-400.0, 0.1)
+            val state = vm.uiState.value
+            if (state.frenchPressDeadlineReached && !state.frenchPressRemoved) {
+                checkedAfterDeadline = true
+                assertFalse("the deadline state stays off at ${state.elapsedMs} ms", state.pressDeadline)
+                assertTrue("the removal candidate is still being confirmed", state.frenchPressRemovalPending)
+            }
+        }
         collecting.cancel()
 
-        assertTrue("the deadline passed while the press was off", vm.uiState.value.frenchPressDeadlineReached)
+        assertTrue("the deadline passed while the press was off", checkedAfterDeadline)
         assertTrue(vm.uiState.value.frenchPressRemoved)
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
         assertTrue("no deadline alert", alerts.none { it.event == StepEvent.FrenchPressDeadline || it.event == StepEvent.FrenchPressReminder })
@@ -1139,6 +1148,50 @@ class BrewViewModelTest {
         // The saved time is when the weight first dropped, not when the 5 s hold ran out (#279).
         assertEquals(droppedAtMs.toDouble(), vm.uiState.value.saved!!.durationMs.toDouble(), 500.0)
         assertTrue(vm.uiState.value.saved!!.durationMs < 240_000L)
+    }
+
+    @Test
+    fun aLiftAndReturnAcrossTheDeadlineAlertsOnceWhenThePressReturns() = kotlinx.coroutines.test.runTest {
+        recipes.save(io.github.mateuxlucax.caparao.data.local.BuiltInRecipes.frenchPress(0))
+        val alerts = mutableListOf<GuideAlert>()
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect(alerts::add) }
+        hold(320.0, 0.2)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.ready()
+        hold(320.0, 0.1)
+        hold(0.0, 1.0)
+        pour(0.0, 100.0, 10.0)
+        hold(100.0, 50.0)
+        pour(100.0, 300.0, 20.0)
+        // The press is off from 238 s, across the 4:00 deadline, and back on at about 241 s: a lift and return (#212).
+        hold(300.0, (238_000 - vm.uiState.value.elapsedMs) / 1000.0)
+        pour(300.0, -400.0, 0.1)
+        var checkedOffPastDeadline = false
+        repeat(30) {
+            hold(-400.0, 0.1)
+            val state = vm.uiState.value
+            if (state.frenchPressDeadlineReached) {
+                checkedOffPastDeadline = true
+                assertFalse("no red while the press is off", state.pressDeadline)
+                assertTrue("the removal candidate is alive", state.frenchPressRemovalPending)
+            }
+            assertTrue("no deadline alert while the press is off", alerts.none { it.event == StepEvent.FrenchPressDeadline })
+        }
+        pour(-400.0, 300.0, 0.1)
+        val returned = vm.uiState.value
+
+        assertTrue("the lift crossed the deadline", checkedOffPastDeadline)
+        assertTrue("the deadline state shows on the return", returned.pressDeadline)
+        assertFalse(returned.frenchPressRemovalPending)
+        assertEquals("exactly one deadline alert on the return", 1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
+        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
+
+        // The existing reminders resume after the return.
+        hold(300.0, 16.0)
+        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressReminder })
+        collecting.cancel()
     }
 
     @Test

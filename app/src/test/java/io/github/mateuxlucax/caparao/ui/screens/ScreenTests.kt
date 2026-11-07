@@ -1837,8 +1837,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
     }
 
-    private fun frenchPressSteep(): SessionScale {
-        val scale = open("synthetic-french-press", 0)
+    private fun frenchPressSteep(session: String = "synthetic-french-press"): SessionScale {
+        val scale = open(session, 0)
         compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 5_000)
         click(R.string.next)
@@ -1870,6 +1870,24 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onAllNodesWithText(text(R.string.finish_brew_title)).assertCountEquals(0)
         compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)
+    }
+
+    /** A press lifted before the deadline keeps the deadline copy and error color off while it is being confirmed (#279). */
+    @Test
+    fun frenchPressRemovalCandidatePastTheDeadlineShowsNoDeadlineState() {
+        val scale = frenchPressSteep("synthetic-french-press-early-lift")
+        play(scale, 241_500)
+        compose.waitForIdle()
+
+        compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.guide_time_up)).assertCountEquals(0)
+        val bitmap = compose.onNodeWithTag("brew-screen").captureToImage().asAndroidBitmap()
+        val deadlineColors = listOf(BrandColor.LEAF.light.errorContainer, BrandColor.LEAF.dark.errorContainer).map { it.toArgb() }
+        assertTrue(
+            "the deadline error color is off while the press is being confirmed",
+            (0 until bitmap.height).none { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) in deadlineColors } },
+        )
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
     }
 
     /**
