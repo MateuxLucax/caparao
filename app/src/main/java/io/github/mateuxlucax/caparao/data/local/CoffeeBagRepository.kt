@@ -4,22 +4,23 @@ import io.github.mateuxlucax.caparao.model.CoffeeBag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/** Coffee bags on the phone; like recipes, they never leave it, only a brew's coffee name does. */
+/** Coffee bags on the phone; like recipes, they never leave it. A brew links to its bag locally (#288). */
 class CoffeeBagRepository(private val dao: CoffeeBagDao) {
     /** Open bags first, newest first, each with what its brews used. */
-    val bags: Flow<List<CoffeeBag>> = dao.observeAll().map { rows -> rows.map { it.bag.toModel(it.usedGrams) } }
+    val bags: Flow<List<CoffeeBag>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
-    suspend fun get(id: String): CoffeeBag? = dao.get(id)?.toModel(0.0)
+    suspend fun get(id: String): CoffeeBag? = dao.get(id)?.toModel()
 
     suspend fun save(bag: CoffeeBag) = dao.upsert(bag.toEntity())
 
-    /** Brews keep their coffee name. */
+    /** Brews keep their coffee name but lose their bag. */
     suspend fun delete(id: String) = dao.delete(id)
 }
 
-private fun CoffeeBagEntity.toModel(usedGrams: Double) = CoffeeBag(
-    id = id, name = name, roaster = roaster, origin = origin, roastedAt = roastedAt, weightGrams = weightGrams,
-    notes = notes, finished = finished, createdAt = createdAt, usedGrams = usedGrams,
+private fun CoffeeBagUsage.toModel() = CoffeeBag(
+    id = bag.id, name = bag.name, roaster = bag.roaster, origin = bag.origin, roastedAt = bag.roastedAt,
+    weightGrams = bag.weightGrams, notes = bag.notes, finished = bag.finished, createdAt = bag.createdAt,
+    usedGrams = usedGrams, brewCount = brewCount, lastBrewedAt = lastBrewAt, averageRating = averageRating,
 )
 
 internal fun CoffeeBag.toEntity() = CoffeeBagEntity(
