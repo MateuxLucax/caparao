@@ -44,6 +44,8 @@ sealed interface DiagnosticEvent {
     data object BrewScreenClosed : DiagnosticEvent { override val note = "brew_screen_closed" }
     data object BrewArmed : DiagnosticEvent { override val note = "brew_armed" }
     data object BrewStopRequested : DiagnosticEvent { override val note = "brew_stop_requested" }
+    /** A filter lift past the last pour ends the brew, without Done (#277). */
+    data object BrewLiftEnded : DiagnosticEvent { override val note = "brew_lift_end" }
     data object BrewInterrupted : DiagnosticEvent { override val note = "brew_interrupted" }
     data object BrewResultReady : DiagnosticEvent { override val note = "brew_result_ready" }
     data object SessionStarted : DiagnosticEvent { override val note = "session_started" }

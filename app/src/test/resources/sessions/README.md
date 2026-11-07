@@ -11,6 +11,7 @@ until reviewed.
 |------|-------|---------------|
 | `press-ramp.jsonl` | SM-S916B, Android 17 | Connect and handshake; ~34 s empty; pressing the platform harder by hand up to ~1300 g (flow saturates at 99.9, overload flag on), release back to 0. Battery pushed twice as `01 05`. |
 | `idle-5min.jsonl` | SM-S916B, Android 17 | Connect and handshake; 5 min 42 s with nothing on the scale and no commands sent: no drop, no gap over 237 ms, no battery push. |
+| `real-filter-guided-lift-end.jsonl` | Galaxy S23, Android 17 | A guided filter from `brew_armed` at 445.5 s: three pours to 148.4 g, settled from ~503 s, dripper lifted at ~572.9 s and left off. Cut before the Done tap at 578.7 s. Replayed by `ReplayedFilterTest` (the brew ends at the lift). |
 
 | `synthetic-espresso.jsonl` | none | **Synthetic**, written by `scripts/fixtures/synthetic-session.py`: cup placed at 2 s, a 26 s shot to 36 g from 14 s, cup lifted at 49 s. For replaying a whole espresso on the emulator (UI tests); never used to tune the detectors. |
 | `synthetic-espresso-guide.jsonl` | none | **Synthetic**, written by `scripts/fixtures/synthetic-guide-sessions.py`: empty for 8 s, cup at 8 s, a 25 s shot from 18 s. For the brew guide tests. |

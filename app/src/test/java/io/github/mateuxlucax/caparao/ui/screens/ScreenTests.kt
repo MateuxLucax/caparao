@@ -1297,10 +1297,15 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         play(scale, 89_500)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_drawdown)), 5_000)
         compose.waitForIdle()
+        // The lift comes after the last pour (200 g) and the drawdown has begun, so it ends the brew at once, with no Done (#277).
         play(scale, 90_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.filter_paused)).assertIsDisplayed()
-        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).assertIsDisplayed()
+        // The summary opens before the save is written: close it and wait for the brew in the list, so the save finishes.
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
     }
 
     /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */

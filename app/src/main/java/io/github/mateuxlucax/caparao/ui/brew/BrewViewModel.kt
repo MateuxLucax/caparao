@@ -302,11 +302,14 @@ class BrewViewModel(
     }
 
     /** Stop (espresso) or Done (filter); before the brew started, nothing is saved. */
-    fun stop() {
+    fun stop() = endBrew(DiagnosticEvent.BrewStopRequested)
+
+    /** Ends the brew as Done does, recording [event] as why (a Done tap or a lift past the last pour). */
+    private fun endBrew(event: DiagnosticEvent) {
         val current = detector ?: return
         if (current.phase == BrewPhase.DONE) return
         val before = current.phase
-        diagnostics?.recordEvent(DiagnosticEvent.BrewStopRequested)
+        diagnostics?.recordEvent(event)
         current.stop(clock())
         if (mode == BrewMode.FILTER && _uiState.value.recipe == null && before in setOf(BrewPhase.BREWING, BrewPhase.PAUSED)) {
             alertOnce(StepEvent.AllDone)
@@ -393,6 +396,12 @@ class BrewViewModel(
                 openPauseAtMs = null
                 smoother.reset()
             }
+        }
+        // A lift once the water is past the last pour ends the brew at the lift, as Done would; before it, the brew
+        // pauses. It comes after the pause bookkeeping above, so the saved curve is cut at the yield (#277).
+        if (mode == BrewMode.FILTER && before == BrewPhase.BREWING && current.phase == BrewPhase.PAUSED && liftEndsBrew()) {
+            endBrew(DiagnosticEvent.BrewLiftEnded)
+            return
         }
         espressoMoment(before, current.phase)
         filterMoment(before, current.phase)
@@ -488,6 +497,26 @@ class BrewViewModel(
             }
             finish(current)
         }
+    }
+
+    /**
+     * Judged on the water before the lift (#277): a guided filter once its last pour has reached its target, a free
+     * filter once the water is at or past the target band.
+     */
+    private fun liftEndsBrew(): Boolean {
+        val state = _uiState.value
+        val guide = tracker
+        if (guide != null) {
+            val steps = state.recipe?.steps.orEmpty()
+            val lastPour = steps.indexOfLast { it.kind.pours && it.targetWeightGrams != null }
+            if (lastPour < 0) return false
+            // Past the last pour, or at its target: the guide's own hold (StepTracker) is not waited for.
+            if (guide.state.index > lastPour) return true
+            val target = steps[lastPour].targetWeightGrams ?: return false
+            return guide.state.index == lastPour && state.weightGrams >= target - StepTracker.TOLERANCE_GRAMS
+        }
+        val ratio = state.ratio ?: return false
+        return targetBand(ratio, state.targetRatio) != TargetBand.BELOW
     }
 
     /** The filter or French press setup was lifted before the first water: let the user put it back without losing checklist marks. */
