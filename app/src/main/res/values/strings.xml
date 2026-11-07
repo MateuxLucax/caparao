@@ -132,6 +132,9 @@
     <string name="finish_brew_title">Finish the brew?</string>
     <string name="keep_brewing">Keep going</string>
     <string name="discard_brew_title">Discard this brew?</string>
+    <string name="restart_brew_title">Restart this brew?</string>
+    <string name="restart_brew_text">What was recorded is discarded.</string>
+    <string name="restart">Restart</string>
     <string name="discard_changes_title">Discard changes?</string>
     <string name="close">Close</string>
     <string name="close_brew">Close brew</string>

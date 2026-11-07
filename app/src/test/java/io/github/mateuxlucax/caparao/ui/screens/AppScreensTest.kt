@@ -418,7 +418,8 @@ class AppScreensTest {
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
-        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+        // The X keeps the stop dialog; Back in Live asks to restart instead (#287).
+        compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
         compose.onNodeWithText(text(R.string.stop_brew_title)).assertExists()
         compose.onNodeWithText(text(R.string.keep_brewing)).performClick()
 
