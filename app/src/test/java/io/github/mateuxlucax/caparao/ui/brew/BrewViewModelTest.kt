@@ -5,6 +5,9 @@ import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagEntity
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagUsage
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
@@ -16,10 +19,12 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
+import io.github.mateuxlucax.caparao.ui.FakeCoffeeBagDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
 import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
+import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +47,8 @@ class BrewViewModelTest {
 
     private val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(null) }
     private val dao = FakeBrewDao()
+    private val bagDao = FakeCoffeeBagDao()
+    private val bags = CoffeeBagRepository(bagDao)
     private val settings = SettingsStore(FakePreferences())
     private val recipes = RecipeRepository(FakeRecipeDao())
     private var now = 0L
@@ -56,7 +63,7 @@ class BrewViewModelTest {
         mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
         onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
         onDiscarded = { id -> uploads += "discarded $id" },
-        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics, animations = animations,
+        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics, animations = animations, coffeeBags = bags,
     )
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
@@ -1730,23 +1737,16 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun theSummaryAsksForNotesWithTheLastCoffeeAndSavesThem() = kotlinx.coroutines.test.runTest {
-        BrewRepository(dao).save(
-            io.github.mateuxlucax.caparao.model.Brew("old", BrewMode.FILTER, 1, 1_000, 15.0, 250.0, null, 1.0, 2.0, false, coffee = "Caparaó"),
-            emptyList(),
-        )
+    fun theSummaryAsksForNotesAndSavesThem() = kotlinx.coroutines.test.runTest {
         val (vm, _) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
         vm.stop()
         val notes = vm.uiState.value.notes!!
-        assertEquals("Caparaó", notes.coffee)
         assertEquals("22", notes.grind)
-        assertEquals(listOf("Caparaó"), vm.uiState.value.coffees)
 
         vm.editNotes(notes.copy(rating = 5))
         assertTrue(vm.saveNotes())
         val stored = BrewRepository(dao).get("brew-1")!!
         assertEquals(5, stored.rating)
-        assertEquals("Caparaó", stored.coffee)
         // Sent after the save and again with the notes.
         assertEquals(2, uploads.count { it.startsWith("saved brew-1") })
 
@@ -1942,5 +1942,218 @@ class BrewViewModelTest {
         elapse(20_000)
 
         assertFalse(vm.uiState.value.scaleTimedOut)
+    }
+
+    /** An open or finished bag as the bag DAO reports it; [lastBrewedAt] is the newest brew linked to it. */
+    private fun bag(id: String, name: String, createdAt: Long = 0, finished: Boolean = false, lastBrewedAt: Long? = null) = CoffeeBagUsage(
+        CoffeeBagEntity(id, name, roaster = null, origin = null, roastedAt = null, weightGrams = 250.0, notes = null, finished = finished, createdAt = createdAt),
+        usedGrams = 0.0, brewCount = if (lastBrewedAt == null) 0 else 1, lastBrewAt = lastBrewedAt, averageRating = null,
+    )
+
+    /** The espresso from the portafilter going on the scale to the shot's end, as the first espresso test. */
+    private fun pullShotFromPreparation(vm: BrewViewModel) {
+        pour(0.0, 320.0, 0.5)
+        hold(320.0, 1.5)
+        vm.ready()
+        hold(320.0, 1.5)
+        pour(320.0, 350.0, 0.5)
+        hold(350.0, 1.5)
+        hold(0.0, 1.0)
+        hold(0.0, 3.0)
+        pour(0.0, 36.0, 25.0)
+        hold(36.0, 6.0)
+        rolled()
+    }
+
+    @Test
+    fun aDoseWithoutOpenBagsSkipsTheCoffeeStep() {
+        bagDao.usages.value = listOf(bag("old", "Old", finished = true))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertEquals(listOf("tare"), scale.commands)
+    }
+
+    @Test
+    fun theLastBagUsedComesSelectedOnTheCoffeeStep() {
+        bagDao.usages.value = listOf(
+            bag("never", "Never used", createdAt = 3),
+            bag("older", "Older", createdAt = 2, lastBrewedAt = 500),
+            bag("latest", "Latest", createdAt = 1, lastBrewedAt = 900),
+            bag("done", "Finished", createdAt = 4, finished = true, lastBrewedAt = 1_000),
+        )
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.planDose(15.0)
+        vm.weigh()
+
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertEquals(listOf("never", "older", "latest"), vm.uiState.value.bags.map { it.id })
+        assertEquals("latest", vm.uiState.value.bagId)
+    }
+
+    @Test
+    fun withNoBagUsedYetTheNewestOpenBagComesSelected() {
+        bagDao.usages.value = listOf(bag("older", "Older", createdAt = 1), bag("newer", "Newer", createdAt = 2))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+
+        assertEquals("newer", vm.uiState.value.bagId)
+    }
+
+    @Test
+    fun theBagPickedIsSavedWithTheBrewAndItsName() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.selectBag("b")
+        vm.continueToBeans()
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        vm.setDose(18.0)
+        pullShotFromPreparation(vm)
+
+        val saved = vm.uiState.value.saved!!
+        assertEquals("b", saved.bagId)
+        assertEquals("Mantiqueira", saved.coffee)
+        assertEquals("b", dao.brews.value.single().bagId)
+        assertEquals("Mantiqueira", dao.brews.value.single().coffee)
+    }
+
+    @Test
+    fun noBagSavesABrewWithoutACoffee() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó"))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.selectBag(null)
+        vm.continueToBeans()
+        vm.setDose(18.0)
+        pullShotFromPreparation(vm)
+
+        assertNull(vm.uiState.value.saved!!.bagId)
+        assertNull(vm.uiState.value.saved!!.coffee)
+    }
+
+    @Test
+    fun aBagOutsideTheOpenBagsCannotBePicked() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó"), bag("gone", "Gone", finished = true))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.selectBag("gone")
+
+        assertEquals("a", vm.uiState.value.bagId)
+    }
+
+    @Test
+    fun theCoffeeStepWaitsForTheScaleBeforeTheBeans() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó"))
+        scale.state.value = ScaleState.Idle
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.planDose(15.0)
+        vm.weigh()
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertFalse("the coffee does not need the scale", vm.uiState.value.waitingForScale)
+
+        vm.continueToBeans()
+        assertTrue(vm.uiState.value.waitingForScale)
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertTrue(scale.commands.isEmpty())
+
+        scale.state.value = ScaleState.Connected(null)
+
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertEquals(listOf("tare"), scale.commands)
+    }
+
+    @Test
+    fun theSummaryArrivesWithTheBagAndCanChangeIt() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.continueToBeans()
+        vm.setDose(18.0)
+        pullShotFromPreparation(vm)
+
+        assertEquals("a", vm.uiState.value.notes!!.bagId)
+        assertEquals(listOf("a", "b"), vm.uiState.value.bags.map { it.id })
+        vm.editNotes(vm.uiState.value.notes!!.withBag(vm.uiState.value.bags[1]))
+        assertTrue(vm.saveNotes())
+
+        val changed = dao.brews.value.single()
+        assertEquals("b", changed.bagId)
+        assertEquals("Mantiqueira", changed.coffee)
+        assertNull("the change waits for the upload again", changed.syncedAt)
+    }
+
+    /** Beans back goes to Coffee, which keeps the bag picked there; Coffee back goes to Dose (#291). */
+    @Test
+    fun backFromBeansReturnsToCoffeeAndKeepsThePick() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1))
+        val vm = viewModel(BrewMode.FILTER)
+        vm.begin()
+        vm.planDose(15.0)
+        vm.weigh()
+        vm.selectBag("b")
+        vm.continueToBeans()
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+
+        vm.backOneStep()
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertEquals("b", vm.uiState.value.bagId)
+        vm.backOneStep()
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    /** Back to Dose and on again keeps the coffee picked, rather than the last bag used (#291). */
+    @Test
+    fun theCoffeePickSurvivesGoingBackToDoseAndOnAgain() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1, lastBrewedAt = 500))
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        assertEquals("the last bag used is suggested", "b", vm.uiState.value.bagId)
+        vm.selectBag("a")
+        vm.backOneStep()
+        vm.weigh()
+
+        assertEquals(BrewStep.COFFEE, vm.uiState.value.step)
+        assertEquals("a", vm.uiState.value.bagId)
+        vm.end()
+    }
+
+    /** Back from Coffee while it waits for the scale goes to Dose and drops the wait; the dose needs no scale (#291). */
+    @Test
+    fun backFromCoffeeWhileWaitingForTheScaleDropsTheWait() {
+        bagDao.usages.value = listOf(bag("a", "Caparaó"))
+        scale.state.value = ScaleState.Idle
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        vm.weigh()
+        vm.continueToBeans()
+        assertTrue(vm.uiState.value.waitingForScale)
+
+        vm.backOneStep()
+
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        assertFalse(vm.uiState.value.waitingForScale)
+        scale.state.value = ScaleState.Connected(null)
+        assertEquals("connecting alone does not weigh from Dose", BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
     }
 }

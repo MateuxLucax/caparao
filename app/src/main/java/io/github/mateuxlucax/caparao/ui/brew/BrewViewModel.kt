@@ -29,10 +29,12 @@ import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.diagnostics.recordBrewPhase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -79,6 +81,8 @@ class BrewViewModel(
     private val diagnostics: DiagnosticRecorder? = null,
     /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
     private val animations: () -> Boolean = { true },
+    /** The coffee bags to pick from before weighing and on the summary (#291); null leaves the coffee step out. */
+    private val coffeeBags: CoffeeBagRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -124,6 +128,8 @@ class BrewViewModel(
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
+    /** The user picked a coffee on the coffee step, so going back to Dose and on keeps that pick (#291). */
+    private var coffeeBagChosen = false
     /** This brew's filter scaling is local to the dose step and never written back to the recipe store. */
     private var filterRecipeEdited = false
     /** The selected filter recipe is the stable basis for repeated water changes; rounding never compounds. */
@@ -140,6 +146,7 @@ class BrewViewModel(
             launch { scale.readings.collect(::onReading) }
             launch { _uiState.collect(onLive) }
             launch { recipes.recipes.collect { all -> onRecipes(all.filter { it.mode == mode }) } }
+            coffeeBags?.let { bags -> launch { bags.bags.collect { all -> _uiState.update { it.copy(bags = all.filterNot(CoffeeBag::finished)) } } } }
             scale.state.collect(::onScaleState)
         }
     }
@@ -209,12 +216,43 @@ class BrewViewModel(
     }
 
     /**
-     * From the dose to weighing the beans: tares, so a container already on the scale isn't counted. Without the scale
-     * the dose waits and the weighing opens by itself once it connects (#182).
+     * From the dose to the coffee, when there are open bags (#291); otherwise straight to weighing the beans. The coffee
+     * step opens with the bag last used selected.
      */
     fun weigh() {
         val state = _uiState.value
         if (state.step != BrewStep.DOSE || state.dose == null) return
+        if (state.bags.isEmpty()) {
+            beginWeighing()
+            return
+        }
+        // Back from the coffee keeps the pick: the last bag used is only the first suggestion.
+        _uiState.update {
+            it.copy(step = BrewStep.COFFEE, bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id)
+        }
+    }
+
+    /** On the coffee step: the bag this brew uses, or null for No bag. */
+    fun selectBag(bagId: String?) {
+        val state = _uiState.value
+        if (state.step != BrewStep.COFFEE || bagId != null && state.bags.none { it.id == bagId }) return
+        coffeeBagChosen = true
+        _uiState.update { it.copy(bagId = bagId) }
+    }
+
+    /** From the coffee to weighing the beans. */
+    fun continueToBeans() {
+        if (_uiState.value.step != BrewStep.COFFEE) return
+        beginWeighing()
+    }
+
+    /**
+     * Tares, so a container already on the scale isn't counted. Without the scale the step waits and the weighing opens by
+     * itself once it connects (#182).
+     */
+    private fun beginWeighing() {
+        val state = _uiState.value
+        if ((state.step != BrewStep.DOSE && state.step != BrewStep.COFFEE) || state.dose == null) return
         if (!state.connected) {
             _uiState.update { it.copy(waitingForScale = true) }
             return
@@ -259,16 +297,20 @@ class BrewViewModel(
     }
 
     /**
-     * Back one step before Live: Beans to Dose, Prepare to Beans (#185). The checklist marks stay, and going forward
-     * again tares on Ready as before. Other steps do nothing here; the screen closes the brew for them.
+     * Back one step before Live: Beans to Coffee (or to Dose without open bags), Coffee to Dose, Prepare to Beans (#185,
+     * #291). The coffee picked and the checklist marks stay, and going forward again tares on Ready as before. Other
+     * steps do nothing here; the screen closes the brew for them.
      */
     fun backOneStep() {
-        val previous = when (_uiState.value.step) {
-            BrewStep.WEIGH -> BrewStep.DOSE
+        val state = _uiState.value
+        val previous = when (state.step) {
+            BrewStep.WEIGH -> if (state.bags.isEmpty()) BrewStep.DOSE else BrewStep.COFFEE
+            BrewStep.COFFEE -> BrewStep.DOSE
             BrewStep.PREPARE_PORTAFILTER -> BrewStep.WEIGH
             else -> return
         }
-        _uiState.update { it.copy(step = previous) }
+        // A wait for the scale belongs to the step it was waiting on.
+        _uiState.update { it.copy(step = previous, waitingForScale = false) }
     }
 
     /**
@@ -631,7 +673,7 @@ class BrewViewModel(
             scaleWatchJob = null
             _uiState.update { it.copy(scaleTimedOut = false) }
             // The dose that was waiting goes on to the weighing without another tap (#182).
-            if (_uiState.value.waitingForScale) weigh()
+            if (_uiState.value.waitingForScale) beginWeighing()
         } else if (scaleWatchJob == null) {
             // A flapping connection keeps the same ten seconds; only a fresh wait starts a new count.
             watchScale()
@@ -838,9 +880,13 @@ class BrewViewModel(
         val summary = BrewSummary.of(mode, summaryReadings, result, flowResetTimesMs)
         val startedAt = wallClock() - (clock() - result.startedAtMs)
         val recipe = _uiState.value.recipe
+        // The bag picked on the coffee step: its id and name, so the summary and the coffee history agree.
+        val bag = _uiState.value.let { state -> state.bags.find { it.id == state.bagId } }
         val brew = summary.toBrew(newId(), mode, startedAt, requireNotNull(_uiState.value.dose), result.interrupted).copy(
             recipeId = recipe?.id,
             recipeName = recipe?.name,
+            coffee = bag?.name,
+            bagId = bag?.id,
             grind = recipe?.grind,
             waterTempCelsius = recipe?.waterTempCelsius,
         )
@@ -848,12 +894,10 @@ class BrewViewModel(
         _uiState.update { it.copy(phase = BrewPhase.DONE, saved = brew, curve = summary.curve) }
         openSummary(brew.durationMs)
         viewModelScope.launch {
-            // Past coffees before this brew is in: it has none yet.
-            val coffees = repository.recentCoffees()
             repository.save(brew, summary.curve)
             // After the insert, so the upload job always finds the brew.
             onSaved(brew.id)
-            _uiState.update { if (it.saved?.id == brew.id) it.copy(notes = NotesForm.of(brew, coffees.firstOrNull()), coffees = coffees) else it }
+            _uiState.update { if (it.saved?.id == brew.id) it.copy(notes = NotesForm.of(brew)) else it }
         }
     }
 
@@ -909,6 +953,7 @@ class BrewViewModel(
     private fun reset() {
         clearRun()
         recipeChosen = false
+        coffeeBagChosen = false
         filterRecipeEdited = false
         filterRecipeBase = null
         _uiState.value = BrewUiState(
@@ -920,6 +965,10 @@ class BrewViewModel(
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
     }
+
+    /** The open bag a brew used most recently, or null when none has been used. */
+    private fun lastUsedBag(bags: List<CoffeeBag>): CoffeeBag? =
+        bags.mapNotNull { bag -> bag.lastBrewedAt?.let { bag to it } }.maxByOrNull { it.second }?.first
 
     private fun recordDiagnosticPhase(phase: BrewPhase) {
         if (phase == lastDiagnosticPhase) return

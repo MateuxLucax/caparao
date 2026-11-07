@@ -116,13 +116,13 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
-    // Back goes one step back before Live (#185): Beans to Dose, Prepare to Beans; on the Dose step it closes the brew.
+    // Back goes one step back before Live (#185): Beans to Coffee or Dose, Coffee to Dose, Prepare to Beans; on the Dose step it closes the brew.
     // In Live it asks to restart the brew, which drops what was recorded (#287); the X keeps the stop dialog above.
     var confirmRestart by rememberSaveable { mutableStateOf(false) }
     val back = {
         when (state.step) {
             BrewStep.SUMMARY -> finish()
-            BrewStep.WEIGH, BrewStep.PREPARE_PORTAFILTER -> viewModel.backOneStep()
+            BrewStep.COFFEE, BrewStep.WEIGH, BrewStep.PREPARE_PORTAFILTER -> viewModel.backOneStep()
             BrewStep.LIVE -> confirmRestart = true
             else -> closeBrew()
         }
@@ -210,6 +210,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 // A free French press has no recipe steps to split the Brew segment into.
                 steps = if (state.recipe != null) state.steps else emptyList(),
                 stepIndex = state.guide?.index,
+                coffee = state.bags.isNotEmpty(),
             )
             val still = animationsOff()
             val density = LocalDensity.current
@@ -234,6 +235,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         viewModel::weigh,
                         viewModel::setSteep,
                     )
+                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
@@ -439,7 +441,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone
             }
         }
         // Asked after the brew, never before, so the main flow stays a few taps (#105).
-        state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
+        state.notes?.let { BrewNotesFields(it, state.bags, onNotes) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }

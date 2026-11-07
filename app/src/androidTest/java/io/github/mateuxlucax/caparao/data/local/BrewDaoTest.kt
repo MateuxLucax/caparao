@@ -76,14 +76,13 @@ class BrewDaoTest {
     }
 
     @Test
-    fun notesUnsyncTheBrewAndCoffeesComeNewestFirst() = runBlocking {
+    fun notesUnsyncTheBrewAndKeepItsBagLink() = runBlocking {
         dao.insertWithSamples(brew("a", "FILTER", 1, syncedAt = 10).copy(coffee = "Old"), samples("a"))
-        dao.insertWithSamples(brew("b", "FILTER", 2).copy(coffee = "New"), samples("b"))
-        dao.updateNotes("a", "Old", "22", 94, 5, "Sweet")
+        dao.updateNotes("a", "New", "bag-1", "22", 94, 5, "Sweet")
         val a = dao.get("a")!!
+        assertEquals("bag-1", a.bagId)
         assertEquals(5, a.rating)
         assertEquals("Sweet", a.notes)
         assertNull(a.syncedAt)
-        assertEquals(listOf("New", "Old"), dao.recentCoffees(8))
     }
 }

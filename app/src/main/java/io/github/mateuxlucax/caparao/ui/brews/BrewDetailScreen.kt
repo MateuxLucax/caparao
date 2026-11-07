@@ -130,7 +130,7 @@ private fun NotesCard(state: BrewDetailUiState, viewModel: BrewDetailViewModel) 
             Text(stringResource(R.string.brew_notes), style = MaterialTheme.typography.titleMedium)
             val form = state.notes
             if (form != null) {
-                BrewNotesFields(form, state.coffees, viewModel::changeNotes)
+                BrewNotesFields(form, state.bags, viewModel::changeNotes)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::cancelNotes) { Text(stringResource(R.string.cancel)) }
                     TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::saveNotes, enabled = form.valid) { Text(stringResource(R.string.save)) }

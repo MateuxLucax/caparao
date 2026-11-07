@@ -5,6 +5,7 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -12,7 +13,7 @@ import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 
 /** The brew screen's steps. */
-enum class BrewStep { DOSE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
+enum class BrewStep { DOSE, COFFEE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
 
 data class BrewUiState(
     val mode: BrewMode,
@@ -56,9 +57,12 @@ data class BrewUiState(
     val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
     /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
     val freeSteps: List<RecipeStep> = emptyList(),
-    /** On the summary: the saved brew's notes being typed, and past coffees to pick from. */
+    /** On the summary: the saved brew's notes being typed. */
     val notes: NotesForm? = null,
-    val coffees: List<String> = emptyList(),
+    /** The open coffee bags: the coffee step's choices, and the summary's. Empty skips the coffee step (#291). */
+    val bags: List<CoffeeBag> = emptyList(),
+    /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
+    val bagId: String? = null,
 ) {
     /** The steps being followed, when the guide is on. */
     val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps ?: freeSteps else emptyList()
