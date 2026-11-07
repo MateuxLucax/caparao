@@ -1436,16 +1436,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             return (0 until bitmap.height).any { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) == expected } }
         }
 
-        /** The pixel of a point in the server's 80 × 52 box, drawn under a [lift] of the scene (see PressOnScale). */
-        fun pixelAt(tag: String, viewX: Float, viewY: Float, lift: Float): Int {
+        /**
+         * The pixel of a point in the press's 80 × 90 box (PressArt.drawPress), drawn under a [lift] of the scene and a
+         * [scaleRoom] under it (0 without the scale, see PressOnScale).
+         */
+        fun pixelAt(tag: String, viewX: Float, viewY: Float, lift: Float, scaleRoom: Float = 0.12f): Int {
             val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
             val size = bitmap.width.toFloat()
-            val room = size * 0.12f
+            val room = size * scaleRoom
             val rise = size * 0.16f * lift
             val boxHeight = size - room
-            val scale = minOf(size / 80f, boxHeight / 52f)
-            val x = (size - 80f * scale) / 2f - 26f * scale + viewX * scale
-            val y = -rise + (boxHeight - 52f * scale) / 2f - 50f * scale + viewY * scale
+            val scale = minOf(size / 80f, boxHeight / 90f)
+            val x = (size - 80f * scale) / 2f + viewX * scale
+            val y = -rise + (boxHeight - 90f * scale) / 2f + viewY * scale
             return bitmap.getPixel(x.toInt(), y.toInt())
         }
 
@@ -1456,6 +1459,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onNodeWithTag("guided-server").assertIsDisplayed()
             assertEquals(band, targetBand(weight, 100.0))
             assertTrue("the fill follows the band", hasColor("guided-cup", scheme.ringStroke(band, dark)))
+            // The lid is not on yet: the spot where it sits in the steep is empty.
+            assertTrue("no lid before the steep", pixelAt("guided-cup", 24f, 19.5f, lift = 0f, scaleRoom = 0.12f) != scheme.outline.toArgb())
             compose.onNodeWithTag("guided-weight").assertIsDisplayed()
             compose.onNodeWithText("${Format.grams(weight, locale)} / ${Format.grams(100.0, locale)} g").assertIsDisplayed()
         }
@@ -1467,6 +1472,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
             compose.onNodeWithTag("steep-press").assertIsDisplayed()
             assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress)))
+            // The lid is on from the steep on: its bar sits above the frame.
+            assertEquals("the lid $progress", scheme.outline.toArgb(), pixelAt("steep-press", 24f, 19.5f, lift = 0f, scaleRoom = 0f))
             compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
         }
         assertTrue(PressArt.steepColor(1f).luminance() < PressArt.steepColor(0f).luminance())
@@ -1485,7 +1492,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
         compose.waitForIdle()
         compose.onNodeWithTag("guided-server").assertIsDisplayed()
-        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 75f, 88f, lift = 1f))
+        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 30f, 74f, lift = 1f))
         compose.onNodeWithText(text(R.string.guide_press_serve_text)).assertIsDisplayed()
     }
 
