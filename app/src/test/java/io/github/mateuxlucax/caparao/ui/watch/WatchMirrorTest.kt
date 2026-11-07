@@ -37,6 +37,8 @@ class WatchMirrorTest {
         assertEquals(WatchSnapshot(WatchState.SCALE, 18.2f, 0f, 12_000, timerRunning = true), snapshot)
         // The dose step is still weighing, not brewing.
         assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO), false).state)
+        // Nor is the coffee step, which comes before the beans are weighed (#291).
+        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO, step = BrewStep.COFFEE), false).state)
     }
 
     @Test

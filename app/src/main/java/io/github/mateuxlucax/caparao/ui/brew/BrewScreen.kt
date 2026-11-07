@@ -183,6 +183,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                 // A free French press has no recipe steps to split the Brew segment into.
                 steps = if (state.recipe != null) state.steps else emptyList(),
                 stepIndex = state.guide?.index,
+                coffee = state.bags.isNotEmpty(),
             )
             val still = animationsOff()
             val density = LocalDensity.current
@@ -207,6 +208,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         viewModel::weigh,
                         viewModel::setSteep,
                     )
+                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
@@ -412,7 +414,7 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone
             }
         }
         // Asked after the brew, never before, so the main flow stays a few taps (#105).
-        state.notes?.let { BrewNotesFields(it, state.coffees, onNotes) }
+        state.notes?.let { BrewNotesFields(it, state.bags, onNotes) }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }

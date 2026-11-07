@@ -369,4 +369,10 @@
         <item quantity="many">%1$d pacotes abertos.</item>
         <item quantity="other">%1$d pacotes abertos.</item>
     </plurals>
+    <!-- Coffee step before weighing (#291). -->
+    <string name="coffee_step_title">Qual café?</string>
+    <string name="stage_coffee">Café</string>
+    <string name="milestone_coffee">Café</string>
+    <string name="no_bag">Sem pacote</string>
+    <string name="coffee_below_dose">Menos que esta dose</string>
 </resources>

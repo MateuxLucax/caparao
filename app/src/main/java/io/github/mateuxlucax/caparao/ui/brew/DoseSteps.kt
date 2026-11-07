@@ -107,7 +107,7 @@ import java.util.Locale
 
 /**
  * The ratio first for a free brew: the recipe chips set it, - and + nudge it, and the dose and water under it are a reference that a
- * tap edits. Next goes to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
+ * tap edits. Next goes to the coffee when there are open bags (#291), otherwise to weighing the beans. Espresso with a recipe is a target (#189): its dose and ratio are shown
  * as a summary. A filter or French press recipe makes water the control and scales its steps for this brew (#204, #215).
  */
 @Composable

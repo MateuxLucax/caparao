@@ -112,18 +112,10 @@ interface BrewDao {
 
     /** The notes changed: the server's copy is stale, so the brew is unsynced again (#105). */
     @Query(
-        "UPDATE brews SET coffee = :coffee, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
+        "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
             "notes = :notes, synced_at = NULL WHERE id = :id",
     )
-    suspend fun updateNotes(id: String, coffee: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
-
-    /** The open coffee bags, newest first, then coffees used before, most recent first, each once. */
-    @Query(
-        "SELECT coffee FROM (SELECT name AS coffee, 0 AS source, created_at AS at FROM coffee_bags WHERE finished = 0 " +
-            "UNION ALL SELECT coffee, 1, MAX(started_at) FROM brews WHERE coffee IS NOT NULL GROUP BY coffee) " +
-            "GROUP BY coffee ORDER BY MIN(source), MAX(at) DESC LIMIT :limit",
-    )
-    suspend fun recentCoffees(limit: Int): List<String>
+    suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
 }
 
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */

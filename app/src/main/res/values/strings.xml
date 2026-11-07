@@ -374,4 +374,10 @@
         <item quantity="one">%1$d open bag.</item>
         <item quantity="other">%1$d open bags.</item>
     </plurals>
+    <!-- Coffee step before weighing (#291). -->
+    <string name="coffee_step_title">Which coffee?</string>
+    <string name="stage_coffee">Coffee</string>
+    <string name="milestone_coffee">Coffee</string>
+    <string name="no_bag">No bag</string>
+    <string name="coffee_below_dose">Less than this dose</string>
 </resources>

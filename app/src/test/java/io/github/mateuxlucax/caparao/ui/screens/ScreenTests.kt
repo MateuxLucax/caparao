@@ -30,6 +30,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isNotSelected
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.assertAll
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isSelectable
@@ -242,7 +244,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             initializer {
                 BrewViewModel(
                     requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
-                    clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs },
+                    clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs }, coffeeBags = CoffeeBagRepository(db.coffeeBags()),
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
@@ -444,6 +446,45 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         waitFor(R.string.discard_changes_title)
         click(R.string.discard)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /**
+     * The coffee step before the beans, in [mode] (#291): the newest open bag is selected, No bag is offered, and a bag
+     * with less than the dose left says so. Next then goes on to weighing.
+     */
+    private fun coffeeStepBeforeTheBeans(session: String, pickMode: () -> Unit) {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 10.0, createdAt = now - day))
+        }
+        open(session, 0)
+        pickMode()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.milestone_coffee)), 5_000)
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNode(hasText("Caparaó natural") and isSelected()).assertExists()
+        compose.onNode(hasText("Mantiqueira") and isNotSelected()).assertExists()
+        compose.onNodeWithText(text(R.string.coffee_below_dose)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.no_bag)).performClick()
+        compose.onNode(hasText(text(R.string.no_bag)) and isSelected()).assertExists()
+        compose.onNodeWithText("Mantiqueira").performClick()
+        compose.onNode(hasText("Mantiqueira") and isSelected()).assertExists()
+        compose.onNode(hasTestTag("coffee-step-next")).performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+    }
+
+    @Test
+    fun coffeeStepBeforeTheBeansInEspresso() = coffeeStepBeforeTheBeans("synthetic-espresso") { click(R.string.mode_espresso) }
+
+    @Test
+    fun coffeeStepBeforeTheBeansInFilter() = coffeeStepBeforeTheBeans("synthetic-filter-lift") { click(R.string.mode_filter) }
+
+    /** The home selector names the press by its content description; its text is the short "Press". */
+    @Test
+    fun coffeeStepBeforeTheBeansInFrenchPress() = coffeeStepBeforeTheBeans("synthetic-french-press") {
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
     }
 
     /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it (#181, C1 → C2). */

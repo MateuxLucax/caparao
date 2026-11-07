@@ -35,11 +35,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.Brew
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 
-/** A brew's notes as typed (#105), on the save screen and in the brew detail. */
+/**
+ * A brew's notes as typed (#105), on the save screen and in the brew detail. The coffee is a bag (#291): its name is kept
+ * with the link, and typing a bag's exact name links it again.
+ */
 data class NotesForm(
     val coffee: String = "",
+    /** The bag the coffee links to; null when the name is free text. */
+    val bagId: String? = null,
     val grind: String = "",
     val temp: String = "",
     /** 1–5, null when not rated. */
@@ -49,9 +55,16 @@ data class NotesForm(
     /** The temperature is empty or 1–100 °C. */
     val valid: Boolean get() = temp.isBlank() || temp.trim().toIntOrNull() in 1..100
 
+    /** The coffee name typed as [text]; it links to the open bag of that name, if any. */
+    fun withCoffee(text: String, bags: List<CoffeeBag>) = copy(coffee = text, bagId = bags.find { it.name == text }?.id)
+
+    /** The coffee is [bag]. */
+    fun withBag(bag: CoffeeBag) = copy(coffee = bag.name, bagId = bag.id)
+
     /** [brew] with these notes; blank fields become null. Call only when [valid]. */
     fun applyTo(brew: Brew) = brew.copy(
         coffee = coffee.trim().ifEmpty { null },
+        bagId = bagId.takeIf { coffee.isNotBlank() },
         grind = grind.trim().ifEmpty { null },
         waterTempCelsius = temp.trim().toIntOrNull(),
         rating = rating,
@@ -59,9 +72,10 @@ data class NotesForm(
     )
 
     companion object {
-        /** [brew]'s notes; a brew without a coffee yet gets [suggestedCoffee], since a bag lasts many brews. */
-        fun of(brew: Brew, suggestedCoffee: String? = null) = NotesForm(
-            coffee = brew.coffee ?: suggestedCoffee.orEmpty(),
+        /** [brew]'s notes, with the coffee and bag it was saved with. */
+        fun of(brew: Brew) = NotesForm(
+            coffee = brew.coffee.orEmpty(),
+            bagId = brew.bagId,
             grind = brew.grind.orEmpty(),
             temp = brew.waterTempCelsius?.toString().orEmpty(),
             rating = brew.rating,
@@ -70,27 +84,27 @@ data class NotesForm(
     }
 }
 
-/** Coffee (with past ones to pick), grind, temperature, a 1–5 rating and notes. */
+/** Coffee (the open bags to pick), grind, temperature, a 1–5 rating and notes. */
 @Composable
-fun BrewNotesFields(form: NotesForm, coffees: List<String>, onChange: (NotesForm) -> Unit, modifier: Modifier = Modifier) {
+fun BrewNotesFields(form: NotesForm, bags: List<CoffeeBag>, onChange: (NotesForm) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Rating(form.rating) { onChange(form.copy(rating = it)) }
         OutlinedTextField(
-            form.coffee, { onChange(form.copy(coffee = it.take(80))) }, Modifier.fillMaxWidth(),
+            form.coffee, { onChange(form.withCoffee(it.take(80), bags)) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.brew_coffee)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             shape = MaterialTheme.shapes.medium,
         )
-        val others = coffees.filter { it != form.coffee }
+        val others = bags.filter { it.id != form.bagId }
         if (others.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                others.forEach { coffee ->
+                others.forEach { bag ->
                     FilledTonalButton(
-                        onClick = { onChange(form.copy(coffee = coffee)) },
+                        onClick = { onChange(form.withBag(bag)) },
                         shapes = ButtonDefaults.shapes(),
                         modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
                         contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
-                    ) { Text(coffee) }
+                    ) { Text(bag.name) }
                 }
             }
         }

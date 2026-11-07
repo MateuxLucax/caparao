@@ -6,7 +6,9 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.export.ExportedFile
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
+import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.model.Brew
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.BrewSample
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +24,8 @@ data class BrewDetailUiState(
     val loading: Boolean = true,
     /** Set while the notes are being edited. */
     val notes: NotesForm? = null,
-    val coffees: List<String> = emptyList(),
+    /** The open coffee bags to pick the coffee from while the notes are edited (#291). */
+    val bags: List<CoffeeBag> = emptyList(),
     /** The brew of the same recipe right before this one, for "Compare with last" (#106). */
     val previousId: String? = null,
     /** The file handed to the share sheet, once. */
@@ -38,6 +41,8 @@ class BrewDetailViewModel(
     private val export: BrewExportFiles? = null,
     /** Called after the notes were saved, to send the brew again (UploadScheduler.brewSaved). */
     private val onEdited: (String) -> Unit = {},
+    /** The bags the notes pick the coffee from; null in tests that never edit notes. */
+    private val coffeeBags: CoffeeBagRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewDetailUiState())
     val uiState: StateFlow<BrewDetailUiState> = _uiState.asStateFlow()
@@ -53,8 +58,8 @@ class BrewDetailViewModel(
     fun editNotes() {
         val brew = _uiState.value.brew ?: return
         viewModelScope.launch {
-            val coffees = repository.recentCoffees()
-            _uiState.update { it.copy(notes = NotesForm.of(brew, coffees.firstOrNull()), coffees = coffees) }
+            val bags = coffeeBags?.bags?.first()?.filterNot(CoffeeBag::finished).orEmpty()
+            _uiState.update { it.copy(notes = NotesForm.of(brew), bags = bags) }
         }
     }
 

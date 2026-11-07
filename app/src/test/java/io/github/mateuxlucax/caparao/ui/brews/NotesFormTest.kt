@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.brews
 
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,9 +13,30 @@ class NotesFormTest {
     private val brew = Brew("b", BrewMode.FILTER, 1, 180_000, 15.0, 250.0, null, 1.4, 5.0, false, grind = "22", waterTempCelsius = 94)
 
     @Test
-    fun theRecipeFieldsArePrefilledAndTheLastCoffeeSuggested() {
-        assertEquals(NotesForm(coffee = "Caparaó", grind = "22", temp = "94"), NotesForm.of(brew, "Caparaó"))
-        assertEquals("Own", NotesForm.of(brew.copy(coffee = "Own"), "Caparaó").coffee)
+    fun theRecipeFieldsArePrefilledWithTheCoffeeAndItsBagAsSaved() {
+        assertEquals(NotesForm(grind = "22", temp = "94"), NotesForm.of(brew))
+        assertEquals(NotesForm(coffee = "Caparaó", bagId = "bag-1", grind = "22", temp = "94"), NotesForm.of(brew.copy(coffee = "Caparaó", bagId = "bag-1")))
+    }
+
+    @Test
+    fun typingABagsNameLinksItAndAnyOtherTextUnlinksIt() {
+        val bags = listOf(CoffeeBag("bag-1", "Caparaó", weightGrams = 250.0, createdAt = 0))
+        val linked = NotesForm().withCoffee("Caparaó", bags)
+        assertEquals("bag-1", linked.bagId)
+        assertNull(linked.withCoffee("Caparaó x", bags).bagId)
+        assertNull(NotesForm(coffee = "Caparaó", bagId = "bag-1").withCoffee("", bags).bagId)
+    }
+
+    @Test
+    fun aPickedBagSetsItsNameAndLink() {
+        val picked = NotesForm(coffee = "Old").withBag(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 500.0, createdAt = 0))
+        assertEquals(NotesForm(coffee = "Mantiqueira", bagId = "bag-2"), picked)
+    }
+
+    @Test
+    fun aBlankCoffeeSavesNoBagLink() {
+        assertNull(NotesForm(coffee = " ", bagId = "bag-1").applyTo(brew).bagId)
+        assertEquals("bag-1", NotesForm(coffee = "Caparaó", bagId = "bag-1").applyTo(brew).bagId)
     }
 
     @Test

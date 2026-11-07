@@ -22,7 +22,8 @@ object WatchMirror {
      */
     fun snapshot(state: ScaleState, reading: ScaleReading?, brew: BrewUiState?, timerRunning: Boolean): WatchSnapshot {
         if (state !is ScaleState.Connected) return WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false)
-        val live = brew?.takeIf { it.step != BrewStep.DOSE }
+        // Before the beans are weighed the watch shows the scale, as the phone's dose and coffee steps do.
+        val live = brew?.takeIf { it.step != BrewStep.DOSE && it.step != BrewStep.COFFEE }
         if (live == null) {
             return WatchSnapshot(
                 WatchState.SCALE,
