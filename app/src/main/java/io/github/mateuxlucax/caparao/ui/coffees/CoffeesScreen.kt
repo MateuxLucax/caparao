@@ -122,7 +122,8 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
             }
             val details = buildList {
                 bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
-                add(pluralStringResource(R.plurals.coffee_brew_count, bag.brewCount, bag.brewCount))
+                // No "0 brews": pt-BR counts 0 as one, and a new bag says nothing by having none.
+                if (bag.brewCount > 0) add(pluralStringResource(R.plurals.coffee_brew_count, bag.brewCount, bag.brewCount))
                 bag.lastBrewedAt?.let { add(stringResource(R.string.coffee_last_brew, Format.dateTime(it, locale))) }
                 bag.averageRating?.let { add(stringResource(R.string.coffee_average_rating, Format.ratio(it, locale))) }
             }
