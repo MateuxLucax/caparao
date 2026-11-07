@@ -376,6 +376,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.tab_coffees)
         waitFor(R.string.coffees_empty)
         compose.onNodeWithText(text(R.string.coffees_empty)).assertIsDisplayed()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -505,8 +507,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
         // An open bag with grams left, and a nearly used one.
-        compose.onNodeWithText(context.getString(R.string.coffee_left, Format.grams(232.0, locale), Format.grams(250.0, locale))).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.coffee_left, Format.grams(12.0, locale), Format.grams(250.0, locale))).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "232", "250")).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "12", "250")).assertIsDisplayed()
         // Both bags have one linked brew each.
         compose.onAllNodesWithText(context.resources.getQuantityString(R.plurals.coffee_brew_count, 1, 1), substring = true).assertCountEquals(2)
         // Collapsed: the finished bag is out of sight, behind its button with the count.

@@ -51,6 +51,7 @@ import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.format.Format
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -112,7 +113,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
                 Text(stringResource(R.string.coffee_finished), style = MaterialTheme.typography.bodyMedium, color = dim)
             } else {
                 Text(
-                    stringResource(R.string.coffee_left, Format.grams(bag.leftGrams, locale), Format.grams(bag.weightGrams, locale)),
+                    stringResource(R.string.coffee_left, wholeGrams(bag.leftGrams, locale), wholeGrams(bag.weightGrams, locale)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 LinearProgressIndicator(progress = { (bag.leftGrams / bag.weightGrams).toFloat() }, modifier = Modifier.fillMaxWidth())
@@ -194,6 +195,9 @@ private fun Field(value: String, label: Int, keyboard: KeyboardType = KeyboardTy
         label = { Text(stringResource(label)) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
     )
+
+/** Bag grams as the list shows them: whole grams, e.g. "142 of 250 g left". */
+private fun wholeGrams(value: Double, locale: Locale): String = String.format(locale, "%.0f", value)
 
 /** The date picker gives UTC midnight. */
 private fun day(millis: Long): String =
