@@ -436,7 +436,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     @Test
     fun untouchedRecipeEditorBackClosesAtOnce() {
         openV60Editor()
-        tapBack()
+        tapEditorClose()
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.discard_changes_title)).assertDoesNotExist()
     }
@@ -447,13 +447,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         openV60Editor()
         compose.onNode(hasSetTextAction() and hasText("V60 One and Done")).performTextReplacement("V60 short")
         compose.waitForIdle()
-        tapBack()
+        tapEditorClose()
         waitFor(R.string.discard_changes_title)
         compose.onNodeWithText(text(R.string.discard)).assertIsDisplayed()
         click(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_changes_title)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.recipe_name)).assertIsDisplayed()
-        tapBack()
+        tapEditorClose()
         waitFor(R.string.discard_changes_title)
         click(R.string.discard)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
@@ -721,7 +721,13 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     /** The top bar's arrow, which runs the same action as Back. */
-    private fun tapBack() = compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+    private fun tapBack() = compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+
+    /** The recipe editor's arrow, which is still labelled Close. */
+    private fun tapEditorClose() = compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+
+    /** The top bar's X, which closes the whole brew from the dose, beans and preparation steps (#185). */
+    private fun tapCloseBrew() = compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
 
     /** Back on the summary saves the typed notes into the saved brew and closes, with no dialog (#181, A1 → A2). */
     @Test
@@ -746,6 +752,106 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         click(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_brew_title)).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
+    }
+
+    /** An espresso on its dose step, before anything is weighed (#185). */
+    private fun espressoDose() {
+        open("synthetic-espresso", 0)
+        click(R.string.mode_espresso)
+        compose.waitForIdle()
+    }
+
+    /** Waits until the brew has closed and the tabs are back. */
+    private fun waitForBrewClosed() {
+        compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag("brew-screen")).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+    }
+
+    /** On the dose step, Back and the X both close the brew (#185, Dose row). */
+    @Test
+    fun doseBackClosesTheBrew() {
+        espressoDose()
+        tapBack()
+        waitForBrewClosed()
+    }
+
+    @Test
+    fun doseCloseBrewClosesTheBrew() {
+        espressoDose()
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** Back on the beans step returns to the dose (#185, Beans row); the X closes the brew. */
+    @Test
+    fun beansBackReturnsToTheDoseStep() {
+        espressoDose()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapBack()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag("weigh-step-next")).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertIsDisplayed()
+        // Next from the dose weighs the beans again.
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+    }
+
+    @Test
+    fun beansCloseBrewClosesTheBrew() {
+        espressoDose()
+        click(R.string.next)
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** Back on the espresso preparation returns to the beans, and the X closes the brew (#185, Prepare row). */
+    @Test
+    fun portafilterBackReturnsToTheBeansStep() {
+        espressoDose()
+        click(R.string.next)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("portafilter-ready").assertDoesNotExist()
+    }
+
+    @Test
+    fun portafilterCloseBrewClosesTheBrew() {
+        espressoDose()
+        click(R.string.next)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        tapCloseBrew()
+        waitForBrewClosed()
+    }
+
+    /** The filter checklist keeps its marks through a step back and forward again (#185, Prepare row). */
+    @Test
+    fun filterPrepareMarksSurviveAStepBack() {
+        settings.setLastRecipeId(BrewMode.FILTER, BuiltInRecipes.V60_ID)
+        open("synthetic-filter-lift", 0)
+        click(R.string.mode_filter)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done") and isSelectable(), 5_000)
+        compose.onNode(hasText("V60 One and Done") and isSelectable()).performScrollTo().performClick()
+        click(R.string.next)
+        click(R.string.next)
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-row-0").performClick()
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        waitFor(R.string.prepare_filter_title)
+        compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
+    }
+
+    /** The summary closes through Back, which saves the notes; it has no X (#185, Summary row). */
+    @Test
+    fun summaryHasNoCloseBrewButton() {
+        espressoSummary()
+        compose.onAllNodes(hasContentDescription(text(R.string.close_brew))).assertCountEquals(0)
     }
 
     /** Espresso with a recipe: a target, so its values are shown and nothing changes the dose or ratio (#189). */
@@ -803,7 +909,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.free_brew)), 5_000)
         click(R.string.free_brew)
         click(R.string.next)
-        val appBarClose = hasContentDescription(text(R.string.close))
+        val appBarClose = hasContentDescription(text(R.string.close_brew))
         val espressoTitle = hasText(text(R.string.mode_espresso))
         // Espresso shows its named milestone, not a step counter; TalkBack gets the current name as its description.
         val weighProgress = hasContentDescription(text(R.string.milestone_beans))

@@ -258,6 +258,19 @@ class BrewViewModel(
         }
     }
 
+    /**
+     * Back one step before Live: Beans to Dose, Prepare to Beans (#185). The checklist marks stay, and going forward
+     * again tares on Ready as before. Other steps do nothing here; the screen closes the brew for them.
+     */
+    fun backOneStep() {
+        val previous = when (_uiState.value.step) {
+            BrewStep.WEIGH -> BrewStep.DOSE
+            BrewStep.PREPARE_PORTAFILTER -> BrewStep.WEIGH
+            else -> return
+        }
+        _uiState.update { it.copy(step = previous) }
+    }
+
     /** Ready on the preparation step: arm detection from the current scale weight. */
     fun ready() {
         val state = _uiState.value

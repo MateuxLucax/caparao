@@ -142,7 +142,7 @@ class AppTest {
         compose.onNodeWithText(text(R.string.next)).performClick()
         compose.onNodeWithText(text(R.string.prepare_portafilter_title)).assertExists()
         compose.onNodeWithText(text(R.string.prepare_ready)).assertExists()
-        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
         compose.onNodeWithText(text(R.string.tab_home)).assertExists()
     }
 }

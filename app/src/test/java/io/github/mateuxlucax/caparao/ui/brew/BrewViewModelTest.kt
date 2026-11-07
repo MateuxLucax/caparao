@@ -426,6 +426,53 @@ class BrewViewModelTest {
         vm.end()
     }
 
+    /** Back before Live: Beans to Dose and Prepare to Beans, in every mode (#185). */
+    @Test
+    fun backOneStepGoesFromBeansToDoseAndFromPrepareToBeans() {
+        listOf(BrewMode.ESPRESSO, BrewMode.FILTER, BrewMode.FRENCH_PRESS).forEach { mode ->
+            val vm = viewModel(mode)
+            vm.begin()
+            vm.planDose(18.0)
+            vm.weigh()
+            assertEquals("$mode: Beans", BrewStep.WEIGH, vm.uiState.value.step)
+            vm.backOneStep()
+            assertEquals("$mode: Beans back to Dose", BrewStep.DOSE, vm.uiState.value.step)
+            vm.weigh()
+            vm.setDose(18.0)
+            assertEquals("$mode: Prepare", BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+            vm.backOneStep()
+            assertEquals("$mode: Prepare back to Beans", BrewStep.WEIGH, vm.uiState.value.step)
+            vm.end()
+        }
+    }
+
+    /** Dose has no step before it: Back closes the brew on the screen, and the ViewModel stays on Dose (#185). */
+    @Test
+    fun backOneStepOnTheDoseStepDoesNothing() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.backOneStep()
+        assertEquals(BrewStep.DOSE, vm.uiState.value.step)
+        vm.end()
+    }
+
+    /** Going back from Prepare keeps the checklist marks; Ready tares again, as before (#185). */
+    @Test
+    fun backFromPrepareKeepsTheChecklistMarksAndReadyTaresAgain() {
+        val vm = viewModel(BrewMode.FRENCH_PRESS)
+        vm.begin()
+        vm.setDose(20.0)
+        vm.setPreparationCheck(1, true)
+        vm.backOneStep()
+        vm.setDose(20.0)
+        assertEquals(setOf(1), vm.uiState.value.preparationChecks)
+        hold(600.0, 2.0) // the press is placed again; nothing tares until Ready
+        assertTrue("going back and forward does not tare", scale.commands.isEmpty())
+        vm.ready()
+        assertEquals(listOf("tare"), scale.commands)
+        vm.end()
+    }
+
     @Test
     fun stoppingBeforeTheFirstDropSavesNothing() {
         val vm = viewModel(BrewMode.ESPRESSO)

@@ -130,6 +130,7 @@
     <string name="discard_brew_title">Descartar este preparo?</string>
     <string name="discard_changes_title">Descartar alterações?</string>
     <string name="close">Fechar</string>
+    <string name="close_brew">Fechar preparo</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Bebida</string>
     <string name="label_water">Água</string>

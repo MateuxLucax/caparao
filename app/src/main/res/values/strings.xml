@@ -134,6 +134,7 @@
     <string name="discard_brew_title">Discard this brew?</string>
     <string name="discard_changes_title">Discard changes?</string>
     <string name="close">Close</string>
+    <string name="close_brew">Close brew</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Yield</string>
     <string name="label_water">Water</string>
