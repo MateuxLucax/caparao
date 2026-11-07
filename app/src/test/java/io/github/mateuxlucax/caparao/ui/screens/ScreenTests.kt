@@ -410,6 +410,19 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText("150").assertIsDisplayed()
     }
 
+    /** The editor offers the stir step for French press recipes (#219). The filter list is checked in RecipeEditorViewModelTest. */
+    @Test
+    fun frenchPressRecipeEditorOffersStir() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("French press"), 5_000)
+        compose.onNode(hasText("French press")).performClick()
+        waitFor(R.string.recipe_name)
+        compose.onAllNodesWithText(text(R.string.step_bloom)).onFirst().performClick()
+        compose.onNodeWithText(text(R.string.step_stir)).assertIsDisplayed()
+    }
+
     /** Opens the V60 recipe in its editor, as the recipes list leads to it. */
     private fun openV60Editor() {
         open("press-ramp", 38_300)
@@ -1521,6 +1534,36 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
             compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
         }
+    }
+
+    /** The stir step counts down with the shared ring and says the spoon is not water (#219, R3b). */
+    @Test
+    fun guideStirShowsTheRingAndTheSpoonHint() {
+        val recipe = Recipe(
+            id = "screen-test-stir", name = "Stir test", mode = BrewMode.FRENCH_PRESS, method = "French press",
+            doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(
+                RecipeStep(StepKind.BLOOM, 62.0, 0),
+                RecipeStep(StepKind.STIR, null, 5_000),
+                RecipeStep(StepKind.PRESS, null, 240_000),
+            ),
+            createdAt = 0, updatedAt = 0,
+        )
+        compose.setContent {
+            AppTheme {
+                GuidedStep(
+                    BrewUiState(
+                        mode = BrewMode.FRENCH_PRESS, step = BrewStep.LIVE, phase = BrewPhase.BREWING, connected = true,
+                        weightGrams = 62.0, elapsedMs = 8_000, recipe = recipe,
+                        guide = StepState(index = 1, progress = 0.5f, dueInMs = 15_000, pace = null, paceMs = null, overshootGrams = null),
+                    )
+                ) {}
+            }
+        }
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.guide_stir)).onFirst().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guide_stir_text)).assertIsDisplayed()
+        compose.onNodeWithText(Format.timer(15)).assertIsDisplayed()
     }
 
     /** The ideal drain-time bar follows the timer before, within and after its range; recipes without one stay unchanged. */

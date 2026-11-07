@@ -225,10 +225,19 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     } else {
         CountdownRing(guide.progress, color)
         Text(
-            stringResource(if (step.kind == StepKind.SWIRL) R.string.guide_swirl else R.string.guide_wait),
+            stringResource(
+                when (step.kind) {
+                    StepKind.SWIRL -> R.string.guide_swirl
+                    StepKind.STIR -> R.string.guide_stir
+                    else -> R.string.guide_wait
+                },
+            ),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
+        if (step.kind == StepKind.STIR) {
+            Text(stringResource(R.string.guide_stir_text), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        }
         guide.dueInMs?.let { Text(Format.timer(seconds(it)), style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color) }
         state.steps.getOrNull(index + 1)?.let { next ->
             next.targetWeightGrams?.let { Note(stringResource(R.string.guide_next_pour, Format.grams(it, locale))) }
