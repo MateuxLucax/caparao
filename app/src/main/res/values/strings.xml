@@ -132,8 +132,12 @@
     <string name="finish_brew_title">Finish the brew?</string>
     <string name="keep_brewing">Keep going</string>
     <string name="discard_brew_title">Discard this brew?</string>
+    <string name="restart_brew_title">Restart this brew?</string>
+    <string name="restart_brew_text">What was recorded is discarded.</string>
+    <string name="restart">Restart</string>
     <string name="discard_changes_title">Discard changes?</string>
     <string name="close">Close</string>
+    <string name="close_brew">Close brew</string>
     <string name="label_dose">Dose</string>
     <string name="label_yield">Yield</string>
     <string name="label_water">Water</string>
@@ -218,6 +222,7 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
+    <string name="step_stir">Stir</string>
     <string name="step_press">Steep</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
@@ -242,6 +247,8 @@
     <string name="guide_pour">Pour to %1$s g</string>
     <string name="guide_wait">Wait</string>
     <string name="guide_swirl">Swirl the dripper</string>
+    <string name="guide_stir">Stir</string>
+    <string name="guide_stir_text">A spoon doesn\'t count as water.</string>
     <string name="guide_starts_in">Starts in %1$s</string>
     <string name="guide_next_pour">Next pour to %1$s g</string>
     <string name="guide_on_time">On time</string>
@@ -380,4 +387,10 @@
     <string name="coffee_last_brew">Last brew %1$s</string>
     <string name="coffee_average_rating">Average rating %1$s</string>
     <string name="coffees_finished_count">Finished (%1$d)</string>
+    <!-- Coffee step before weighing (#291). -->
+    <string name="coffee_step_title">Which coffee?</string>
+    <string name="stage_coffee">Coffee</string>
+    <string name="milestone_coffee">Coffee</string>
+    <string name="no_bag">No bag</string>
+    <string name="coffee_below_dose">Less than this dose</string>
 </resources>

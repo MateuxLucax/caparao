@@ -45,12 +45,9 @@ class BrewRepository(
         refreshAfterChange()
     }
 
-    /** Saves [brew]'s notes (coffee, grind, temperature, rating, notes) and marks it unsynced. */
+    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes) and marks it unsynced. */
     suspend fun updateNotes(brew: Brew) =
-        dao.updateNotes(brew.id, brew.coffee, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
-
-    /** Past coffees, newest first, for the picker; the first is the one suggested for the next brew. */
-    suspend fun recentCoffees(limit: Int = 8): List<String> = dao.recentCoffees(limit)
+        dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
 
     /** The server confirmed [id] at [at] (epoch ms). */
     suspend fun markSynced(id: String, at: Long) = dao.markSynced(id, at)
@@ -78,6 +75,7 @@ class BrewRepository(
         recipeId = recipeId,
         recipeName = recipeName,
         coffee = coffee,
+        bagId = bagId,
         grind = grind,
         waterTempCelsius = waterTempCelsius,
         rating = rating,
@@ -99,6 +97,7 @@ class BrewRepository(
         recipeId = recipeId,
         recipeName = recipeName,
         coffee = coffee,
+        bagId = bagId,
         grind = grind,
         waterTempCelsius = waterTempCelsius,
         rating = rating,

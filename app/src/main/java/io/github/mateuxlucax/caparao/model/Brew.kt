@@ -28,6 +28,8 @@ data class Brew(
     val recipeName: String? = null,
     /** The rest is filled in after the brew (#105). */
     val coffee: String? = null,
+    /** The coffee bag it used, on this phone only (#288, #291); never sent to the server. */
+    val bagId: String? = null,
     val grind: String? = null,
     val waterTempCelsius: Int? = null,
     /** 1–5. */

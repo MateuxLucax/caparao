@@ -76,6 +76,8 @@ import kotlin.math.sin
 /** [label] names the stage next to "Step x of y". */
 enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @StringRes val label: Int) {
     DOSE(R.string.dose_title, null, R.string.stage_ratio),
+    /** Which coffee, before weighing the beans; skipped without open bags (#291). */
+    COFFEE(R.string.coffee_step_title, null, R.string.stage_coffee),
     BEANS(R.string.weigh_beans_title, R.string.weigh_beans_text, R.string.stage_beans),
     PREPARE_PORTAFILTER(R.string.prepare_portafilter_title, null, R.string.stage_prepare),
     PREPARE_FILTER(R.string.prepare_filter_title, null, R.string.stage_prepare_filter),
@@ -94,14 +96,15 @@ enum class GuideStage(@StringRes val title: Int, @StringRes val text: Int?, @Str
 
 /** The stages of [mode], in order. */
 fun guideStages(mode: BrewMode): List<GuideStage> = when (mode) {
-    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_PORTAFILTER, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
-    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_FILTER, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
-    BrewMode.FRENCH_PRESS -> listOf(GuideStage.DOSE, GuideStage.BEANS, GuideStage.PREPARE_FRENCH_PRESS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.SERVE, GuideStage.DONE)
+    BrewMode.ESPRESSO -> listOf(GuideStage.DOSE, GuideStage.COFFEE, GuideStage.BEANS, GuideStage.PREPARE_PORTAFILTER, GuideStage.CUP, GuideStage.TARE, GuideStage.FIRST_DROP, GuideStage.BREWING_ESPRESSO, GuideStage.DONE)
+    BrewMode.FILTER -> listOf(GuideStage.DOSE, GuideStage.COFFEE, GuideStage.BEANS, GuideStage.PREPARE_FILTER, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER, GuideStage.DONE)
+    BrewMode.FRENCH_PRESS -> listOf(GuideStage.DOSE, GuideStage.COFFEE, GuideStage.BEANS, GuideStage.PREPARE_FRENCH_PRESS, GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS, GuideStage.SERVE, GuideStage.DONE)
 }
 
 /** Where the screen stands, from its step and the detector's phase. */
 fun guideStage(mode: BrewMode, step: BrewStep, phase: BrewPhase, serving: Boolean = false): GuideStage = when (step) {
     BrewStep.DOSE -> GuideStage.DOSE
+    BrewStep.COFFEE -> GuideStage.COFFEE
     BrewStep.WEIGH -> GuideStage.BEANS
     BrewStep.PREPARE_PORTAFILTER -> when (mode) {
         BrewMode.ESPRESSO -> GuideStage.PREPARE_PORTAFILTER
@@ -131,6 +134,7 @@ data class GuideMilestone(@StringRes val name: Int, val stages: Set<GuideStage>)
 fun guideMilestones(mode: BrewMode): List<GuideMilestone> = when (mode) {
     BrewMode.ESPRESSO -> listOf(
         GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_coffee, setOf(GuideStage.COFFEE)),
         GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
         GuideMilestone(R.string.milestone_portafilter, setOf(GuideStage.PREPARE_PORTAFILTER)),
         GuideMilestone(
@@ -141,6 +145,7 @@ fun guideMilestones(mode: BrewMode): List<GuideMilestone> = when (mode) {
     )
     BrewMode.FILTER -> listOf(
         GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_coffee, setOf(GuideStage.COFFEE)),
         GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
         GuideMilestone(R.string.milestone_prepare, setOf(GuideStage.PREPARE_FILTER)),
         GuideMilestone(R.string.milestone_brew, setOf(GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FILTER)),
@@ -148,6 +153,7 @@ fun guideMilestones(mode: BrewMode): List<GuideMilestone> = when (mode) {
     )
     BrewMode.FRENCH_PRESS -> listOf(
         GuideMilestone(R.string.milestone_recipe, setOf(GuideStage.DOSE)),
+        GuideMilestone(R.string.milestone_coffee, setOf(GuideStage.COFFEE)),
         GuideMilestone(R.string.milestone_beans, setOf(GuideStage.BEANS)),
         GuideMilestone(R.string.milestone_prepare_press, setOf(GuideStage.PREPARE_FRENCH_PRESS)),
         GuideMilestone(R.string.milestone_brew, setOf(GuideStage.TARE, GuideStage.POUR, GuideStage.BREWING_FRENCH_PRESS)),
@@ -160,7 +166,10 @@ fun guideMilestones(mode: BrewMode): List<GuideMilestone> = when (mode) {
 fun milestoneIndex(milestones: List<GuideMilestone>, stage: GuideStage): Int =
     milestones.indexOfFirst { stage in it.stages }.coerceAtLeast(0)
 
-/** The mode's progress: its named milestones, with Brew split per recipe step for filter and French press. */
+/**
+ * The mode's progress: its named milestones, with Brew split per recipe step for filter and French press. The Coffee
+ * milestone shows only when [coffee] is on, as the step is skipped without open bags (#291).
+ */
 @Composable
 fun GuideIndicator(
     mode: BrewMode,
@@ -168,8 +177,10 @@ fun GuideIndicator(
     modifier: Modifier = Modifier,
     steps: List<RecipeStep> = emptyList(),
     stepIndex: Int? = null,
+    coffee: Boolean = false,
 ) {
-    Milestones(guideMilestones(mode), stage, modifier, steps, stepIndex, splitBrew = mode != BrewMode.ESPRESSO)
+    val milestones = guideMilestones(mode).filter { coffee || GuideStage.COFFEE !in it.stages }
+    Milestones(milestones, stage, modifier, steps, stepIndex, splitBrew = mode != BrewMode.ESPRESSO)
 }
 
 /** The largest milestone label size; the smallest rendered size is [MilestoneLabelMinRenderedSize], whatever the font scale. */

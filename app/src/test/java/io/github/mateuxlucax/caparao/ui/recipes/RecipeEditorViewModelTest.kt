@@ -49,6 +49,36 @@ class RecipeEditorViewModelTest {
     }
 
     @Test
+    fun theEditorOffersStirOnlyForFrenchPress() {
+        assertEquals(
+            listOf(StepKind.BLOOM, StepKind.POUR, StepKind.WAIT, StepKind.SWIRL),
+            stepKindsFor(BrewMode.FILTER),
+        )
+        assertEquals(StepKind.entries, stepKindsFor(BrewMode.FRENCH_PRESS))
+    }
+
+    @Test
+    fun aFrenchPressStirKeepsItsKindThroughTheRepository() = runTest {
+        val vm = editor(Target.New(BrewMode.FRENCH_PRESS))
+        vm.edit {
+            it.copy(
+                name = "French press",
+                dose = "20",
+                ratio = "15",
+                steps = listOf(
+                    StepForm(StepKind.BLOOM, "100", "0:00"),
+                    StepForm(StepKind.STIR, start = "0:10"),
+                    StepForm(StepKind.PRESS, start = "4:00"),
+                ),
+            )
+        }
+        vm.save()
+
+        assertTrue(vm.state.value.closed)
+        assertEquals(StepKind.STIR, repository.get("new-id")!!.steps[1].kind)
+    }
+
+    @Test
     fun editingKeepsTheIdAndCreationTime() = runTest {
         repository.save(BuiltInRecipes.all(1)[1])
         val vm = editor(Target.Edit(BuiltInRecipes.V60_ID))

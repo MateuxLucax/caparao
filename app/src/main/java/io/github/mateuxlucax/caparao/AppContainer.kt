@@ -132,7 +132,7 @@ class AppContainer(context: Context) {
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, export, uploads::brewSaved) }
+        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, export, uploads::brewSaved, coffeeBags) }
         initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
         initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         initializer {
@@ -142,6 +142,7 @@ class AppContainer(context: Context) {
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
                 onWatchAlert = watch::alert, diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
+                coffeeBags = coffeeBags,
             )
         }
     }
