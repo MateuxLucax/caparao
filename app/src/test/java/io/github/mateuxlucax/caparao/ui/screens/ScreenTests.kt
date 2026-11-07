@@ -53,6 +53,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
@@ -78,10 +79,12 @@ import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
 import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
@@ -237,6 +240,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             initializer { DiagnosticsViewModel(context, diagnostics) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, settings.syncStatus) {} }
             initializer { ServerViewModel(settings, { _, _ -> error("no server in screen tests") }, {}, {}) }
@@ -449,29 +453,127 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
     }
 
-    /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it (#181, C1 → C2). */
-    @Test
-    fun coffeeBagDeleteAsksFirst() {
+    /** Seeds one open bag, roasted 12 days ago, and opens its detail from the Coffees tab. */
+    private fun openCoffeeBag(withBrew: Boolean = true) {
         val day = 86_400_000L
         val now = System.currentTimeMillis()
         runBlocking {
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
         }
+        if (withBrew) linkBrew("brew-1", "bag-1", 18.0, rating = 4)
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
         compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        val left = if (withBrew) "232" else "250"
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, left, "250")), 5_000)
+    }
+
+    /** The last node with [id]: a dialog's button sits above the screen's, which stays in the tree. */
+    private fun clickLast(id: Int) = compose.onAllNodesWithText(text(id)).onLast().performClick()
+
+    /** The Coffees tab's add sheet (C3): Save waits for a name and a weight; More details holds origin and notes. */
+    @Test
+    fun coffeeBagAddSheet() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        waitFor(R.string.coffees_empty)
+        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        waitFor(R.string.coffee_weight)
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        compose.onAllNodesWithText(text(R.string.coffee_origin)).assertCountEquals(0)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("Mantiqueira")
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_weight))).performTextReplacement("250")
+        compose.onNodeWithText(text(R.string.save)).assertIsEnabled()
+        click(R.string.coffee_more_details)
+        compose.onNodeWithText(text(R.string.coffee_origin)).assertIsDisplayed()
+        click(R.string.save)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.coffee_weight)).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText("Mantiqueira", substring = true), 5_000)
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "250", "250")).assertIsDisplayed()
+    }
+
+    /**
+     * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
+     * move the bag between the states; Edit opens the same sheet, filled.
+     */
+    @Test
+    fun coffeeBagDetail() {
+        openCoffeeBag()
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.coffee_roasted_days, 12, 12), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.rating_stars, 4)).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.mode_filter), substring = true).performClick()
+        waitFor(R.string.share)
+        tapBack()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
+        click(R.string.coffee_mark_finished)
+        waitFor(R.string.coffee_mark_open)
+        compose.onNodeWithText(text(R.string.coffee_finished)).assertIsDisplayed()
+        click(R.string.coffee_mark_open)
+        waitFor(R.string.coffee_mark_finished)
+        click(R.string.edit)
         waitFor(R.string.coffee_edit)
+        compose.onNode(hasSetTextAction() and hasText("Caparaó natural")).assertIsDisplayed()
+    }
+
+    /** A bag with no brews says so (C4). */
+    @Test
+    fun coffeeBagDetailWithoutBrews() {
+        openCoffeeBag(withBrew = false)
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "250", "250")).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_no_brews)).assertIsDisplayed()
+    }
+
+    /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it and keeps the brews' names (#181, C5). */
+    @Test
+    fun coffeeBagDeleteAsksFirst() {
+        openCoffeeBag()
         click(R.string.delete)
         waitFor(R.string.delete_coffee_title)
         compose.onNodeWithText(text(R.string.delete_coffee_text)).assertIsDisplayed()
-        click(R.string.cancel)
+        clickLast(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.delete_coffee_title)).fetchSemanticsNodes().isEmpty() }
-        compose.onNodeWithText(text(R.string.coffee_edit)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.edit)).assertIsDisplayed()
         click(R.string.delete)
         waitFor(R.string.delete_coffee_title)
-        click(R.string.delete)
+        clickLast(R.string.delete)
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Caparaó natural", substring = true).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /** Closing the sheet with other edits asks first (#181): Cancel keeps editing, Discard closes it. */
+    @Test
+    fun coffeeBagSheetAsksBeforeDiscarding() {
+        openCoffeeBag()
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("Outra torra")
+        click(R.string.cancel)
+        waitFor(R.string.discard_changes_title)
+        clickLast(R.string.cancel)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_changes_title)).fetchSemanticsNodes().isEmpty() }
+        compose.onNode(hasSetTextAction() and hasText("Outra torra")).assertIsDisplayed()
+        click(R.string.cancel)
+        waitFor(R.string.discard_changes_title)
+        clickLast(R.string.discard)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.coffee_edit)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.edit)).assertIsDisplayed()
+    }
+
+    /** Back and a clean sheet: Back with other edits asks first; a clean sheet closes without asking. */
+    @Test
+    fun coffeeBagSheetBackAsksOnlyWithEdits() {
+        openCoffeeBag()
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        Espresso.pressBack()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.coffee_edit)).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText(text(R.string.edit)).assertIsDisplayed()
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("Outra torra")
+        Espresso.pressBack()
+        waitFor(R.string.discard_changes_title)
     }
 
     /** A brew that used [dose] grams of the bag [bagId], saved with its bag link (#288). */

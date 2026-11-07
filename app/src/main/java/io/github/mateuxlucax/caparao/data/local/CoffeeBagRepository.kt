@@ -11,6 +11,9 @@ class CoffeeBagRepository(private val dao: CoffeeBagDao) {
 
     suspend fun get(id: String): CoffeeBag? = dao.get(id)?.toModel()
 
+    /** The bag with [id] as it is now; null once it is deleted. */
+    fun observe(id: String): Flow<CoffeeBag?> = bags.map { all -> all.firstOrNull { it.id == id } }
+
     suspend fun save(bag: CoffeeBag) = dao.upsert(bag.toEntity())
 
     /** Brews keep their coffee name but lose their bag. */

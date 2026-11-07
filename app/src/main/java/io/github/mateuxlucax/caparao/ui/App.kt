@@ -49,6 +49,9 @@ import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
 import io.github.mateuxlucax.caparao.ui.brews.TrendKey
 import io.github.mateuxlucax.caparao.ui.brews.TrendsScreen
 import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailScreen
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
+import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeesScreen
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
@@ -118,6 +121,8 @@ private fun Main(
 ) {
     var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
+    // A coffee bag open over the tabs (#290); a brew opened from it goes on top and comes back to it.
+    var coffee by rememberSaveable { mutableStateOf<String?>(null) }
     // "edit:<id>" or "new:<mode>", saveable as a string.
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     // Comma-joined ids and TrendKey.encode(), so both survive a rotation; they open over a saved brew or the tabs.
@@ -156,7 +161,8 @@ private fun Main(
     val destination = editing?.let { Destination.Recipe(it) }
         ?: trends?.let { Destination.Trends(TrendKey.decode(it)) }
         ?: comparing?.let { Destination.Compare(it.split(',')) }
-        ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) } ?: Destination.Tabs
+        ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) }
+        ?: coffee?.let { Destination.Coffee(it) } ?: Destination.Tabs
     val density = LocalDensity.current
     // Deeper destinations come in from the right and go back out to the left, whichever screen they open over.
     AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState.depth > initialState.depth, density) }, label = "screen") { shown ->
@@ -197,6 +203,15 @@ private fun Main(
                 }
                 BrewScreen(brew, onClose = close)
             }
+            is Destination.Coffee -> {
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
+                CoffeeBagDetailScreen(
+                    viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
+                    viewModel(factory = viewModelFactory),
+                    onOpenBrew = { opened = it },
+                    onClose = { coffee = null },
+                )
+            }
             is Destination.Recipe -> {
                 val target = shown.key.split(':', limit = 2).let { (kind, value) ->
                     if (kind == "edit") RecipeEditorViewModel.Target.Edit(value) else RecipeEditorViewModel.Target.New(BrewMode.valueOf(value))
@@ -210,6 +225,7 @@ private fun Main(
                 onBrew = { brewing = it },
                 onOpen = { opened = it },
                 onRecipe = { editing = it },
+                onCoffee = { coffee = it },
                 onCompare = { comparing = it.joinToString(",") },
             )
         }
@@ -230,6 +246,7 @@ internal sealed interface Destination {
     data class Compare(val ids: List<String>) : Destination
     data class Trends(val key: TrendKey) : Destination
     data class Recipe(val key: String) : Destination
+    data class Coffee(val id: String) : Destination
 }
 
 /**
@@ -254,6 +271,7 @@ private fun Tabs(
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
     onRecipe: (String) -> Unit,
+    onCoffee: (String) -> Unit,
     onCompare: (List<String>) -> Unit,
 ) {
     // The Home one, so the bar and the screen share a connection state.
@@ -288,7 +306,7 @@ private fun Tabs(
                     onNew = { onRecipe("new:${it.name}") },
                     modifier,
                 )
-                Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), modifier)
+                Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
                 Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, onCompare = onCompare, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     viewModel(key = "server-settings", factory = viewModelFactory),
