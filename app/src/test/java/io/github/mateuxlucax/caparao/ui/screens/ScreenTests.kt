@@ -1832,7 +1832,8 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             val rise = size * 0.16f * lift
             val boxHeight = size - room
             val scale = minOf(size / 80f, boxHeight / 90f)
-            val x = (size - 80f * scale) / 2f + viewX * scale
+            // The beaker's center line (x = 36 in the box) sits on the canvas center, over the scale.
+            val x = size / 2f + (viewX - 36f) * scale
             val y = -rise + (boxHeight - 90f * scale) / 2f + viewY * scale
             return bitmap.getPixel(x.toInt(), y.toInt())
         }
@@ -1850,16 +1851,17 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.onNodeWithText("${Format.grams(weight, locale)} / ${Format.grams(100.0, locale)} g").assertIsDisplayed()
         }
 
-        // Steep: the coffee darkens inside the smooth ring, and the countdown stays readable.
-        for (progress in listOf(0f, 1f)) {
-            current = state(2, weight = 300.0, progress = progress, elapsedMs = 100_000, dueInMs = 120_000)
+        // Steep: the coffee darkens on the shape with the brew toward the deadline, as the bar fills, and the countdown
+        // is the time left to it. The states are the ones StepTracker produces: dueInMs = deadline - elapsed.
+        for ((elapsed, stepProgress) in listOf(100_000L to 0f, 230_000L to 0.93f)) {
+            current = state(2, weight = 300.0, progress = stepProgress, elapsedMs = elapsed, dueInMs = 240_000 - elapsed)
             compose.waitForIdle()
             compose.onNodeWithTag("steep-shape").assertIsDisplayed()
             compose.onNodeWithTag("steep-press").assertIsDisplayed()
-            assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress, scheme.primary)))
+            assertTrue("steep at $elapsed", hasColor("steep-press", PressArt.steepColor(elapsed / 240_000f, scheme.primary)))
             // The lid is on from the steep on: its bar sits above the frame.
-            assertEquals("the lid $progress", scheme.outline.toArgb(), pixelAt("steep-press", 24f, 19.5f, lift = 0f, scaleRoom = 0f))
-            compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
+            assertEquals("the lid at $elapsed", scheme.outline.toArgb(), pixelAt("steep-press", 24f, 19.5f, lift = 0f, scaleRoom = 0f))
+            compose.onNodeWithText(Format.timer(((240_000 - elapsed) / 1000).toInt())).assertIsDisplayed()
         }
         assertTrue(PressArt.steepColor(1f, scheme.primary).luminance() < PressArt.steepColor(0f, scheme.primary).luminance())
 
@@ -1883,7 +1885,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
 
     /** Filter waits and swirls count down on the smooth ring; the French press steep has its own clock (#302). */
     @Test
-    fun guideCountdownRingCoversWaitSwirlAndSteep() {
+    fun guideCountdownCoversWaitSwirlAndSteep() {
         val cases = listOf(
             Triple(BrewMode.FILTER, RecipeStep(StepKind.WAIT, null, 0), R.string.guide_wait),
             Triple(BrewMode.FILTER, RecipeStep(StepKind.SWIRL, null, 0), R.string.guide_swirl),
@@ -1930,7 +1932,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                     BrewUiState(
                         mode = BrewMode.FRENCH_PRESS, step = BrewStep.LIVE, phase = BrewPhase.BREWING, connected = true,
                         weightGrams = 300.0, elapsedMs = 137_000, recipe = recipe,
-                        guide = StepState(index = 1, progress = 0.5f, dueInMs = 120_000, pace = null, paceMs = null, overshootGrams = null),
+                        guide = StepState(index = 1, progress = 0.5f, dueInMs = 103_000, pace = null, paceMs = null, overshootGrams = null),
                     )
                 ) {}
             }
@@ -1941,7 +1943,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onAllNodesWithTag("countdown-ring").assertCountEquals(0)
         compose.onNodeWithText(Format.timer(240)).assertIsDisplayed()
         compose.onAllNodesWithText(Format.grams(300.0, locale), substring = true).assertCountEquals(0)
-        compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
+        compose.onNodeWithText(Format.timer(103)).assertIsDisplayed()
         compose.onAllNodesWithText(Format.timer(137)).assertCountEquals(0)
     }
 

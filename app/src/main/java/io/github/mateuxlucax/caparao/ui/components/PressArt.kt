@@ -57,7 +57,8 @@ object PressArt {
         plunger: Float,
     ) {
         val scale = min(box.width / VIEW_WIDTH, box.height / VIEW_HEIGHT)
-        val left = box.left + (box.width - VIEW_WIDTH * scale) / 2f
+        // The beaker and its rod sit on the box's center line, over the scale; the handle hangs off to the right.
+        val left = box.left + box.width / 2f - CENTER_X * scale
         val top = box.top + (box.height - VIEW_HEIGHT * scale) / 2f
         translate(left, top) {
             scale(scale, pivot = Offset.Zero) {

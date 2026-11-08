@@ -182,7 +182,7 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
         // The steep is one clock (#302): the press on its shape, the countdown and the bar up to the deadline.
-        if (state.mode == BrewMode.FRENCH_PRESS) {
+        if (steep) {
             SteepClock(step, guide, state.elapsedMs)
         } else {
             CountdownRing(guide.progress, color) {
@@ -243,8 +243,8 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
         }
     }
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
-    // The French press steep has one clock, the countdown in the ring: no total elapsed note on that step (#302).
-    if (!(step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS)) {
+    // The French press steep has one clock, its countdown and bar: no total elapsed note on that step (#302).
+    if (!steep) {
         Note(Format.timer((state.elapsedMs / 1000).toInt()))
     }
 }
@@ -405,7 +405,7 @@ private fun FrenchPressReady(state: BrewUiState) {
             pulse.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         }
         val colors = MaterialTheme.colorScheme
-        PressOnShape(STEEP_DEADLINE_SHAPE, pulse.value, PressArt.steepColor(1f, colors.primary), "press-deadline-art")
+        PressOnShape(STEEP_DEADLINE_SHAPE, { pulse.value }, PressArt.steepColor(1f, colors.primary), "press-deadline-art")
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(stringResource(R.string.guide_time_up), style = MaterialTheme.typography.titleLarge, color = colors.onSurfaceVariant)
         Text(
@@ -432,7 +432,7 @@ private fun RemovedPress() {
     }
     PressOnShape(
         STEEP_SERVE_SHAPE,
-        enter.value,
+        { enter.value },
         PressArt.steepColor(1f, MaterialTheme.colorScheme.primary),
         "press-serve-shape",
         Modifier.testTag("press-serve"),
@@ -500,7 +500,10 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
         breath.animateTo(if (last) 1.12f else 1.04f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         breath.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, if (last) Spring.StiffnessMedium else Spring.StiffnessLow))
     }
-    PressOnShape((elapsedMs / 60_000L).toInt(), breath.value, PressArt.steepColor(guide.progress, colors.primary), "steep-shape", Modifier.testTag("steep-press"))
+    // The coffee and the bar share one clock: the brew from the first water to the deadline.
+    val deadline = step.targetAtMs.coerceAtLeast(1L)
+    val brewed = (elapsedMs.toFloat() / deadline).coerceIn(0f, 1f)
+    PressOnShape((elapsedMs / 60_000L).toInt(), { breath.value }, PressArt.steepColor(brewed, colors.primary), "steep-shape", Modifier.testTag("steep-press"))
     Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(
         Format.timer(secondsLeft),
@@ -508,9 +511,8 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
         color = colors.primary,
         maxLines = 1,
     )
-    val deadline = step.targetAtMs.coerceAtLeast(1L)
     val fill by animateFloatAsState(
-        (elapsedMs.toFloat() / deadline).coerceIn(0f, 1f),
+        brewed,
         Motion.standardOrSnap(still, 200),
         label = "steepBar",
     )
@@ -534,21 +536,23 @@ private const val STEEP_SERVE_SHAPE = 0
 
 /**
  * The press on a slowly turning morphing shape, shared by the steep, the deadline and serving (#302). [index] picks the
- * shape, [scale] is the caller's breath or pulse and [plunger] lowers the mesh; the shape holds still with animations off.
+ * shape, [scale] reads the caller's breath or pulse and [plunger] lowers the mesh; the shape holds still with animations off.
  */
 @Composable
-private fun PressOnShape(index: Int, scale: Float, coffee: Color, shapeTag: String, pressModifier: Modifier = Modifier, plunger: Float = 0f) {
-    val turn = if (animationsOff()) 0f else {
+private fun PressOnShape(index: Int, scale: () -> Float, coffee: Color, shapeTag: String, pressModifier: Modifier = Modifier, plunger: Float = 0f) {
+    // The turn and the scale are read in the layer only, so they redraw the shape without recomposing the screen.
+    val turn = if (animationsOff()) null else {
         val transition = rememberInfiniteTransition(label = "pressShapeTurn")
-        transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn").value
+        transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn")
     }
     Box(Modifier.padding(vertical = 8.dp).size(136.dp), contentAlignment = Alignment.Center) {
         MorphingShape(
             index,
             Modifier.matchParentSize().graphicsLayer {
-                rotationZ = turn
-                scaleX = scale
-                scaleY = scale
+                rotationZ = turn?.value ?: 0f
+                val s = scale()
+                scaleX = s
+                scaleY = s
             }.testTag(shapeTag),
             MaterialTheme.colorScheme.primaryContainer,
         )
