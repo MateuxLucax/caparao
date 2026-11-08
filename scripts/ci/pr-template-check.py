@@ -17,6 +17,7 @@ STATUSES = ("✅", "❌", "⏭️", "⏭")
 CLOSING = re.compile(r"\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+", re.IGNORECASE)
 NOT_APPLICABLE = re.compile(r"\bN/A\b|\bNA\b")
 LINK = re.compile(r"https?://\S+")
+FENCE = re.compile(r"(?P<fence>```|~~~)[^\n]*\n(.*?)(?P=fence)", re.DOTALL)
 IMAGE = re.compile(r"!\[[^\]]*\]\([^)]+\)|<img\s[^>]*src=|<video\s|https://github\.com/user-attachments/", re.IGNORECASE)
 
 
@@ -29,11 +30,15 @@ def sections(body: str) -> dict[str, str]:
     found: dict[str, str] = {}
     current = None
     lines: list[str] = []
-    fenced = False
+    fence: str | None = None
     for line in body.splitlines():
-        if line.lstrip().startswith("```"):
-            fenced = not fenced
-        heading = None if fenced else re.fullmatch(r"##\s+(.+?)\s*#*\s*", line)
+        stripped = line.lstrip()
+        if fence is not None:
+            if stripped.startswith(fence):
+                fence = None
+        elif stripped.startswith("```") or stripped.startswith("~~~"):
+            fence = stripped[:3]
+        heading = None if fence is not None else re.fullmatch(r"##\s+(.+?)\s*#*\s*", line)
         if heading:
             if current is not None:
                 found[current] = "\n".join(lines).strip()
@@ -84,8 +89,8 @@ def check(body: str, required: list[str] | None = None) -> list[str]:
             problems.append(f"## Test scenarios: {row[0] or 'a row'} is not run; say why")
 
     evidence = found.get("Evidence", "")
-    blocks = re.findall(r"```[^\n]*\n(.*?)```", evidence, flags=re.DOTALL)
-    outside = re.sub(r"```.*?```", "", evidence, flags=re.DOTALL).strip()
+    blocks = [match.group(2) for match in FENCE.finditer(evidence)]
+    outside = FENCE.sub("", evidence).strip()
     if "Evidence" in found and not any(block.strip() for block in blocks) and not LINK.search(outside):
         problems.append("## Evidence: paste command output in a code block, or link CI runs or logs")
 
@@ -104,7 +109,7 @@ def check(body: str, required: list[str] | None = None) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    body = open(argv[1], encoding="utf-8").read() if len(argv) > 1 else os.environ.get("PR_BODY", "")
+    body = Path(argv[1]).read_text(encoding="utf-8") if len(argv) > 1 else os.environ.get("PR_BODY", "")
     problems = check(body)
     for problem in problems:
         print(problem)
