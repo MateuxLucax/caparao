@@ -28,6 +28,8 @@ class CaptureScenarioTests(unittest.TestCase):
         self.assertIn('tap_text("Free brew")', source)
         self.assertIn('wait_for_text("Weigh the beans")', source)
         self.assertIn('wait_for_text("Prepare the portafilter")', source)
+        self.assertIn('tap_text("Cup\'s on")', source)
+        self.assertIn("advance_clock(1000)", source)
         self.assertIn('wait_for_text("Start the shot")', source)
 
     def test_filter_spoon_uses_a_free_filter_brew(self):

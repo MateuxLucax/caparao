@@ -258,6 +258,9 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 wait_for_text("Put the cup on the scale")
                 # The cup is already there: arm from that reading instead of waiting for the steady-cup tare.
                 tap_text("Cup's on")
+                # The cup's own readings become zero after the tare offset; let the scenario feed them so the tare
+                # completes and the shot screen opens before the checkpoints start.
+                advance_clock(1000)
                 wait_for_text("Start the shot")
                 time.sleep(0.5)
             elif path.stem in ("filter", "filter-spoon"):
