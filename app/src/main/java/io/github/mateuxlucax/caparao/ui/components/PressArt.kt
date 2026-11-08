@@ -40,7 +40,7 @@ object PressArt {
      * (#302). [progress] is 0..1 of the steep.
      */
     fun steepColor(progress: Float, primary: Color): Color =
-        lerp(lerp(primary, Color.White, 0.6f), lerp(primary, Color.Black, 0.35f), progress.coerceIn(0f, 1f))
+        lerp(lerp(primary, Color.White, 0.3f), lerp(primary, Color.Black, 0.45f), progress.coerceIn(0f, 1f))
 
     /**
      * The press in [box], drawn in its 80 × 90 viewBox. [metal] is the frame, lid, rod and mesh; [glass] the beaker,
