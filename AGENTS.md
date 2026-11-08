@@ -90,7 +90,9 @@ same comment.
 
 - Screen flows are covered by JVM Robolectric tests (`ScreenTests`, `WatchTests`): no emulator, they run in the cloud too.
   Cloud sessions build and test with the Android SDK setup script; the Mac is only for the emulator and real devices.
-- PRs do not require a screenshot table. If a change is visual, attach evidence from a device or emulator run when useful.
+- Every PR description fills `.github/pull_request_template.md`, enforced by the PR template check, which runs from `main`. Never pass a free-form
+  `gh pr create --body`: use `--body-file` with the filled template. A visible change needs before/after screens from a
+  device or emulator run under Screenshots; changes with nothing to show write `N/A`.
 - The emulator is for instrumented tests, `scripts/e2e.sh` and on-device checks; with the phone also plugged in, set
   `ANDROID_SERIAL`. adb is at `~/Library/Android/sdk/platform-tools/adb`.
 - The user's phone (Galaxy S23): ask before installing anything on it.

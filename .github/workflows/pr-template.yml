@@ -1,0 +1,36 @@
+name: PR template
+
+# Every PR description follows .github/pull_request_template.md (#304). It reruns when the description is edited.
+# pull_request_target runs the base branch's workflow, script and template, so a PR cannot weaken its own check. It
+# never checks out or runs the PR's code: it reads only the description, through the environment.
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-template-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  template:
+    # Dependency bots write their own descriptions.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The base branch (the default ref for pull_request_target): only the checker and the template it reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/ci/pr-template-check.py
+            .github/pull_request_template.md
+
+      - name: Check the description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/ci/pr-template-check.py
