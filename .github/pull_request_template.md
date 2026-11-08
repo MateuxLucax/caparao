@@ -1,6 +1,8 @@
 ## Objective
 
-<!-- What this PR delivers, in one or two sentences. -->
+<!-- What this PR delivers, in one or two sentences, and the issue it closes. -->
+
+Closes #<n>
 
 ## Description
 

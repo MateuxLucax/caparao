@@ -125,7 +125,7 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Install the Wear OS app over Wi-Fi | `scripts/install-watch.sh` |
 | Install git hooks and the secret scan | `scripts/setup-hooks.sh` |
 | Create the release key, or build a signed release APK | `scripts/release-key.sh`, `scripts/release-apk.sh` |
-| CI internals: emulator E2E wrapper and bounded, sanitized diagnostics | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`) |
+| CI internals: emulator E2E wrapper, bounded, sanitized diagnostics and the PR description check | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`, `pr-template-check.py`) |
 | Record a scale session and its Python dependencies | `scripts/capture/` (`capture-session.py`, `requirements-capture.txt`) |
 | Capture scripted scale scenarios on an emulator | `scripts/capture/capture-scenarios.py` |
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |

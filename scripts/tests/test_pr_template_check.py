@@ -83,6 +83,34 @@ class PrTemplateCheckTest(unittest.TestCase):
     def test_closing_keyword_is_required(self) -> None:
         self.assertIn("Link the issue this PR closes: Closes #<n>", checker.check(FILLED.replace("Closes #302", "See #302")))
 
+    def test_sections_come_from_the_template(self) -> None:
+        self.assertEqual(
+            ["Objective", "Description", "Test scenarios", "Evidence", "Screenshots", "Out of scope"],
+            checker.template_sections(),
+        )
+
+    def test_template_prompts_for_the_closing_link(self) -> None:
+        template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        self.assertIn("Closes #<n>", template)
+
+    def test_headings_inside_code_blocks_are_not_sections(self) -> None:
+        body = FILLED.replace("check.sh passed in 203s\n", "check.sh passed in 203s\n## Screenshots\nN/A\n")
+        body = body.replace('| <img src="https://github.com/user-attachments/assets/a" /> | <img src="https://github.com/user-attachments/assets/b" /> |', "| | |")
+        self.assertTrue(any("Screenshots" in p for p in checker.check(body)))
+
+    def test_not_applicable_is_case_sensitive(self) -> None:
+        row = '| <img src="https://github.com/user-attachments/assets/a" /> | <img src="https://github.com/user-attachments/assets/b" /> |'
+        self.assertTrue(any("Screenshots" in p for p in checker.check(FILLED.replace(row, "| na | na |"))))
+        self.assertEqual([], checker.check(FILLED.replace(row, "| NA | NA |")))
+
+    def test_evidence_needs_output_or_a_link(self) -> None:
+        block = "```text\ncheck.sh passed in 203s\n```"
+        self.assertTrue(any("Evidence" in p for p in checker.check(FILLED.replace(block, "TBD"))))
+        self.assertEqual([], checker.check(FILLED.replace(block, "CI: https://github.com/MateuxLucax/caparao/actions/runs/1")))
+
+    def test_short_objective_passes(self) -> None:
+        self.assertEqual([], checker.check(FILLED.replace("Show one clock on the French press steep screen.", "Fix typo.")))
+
     def test_comments_do_not_count_as_content(self) -> None:
         body = FILLED.replace("check.sh passed in 203s\n", "").replace("```text\n```", "<!-- logs here -->")
         self.assertTrue(any("Evidence" in p for p in checker.check(body)))
