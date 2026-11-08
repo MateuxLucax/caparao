@@ -1887,7 +1887,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         val cases = listOf(
             Triple(BrewMode.FILTER, RecipeStep(StepKind.WAIT, null, 0), R.string.guide_wait),
             Triple(BrewMode.FILTER, RecipeStep(StepKind.SWIRL, null, 0), R.string.guide_swirl),
-            Triple(BrewMode.FRENCH_PRESS, RecipeStep(StepKind.PRESS, null, 240_000), R.string.guide_steep),
+            Triple(BrewMode.FRENCH_PRESS, RecipeStep(StepKind.PRESS, null, 240_000), R.string.guide_steep_text),
         )
         fun stateFor(index: Int): BrewUiState {
             val (mode, step) = cases[index]

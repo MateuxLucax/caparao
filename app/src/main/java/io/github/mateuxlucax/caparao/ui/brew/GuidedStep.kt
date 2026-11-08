@@ -168,16 +168,16 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
         Motion.standardOrSnap(still, 500),
         label = "kind",
     )
-    // A French press steeps until its deadline: say so instead of naming the press still to come.
-    val stage = if (step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS) R.string.guide_steep else step.kind.label
-    val stepTitle = stringResource(stage)
-    Text(
-        stepTitle,
-        style = MaterialTheme.typography.labelLarge,
-        color = colors.onSurfaceVariant,
-    )
-    // The French press steep shows only its clock (#302): the water is already in.
+    val stepTitle = stringResource(step.kind.label)
+    // The French press steep shows only its clock (#302): "Let it steep" names the step and the water is already in.
     val steep = step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS
+    if (!steep) {
+        Text(
+            stepTitle,
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.onSurfaceVariant,
+        )
+    }
     if (!steep) previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
