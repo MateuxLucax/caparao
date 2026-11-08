@@ -1,0 +1,32 @@
+name: PR template
+
+# Every PR description follows .github/pull_request_template.md. It reruns when the description is edited.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-template-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  template:
+    # Dependency bots write their own descriptions.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/pr-template-check.py
+
+      # The body goes through the environment, never into the shell command, so it cannot inject code.
+      - name: Check the description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/ci/pr-template-check.py
