@@ -1872,12 +1872,12 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("press-delay").assertIsDisplayed()
         compose.onNodeWithText("+${Format.timer(15)}").assertIsDisplayed()
 
-        // Removal: the carafe has left the scale and the plunger sits in the coffee, in both settings.
+        // Removal: the press on its shape with the plunger in the coffee, in both settings (#302).
         current = state(3, weight = 0.0, elapsedMs = 270_000, removed = true)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithTag("guided-server").assertIsDisplayed()
-        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("guided-cup", 30f, 74f, lift = 1f))
+        compose.onNodeWithTag("press-serve-shape").assertIsDisplayed()
+        assertEquals("the plunger plate", scheme.outline.toArgb(), pixelAt("press-serve", 30f, 74f, lift = 0f, scaleRoom = 0f))
         compose.onNodeWithText(text(R.string.guide_press_serve_text)).assertIsDisplayed()
     }
 

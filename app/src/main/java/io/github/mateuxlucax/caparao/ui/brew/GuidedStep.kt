@@ -388,8 +388,8 @@ internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window
 private fun FrenchPressReady(state: BrewUiState) {
     if (state.frenchPressRemoved || state.frenchPressRemovalPending) {
         RemovedPress()
-        Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.guide_press_serve), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(Format.timer((state.elapsedMs / 1000).toInt()), style = MaterialTheme.typography.displayMedium.merge(Tabular), color = MaterialTheme.colorScheme.primary)
         Note(stringResource(R.string.guide_press_serve_text))
     } else {
         val deadlineMs = state.recipe?.steps?.lastOrNull()?.targetAtMs ?: state.elapsedMs
@@ -417,20 +417,27 @@ private fun FrenchPressReady(state: BrewUiState) {
     }
 }
 
-/** The carafe rises off the scale, and only then the plunger lowers, once, with the theme's spring. */
+/** Serving keeps the steep's look (#302): the press springs in on its shape, then the plunger lowers once. */
 @Composable
 private fun RemovedPress() {
     val still = animationsOff()
-    val lift = remember { Animatable(if (still) 1f else 0f) }
+    val enter = remember { Animatable(if (still) 1f else 0.6f) }
     val plunger = remember { Animatable(if (still) 1f else 0f) }
     val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     LaunchedEffect(still) {
         if (!still) {
-            lift.animateTo(1f, tween(450, easing = Motion.EmphasizedDecelerate))
+            enter.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
             plunger.animateTo(1f, spatial)
         }
     }
-    PressOnScale(1f, PressArt.steepColor(1f, MaterialTheme.colorScheme.primary), plunger = plunger.value, lid = true, lift = lift.value)
+    PressOnShape(
+        STEEP_SERVE_SHAPE,
+        enter.value,
+        PressArt.steepColor(1f, MaterialTheme.colorScheme.primary),
+        "press-serve-shape",
+        Modifier.testTag("press-serve"),
+        plunger = plunger.value,
+    )
 }
 
 @Composable
@@ -523,13 +530,14 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
 private const val STEEP_TURN_MS = 24_000
 private const val STEEP_LAST_MS = 5_000L
 private const val STEEP_DEADLINE_SHAPE = 7
+private const val STEEP_SERVE_SHAPE = 0
 
 /**
- * The press on a slowly turning morphing shape, shared by the steep and the deadline (#302). [index] picks the shape,
- * [scale] is the caller's breath or pulse; the shape holds still with animations off.
+ * The press on a slowly turning morphing shape, shared by the steep, the deadline and serving (#302). [index] picks the
+ * shape, [scale] is the caller's breath or pulse and [plunger] lowers the mesh; the shape holds still with animations off.
  */
 @Composable
-private fun PressOnShape(index: Int, scale: Float, coffee: Color, shapeTag: String, pressModifier: Modifier = Modifier) {
+private fun PressOnShape(index: Int, scale: Float, coffee: Color, shapeTag: String, pressModifier: Modifier = Modifier, plunger: Float = 0f) {
     val turn = if (animationsOff()) 0f else {
         val transition = rememberInfiniteTransition(label = "pressShapeTurn")
         transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn").value
@@ -544,7 +552,7 @@ private fun PressOnShape(index: Int, scale: Float, coffee: Color, shapeTag: Stri
             }.testTag(shapeTag),
             MaterialTheme.colorScheme.primaryContainer,
         )
-        PressOnScale(1f, coffee, pressModifier, lid = true, size = 80.dp, showScale = false)
+        PressOnScale(1f, coffee, pressModifier, plunger = plunger, lid = true, size = 80.dp, showScale = false)
     }
 }
 
