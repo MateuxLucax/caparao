@@ -35,8 +35,12 @@ import kotlin.math.min
  * scale on removal and then lowers its plunger (#226).
  */
 object PressArt {
-    /** Coffee as it steeps: pale at the first water, dark at the deadline. [progress] is 0..1 of the steep. */
-    fun steepColor(progress: Float): Color = lerp(Color(0xFFD9B98A), Color(0xFF5A3A22), progress.coerceIn(0f, 1f))
+    /**
+     * Coffee as it steeps, in the theme's [primary]: a light tint at the first water, a deep shade at the deadline
+     * (#302). [progress] is 0..1 of the steep.
+     */
+    fun steepColor(progress: Float, primary: Color): Color =
+        lerp(lerp(primary, Color.White, 0.6f), lerp(primary, Color.Black, 0.35f), progress.coerceIn(0f, 1f))
 
     /**
      * The press in [box], drawn in its 80 × 90 viewBox. [metal] is the frame, lid, rod and mesh; [glass] the beaker,

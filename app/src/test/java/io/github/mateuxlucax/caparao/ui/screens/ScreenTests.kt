@@ -1856,18 +1856,18 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             compose.waitForIdle()
             compose.onNodeWithTag("steep-shape").assertIsDisplayed()
             compose.onNodeWithTag("steep-press").assertIsDisplayed()
-            assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress)))
+            assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress, scheme.primary)))
             // The lid is on from the steep on: its bar sits above the frame.
             assertEquals("the lid $progress", scheme.outline.toArgb(), pixelAt("steep-press", 24f, 19.5f, lift = 0f, scaleRoom = 0f))
             compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
         }
-        assertTrue(PressArt.steepColor(1f).luminance() < PressArt.steepColor(0f).luminance())
+        assertTrue(PressArt.steepColor(1f, scheme.primary).luminance() < PressArt.steepColor(0f, scheme.primary).luminance())
 
         // Deadline: the carafe at its darkest, the delay in view.
         current = state(3, weight = 300.0, elapsedMs = 255_000)
         compose.waitForIdle()
         compose.onNodeWithTag("press-deadline-art").assertIsDisplayed()
-        assertTrue(hasColor("guided-cup", PressArt.steepColor(1f)))
+        assertTrue(hasColor("guided-cup", PressArt.steepColor(1f, scheme.primary)))
         compose.onNodeWithText(text(R.string.guide_remove_press)).assertIsDisplayed()
         compose.onNodeWithTag("press-delay").assertIsDisplayed()
         compose.onNodeWithText("+${Format.timer(15)}").assertIsDisplayed()
@@ -1940,6 +1940,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithTag("steep-progress").assertIsDisplayed()
         compose.onAllNodesWithTag("countdown-ring").assertCountEquals(0)
         compose.onNodeWithText(Format.timer(240)).assertIsDisplayed()
+        compose.onAllNodesWithText(Format.grams(300.0, locale), substring = true).assertCountEquals(0)
         compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
         compose.onAllNodesWithText(Format.timer(137)).assertCountEquals(0)
     }

@@ -176,7 +176,9 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
         style = MaterialTheme.typography.labelLarge,
         color = colors.onSurfaceVariant,
     )
-    previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
+    // The French press steep shows only its clock (#302): the water is already in.
+    val steep = step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS
+    if (!steep) previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
         // The steep is one clock (#302): the press on its shape, the countdown and the bar up to the deadline.
@@ -411,7 +413,7 @@ private fun FrenchPressReady(state: BrewUiState) {
                 val t = spread.value
                 if (t < 1f) drawCircle(burst.copy(alpha = 0.25f * (1f - t)), radius = size.minDimension / 2 * t, center = center)
             }
-            PressOnScale(1f, PressArt.steepColor(1f), lid = true)
+            PressOnScale(1f, PressArt.steepColor(1f, MaterialTheme.colorScheme.primary), lid = true)
         }
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(
@@ -441,7 +443,7 @@ private fun RemovedPress() {
             plunger.animateTo(1f, spatial)
         }
     }
-    PressOnScale(1f, PressArt.steepColor(1f), plunger = plunger.value, lid = true, lift = lift.value)
+    PressOnScale(1f, PressArt.steepColor(1f, MaterialTheme.colorScheme.primary), plunger = plunger.value, lid = true, lift = lift.value)
 }
 
 @Composable
@@ -518,7 +520,7 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
             }.testTag("steep-shape"),
             colors.primaryContainer,
         )
-        PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 80.dp, showScale = false)
+        PressOnScale(1f, PressArt.steepColor(guide.progress, colors.primary), Modifier.testTag("steep-press"), lid = true, size = 80.dp, showScale = false)
     }
     Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(
