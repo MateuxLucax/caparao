@@ -75,7 +75,7 @@ data class BrewUiState(
                 guide?.allDone(guided.size) == true
         }
 
-    /** The red deadline state, off while a removal candidate is being confirmed so a press lifted before it never flashes red (#279). */
+    /** The deadline state, off while a removal candidate is being confirmed so a press lifted before it never shows it (#279). */
     val pressDeadline: Boolean
         get() = frenchPressDeadlineReached && !frenchPressRemoved && !frenchPressRemovalPending
 

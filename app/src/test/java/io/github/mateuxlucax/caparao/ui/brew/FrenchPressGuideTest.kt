@@ -62,7 +62,8 @@ abstract class FrenchPressGuideTest(
     @Test
     fun steepingShowsTheCurrentWaitAndNoPressInstruction() {
         show(state(recipe.steps.lastIndex))
-        compose.onNodeWithText(steepLabel, substring = true).assertIsDisplayed()
+        // "Let it steep" names the step: no separate stage label (#302).
+        compose.onAllNodesWithText(steepLabel).assertCountEquals(0)
         compose.onNodeWithText(steepText).assertIsDisplayed()
         compose.onNodeWithText("02:42").assertIsDisplayed()
         compose.onAllNodesWithText(prematurePress, substring = true).assertCountEquals(0)
