@@ -396,36 +396,23 @@ private fun FrenchPressReady(state: BrewUiState) {
         val delayMs = (state.elapsedMs - deadlineMs).coerceAtLeast(0L)
         val repeats = (delayMs / BrewViewModel.FRENCH_PRESS_ALERT_INTERVAL_MS).toInt()
         val still = animationsOff()
-        // The deadline colors the screen from the carafe, and each repeat of the alert pulses the delay.
-        val spread = remember { Animatable(if (still) 1f else 0f) }
-        val pulse = remember { Animatable(1f) }
-        val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-        LaunchedEffect(still) { if (!still) spread.animateTo(1f, tween(700, easing = Motion.EmphasizedDecelerate)) }
+        // The deadline keeps the steep's look (#302): the press on its shape, which springs in and pulses with each
+        // repeat of the alert, as does the delay.
+        val pulse = remember { Animatable(if (still) 1f else 0.6f) }
         LaunchedEffect(repeats, still) {
-            if (!still && repeats > 0) {
-                pulse.snapTo(1.18f)
-                pulse.animateTo(1f, spatial)
-            }
+            if (still) return@LaunchedEffect pulse.snapTo(1f)
+            if (repeats > 0) pulse.snapTo(1.18f)
+            pulse.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         }
-        val burst = MaterialTheme.colorScheme.onErrorContainer
-        Box(Modifier.testTag("press-deadline-art"), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(200.dp)) {
-                val t = spread.value
-                if (t < 1f) drawCircle(burst.copy(alpha = 0.25f * (1f - t)), radius = size.minDimension / 2 * t, center = center)
-            }
-            PressOnScale(1f, PressArt.steepColor(1f, MaterialTheme.colorScheme.primary), lid = true)
-        }
+        val colors = MaterialTheme.colorScheme
+        PressOnShape(STEEP_DEADLINE_SHAPE, pulse.value, PressArt.steepColor(1f, colors.primary), "press-deadline-art")
         Text(stringResource(R.string.guide_remove_press), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        Text(
-            stringResource(R.string.guide_time_up),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-        )
+        Text(stringResource(R.string.guide_time_up), style = MaterialTheme.typography.titleLarge, color = colors.onSurfaceVariant)
         Text(
             if (delayMs == 0L) Format.timer((deadlineMs / 1000).toInt()) else "+${Format.timer((delayMs / 1000).toInt())}",
-            Modifier.graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }.testTag("press-delay"),
+            Modifier.graphicsLayer { scaleX = pulse.value.coerceAtLeast(1f); scaleY = pulse.value.coerceAtLeast(1f) }.testTag("press-delay"),
             style = MaterialTheme.typography.displayMedium.merge(Tabular),
-            color = MaterialTheme.colorScheme.onErrorContainer,
+            color = colors.primary,
         )
     }
 }
@@ -499,10 +486,6 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
     val still = animationsOff()
     val dueMs = guide.dueInMs ?: 0L
     val secondsLeft = seconds(dueMs)
-    val turn = if (still) 0f else {
-        val transition = rememberInfiniteTransition(label = "steepTurn")
-        transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn").value
-    }
     val breath = remember { Animatable(1f) }
     LaunchedEffect(secondsLeft, still) {
         if (still || dueMs <= 0L) return@LaunchedEffect breath.snapTo(1f)
@@ -510,18 +493,7 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
         breath.animateTo(if (last) 1.12f else 1.04f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
         breath.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, if (last) Spring.StiffnessMedium else Spring.StiffnessLow))
     }
-    Box(Modifier.padding(vertical = 8.dp).size(136.dp), contentAlignment = Alignment.Center) {
-        MorphingShape(
-            (elapsedMs / 60_000L).toInt(),
-            Modifier.matchParentSize().graphicsLayer {
-                rotationZ = turn
-                scaleX = breath.value
-                scaleY = breath.value
-            }.testTag("steep-shape"),
-            colors.primaryContainer,
-        )
-        PressOnScale(1f, PressArt.steepColor(guide.progress, colors.primary), Modifier.testTag("steep-press"), lid = true, size = 80.dp, showScale = false)
-    }
+    PressOnShape((elapsedMs / 60_000L).toInt(), breath.value, PressArt.steepColor(guide.progress, colors.primary), "steep-shape", Modifier.testTag("steep-press"))
     Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     Text(
         Format.timer(secondsLeft),
@@ -550,6 +522,31 @@ private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
 
 private const val STEEP_TURN_MS = 24_000
 private const val STEEP_LAST_MS = 5_000L
+private const val STEEP_DEADLINE_SHAPE = 7
+
+/**
+ * The press on a slowly turning morphing shape, shared by the steep and the deadline (#302). [index] picks the shape,
+ * [scale] is the caller's breath or pulse; the shape holds still with animations off.
+ */
+@Composable
+private fun PressOnShape(index: Int, scale: Float, coffee: Color, shapeTag: String, pressModifier: Modifier = Modifier) {
+    val turn = if (animationsOff()) 0f else {
+        val transition = rememberInfiniteTransition(label = "pressShapeTurn")
+        transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn").value
+    }
+    Box(Modifier.padding(vertical = 8.dp).size(136.dp), contentAlignment = Alignment.Center) {
+        MorphingShape(
+            index,
+            Modifier.matchParentSize().graphicsLayer {
+                rotationZ = turn
+                scaleX = scale
+                scaleY = scale
+            }.testTag(shapeTag),
+            MaterialTheme.colorScheme.primaryContainer,
+        )
+        PressOnScale(1f, coffee, pressModifier, lid = true, size = 80.dp, showScale = false)
+    }
+}
 
 /** Filter pours fill the server with the step's color; the color is the only target cue (#208). */
 @Composable
