@@ -48,6 +48,43 @@ def require_emulator(adb: str, serial: str, run: Callable[..., subprocess.Comple
         raise ValueError("ANDROID_SERIAL is not an attached adb device")
 
 
+def parse_app_locales(output: str) -> str:
+    """The locale list from `cmd locale get-app-locales`, as `set-app-locales --locales` expects it."""
+    match = re.search(r"are\s+\[(.*?)]", output)
+    if match is None:
+        match = re.search(r"\[(.*?)]", output)
+    return (match.group(1) if match is not None else output).strip()
+
+
+def app_locales(
+    adb: str,
+    serial: str,
+    package: str = PACKAGE,
+    run: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> str:
+    result = run(
+        [adb, "-s", serial, "shell", "cmd", "locale", "get-app-locales", package],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return parse_app_locales(result.stdout)
+
+
+def set_app_locales(
+    adb: str,
+    serial: str,
+    locales: str,
+    package: str = PACKAGE,
+    run: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> None:
+    command = [adb, "-s", serial, "shell", "cmd", "locale", "set-app-locales", package]
+    # Without --locales the command clears the app override and follows the device again.
+    if locales:
+        command += ["--locales", locales]
+    run(command, check=True, text=True, capture_output=True)
+
+
 def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = None, port: int = 18765) -> list[Path]:
     serial = serial or os.environ.get("ANDROID_SERIAL", "")
     require_emulator(adb, serial)
@@ -85,20 +122,20 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 raise RuntimeError(f"app did not show {value!r}")
             time.sleep(0.2)
 
-    def wait_for_bottom(value: str, *, timeout: float = 10) -> ET.Element:
-        # The progress bar labels the last milestone "Done" too; the live screen's button is the one near the bottom.
+    def wait_for_any(values: tuple[str, ...], *, timeout: float = 10) -> str:
         deadline = time.monotonic() + timeout
         while True:
             root = hierarchy()
-            if any(
-                (bounds_of(node) or (0, 0, 0, 0))[3] > 1600
-                for node in root.iter("node")
-                if node.get("text") == value
-            ):
-                return root
+            visible = {node.get("text", "") for node in root.iter("node")}
+            for value in values:
+                if value in visible:
+                    return value
             if time.monotonic() >= deadline:
-                raise RuntimeError(f"app did not show the {value!r} button")
+                raise RuntimeError(f"app did not show any of {values!r}")
             time.sleep(0.2)
+
+    def has_text(value: str) -> bool:
+        return any(node.get("text") == value for node in hierarchy().iter("node"))
 
     def tap_text(value: str) -> None:
         root = wait_for_text(value)
@@ -155,6 +192,14 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             api("POST", "/reading", {"weight_g": grams})
         time.sleep(0.6)
 
+    def settle_tare() -> None:
+        # Ready arms the filter or press detector; the scenario load below resets the scale, so the steady zero that
+        # confirms the tare has to happen first. The first reading asks for the tare, the next two hold zero (#306).
+        for _ in range(3):
+            api("POST", "/reading", {"weight_g": 0})
+            advance_clock(600)
+        time.sleep(0.2)
+
     try:
         deadline = time.monotonic() + 10
         while True:
@@ -176,7 +221,7 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
             time.sleep(0.2)
 
         scenario = json.loads(path.read_text())
-        mode_label = {"filter": "Filter", "espresso": "Espresso", "french-press": "Press"}.get(path.stem)
+        mode_label = {"filter": "Filter", "filter-spoon": "Filter", "espresso": "Espresso", "french-press": "Press"}.get(path.stem)
         if mode_label is not None:
             api("POST", "/event", {"event": "connected"})
             manual_reading()
@@ -192,7 +237,10 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 wait_for_text("1:15", contains=True)
             screenshot("dose")
             tap_text("Next")
-            wait_for_text("Weigh the beans")
+            if wait_for_any(("Which coffee?", "Weigh the beans")) == "Which coffee?":
+                tap_text("No bag")
+                tap_text("Next")
+                wait_for_text("Weigh the beans")
             dose = float(scenario.get("dose_g", 18))
             api("POST", "/reading", {"weight_g": dose})
             time.sleep(0.35)
@@ -212,17 +260,17 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 tap_text("Cup's on")
                 wait_for_text("Start the shot")
                 time.sleep(0.5)
-            elif path.stem == "filter":
+            elif path.stem in ("filter", "filter-spoon"):
                 wait_for_text("Prepare the filter")
                 screenshot("prepare-filter")
                 tap_text("Ready")
-                wait_for_bottom("Done")
+                settle_tare()
                 api("POST", "/scenario", path.read_bytes())
             else:
                 wait_for_text("Prepare the press")
                 screenshot("prepare-french-press")
                 tap_text("Ready")
-                wait_for_bottom("Done")
+                settle_tare()
                 api("POST", "/scenario", path.read_bytes())
         else:
             api("POST", "/scenario", path.read_bytes())
@@ -234,10 +282,10 @@ def capture(path: Path, output_dir: Path, adb: str = ADB, serial: str | None = N
                 continue
             advance_clock(at_ms - previous_ms)
             time.sleep(0.8)
-            if name == "summary" and path.stem == "filter":
-                # A lifted dripper pauses the brew; Done finishes it from the paused screen.
+            if name == "summary" and path.stem in ("filter", "filter-spoon") and not has_text("Saved"):
+                # A lifted dripper can end the brew already; only finish it from the paused screen.
                 tap_text("Done")
-            if name == "finished" or (path.stem == "filter" and name == "summary"):
+            if name == "finished" or (path.stem in ("filter", "filter-spoon") and name == "summary"):
                 wait_for_text("Saved", timeout=10)
             screenshot(name)
             previous_ms = at_ms
@@ -259,13 +307,27 @@ def main() -> int:
     args = parser.parse_args()
     serial = os.environ.get("ANDROID_SERIAL", "")
     output_dir = args.output_dir if args.output_dir.is_absolute() else ROOT / args.output_dir
+    previous_locales: str | None = None
+    restore_failed = False
     try:
         require_emulator(ADB, serial)
+        # The script matches English labels; put the app in English for the run and put back what it had afterwards.
+        previous_locales = app_locales(ADB, serial)
+        set_app_locales(ADB, serial, "en-US")
         scenarios = sorted(SCENARIO_DIR.glob("*.json")) if args.scenario == "all" else [SCENARIO_DIR / f"{args.scenario}.json"]
         files = [image for scenario in scenarios for image in capture(scenario, output_dir, ADB, serial, args.port)]
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         message = "adb command failed" if isinstance(error, subprocess.CalledProcessError) else str(error)
         print(f"capture failed: {type(error).__name__}: {message}", file=sys.stderr)
+        return 1
+    finally:
+        if previous_locales is not None:
+            try:
+                set_app_locales(ADB, serial, previous_locales)
+            except (OSError, subprocess.CalledProcessError) as error:
+                print(f"could not restore the app locale: {error}", file=sys.stderr)
+                restore_failed = True
+    if restore_failed:
         return 1
     print(f"Captured {len(files)} states in {output_dir.relative_to(ROOT)}")
     for path in files:
