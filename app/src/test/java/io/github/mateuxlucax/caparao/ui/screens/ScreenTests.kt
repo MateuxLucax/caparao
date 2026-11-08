@@ -84,6 +84,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -1853,7 +1854,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         for (progress in listOf(0f, 1f)) {
             current = state(2, weight = 300.0, progress = progress, elapsedMs = 100_000, dueInMs = 120_000)
             compose.waitForIdle()
-            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+            compose.onNodeWithTag("steep-shape").assertIsDisplayed()
             compose.onNodeWithTag("steep-press").assertIsDisplayed()
             assertTrue("steep $progress", hasColor("steep-press", PressArt.steepColor(progress)))
             // The lid is on from the steep on: its bar sits above the frame.
@@ -1880,7 +1881,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.onNodeWithText(text(R.string.guide_press_serve_text)).assertIsDisplayed()
     }
 
-    /** Every countdown step uses the same smooth ring in both filter and French press. */
+    /** Filter waits and swirls count down on the smooth ring; the French press steep has its own clock (#302). */
     @Test
     fun guideCountdownRingCoversWaitSwirlAndSteep() {
         val cases = listOf(
@@ -1910,11 +1911,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
                 compose.waitForIdle()
             }
             compose.onAllNodesWithText(text(label), substring = true).onFirst().assertIsDisplayed()
-            compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+            compose.onNodeWithTag(if (cases[index].first == BrewMode.FRENCH_PRESS) "steep-progress" else "countdown-ring").assertIsDisplayed()
         }
     }
 
-    /** The French press steep keeps one clock: the countdown in the ring, the press above it, and no total elapsed note (#302). */
+    /** The French press steep keeps one clock (#302): the press on its shape, the countdown and the bar to the deadline, no ring and no total elapsed note. */
     @Test
     fun frenchPressSteepShowsOneClock() {
         val recipe = Recipe(
@@ -1935,7 +1936,10 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             }
         }
         compose.onNodeWithTag("steep-press").assertIsDisplayed()
-        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.onNodeWithTag("steep-shape").assertIsDisplayed()
+        compose.onNodeWithTag("steep-progress").assertIsDisplayed()
+        compose.onAllNodesWithTag("countdown-ring").assertCountEquals(0)
+        compose.onNodeWithText(Format.timer(240)).assertIsDisplayed()
         compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
         compose.onAllNodesWithText(Format.timer(137)).assertCountEquals(0)
     }

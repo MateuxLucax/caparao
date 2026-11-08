@@ -7,11 +7,15 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import io.github.mateuxlucax.caparao.ui.components.MorphingShape
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -175,22 +179,17 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
-        // The coffee darkens as the steep runs out, above the ring (#226); the ring holds the one clock (#302).
+        // The steep is one clock (#302): the press on its shape, the countdown and the bar up to the deadline.
         if (state.mode == BrewMode.FRENCH_PRESS) {
-            PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 96.dp, showScale = false)
-        }
-        CountdownRing(guide.progress, color) {
-            guide.dueInMs?.let {
-                Text(
-                    Format.timer(seconds(it)),
-                    style = MaterialTheme.typography.displayMedium.merge(Tabular),
-                    color = color,
-                    maxLines = 1,
-                    textAlign = TextAlign.Center,
-                )
+            SteepClock(step, guide, state.elapsedMs)
+        } else {
+            CountdownRing(guide.progress, color) {
+                guide.dueInMs?.let {
+                    Text(Format.timer(seconds(it)), style = MaterialTheme.typography.displaySmall.merge(Tabular), color = color, maxLines = 1)
+                }
             }
+            Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         }
-        Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
     } else if (step.kind.pours && target != null) {
         val fill by animateFloatAsState(
             (state.weightGrams / target).coerceIn(0.0, 1.1).toFloat(),
@@ -486,6 +485,69 @@ private fun ReachedCheck(label: String?, still: Boolean) {
         label?.let { Text(it, style = MaterialTheme.typography.titleMedium.merge(Tabular), color = color) }
     }
 }
+
+/**
+ * The French press steep (#302), built like the filter screens: the press darkening on a morphing shape, the countdown,
+ * and a bar from the first water to the deadline. The shape turns slowly, breathes with each second, morphs every
+ * minute, and pulses harder through the last five seconds. Everything holds still with animations off.
+ */
+@Composable
+private fun SteepClock(step: RecipeStep, guide: StepState, elapsedMs: Long) {
+    val colors = MaterialTheme.colorScheme
+    val still = animationsOff()
+    val dueMs = guide.dueInMs ?: 0L
+    val secondsLeft = seconds(dueMs)
+    val turn = if (still) 0f else {
+        val transition = rememberInfiniteTransition(label = "steepTurn")
+        transition.animateFloat(0f, 360f, infiniteRepeatable(tween(STEEP_TURN_MS, easing = LinearEasing)), label = "turn").value
+    }
+    val breath = remember { Animatable(1f) }
+    LaunchedEffect(secondsLeft, still) {
+        if (still || dueMs <= 0L) return@LaunchedEffect breath.snapTo(1f)
+        val last = dueMs <= STEEP_LAST_MS
+        breath.animateTo(if (last) 1.12f else 1.04f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        breath.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, if (last) Spring.StiffnessMedium else Spring.StiffnessLow))
+    }
+    Box(Modifier.padding(vertical = 8.dp).size(136.dp), contentAlignment = Alignment.Center) {
+        MorphingShape(
+            (elapsedMs / 60_000L).toInt(),
+            Modifier.matchParentSize().graphicsLayer {
+                rotationZ = turn
+                scaleX = breath.value
+                scaleY = breath.value
+            }.testTag("steep-shape"),
+            colors.primaryContainer,
+        )
+        PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 80.dp, showScale = false)
+    }
+    Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Text(
+        Format.timer(secondsLeft),
+        style = MaterialTheme.typography.displayMedium.merge(Tabular),
+        color = colors.primary,
+        maxLines = 1,
+    )
+    val deadline = step.targetAtMs.coerceAtLeast(1L)
+    val fill by animateFloatAsState(
+        (elapsedMs.toFloat() / deadline).coerceIn(0f, 1f),
+        Motion.standardOrSnap(still, 200),
+        label = "steepBar",
+    )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(14.dp).testTag("steep-progress")) {
+            val radius = CornerRadius(size.height / 2)
+            drawRoundRect(colors.surfaceContainerHighest, cornerRadius = radius)
+            if (fill > 0f) drawRoundRect(colors.primary, size = Size(maxOf(size.height, size.width * fill), size.height), cornerRadius = radius)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(Format.timer(0), style = MaterialTheme.typography.labelSmall.merge(Tabular), color = colors.onSurfaceVariant)
+            Text(Format.timer((deadline / 1000).toInt()), style = MaterialTheme.typography.labelSmall.merge(Tabular), color = colors.onSurfaceVariant)
+        }
+    }
+}
+
+private const val STEEP_TURN_MS = 24_000
+private const val STEEP_LAST_MS = 5_000L
 
 /** Filter pours fill the server with the step's color; the color is the only target cue (#208). */
 @Composable
