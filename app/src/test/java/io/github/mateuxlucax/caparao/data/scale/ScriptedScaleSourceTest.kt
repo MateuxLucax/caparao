@@ -46,7 +46,7 @@ class ScriptedScaleSourceTest {
         val source = source("espresso")
         source.advanceTo(1_000)
         source.tare()
-        source.advanceTo(24_000)
+        source.advanceTo(36_400)
         assertEquals(36.0, source.reading.value?.weightGrams ?: 0.0, 0.0)
     }
 
