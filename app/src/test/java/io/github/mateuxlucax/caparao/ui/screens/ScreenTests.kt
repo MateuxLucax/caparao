@@ -1914,6 +1914,32 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         }
     }
 
+    /** The French press steep keeps one clock: the countdown in the ring, the press above it, and no total elapsed note (#302). */
+    @Test
+    fun frenchPressSteepShowsOneClock() {
+        val recipe = Recipe(
+            id = "screen-test-steep-one-clock", name = "Steep one clock", mode = BrewMode.FRENCH_PRESS, method = "French press",
+            doseGrams = 20.0, targetRatio = 15.0,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 300.0, 0), RecipeStep(StepKind.PRESS, null, 240_000)),
+            createdAt = 0, updatedAt = 0,
+        )
+        compose.setContent {
+            AppTheme {
+                GuidedStep(
+                    BrewUiState(
+                        mode = BrewMode.FRENCH_PRESS, step = BrewStep.LIVE, phase = BrewPhase.BREWING, connected = true,
+                        weightGrams = 300.0, elapsedMs = 137_000, recipe = recipe,
+                        guide = StepState(index = 1, progress = 0.5f, dueInMs = 120_000, pace = null, paceMs = null, overshootGrams = null),
+                    )
+                ) {}
+            }
+        }
+        compose.onNodeWithTag("steep-press").assertIsDisplayed()
+        compose.onNodeWithTag("countdown-ring").assertIsDisplayed()
+        compose.onNodeWithText(Format.timer(120)).assertIsDisplayed()
+        compose.onAllNodesWithText(Format.timer(137)).assertCountEquals(0)
+    }
+
     /** The stir step counts down with the shared ring and says the spoon is not water (#219, R3b). */
     @Test
     fun guideStirShowsTheRingAndTheSpoonHint() {

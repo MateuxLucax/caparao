@@ -175,21 +175,19 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     previousTarget?.let { ReachedCheck("${Format.grams(it, locale)} $g", still) }
     val target = step.targetWeightGrams
     if (step.kind == StepKind.PRESS) {
+        // The coffee darkens as the steep runs out, above the ring (#226); the ring holds the one clock (#302).
+        if (state.mode == BrewMode.FRENCH_PRESS) {
+            PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 96.dp, showScale = false)
+        }
         CountdownRing(guide.progress, color) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // The coffee darkens as the steep runs out, inside the ring (#226).
-                if (state.mode == BrewMode.FRENCH_PRESS) {
-                    PressOnScale(1f, PressArt.steepColor(guide.progress), Modifier.testTag("steep-press"), lid = true, size = 72.dp, showScale = false)
-                }
-                guide.dueInMs?.let {
-                    Text(
-                        Format.timer(seconds(it)),
-                        style = MaterialTheme.typography.displaySmall.merge(Tabular),
-                        color = color,
-                        maxLines = 1,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+            guide.dueInMs?.let {
+                Text(
+                    Format.timer(seconds(it)),
+                    style = MaterialTheme.typography.displayMedium.merge(Tabular),
+                    color = color,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
         Text(stringResource(R.string.guide_steep_text), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
@@ -244,7 +242,10 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
         }
     }
     guide.overshootGrams?.let { Note(stringResource(R.string.guide_over, Format.grams(it, locale)), colors.onSurfaceVariant) }
-    Note(Format.timer((state.elapsedMs / 1000).toInt()))
+    // The French press steep has one clock, the countdown in the ring: no total elapsed note on that step (#302).
+    if (!(step.kind == StepKind.PRESS && state.mode == BrewMode.FRENCH_PRESS)) {
+        Note(Format.timer((state.elapsedMs / 1000).toInt()))
+    }
 }
 
 @Composable
