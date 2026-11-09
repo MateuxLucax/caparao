@@ -22,10 +22,10 @@ if args[0] == "api":
     if state.get("tag_sha") is None:
         raise SystemExit(1)
     print(state["tag_sha"])
-elif args[:2] == ["release", "view"] and "--jq" in args:
+elif args[:2] == ["release", "view"] and "--json" in args:
     if not state.get("release"):
         raise SystemExit(1)
-    print(state.get("notes", ""))
+    print(json.dumps({"isDraft": state.get("draft", False), "body": state.get("notes", "")}))
 elif args[:2] == ["release", "view"]:
     raise SystemExit(0 if state.get("release") else 1)
 '''
@@ -56,11 +56,20 @@ class PublishReleaseTest(unittest.TestCase):
             return result, calls
 
     def test_partial_release_rerun_replaces_assets_and_restores_signer_note(self) -> None:
-        result, calls = self.publish({"tag_sha": "target-sha", "release": True, "notes": "Release notes"})
+        result, calls = self.publish({"tag_sha": "target-sha", "release": True, "draft": False, "notes": "Release notes"})
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "--clobber"], calls)
         self.assertTrue(any(call[:3] == ["release", "edit", "v0.3.42"] for call in calls))
         self.assertFalse(any(call[:2] == ["release", "create"] for call in calls))
+
+    def test_partial_draft_release_is_published_after_assets_and_notes(self) -> None:
+        result, calls = self.publish({"tag_sha": "target-sha", "release": True, "draft": True, "notes": "Release notes"})
+        self.assertEqual(0, result.returncode, result.stderr)
+        upload = calls.index(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "--clobber"])
+        note = next(i for i, call in enumerate(calls) if call[:3] == ["release", "edit", "v0.3.42"] and "--notes" in call)
+        publish = calls.index(["release", "edit", "v0.3.42", "--draft=false"])
+        self.assertLess(upload, note)
+        self.assertLess(note, publish)
 
     def test_existing_release_at_wrong_commit_is_not_modified(self) -> None:
         result, calls = self.publish({"tag_sha": "other-sha", "release": True, "notes": "Release notes"})

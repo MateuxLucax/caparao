@@ -212,9 +212,9 @@ records its tree digest. The final merge commit has a new SHA, and publication c
 recorded candidate before building and signing. If a signing run fails because of a temporary
 configuration problem, fix it and rerun that failed Release workflow run. If code must change, update `main`; an open
 PR refreshes and reruns checks, or dispatch a new PR after the previous one has merged. Version names keep using
-`VERSION` plus the workflow run number. If publication stopped after creating a tag or release, rerunning replaces
-assets only when the existing tag still points to the validated merge SHA; a conflicting tag is left untouched. No
-release is made by merging a PR into `main`.
+`VERSION` plus the workflow run number. If publication stopped after creating a tag or draft release, rerunning
+replaces assets only when the existing tag still points to the validated merge SHA, updates its signer note and
+publishes any draft; a conflicting tag is left untouched. No release is made by merging a PR into `main`.
 
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 

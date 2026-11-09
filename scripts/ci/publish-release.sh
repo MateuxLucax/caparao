@@ -10,9 +10,14 @@ if gh release view "$TAG" >/dev/null 2>&1; then
     exit 1
   }
   gh release upload "$TAG" "$APK" "$WEAR_APK" --clobber
-  notes=$(gh release view "$TAG" --json body --jq .body)
+  release=$(gh release view "$TAG" --json isDraft,body)
+  notes=$(jq -r .body <<< "$release")
+  is_draft=$(jq -r .isDraft <<< "$release")
   if [[ "$notes" != *"$SIGNER_NOTE"* ]]; then
     gh release edit "$TAG" --notes "$(printf '%s\n\n%s' "$notes" "$SIGNER_NOTE")"
+  fi
+  if [ "$is_draft" = true ]; then
+    gh release edit "$TAG" --draft=false
   fi
 else
   if [ -n "$tag_sha" ] && [ "$tag_sha" != "$TARGET_SHA" ]; then
