@@ -1,6 +1,6 @@
 name: Release
 
-# Publish only after the protected main-to-release PR is merged; branch protection validates its merge tree first.
+# Publish only after the protected main-to-release PR is merged and its final tree matches the tested candidate.
 on:
   pull_request:
     branches: [release]
@@ -14,11 +14,60 @@ permissions:
   contents: read
 
 jobs:
-  sign:
+  verify-tree:
     if: >-
       github.event.pull_request.merged == true &&
       github.event.pull_request.head.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Find the successful release validation run
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          runs=$(gh api "repos/$GH_REPO/actions/workflows/release-validation.yml/runs?event=pull_request&per_page=100")
+          run_id=$(jq -r --argjson number "$PR_NUMBER" --arg sha "$PR_HEAD_SHA" '
+            [.workflow_runs[]
+              | select(any(.pull_requests[]?; .number == $number and .head.sha == $sha and .base.ref == "release"))]
+            | sort_by(.created_at)
+            | last
+            | select(.conclusion == "success")
+            | .id // empty' <<< "$runs")
+          [ -n "$run_id" ] || { echo "::error::no successful release validation run for PR #$PR_NUMBER at $PR_HEAD_SHA"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download the tested tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download "${{ steps.candidate.outputs.run_id }}" --name "release-tree-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}" --dir "$RUNNER_TEMP/candidate"
+
+      - name: Require the merged tree to match the tested tree
+        run: |
+          tested_tree=$(cat "$RUNNER_TEMP/candidate/candidate-tree.txt")
+          merged_tree=$(git rev-parse 'HEAD^{tree}')
+          # GitHub creates a new merge commit SHA; publication must use the exact tree that passed Build and E2E.
+          [ "$tested_tree" = "$merged_tree" ] || {
+            echo "::error::merged tree $merged_tree differs from validated tree $tested_tree"
+            exit 1
+          }
+          echo "Validated tree: $merged_tree" >> "$GITHUB_STEP_SUMMARY"
+
+  sign:
+    needs: verify-tree
+    if: needs.verify-tree.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

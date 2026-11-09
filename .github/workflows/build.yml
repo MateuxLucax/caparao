@@ -2,6 +2,8 @@ name: Build
 
 on:
   pull_request:
+    branches: [main]
+    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
     inputs:
       force_failure:
@@ -15,9 +17,6 @@ on:
         required: false
         default: false
         type: boolean
-      ref:
-        required: false
-        type: string
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -59,4 +57,3 @@ jobs:
     uses: ./.github/workflows/e2e.yml
     with:
       force_failure: ${{ inputs.force_failure || false }}
-      ref: ${{ inputs.ref }}
