@@ -19,10 +19,10 @@ data class ExportedFile(val uri: Uri, val mimeType: String)
 class BrewExportFiles(private val context: Context, private val repository: BrewRepository, private val recipes: RecipeRepository) {
     /** Every brew and recipe in one zip: contract JSON, `brews.csv`, `recipes.csv` and, when asked, `samples.csv`. */
     suspend fun all(includeSamples: Boolean): ExportedFile = withContext(Dispatchers.IO) {
-        val brews = repository.allWithSamples()
+        val brews = repository.all()
         val recipeList = recipes.all()
         val file = newFile("caparao-export.zip")
-        file.outputStream().use { BrewExporter.writeZip(it, brews, recipeList, includeSamples) }
+        file.outputStream().use { out -> BrewExporter.writeZip(out, brews, repository::samples, recipeList, includeSamples) }
         ExportedFile(uri(file), "application/zip")
     }
 

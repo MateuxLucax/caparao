@@ -2,8 +2,6 @@ name: Build
 
 on:
   pull_request:
-    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
-  push:
     branches: [main]
     paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:

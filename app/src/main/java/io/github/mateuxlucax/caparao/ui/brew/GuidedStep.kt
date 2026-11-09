@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -143,7 +146,8 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     val g = stringResource(R.string.unit_grams)
     val colors = MaterialTheme.colorScheme
     val still = state.mode == BrewMode.FILTER && animationsOff()
-    val chartFlow by animateFloatAsState(
+    // Read when drawing, not here: the chart's motion never recomposes the step (#321).
+    val chartFlow = animateFloatAsState(
         state.flowGramsPerSecond.coerceAtLeast(0.0).toFloat(),
         Motion.standardOrSnap(still, 150),
         label = "flowChart",
@@ -220,7 +224,7 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
             guide.dueInMs != null -> Note(stringResource(R.string.guide_starts_in, Format.timer(seconds(guide.dueInMs))))
             guide.paceMs != null -> Note(paceText(guide.pace, guide.paceMs), modifier = Modifier.testTag("guide-pace"))
         }
-        FlowChart(state.flowGramsPerSecond, chartFlow.toDouble(), flowHistory, step.targetFlowGramsPerSecond, locale)
+        FlowChart(state.flowGramsPerSecond, chartFlow, flowHistory, step.targetFlowGramsPerSecond, locale)
     } else {
         CountdownRing(guide.progress, color)
         Text(
@@ -249,57 +253,92 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
     }
 }
 
+/**
+ * The live pour rate with its optional ideal band. The band's geometry and every settled point are built once per
+ * reading, so each animation frame only draws them and rebuilds the tail to the moving last point; the animated flow is
+ * read in the draw phase and never recomposes the chart (#321).
+ */
 @Composable
-private fun FlowChart(liveFlow: Double, animatedFlow: Double, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
+internal fun FlowChart(liveFlow: Double, animatedFlow: State<Float>, history: List<FlowPoint>, target: Double?, locale: java.util.Locale) {
     val colors = MaterialTheme.colorScheme
     val band = target?.let(PourRate::band)
-    val displayedHistory = history.mapIndexed { index, point -> if (index == history.lastIndex) point.copy(flow = animatedFlow) else point }
+    val primary = colors.primary
+    val bandColor = colors.tertiaryContainer.copy(alpha = 0.75f)
     Text(
         stringResource(R.string.guide_flow, Format.flow(liveFlow, locale)),
         style = MaterialTheme.typography.labelMedium,
         color = colors.onSurfaceVariant,
     )
-    Canvas(Modifier.fillMaxWidth(0.9f).height(40.dp).testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")) {
-        val stroke = 4.dp.toPx()
-        val left = 3.dp.toPx()
-        val right = size.width - left
-        val top = stroke
-        val bottom = size.height - top
-        val maxFlow = maxOf(displayedHistory.maxOfOrNull { it.flow } ?: animatedFlow, band?.endInclusive ?: 0.0, 1.0)
-        fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
-        band?.let { ideal ->
-            val bandTop = y(ideal.endInclusive)
-            val bandBottom = y(ideal.start)
-            drawRoundRect(
-                colors.tertiaryContainer.copy(alpha = 0.75f),
-                topLeft = Offset(left, bandTop),
-                size = Size(right - left, bandBottom - bandTop),
-                cornerRadius = CornerRadius(stroke / 2),
-            )
-        }
-        val points = displayedHistory.mapIndexed { index, point ->
-            val x = if (displayedHistory.size == 1) right else left + (right - left) * index / (displayedHistory.size - 1)
-            Offset(x, y(point.flow))
-        }
-        if (points.size == 1) {
-            drawCircle(colors.primary, radius = stroke / 2, center = points.single())
-        } else if (points.size > 1) {
-            // Midpoint smoothing: each sample is a control point, the curve passes through the midpoints between them.
-            val path = Path().apply {
-                moveTo(points.first().x, points.first().y)
-                for (i in 1 until points.lastIndex) {
-                    val control = points[i]
-                    val next = points[i + 1]
-                    quadraticTo(control.x, control.y, (control.x + next.x) / 2, (control.y + next.y) / 2)
+    Spacer(
+        Modifier
+            .fillMaxWidth(0.9f)
+            .height(40.dp)
+            .testTag(if (target == null) "flow-chart-no-target" else "flow-chart-target")
+            .drawWithCache {
+                val stroke = 4.dp.toPx()
+                val left = 3.dp.toPx()
+                val right = size.width - left
+                val top = stroke
+                val bottom = size.height - top
+                // The last point already holds the flow the animation eases to, so the scale holds still between frames.
+                val maxFlow = maxOf(history.maxOfOrNull { it.flow } ?: 0.0, band?.endInclusive ?: 0.0, 1.0)
+                fun y(value: Double) = bottom - (value / maxFlow).coerceIn(0.0, 1.0).toFloat() * (bottom - top)
+                val points = history.mapIndexed { index, point ->
+                    val x = if (history.size == 1) right else left + (right - left) * index / (history.size - 1)
+                    Offset(x, y(point.flow))
                 }
-                lineTo(points.last().x, points.last().y)
-            }
-            drawPath(path, colors.primary, style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        }
-    }
+                // Midpoint smoothing: each sample is a control point, the curve passes through the midpoints between them.
+                fun mid(a: Offset, b: Offset) = Offset((a.x + b.x) / 2, (a.y + b.y) / 2)
+                val settled = Path()
+                if (points.size > 3) {
+                    settled.moveTo(points.first().x, points.first().y)
+                    for (i in 1 until points.lastIndex - 1) {
+                        val control = points[i]
+                        val middle = mid(control, points[i + 1])
+                        settled.quadraticTo(control.x, control.y, middle.x, middle.y)
+                    }
+                }
+                // Everything before the midpoint into the last point is settled; only this tail follows the animation.
+                val tailStart = when {
+                    points.size > 3 -> mid(points[points.lastIndex - 2], points[points.lastIndex - 1])
+                    points.isNotEmpty() -> points.first()
+                    else -> Offset.Zero
+                }
+                val tailControl = if (points.size > 2) points[points.size - 2] else null
+                val tail = Path()
+                val style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                onDrawBehind {
+                    band?.let { ideal ->
+                        val bandTop = y(ideal.endInclusive)
+                        val bandBottom = y(ideal.start)
+                        drawRoundRect(
+                            bandColor,
+                            topLeft = Offset(left, bandTop),
+                            size = Size(right - left, bandBottom - bandTop),
+                            cornerRadius = CornerRadius(stroke / 2),
+                        )
+                    }
+                    if (points.isEmpty()) return@onDrawBehind
+                    val live = Offset(right, y(animatedFlow.value.toDouble()))
+                    if (points.size == 1) {
+                        drawCircle(primary, radius = stroke / 2, center = live)
+                        return@onDrawBehind
+                    }
+                    if (points.size > 3) drawPath(settled, primary, style = style)
+                    tail.rewind()
+                    tail.moveTo(tailStart.x, tailStart.y)
+                    tailControl?.let { control ->
+                        val middle = mid(control, live)
+                        tail.quadraticTo(control.x, control.y, middle.x, middle.y)
+                    }
+                    tail.lineTo(live.x, live.y)
+                    drawPath(tail, primary, style = style)
+                }
+            },
+    )
 }
 
-private data class FlowPoint(val elapsedMs: Long, val flow: Double)
+internal data class FlowPoint(val elapsedMs: Long, val flow: Double)
 
 @Composable
 private fun Drawdown(state: BrewUiState) {

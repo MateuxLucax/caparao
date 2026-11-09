@@ -2,7 +2,7 @@
 plugins {
     id("com.android.test")
     // Creates benchmarkRelease (and the target app wiring) from the release build type.
-    id("androidx.baselineprofile")
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -26,8 +26,8 @@ android {
 }
 
 dependencies {
-    implementation("androidx.test:runner:1.7.0")
-    implementation("androidx.test.ext:junit:1.3.0")
-    implementation("androidx.test.uiautomator:uiautomator:2.4.1")
-    implementation("androidx.benchmark:benchmark-macro-junit4:1.5.0")
+    implementation(libs.androidx.test.runner)
+    implementation(libs.androidx.test.ext.junit)
+    implementation(libs.uiautomator)
+    implementation(libs.benchmark.macro.junit4)
 }

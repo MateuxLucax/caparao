@@ -32,15 +32,15 @@ class DiagnosticRecorderTest {
         assertTrue(recorder.start())
 
         val mutable = zeroWeight.copyOf()
-        recorder.recordNotification(mutable)
+        recorder.notification(mutable)
         mutable.fill(0)
         clock += 100_000_000L
-        recorder.recordEvent(DiagnosticEvent.BrewScreenOpened)
+        recorder.event(DiagnosticEvent.BrewScreenOpened)
         clock += 100_000_000L
-        recorder.recordNotification(thirtyGrams)
+        recorder.notification(thirtyGrams)
         clock += 100_000_000L
-        recorder.recordNotification(thirtyGrams)
-        recorder.recordEvent(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.ESPRESSO, DiagnosticBrewPhase.READY))
+        recorder.notification(thirtyGrams)
+        recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.ESPRESSO, DiagnosticBrewPhase.READY))
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
         assertTrue(result.complete)
@@ -73,13 +73,13 @@ class DiagnosticRecorderTest {
         val recorder = recorder(directory, { clock }, backgroundScope)
         assertTrue(recorder.start())
         clock += 5_000_000L
-        recorder.recordEvent(DiagnosticEvent.ScanStarted)
+        recorder.event(DiagnosticEvent.ScanStarted)
         clock += 5_000_000L
-        recorder.recordNotification(zeroWeight)
+        recorder.notification(zeroWeight)
         clock += 5_000_000L
-        recorder.recordCommand(bytes("A5 5A 03 0D 00 00 64 D1"))
+        recorder.command(bytes("A5 5A 03 0D 00 00 64 D1"))
         clock += 5_000_000L
-        recorder.recordEvent(DiagnosticEvent.AppForeground)
+        recorder.event(DiagnosticEvent.AppForeground)
 
         val file = (recorder.stop() as DiagnosticRecorderState.Ready).file
         val rows = file.readLines().drop(1).map(::JSONObject)
@@ -95,8 +95,8 @@ class DiagnosticRecorderTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope, limits = limits(queueCapacity = 2))
         assertTrue(recorder.start()) // session_started uses one queue slot before the writer is scheduled
-        recorder.recordNotification(zeroWeight)
-        recorder.recordNotification(zeroWeight) // fills the bounded queue and stops capture
+        recorder.notification(zeroWeight)
+        recorder.notification(zeroWeight) // fills the bounded queue and stops capture
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(result.complete)
@@ -117,7 +117,7 @@ class DiagnosticRecorderTest {
             limits = limits(maxSessionBytes = 1_024, maxStoredBytes = 2_048, footerReserveBytes = 384),
         )
         assertTrue(recorder.start())
-        recorder.recordNotification(ByteArray(220) { it.toByte() })
+        recorder.notification(ByteArray(220) { it.toByte() })
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(result.complete)
@@ -148,7 +148,7 @@ class DiagnosticRecorderTest {
         )
         assertTrue(brokenWriter.start())
         appendFails = true
-        brokenWriter.recordEvent(DiagnosticEvent.AppForeground)
+        brokenWriter.event(DiagnosticEvent.AppForeground)
         val result = brokenWriter.stop() as DiagnosticRecorderState.Ready
         assertFalse(result.complete)
         assertEquals(DiagnosticIncompleteReason.STORAGE_ERROR, result.reason)
@@ -168,7 +168,7 @@ class DiagnosticRecorderTest {
         )
         repeat(3) {
             assertTrue(recorder.start())
-            recorder.recordNotification(zeroWeight)
+            recorder.notification(zeroWeight)
             assertTrue((recorder.stop() as DiagnosticRecorderState.Ready).complete)
             wall += 1_000L
             monotonic += 1_000_000_000L
@@ -185,7 +185,7 @@ class DiagnosticRecorderTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
         assertTrue(recorder.start())
-        recorder.recordNotification(zeroWeight)
+        recorder.notification(zeroWeight)
         val stops = List(8) { async { recorder.stop() } }
         advanceUntilIdle()
         val results = stops.map { it.await() as DiagnosticRecorderState.Ready }
@@ -200,8 +200,8 @@ class DiagnosticRecorderTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
         assertTrue(recorder.start())
-        recorder.recordEvent(DiagnosticEvent.ScaleConnected)
-        recorder.recordNotification(zeroWeight)
+        recorder.event(DiagnosticEvent.ScaleConnected)
+        recorder.notification(zeroWeight)
         recorder.recordDisconnect()
         val incomplete = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(incomplete.complete)

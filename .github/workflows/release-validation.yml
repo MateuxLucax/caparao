@@ -1,0 +1,51 @@
+name: Release validation
+
+on:
+  pull_request:
+    branches: [release]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the repository main branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          [ "$HEAD_REF" = main ] && [ "$HEAD_REPOSITORY" = "$REPOSITORY" ] || {
+            echo "::error::release PRs must come from this repository's main branch"
+            exit 1
+          }
+
+  build:
+    needs: source
+    uses: ./.github/workflows/build.yml
+
+  candidate-tree:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record tested merge tree
+        run: git rev-parse 'HEAD^{tree}' > candidate-tree.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-tree-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: candidate-tree.txt
+          # shortcut: GitHub expires tree evidence after 90 days; rerun validation before merging older PRs.
+          retention-days: 90

@@ -38,18 +38,20 @@ object ServerUrl {
         } catch (e: Exception) {
             return false
         }
-        return isPrivate(address)
+        return isLocalAddress(address)
     }
 
     /**
-     * Private, loopback, link-local or unique local address: 10/8, 172.16/12, 192.168/16, 127/8, 169.254/16,
-     * ::1, fc00::/7 and fe80::/10.
+     * Local address: private, loopback, link-local, unique local or CGNAT. 10/8, 172.16/12, 192.168/16,
+     * 127/8, 169.254/16, 100.64/10 (shared address space, which Android counts as local and Tailscale
+     * hands out), ::1, fc00::/7 (which includes Tailscale's fd7a:115c:a1e0::/48) and fe80::/10.
      */
-    fun isPrivate(address: InetAddress): Boolean {
+    fun isLocalAddress(address: InetAddress): Boolean {
         val bytes = address.address.map { it.toInt() and 0xFF }
         return if (bytes.size == 4) {
             val (a, b) = bytes
-            a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
+            a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) ||
+                (a == 169 && b == 254) || (a == 100 && b in 64..127)
         } else {
             val loopback = bytes.dropLast(1).all { it == 0 } && bytes.last() == 1
             val uniqueLocal = (bytes[0] and 0xFE) == 0xFC // fc00::/7

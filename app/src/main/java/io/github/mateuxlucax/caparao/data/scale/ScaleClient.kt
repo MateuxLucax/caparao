@@ -4,7 +4,8 @@ import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -33,7 +34,7 @@ import kotlinx.coroutines.launch
 class ScaleClient(
     private val transport: BleTransport,
     private val scope: CoroutineScope,
-    private val diagnostics: DiagnosticRecorder? = null,
+    private val diagnostics: Diagnostics = NoDiagnostics,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ScaleSource {
     private val _state = MutableStateFlow<ScaleState>(ScaleState.Idle)
@@ -59,12 +60,12 @@ class ScaleClient(
 
     override fun start() {
         if (job?.isActive == true) return
-        diagnostics?.recordEvent(DiagnosticEvent.ScaleStarted)
+        diagnostics.event(DiagnosticEvent.ScaleStarted)
         job = scope.launch { run() }
     }
 
     override fun stop() {
-        diagnostics?.recordEvent(DiagnosticEvent.ScaleStopped)
+        diagnostics.event(DiagnosticEvent.ScaleStopped)
         job?.cancel()
         job = null
         transport.close()
@@ -100,7 +101,7 @@ class ScaleClient(
             }
             if (blocked != null) {
                 // Needs the user; the screen calls start() again once it is fixed.
-                diagnostics?.recordEvent(DiagnosticEvent.ScaleConnectionFailed)
+                diagnostics.event(DiagnosticEvent.ScaleConnectionFailed)
                 fail(blocked, retrying = false)
                 return
             }
@@ -115,38 +116,38 @@ class ScaleClient(
     private suspend fun session(): Boolean {
         _state.value = ScaleState.Searching
         note("searching")
-        diagnostics?.recordEvent(DiagnosticEvent.ScanStarted)
+        diagnostics.event(DiagnosticEvent.ScanStarted)
         val address = transport.scan(SCAN_TIMEOUT_MS)
         if (address == null) {
-            diagnostics?.recordEvent(DiagnosticEvent.ScaleNotFound)
+            diagnostics.event(DiagnosticEvent.ScaleNotFound)
             fail(ScaleError.NOT_FOUND, retrying = true)
             return false
         }
         _state.value = ScaleState.Connecting
         note("found, connecting")
-        diagnostics?.recordEvent(DiagnosticEvent.ScaleConnecting)
+        diagnostics.event(DiagnosticEvent.ScaleConnecting)
         try {
             open(address)
         } catch (e: BleException) {
             transport.close()
             val error = if (e.reason == BleException.Reason.PAIRING_REFUSED) ScaleError.PAIRED_ELSEWHERE else ScaleError.NOT_FOUND
-            diagnostics?.recordEvent(DiagnosticEvent.ScaleConnectionFailed)
+            diagnostics.event(DiagnosticEvent.ScaleConnectionFailed)
             note("open failed: ${e.message}")
             fail(error, retrying = true)
             return false
         }
         decoder.reset()
-        diagnostics?.recordEvent(DiagnosticEvent.ScaleConnected)
+        diagnostics.event(DiagnosticEvent.ScaleConnected)
         try {
             connected()
         } catch (e: BleException) {
-            diagnostics?.recordEvent(DiagnosticEvent.ScaleConnectionFailed)
+            diagnostics.event(DiagnosticEvent.ScaleConnectionFailed)
             note("write failed: ${e.message}")
         }
         transport.close()
         _reading.value = null
         fail(ScaleError.CONNECTION_LOST, retrying = true)
-        diagnostics?.finishAfterDisconnect()
+        diagnostics.disconnect()
         return true
     }
 
@@ -175,12 +176,12 @@ class ScaleClient(
                 when (event) {
                     is BleEvent.Notification -> {
                         val original = event.bytes.copyOf()
-                        diagnostics?.recordNotification(original)
+                        diagnostics.notification(original)
                         decoder.feed(original).forEach(::handle)
                     }
                     // The event and recorder share a fixed monotonic clock; no address or exception text is included.
                     BleEvent.LinkLost -> {
-                        diagnostics?.recordEvent(DiagnosticEvent.ScaleLinkLost)
+                        diagnostics.event(DiagnosticEvent.ScaleLinkLost)
                         linkLost.complete(Unit)
                     }
                 }
@@ -222,7 +223,7 @@ class ScaleClient(
     private suspend fun write(frame: ByteArray) {
         val snapshot = frame.copyOf()
         transport.write(snapshot.copyOf())
-        diagnostics?.recordCommand(snapshot)
+        diagnostics.command(snapshot)
     }
 
     private fun note(text: String) {
