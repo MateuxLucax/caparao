@@ -41,6 +41,7 @@ import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -119,6 +120,7 @@ class AppScreensTest {
     private var localServerGate: CompletableDeferred<Unit>? = null
     private val checked = mutableListOf<Pair<String, String>>()
     private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
+    private val diagnosticShare = DiagnosticShare(context, diagnostics)
 
     /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
     private var now = 0L
@@ -133,7 +135,7 @@ class AppScreensTest {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(context, diagnostics) }
+            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }

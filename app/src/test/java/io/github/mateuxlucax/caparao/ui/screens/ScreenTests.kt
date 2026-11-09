@@ -62,6 +62,7 @@ import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -182,6 +183,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         context.cacheDir.resolve("diagnostic-screen-tests/$lang-$theme-${System.nanoTime()}"),
         diagnosticScope,
     )
+    private val diagnosticShare = DiagnosticShare(context, diagnostics)
     private val locale get() = context.resources.configuration.locales[0]
 
     @Before
@@ -248,7 +250,7 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(context, diagnostics) }
+            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
