@@ -28,6 +28,7 @@ import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,33 +64,46 @@ class BrewWidgetProvider : AppWidgetProvider() {
         if (appWidgetIds.isEmpty()) return
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                BrewWidgetRefresh.run(
-                    read = {
-                        val repository = (context.applicationContext as CaparaoApplication).container.brews
-                        val zone = ZoneId.systemDefault()
-                        val window = brewWidgetWeekWindow(LocalDate.now(zone), zone)
-                        val weekBrews = repository.endedBetween(window.startInclusiveMs, window.endExclusiveMs)
-                        BrewWidgetContent(
-                            latest = repository.latest(),
-                            week = summarizeBrewWidgetWeek(weekBrews, window, zone),
+            refreshBounded(
+                read = {
+                    val repository = (context.applicationContext as CaparaoApplication).container.brews
+                    val zone = ZoneId.systemDefault()
+                    val window = brewWidgetWeekWindow(LocalDate.now(zone), zone)
+                    val weekBrews = repository.endedBetween(window.startInclusiveMs, window.endExclusiveMs)
+                    BrewWidgetContent(
+                        latest = repository.latest(),
+                        week = summarizeBrewWidgetWeek(weekBrews, window, zone),
+                    )
+                },
+                publish = { content ->
+                    appWidgetIds.forEach { id ->
+                        val options = optionsByWidgetId[id] ?: manager.getAppWidgetOptions(id)
+                        manager.updateAppWidget(
+                            id,
+                            responsiveViews(context, id, content.latest, content.week, options),
                         )
-                    },
-                    publish = { content ->
-                        appWidgetIds.forEach { id ->
-                            val options = optionsByWidgetId[id] ?: manager.getAppWidgetOptions(id)
-                            manager.updateAppWidget(
-                                id,
-                                responsiveViews(context, id, content.latest, content.week, options),
-                            )
-                        }
-                    },
-                )
-            } catch (failure: Exception) {
-                Log.w(TAG, "Brew widget refresh failed", failure)
-            } finally {
-                pending.finish()
+                    }
+                },
+                finish = pending::finish,
+            )
+        }
+    }
+
+    /**
+     * Finishes the broadcast even when the read hangs or throws: Android reports a `goAsync()` window longer than about
+     * 10 s as a background ANR (#326). A timeout keeps the previous widget content and logs no personal data.
+     */
+    internal suspend fun <T> refreshBounded(read: suspend () -> T, publish: (T) -> Unit, finish: () -> Unit) {
+        try {
+            if (BrewWidgetRefresh.run(read, publish) == BrewWidgetRefresh.Outcome.TIMED_OUT) {
+                Log.w(TAG, "Brew widget refresh timed out")
             }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            Log.w(TAG, "Brew widget refresh failed", failure)
+        } finally {
+            finish()
         }
     }
 
