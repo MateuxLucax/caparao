@@ -22,6 +22,6 @@ object DebugScaleSourceFactory {
             intent.getBooleanExtra("script_paused", apiEnabled),
         )
         container.installDebugScaleSource(source)
-        if (apiEnabled) ScriptedScaleHttpServer(source)
+        if (apiEnabled) ScriptedScaleHttpServer.install(source)
     }
 }

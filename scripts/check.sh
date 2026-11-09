@@ -5,7 +5,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 start=$(date +%s)
-./gradlew --console=plain :app:testDebugUnitTest :wear:testDebugUnitTest :wearlink:test lintDebug assembleDebug compileDebugAndroidTestKotlin
+# The benchmark modules are deliberately absent: they run on an emulator/device, never in the fast gate (#312).
+./gradlew --console=plain :app:testDebugUnitTest :wear:testDebugUnitTest :wearlink:test \
+  :app:lintDebug :wear:lintDebug \
+  :app:assembleDebug :wear:assembleDebug \
+  :app:compileDebugAndroidTestKotlin :wear:compileDebugAndroidTestKotlin
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
 if command -v gitleaks >/dev/null; then
