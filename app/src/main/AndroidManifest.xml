@@ -33,6 +33,11 @@
         android:theme="@style/Theme.App"
         android:usesCleartextTraffic="true">
 
+        <!-- #333: Sentry starts only from AppContainer while the Settings opt-in is on and a DSN exists. -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <!-- singleTop: a launcher shortcut tapped with the task alive is delivered to onNewIntent, not as a second
              MainActivity (#116). -->
         <activity

@@ -11,6 +11,8 @@ import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.FanOutDiagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.SentryDiagnostics
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -63,11 +65,21 @@ class AppContainer(context: Context) {
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
     )
 
+    /** Opt-in remote diagnostics (#333); a no-op unless the setting is on and the build carries a DSN. */
+    private val sentry = SentryDiagnostics(
+        context = appContext,
+        settings = settings,
+        dsn = BuildConfig.SENTRY_DSN,
+        environment = if (BuildConfig.DEBUG) "debug" else "release",
+        release = "caparao@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}",
+        scope = scope,
+    )
+
     /** The diagnostic share handle, built here with the application context; the ViewModel holds no Context (#328). */
     private val diagnosticShare = DiagnosticShare(appContext, recorder)
 
-    /** The seam every producer reports through; [recorder] sits behind it until #333 replaces it with the Sentry implementation. */
-    val diagnostics: Diagnostics = recorder
+    /** The seam every producer reports through: the local capture and, while opted in, Sentry. */
+    val diagnostics: Diagnostics = FanOutDiagnostics(recorder, sentry)
 
     /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)

@@ -18,6 +18,9 @@ class ReceivedRequest(val method: String, val path: String, val headers: Map<Str
 class LocalServer(var respond: (HttpExchange, ReceivedRequest) -> Int = { _, _ -> 201 }) : AutoCloseable {
     val requests: MutableList<ReceivedRequest> = Collections.synchronizedList(mutableListOf())
 
+    /** Reply body for every response; null answers with a JSON status line. */
+    var replyBody: String? = null
+
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
             val request = ReceivedRequest(
@@ -29,7 +32,7 @@ class LocalServer(var respond: (HttpExchange, ReceivedRequest) -> Int = { _, _ -
             requests += request
             try {
                 val code = respond(exchange, request)
-                val reply = """{"status": $code}""".toByteArray()
+                val reply = (replyBody ?: """{"status": $code}""").toByteArray()
                 exchange.sendResponseHeaders(code, reply.size.toLong())
                 exchange.responseBody.write(reply)
             } catch (_: Exception) {

@@ -44,6 +44,20 @@ class LayerDependencyTest {
     }
 
     @Test
+    fun onlyTheSentryImplementationImportsTheSentrySdk() {
+        // #333: everything else reports through `Diagnostics`, so a different backend or an SDK bump touches one file.
+        val sentryImport = Regex("""^\s*import\s+io\.sentry""")
+        val root = File("src/main/java")
+        val importers = root.walk()
+            .filter { it.extension == "kt" }
+            .filter { file -> file.readLines().any(sentryImport::containsMatchIn) }
+            .map { it.relativeTo(root).invariantSeparatorsPath }
+            .toList()
+
+        assertEquals(listOf("io/github/mateuxlucax/caparao/data/diagnostics/SentryDiagnostics.kt"), importers)
+    }
+
+    @Test
     fun ruleCatchesUpwardImportsRootImportsAndFullyQualifiedNames() {
         val lines = listOf(
             "package $base.data.scale",
