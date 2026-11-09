@@ -109,7 +109,7 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          ./gradlew --console=plain assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER"
+          ./gradlew --console=plain :app:assembleRelease :wear:assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER"
           cp app/build/outputs/apk/release/app-release.apk "caparao-$VERSION_NAME.apk"
           cp wear/build/outputs/apk/release/wear-release.apk "caparao-wear-$VERSION_NAME.apk"
           rm -f "$RUNNER_TEMP/release.jks"

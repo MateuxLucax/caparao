@@ -13,4 +13,6 @@ plugins {
     alias(libs.plugins.android.application) apply false
     // Room's annotation processor (#88, 2026-10 amendment).
     alias(libs.plugins.ksp) apply false
+    // Profile generation and its benchmarkRelease variant (#312).
+    alias(libs.plugins.baselineprofile) apply false
 }
