@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.ksp)
+    alias(libs.plugins.sentry.android)
     // Adds the nonMinifiedRelease and benchmarkRelease variants and the generateReleaseBaselineProfile task (#312).
     alias(libs.plugins.baselineprofile)
 }
@@ -9,6 +10,13 @@ plugins {
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
 val appVersionName = (findProperty("versionName") as String?) ?: "0.0.0-dev"
 val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+
+// The release signing job passes the Sentry DSN from the SENTRY_DSN secret; every other build has none, so remote
+// diagnostics stay a no-op (#333).
+val sentryDsn = (findProperty("sentryDsn") as String?) ?: ""
+val sentryAuthToken: String? = System.getenv("SENTRY_AUTH_TOKEN")
+// The DSN's path is the project ID, which sentry-cli accepts in place of the slug (#331 has no project-slug secret).
+val sentryProjectId = sentryDsn.trimEnd('/').substringAfterLast('/', "").takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
 
 // Release signing comes only from environment variables (CI secrets or the local shell), never from the repo.
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
@@ -25,6 +33,8 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
+        buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
         // True only in debug and the two benchmark variants: gates the scripted scale and the benchmark seed (#312).
         buildConfigField("boolean", "SCRIPTED_SCALE", "false")
     }
@@ -117,6 +127,24 @@ android {
     }
 }
 
+// #333: the SDK is wired by hand below, nothing is uploaded without a token, and no bytecode is instrumented.
+sentry {
+    autoInstallation {
+        enabled.set(false)
+    }
+    telemetry.set(false)
+    tracingInstrumentation {
+        enabled.set(false)
+    }
+    includeSourceContext.set(false)
+    // Local and PR builds have no token: skip mapping generation/upload instead of failing the build.
+    includeProguardMapping.set(sentryAuthToken != null)
+    autoUploadProguardMapping.set(sentryAuthToken != null)
+    sentryAuthToken?.let { authToken.set(it) }
+    System.getenv("SENTRY_ORG")?.takeIf { it.isNotBlank() }?.let { org.set(it) }
+    (System.getenv("SENTRY_PROJECT")?.takeIf { it.isNotBlank() } ?: sentryProjectId)?.let { projectName.set(it) }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.generateKotlin", "true")
@@ -137,6 +165,9 @@ dependencies {
     ksp(libs.room.compiler)
     // One upload job per brew, with a network constraint and backoff (#100).
     implementation(libs.work.runtime)
+    // Crashes, ANRs and app events behind the Settings opt-in (#333). Core SDK only: no NDK and no
+    // auto-installed integrations.
+    implementation(libs.sentry.android.core)
     // Installs the Baseline Profile on sideloaded builds, where Play cannot provide it (#312).
     implementation(libs.profileinstaller)
 

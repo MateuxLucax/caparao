@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.data.diagnostics
 
 import io.github.mateuxlucax.caparao.model.SyncError
+import java.util.Locale
 
 /**
  * App-owned diagnostic vocabulary (#332): fixed events whose payloads are enums or numbers only, so one can travel off
@@ -87,4 +88,77 @@ object NoDiagnostics : Diagnostics {
     override fun command(bytes: ByteArray) = Unit
     override fun disconnect() = Unit
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = Unit
+}
+
+/**
+ * Forwards every call to all [sinks]. #333 runs the remote reporter beside the local capture; the recorder is removed
+ * once captures are uploaded (#336), and this goes with it.
+ */
+class FanOutDiagnostics(private val sinks: List<Diagnostics>) : Diagnostics {
+    constructor(vararg sinks: Diagnostics) : this(sinks.toList())
+
+    override fun event(event: DiagnosticEvent) = sinks.forEach { it.event(event) }
+    override fun notification(bytes: ByteArray) = sinks.forEach { it.notification(bytes) }
+    override fun command(bytes: ByteArray) = sinks.forEach { it.command(bytes) }
+    override fun disconnect() = sinks.forEach { it.disconnect() }
+    override fun error(throwable: Throwable, context: DiagnosticErrorContext) = sinks.forEach { it.error(throwable, context) }
+}
+
+/** The fixed token an event writes and logs; payloads themselves hold only enums or numbers, never free text. */
+internal fun DiagnosticEvent.note(): String = when (this) {
+    DiagnosticEvent.AppForeground -> "app_foreground"
+    DiagnosticEvent.AppBackground -> "app_background"
+    DiagnosticEvent.ScaleStarted -> "scale_started"
+    DiagnosticEvent.ScanStarted -> "scan_started"
+    DiagnosticEvent.ScaleNotFound -> "scale_not_found"
+    DiagnosticEvent.ScaleConnecting -> "scale_connecting"
+    DiagnosticEvent.ScaleConnected -> "scale_connected"
+    DiagnosticEvent.ScaleConnectionFailed -> "scale_connection_failed"
+    DiagnosticEvent.ScaleLinkLost -> "scale_link_lost"
+    DiagnosticEvent.ScaleStopped -> "scale_stopped"
+    DiagnosticEvent.BrewScreenOpened -> "brew_screen_opened"
+    DiagnosticEvent.BrewScreenClosed -> "brew_screen_closed"
+    DiagnosticEvent.BrewArmed -> "brew_armed"
+    DiagnosticEvent.BrewStopRequested -> "brew_stop_requested"
+    DiagnosticEvent.BrewLiftEnded -> "brew_lift_end"
+    DiagnosticEvent.BrewInterrupted -> "brew_interrupted"
+    DiagnosticEvent.BrewResultReady -> "brew_result_ready"
+    DiagnosticEvent.UploadSucceeded -> "upload_succeeded"
+    is DiagnosticEvent.UploadFailed -> "upload_failed_${kind.name.lowercase(Locale.ROOT)}"
+    DiagnosticEvent.UploadRetried -> "upload_retried"
+    DiagnosticEvent.SessionStarted -> "session_started"
+    is DiagnosticEvent.BrewPhaseChanged -> "brew_${mode.note}_${phase.note}"
+}
+
+/** The breadcrumb category of #333, one of `scale`, `brew`, `upload` or `app`. */
+internal fun DiagnosticEvent.category(): String = when (this) {
+    DiagnosticEvent.AppForeground,
+    DiagnosticEvent.AppBackground,
+    DiagnosticEvent.SessionStarted,
+    -> "app"
+
+    DiagnosticEvent.ScaleStarted,
+    DiagnosticEvent.ScanStarted,
+    DiagnosticEvent.ScaleNotFound,
+    DiagnosticEvent.ScaleConnecting,
+    DiagnosticEvent.ScaleConnected,
+    DiagnosticEvent.ScaleConnectionFailed,
+    DiagnosticEvent.ScaleLinkLost,
+    DiagnosticEvent.ScaleStopped,
+    -> "scale"
+
+    DiagnosticEvent.UploadSucceeded,
+    DiagnosticEvent.UploadRetried,
+    is DiagnosticEvent.UploadFailed,
+    -> "upload"
+
+    DiagnosticEvent.BrewScreenOpened,
+    DiagnosticEvent.BrewScreenClosed,
+    DiagnosticEvent.BrewArmed,
+    DiagnosticEvent.BrewStopRequested,
+    DiagnosticEvent.BrewLiftEnded,
+    DiagnosticEvent.BrewInterrupted,
+    DiagnosticEvent.BrewResultReady,
+    is DiagnosticEvent.BrewPhaseChanged,
+    -> "brew"
 }
