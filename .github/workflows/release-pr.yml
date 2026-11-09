@@ -71,7 +71,7 @@ jobs:
 
           number=$(gh pr list --base release --head main --state open --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
-            gh pr edit "$number" --body-file "$body_file" --assignee MateuxLucax
+            gh pr edit "$number" --body-file "$body_file" --add-assignee MateuxLucax
           else
             gh pr create --base release --head main --title "Release: $(date -u +%F)" \
               --body-file "$body_file" --assignee MateuxLucax

@@ -38,14 +38,7 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           runs=$(gh api "repos/$GH_REPO/actions/workflows/release-validation.yml/runs?event=pull_request&per_page=100")
-          run_id=$(jq -r --argjson number "$PR_NUMBER" --arg sha "$PR_HEAD_SHA" '
-            [.workflow_runs[]
-              | select(any(.pull_requests[]?; .number == $number and .head.sha == $sha and .base.ref == "release"))]
-            | sort_by(.created_at)
-            | last
-            | select(.conclusion == "success")
-            | .id // empty' <<< "$runs")
-          [ -n "$run_id" ] || { echo "::error::no successful release validation run for PR #$PR_NUMBER at $PR_HEAD_SHA"; exit 1; }
+          run_id=$(python3 scripts/ci/select-release-validation-run.py "$PR_NUMBER" "$PR_HEAD_SHA" <<< "$runs")
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       - name: Download the tested tree
@@ -157,5 +150,4 @@ jobs:
           name: caparao-${{ needs.sign.outputs.version }}
 
       - name: Publish GitHub Release
-        run: |
-          gh release create "$TAG" "$APK" "$WEAR_APK" --target "$TARGET_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
+        run: scripts/ci/publish-release.sh
