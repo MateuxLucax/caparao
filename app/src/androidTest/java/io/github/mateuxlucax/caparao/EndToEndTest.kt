@@ -26,6 +26,7 @@ import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.ui.DestinationStores
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -62,6 +63,12 @@ class EndToEndTest {
 
     private fun text(id: Int) = context.getString(id)
 
+    /** The brew screen's ViewModel, which lives in its destination store since #310. */
+    private fun MainActivity.brewViewModel(mode: String): BrewViewModel? =
+        (viewModelStore.get(DestinationStores.KEY) as? DestinationStores)
+            ?.viewModels("brew-$mode")
+            ?.get("brew-$mode") as? BrewViewModel
+
     @Test
     fun anEspressoReachesTheServer() {
         val serverUrl = arguments.getString("server_url")
@@ -80,7 +87,7 @@ class EndToEndTest {
             fun brewState(): BrewUiState? {
                 val state = AtomicReference<BrewUiState?>()
                 scenario.onActivity { activity ->
-                    state.set((activity.viewModelStore.get("brew-ESPRESSO") as? BrewViewModel)?.uiState?.value)
+                    state.set(activity.brewViewModel("ESPRESSO")?.uiState?.value)
                 }
                 return state.get()
             }
@@ -200,7 +207,7 @@ class EndToEndTest {
         try {
             // The shortcut opens the built-in French press recipe, whose water is the control (no ratio caption).
             compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 10_000)
-            val brewViewModel = activity.viewModelStore.get("brew-FRENCH_PRESS") as? BrewViewModel
+            val brewViewModel = activity.brewViewModel("FRENCH_PRESS")
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }
             assertNotNull("French press view model is created with the dose screen", viewModel.get())
