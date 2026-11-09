@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.sync
 
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticErrorContext
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
@@ -41,6 +42,8 @@ class UploadRunner(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // The event carries the stable kind; the exception is reported with the response body scrubbed away.
+            diagnostics.error(e, DiagnosticErrorContext.UPLOAD)
             SyncErrors.of(e) { localNetworkBlocked(url) }
         }
         if (error == null) {

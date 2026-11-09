@@ -2,11 +2,19 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    id("io.sentry.android.gradle")
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
 val appVersionName = (findProperty("versionName") as String?) ?: "0.0.0-dev"
 val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+
+// The release signing job passes the Sentry DSN from the SENTRY_DSN secret; every other build has none, so remote
+// diagnostics stay a no-op (#333).
+val sentryDsn = (findProperty("sentryDsn") as String?) ?: ""
+val sentryAuthToken: String? = System.getenv("SENTRY_AUTH_TOKEN")
+// The DSN's path is the project ID, which sentry-cli accepts in place of the slug (#331 has no project-slug secret).
+val sentryProjectId = sentryDsn.trimEnd('/').substringAfterLast('/', "").takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
 
 // Release signing comes only from environment variables (CI secrets or the local shell), never from the repo.
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
@@ -23,6 +31,8 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
+        buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
     }
 
     signingConfigs {
@@ -79,6 +89,24 @@ android {
     }
 }
 
+// #333: the SDK is wired by hand below, nothing is uploaded without a token, and no bytecode is instrumented.
+sentry {
+    autoInstallation {
+        enabled.set(false)
+    }
+    telemetry.set(false)
+    tracingInstrumentation {
+        enabled.set(false)
+    }
+    includeSourceContext.set(false)
+    // Local and PR builds have no token: skip mapping generation/upload instead of failing the build.
+    includeProguardMapping.set(sentryAuthToken != null)
+    autoUploadProguardMapping.set(sentryAuthToken != null)
+    sentryAuthToken?.let { authToken.set(it) }
+    System.getenv("SENTRY_ORG")?.takeIf { it.isNotBlank() }?.let { org.set(it) }
+    (System.getenv("SENTRY_PROJECT")?.takeIf { it.isNotBlank() } ?: sentryProjectId)?.let { projectName.set(it) }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.generateKotlin", "true")
@@ -99,6 +127,9 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.5")
     // One upload job per brew, with a network constraint and backoff (#100).
     implementation("androidx.work:work-runtime:2.12.0")
+    // Crashes, ANRs and app events behind the Settings opt-in (#333). Core SDK only: no NDK and no
+    // auto-installed integrations. Inline until the version catalog (#311) exists.
+    implementation("io.sentry:sentry-android-core:8.63.0")
 
     // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))

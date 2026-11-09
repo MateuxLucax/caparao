@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.data.scale
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticErrorContext
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
@@ -132,6 +133,7 @@ class ScaleClient(
             transport.close()
             val error = if (e.reason == BleException.Reason.PAIRING_REFUSED) ScaleError.PAIRED_ELSEWHERE else ScaleError.NOT_FOUND
             diagnostics.event(DiagnosticEvent.ScaleConnectionFailed)
+            diagnostics.error(e, DiagnosticErrorContext.SCALE)
             note("open failed: ${e.message}")
             fail(error, retrying = true)
             return false
@@ -142,6 +144,7 @@ class ScaleClient(
             connected()
         } catch (e: BleException) {
             diagnostics.event(DiagnosticEvent.ScaleConnectionFailed)
+            diagnostics.error(e, DiagnosticErrorContext.SCALE)
             note("write failed: ${e.message}")
         }
         transport.close()

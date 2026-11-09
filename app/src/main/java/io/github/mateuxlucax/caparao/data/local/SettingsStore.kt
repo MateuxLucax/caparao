@@ -76,6 +76,25 @@ class SettingsStore(private val prefs: SharedPreferences) {
     val brandColorsChanges: Flow<Boolean>
         get() = prefs.changes(setOf(KEY_BRAND_COLORS)).map { brandColors }.distinctUntilChanged()
 
+    /**
+     * Opt-in remote diagnostics (#333), off by default and independent of the upload server. The Settings UI is #334;
+     * until then only tests flip it. Turning it on records [remoteDiagnosticsConsentMs].
+     */
+    var remoteDiagnostics: Boolean
+        get() = prefs.getBoolean(KEY_REMOTE_DIAGNOSTICS, false)
+        set(value) = prefs.edit()
+            .putBoolean(KEY_REMOTE_DIAGNOSTICS, value)
+            .also { if (value) it.putLong(KEY_REMOTE_DIAGNOSTICS_CONSENT, System.currentTimeMillis()) }
+            .apply()
+
+    /** When remote diagnostics was last turned on, epoch ms; 0 when never. Older crashes and ANRs are not sent. */
+    val remoteDiagnosticsConsentMs: Long
+        get() = prefs.getLong(KEY_REMOTE_DIAGNOSTICS_CONSENT, 0L)
+
+    /** [remoteDiagnostics] now and after every change, so the SDK starts or stops with the toggle (#334). */
+    val remoteDiagnosticsChanges: Flow<Boolean>
+        get() = prefs.changes(setOf(KEY_REMOTE_DIAGNOSTICS)).map { remoteDiagnostics }.distinctUntilChanged()
+
     /** The upload server's base URL, empty when none is set. */
     val serverUrl: String get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
 
@@ -131,6 +150,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_GUIDE_VIBRATION_ON = "guide_vibration_on"
         private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_BRAND_COLORS = "brand_colors"
+        private const val KEY_REMOTE_DIAGNOSTICS = "remote_diagnostics"
+        private const val KEY_REMOTE_DIAGNOSTICS_CONSENT = "remote_diagnostics_consent_ms"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_LAST_STEEP = "last_steep_ms"
         const val DEFAULT_STEEP_MS = 4 * 60 * 1000L

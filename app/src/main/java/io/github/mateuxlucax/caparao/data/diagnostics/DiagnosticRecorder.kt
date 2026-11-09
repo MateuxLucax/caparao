@@ -25,7 +25,6 @@ import java.io.OutputStream
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 enum class DiagnosticIncompleteReason(val note: String) {
     SCALE_DISCONNECTED("scale_disconnected"),
@@ -431,30 +430,4 @@ fun Diagnostics.recordBrewPhase(mode: BrewMode, phase: DiagnosticBrewPhase) {
         BrewMode.FRENCH_PRESS -> DiagnosticBrewMode.FRENCH_PRESS
     }
     event(DiagnosticEvent.BrewPhaseChanged(diagnosticMode, phase))
-}
-
-/** The fixed note token the local capture writes; [DiagnosticEvent] payloads themselves hold no text. */
-private fun DiagnosticEvent.note(): String = when (this) {
-    DiagnosticEvent.AppForeground -> "app_foreground"
-    DiagnosticEvent.AppBackground -> "app_background"
-    DiagnosticEvent.ScaleStarted -> "scale_started"
-    DiagnosticEvent.ScanStarted -> "scan_started"
-    DiagnosticEvent.ScaleNotFound -> "scale_not_found"
-    DiagnosticEvent.ScaleConnecting -> "scale_connecting"
-    DiagnosticEvent.ScaleConnected -> "scale_connected"
-    DiagnosticEvent.ScaleConnectionFailed -> "scale_connection_failed"
-    DiagnosticEvent.ScaleLinkLost -> "scale_link_lost"
-    DiagnosticEvent.ScaleStopped -> "scale_stopped"
-    DiagnosticEvent.BrewScreenOpened -> "brew_screen_opened"
-    DiagnosticEvent.BrewScreenClosed -> "brew_screen_closed"
-    DiagnosticEvent.BrewArmed -> "brew_armed"
-    DiagnosticEvent.BrewStopRequested -> "brew_stop_requested"
-    DiagnosticEvent.BrewLiftEnded -> "brew_lift_end"
-    DiagnosticEvent.BrewInterrupted -> "brew_interrupted"
-    DiagnosticEvent.BrewResultReady -> "brew_result_ready"
-    DiagnosticEvent.UploadSucceeded -> "upload_succeeded"
-    is DiagnosticEvent.UploadFailed -> "upload_failed_${kind.name.lowercase(Locale.ROOT)}"
-    DiagnosticEvent.UploadRetried -> "upload_retried"
-    DiagnosticEvent.SessionStarted -> "session_started"
-    is DiagnosticEvent.BrewPhaseChanged -> "brew_${mode.note}_${phase.note}"
 }
