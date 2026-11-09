@@ -1,6 +1,6 @@
 name: End-to-end
 
-# Reusable emulator gate for Build. Build runs on pull requests, main pushes and dispatches.
+# Reusable emulator gate for Build. Build runs on pull requests and manual dispatches.
 on:
   workflow_call:
     inputs:
@@ -8,6 +8,9 @@ on:
         required: false
         default: false
         type: boolean
+      ref:
+        required: false
+        type: string
 
 concurrency:
   group: e2e-${{ github.workflow }}-${{ github.ref }}
@@ -27,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0

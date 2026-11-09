@@ -174,9 +174,41 @@ drive the virtual clock without HTTP.
 then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
 lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
 
-Pull requests with build-relevant changes run Build checks and E2E (asset-, documentation- and license-only changes are
-filtered out). A green Build on `main` triggers the release for that same commit; manual and `v*` tag releases run Build
-and E2E before signing. Gitleaks runs locally when installed and is not part of CI.
+Every pull request runs Build and E2E, including changes limited to assets, documentation or the license. Merging into
+`main` does not publish a release. To prepare a release, dispatch **Open release PR** from the Actions tab. It opens or
+refreshes a pull request from `main` into `release`; Build, E2E and the PR template check must pass before merging.
+Only a merged PR from this repository's `main` branch can start publication. Required Build, E2E and template checks
+run on the PR's merge candidate; the up-to-date branch rule prevents unvalidated base changes. Use a merge commit so
+the resulting `release` tree matches that tested candidate. The Release workflow builds and signs that resulting
+commit with the existing release key, then creates the matching `v0.3.N` GitHub Release; it does not rerun Build/E2E.
+Manual and tag-triggered publication are disabled. Gitleaks runs locally when installed and is not part of CI.
+
+### Release flow setup
+
+Before activating the flow:
+
+1. Create a GitHub App installed only on this repository with **Contents: read** and **Pull requests: write**. It does
+   not need Actions, releases, or branch-protection bypass permissions. Add repository Actions secrets
+   `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`. The app token opens the PR and lets its checks start immediately;
+   a PR created with `GITHUB_TOKEN` would leave those checks waiting for manual workflow approval.
+2. Create the initial `release` branch at the current `main` commit, with no release-only commit.
+3. Protect `release`: require pull requests and the `fast`, `e2e / e2e`, and `template` checks; require an approving
+   review; require the branch to be up to date; disable direct pushes, force pushes and deletion; allow merge commits
+   and disable squash/rebase merging for this flow; and do not allow
+   bypassing these rules. Keep `main` as the default branch. The workflow also refuses to publish if a different branch
+   or a fork is merged into `release`.
+4. Keep the existing signing secrets (`SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, and
+   `SIGNING_KEY_PASSWORD`) and the same release key. Only the post-merge signing job receives those secrets; the job
+   that publishes the APKs receives repository write permission but no signing secrets.
+
+The first release PR must be opened manually after setup through **Actions → Open release PR → Run workflow**. It is
+assigned to MateuxLucax and uses the repository PR template. Merge only after all required checks pass, using GitHub's
+merge commit option. GitHub validates the PR's test merge commit; the final merge commit has a different SHA because
+it is newly created, but the same tree when the base is up to date and merge commits are used. The Release workflow
+checks out that final SHA explicitly before building and signing. If a signing run fails because of a temporary
+configuration problem, fix it and rerun that failed Release workflow run. If code must change, update `main`; an open
+PR refreshes and reruns checks, or dispatch a new PR after the previous one has merged. Version names keep using
+`VERSION` plus the workflow run number. No release is made by merging a PR into `main`.
 
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 

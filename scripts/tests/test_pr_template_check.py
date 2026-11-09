@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -82,6 +84,11 @@ class PrTemplateCheckTest(unittest.TestCase):
 
     def test_closing_keyword_is_required(self) -> None:
         self.assertIn("Link the issue this PR closes: Closes #<n>", checker.check(FILLED.replace("Closes #302", "See #302")))
+
+    def test_release_sync_pr_may_link_its_decision_without_closing_it(self) -> None:
+        body = FILLED.replace("Closes #302", "See #362")
+        with patch.dict(os.environ, {"PR_BASE_REF": "release", "PR_HEAD_REF": "main"}):
+            self.assertEqual([], checker.check(body))
 
     def test_sections_come_from_the_template(self) -> None:
         self.assertEqual(
