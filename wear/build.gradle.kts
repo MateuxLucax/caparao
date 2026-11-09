@@ -42,7 +42,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Same rule as the phone: without the release key the APK stays unsigned, never debug-signed (#327).
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

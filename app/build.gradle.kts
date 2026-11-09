@@ -46,7 +46,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Only the release key may sign a release: Android refuses an update signed by a different key, so a
+            // debug-signed release could force every user to uninstall. Without the keystore the APK stays unsigned
+            // (app-release-unsigned.apk); scripts/release-apk.sh builds and signs one locally (#327).
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
