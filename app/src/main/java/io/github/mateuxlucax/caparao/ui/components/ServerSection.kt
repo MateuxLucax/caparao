@@ -39,6 +39,7 @@ import io.github.mateuxlucax.caparao.data.network.ServerUrl
 import io.github.mateuxlucax.caparao.model.SyncError
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.format.message
+import io.github.mateuxlucax.caparao.ui.settings.ServerCheck
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -67,24 +68,31 @@ fun ServerForm(
         ServerFields(
             url, { onUrlChange(it); viewModel.edited() },
             token, { onTokenChange(it); viewModel.edited() },
+            refused = state.urlRefused,
         )
         LocalNetworkNotice(url, viewModel::isLocalNetworkBlocked, actions)
         OutlinedButton(
             shapes = ButtonDefaults.shapes(),
             onClick = { scope.launchConnectionTest(viewModel, url, token, localNetworkAccess) },
-            enabled = viewModel.canSave(url, token),
+            enabled = viewModel.canSave(url, token) && state.checking == null,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.test_connection)) }
+        ) { Text(stringResource(if (state.checking == ServerCheck.Test) R.string.server_checking else R.string.test_connection)) }
         TestResultLine(state.testResult, actions.openAppSettings)
     }
 }
 
 @Composable
-private fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTokenChange: (String) -> Unit) {
+private fun ServerFields(
+    url: String,
+    onUrlChange: (String) -> Unit,
+    token: String,
+    onTokenChange: (String) -> Unit,
+    refused: Boolean,
+) {
     var showToken by rememberSaveable { mutableStateOf(false) }
     val problem = when {
         url.isNotBlank() && !ServerUrl.isValid(url) -> stringResource(R.string.error_invalid_url)
-        ServerUrl.isCleartextToPublicHost(url) -> stringResource(R.string.url_cleartext_warning)
+        refused -> stringResource(R.string.url_http_not_local)
         else -> null
     }
     OutlinedTextField(
@@ -165,8 +173,9 @@ fun rememberLocalNetworkAccess(isBlocked: suspend (String) -> Boolean, actions: 
     }
 
 /**
- * Starts "Test connection" with [url] and [token]. Local network access is settled here first, asking for the
- * permission if needed, and the ViewModel gets only the answer, so no ViewModel coroutine holds the activity.
+ * Starts "Test connection" with [url] and [token]. The host is checked first, so plain http to a non-local server is
+ * refused before the token is sent. Local network access is settled here next, asking for the permission if needed,
+ * and the ViewModel gets only the answer, so no ViewModel coroutine holds the activity.
  */
 private fun CoroutineScope.launchConnectionTest(
     viewModel: ServerViewModel,
@@ -174,13 +183,13 @@ private fun CoroutineScope.launchConnectionTest(
     token: String,
     localNetworkAccess: suspend (String) -> Boolean,
 ) {
-    viewModel.markTestRunning()
     launch {
+        if (!viewModel.checkHost(url, ServerCheck.Test)) return@launch
+        viewModel.markTestRunning()
         var started = false
         try {
             val allowed = localNetworkAccess(url.trim())
-            viewModel.testConnection(url, token, allowed)
-            started = true
+            started = viewModel.testConnection(url, token, allowed)
         } finally {
             // The screen went away (e.g. rotated) during the prompt: don't leave "running" behind.
             if (!started) viewModel.clearTest()

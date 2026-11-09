@@ -93,6 +93,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -171,6 +172,11 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     private val brews = BrewRepository(db.brews())
     private val recipes = RecipeRepository(db.recipes())
     private val settings = SettingsStore(context.getSharedPreferences("screen-tests", Context.MODE_PRIVATE))
+
+    /** The server form's fake host check: whether the host is local, gated to inspect the checking state. */
+    private var localServer = false
+    private var localServerGate: CompletableDeferred<Unit>? = null
+    private val serverChecks = mutableListOf<Pair<String, String>>()
     private val diagnosticScope = MainScope()
     private val diagnostics = DiagnosticRecorder(
         context.cacheDir.resolve("diagnostic-screen-tests/$lang-$theme-${System.nanoTime()}"),
@@ -248,7 +254,14 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, settings.syncStatus) {} }
-            initializer { ServerViewModel(settings, { _, _ -> error("no server in screen tests") }, {}, {}) }
+            initializer {
+                ServerViewModel(
+                    settings,
+                    { url, token -> serverChecks += url to token; error("no server in screen tests") },
+                    {}, {},
+                    localNetwork = { localServerGate?.await(); localServer },
+                )
+            }
             initializer {
                 BrewViewModel(
                     requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
@@ -885,6 +898,85 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
     }
 
     /** The home tab in each brand color (#108). */
+    /** H1: plain http to a public host is refused, with the fix under the field, and nothing is sent. */
+    @Test
+    fun serverRefusesPublicHttp() {
+        localServer = false
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        serverField(R.string.server_url, "http://coffee.example.com")
+        serverField(R.string.server_token, "dev-token")
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        waitFor(R.string.url_http_not_local)
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        assertFalse(settings.serverConfigured)
+
+        compose.onNodeWithText(text(R.string.test_connection)).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue("the token is never sent to a refused http server", serverChecks.isEmpty())
+        compose.onNodeWithText(text(R.string.url_http_not_local)).assertExists()
+
+        // Editing the URL clears the error.
+        serverField(R.string.server_url, "https://coffee.example.com")
+        compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
+    }
+
+    /** The same refusal on the onboarding server step, before the first save. */
+    @Test
+    fun onboardingRefusesPublicHttp() {
+        localServer = false
+        open("press-ramp", 38_300, onboardingDone = false)
+        waitFor(R.string.welcome_title)
+        click(R.string.get_started)
+        click(R.string.skip)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.scale_connected)), 5_000)
+        click(R.string.next)
+        waitFor(R.string.server_title)
+        serverField(R.string.server_url, "http://coffee.example.com")
+        serverField(R.string.server_token, "dev-token")
+        compose.onNodeWithText(text(R.string.finish)).performClick()
+        waitFor(R.string.url_http_not_local)
+        compose.onNodeWithText(text(R.string.finish)).assertIsNotEnabled()
+        assertFalse(settings.serverConfigured)
+        assertTrue("the token is never sent to a refused http server", serverChecks.isEmpty())
+    }
+
+    /** H2: the Save button shows Checking… and is disabled until the host resolves. */
+    @Test
+    fun serverShowsCheckingWhileTheHostResolves() {
+        localServer = true
+        localServerGate = CompletableDeferred()
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        serverField(R.string.server_url, "http://nas:8080")
+        serverField(R.string.server_token, "dev-token")
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        waitFor(R.string.server_checking)
+        compose.onNodeWithText(text(R.string.server_checking)).assertIsNotEnabled()
+
+        localServerGate!!.complete(Unit)
+        compose.waitUntil(5_000) { settings.serverConfigured }
+    }
+
+    /** H3: plain http to a local host saves, with no warning. */
+    @Test
+    fun serverSavesLocalHttpWithoutAWarning() {
+        localServer = true
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        serverField(R.string.server_url, "http://nas.local:8080")
+        serverField(R.string.server_token, "dev-token")
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.waitUntil(5_000) { settings.serverConfigured }
+        assertEquals("http://nas.local:8080", settings.serverUrl)
+        compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
+    }
+
+    /** Types [value] into the server field labeled [label], scrolling it into view. */
+    private fun serverField(label: Int, value: String) {
+        compose.onNode(hasSetTextAction() and hasText(text(label))).performScrollTo().performTextReplacement(value)
+    }
+
     @Test
     fun brandColors() {
         var brand by mutableStateOf<BrandColor?>(null)
