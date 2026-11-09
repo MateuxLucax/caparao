@@ -183,39 +183,6 @@ tree; after merge, the Release workflow compares that tree with the final merge 
 existing key and creates the matching `v0.3.N` GitHub Release. It does not rerun Build/E2E. Manual and tag-triggered
 publication are disabled. Gitleaks runs locally when installed and is not part of CI.
 
-### Release flow setup
-
-Before activating the flow:
-
-1. Create a GitHub App installed only on this repository with **Contents: read** and **Pull requests: write**. It does
-   not need Actions, releases, or branch-protection bypass permissions. Add repository Actions secrets
-   `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`. The app token opens the PR and lets its checks start immediately;
-   a PR created with `GITHUB_TOKEN` would leave those checks waiting for manual workflow approval.
-2. Create the initial `release` branch at the current `main` commit, with no release-only commit.
-3. Protect `release`: require pull requests and the `source`, Build fast, Build E2E, `candidate-tree`, and `template`
-   checks (select the exact contexts shown on the first release PR); require an approving review; disable direct
-   pushes, force pushes and deletion; allow merge commits and disable squash/rebase merging for this flow; and do not
-   allow bypassing these rules. Keep `main` as the default branch. Do not require the PR head to contain `release`:
-   each PR test merge candidate combines the current `release`
-   base with `main`, and only a PR whose source is this repository's `main` can pass the `source` check. A successful
-   validation stores the candidate tree digest for up to 90 days; publication fails closed if the final merge tree
-   differs, including when the base changed during a run. Rerun checks before merging a PR older than 90 days. The
-   workflow also refuses to publish a fork or another source branch.
-4. Keep the existing signing secrets (`SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, and
-   `SIGNING_KEY_PASSWORD`) and the same release key. Only the post-merge signing job receives those secrets; the job
-   that publishes the APKs receives repository write permission but no signing secrets.
-
-The first release PR must be opened manually after setup through **Actions → Open release PR → Run workflow**. It is
-assigned to MateuxLucax and uses the repository PR template. Merge only after all required checks pass, using GitHub's
-merge commit option. GitHub validates a test merge of the current `release` base and `main`; a successful validation
-records its tree digest. The final merge commit has a new SHA, and publication compares its tree digest with the
-recorded candidate before building and signing. If a signing run fails because of a temporary
-configuration problem, fix it and rerun that failed Release workflow run. If code must change, update `main`; an open
-PR refreshes and reruns checks, or dispatch a new PR after the previous one has merged. Version names keep using
-`VERSION` plus the workflow run number. If publication stopped after creating a tag or draft release, rerunning
-replaces assets only when the existing tag still points to the validated merge SHA, updates its signer note and
-publishes any draft; a conflicting tag is left untouched. No release is made by merging a PR into `main`.
-
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 
 ## Server
