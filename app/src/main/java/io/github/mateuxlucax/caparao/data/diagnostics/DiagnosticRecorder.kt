@@ -2,8 +2,6 @@ package io.github.mateuxlucax.caparao.data.diagnostics
 
 import io.github.mateuxlucax.caparao.data.export.ExportedFile
 import io.github.mateuxlucax.caparao.model.BrewMode
-import androidx.core.content.FileProvider
-import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -216,12 +214,11 @@ class DiagnosticRecorder(
         }
     }
 
-    /** A local FileProvider share handle for the newest retained session. */
-    override fun shareLatest(context: Context): ExportedFile? = synchronized(lock) {
+    /** A share handle for the newest retained session, built by the caller's FileProvider without a Context (#328). */
+    fun shareLatest(authority: String, uriFor: (File) -> Uri): ExportedFile? = synchronized(lock) {
         val file = (state.value as? DiagnosticRecorderState.Ready)?.file ?: return@synchronized null
         if (!file.isFile) return@synchronized null
-        val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        ExportedFile(uri, "application/x-ndjson")
+        ExportedFile(uriFor(file), "application/x-ndjson")
     }
 
     private fun enqueueLocked(session: Session, payload: Payload) {

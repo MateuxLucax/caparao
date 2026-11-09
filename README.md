@@ -170,6 +170,34 @@ The README screens come from these states, plus the saved-brew and recipe screen
 Scenario JSON files live in `app/src/test/resources/scenarios/`; JVM and instrumented tests load those same files and
 drive the virtual clock without HTTP.
 
+### Baseline Profile and Macrobenchmark
+
+The release APK carries a Baseline Profile generated from three journeys (#312): cold start to Home, a filter brew with
+the scripted scale through its live screen, and the Brews list scrolled into a brew detail. The `:baselineprofile` and
+`:macrobenchmark` modules are `com.android.test` targets: they run on an emulator or device and are not part of
+`scripts/check.sh` or the release build.
+
+Attach the emulator (`Pixel_10_Pro_XL`), set `ANDROID_SERIAL`, and generate the profile:
+
+```bash
+./gradlew :app:generateReleaseBaselineProfile
+```
+
+The generator writes `baseline-prof.txt` and `startup-prof.txt` under
+`app/src/release/generated/baselineProfiles/`; commit both with the change. The release APK contains the compiled
+profile at `assets/dexopt/baseline.prof`, and `profileinstaller` installs it on sideloaded builds. Measure the result
+on the same device (each journey runs with `CompilationMode.None` and with the profile):
+
+```bash
+./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.StartupBenchmark
+./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.BrewBenchmarks
+```
+
+Both benchmark variants use the debug signing key and stay off release builds; they carry the scripted scale and a
+seeded Brews list so the journeys do not depend on the phone's data.
+
 `scripts/e2e.sh` starts its own exporter and replays espresso and French press sessions through the app on an emulator,
 then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
 lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
@@ -195,6 +223,25 @@ while a stable dependency never moves to a prerelease.
 An update PR is reviewed like any other change: Build and E2E must pass, and the description check skips bot PRs because
 Dependabot writes its own body. With dependency verification (#313), a bump that changes a downloaded artifact also
 refreshes `gradle/verification-metadata.xml` in the same PR, so the checksum gate stays green.
+
+### Release signing
+
+Every release must use the same key: Android only installs an update signed by the key that signed the installed app.
+`scripts/release-key.sh` creates it at `~/.config/caparao/release.jks`, stores its password in the macOS Keychain, and
+`--upload` copies the four secrets the Release workflow reads; back up both.
+
+A release build is signed only when `SIGNING_KEYSTORE_PATH` is set, together with `SIGNING_STORE_PASSWORD`,
+`SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`. Without them `./gradlew assembleRelease` produces an unsigned
+`app-release-unsigned.apk` that Android will not install; it never falls back to the debug key. For a signed local
+release:
+
+```bash
+scripts/release-apk.sh            # prints the signer SHA-256
+scripts/release-apk.sh --install  # also installs it on the connected device
+```
+
+The Release workflow sets the same variables from the repository secrets and publishes the signer SHA-256 with each
+release.
 
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 

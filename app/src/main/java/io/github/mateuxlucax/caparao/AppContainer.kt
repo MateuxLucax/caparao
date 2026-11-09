@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.FanOutDiagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.SentryDiagnostics
@@ -73,6 +74,9 @@ class AppContainer(context: Context) {
         release = "caparao@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}",
         scope = scope,
     )
+
+    /** The diagnostic share handle, built here with the application context; the ViewModel holds no Context (#328). */
+    private val diagnosticShare = DiagnosticShare(appContext, recorder)
 
     /** The seam every producer reports through: the local capture and, while opted in, Sentry. */
     val diagnostics: Diagnostics = FanOutDiagnostics(recorder, sentry)
@@ -142,7 +146,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
-        initializer { DiagnosticsViewModel(appContext, recorder) }
+        initializer { DiagnosticsViewModel(recorder, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }

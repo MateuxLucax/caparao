@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
@@ -40,6 +41,7 @@ import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -61,6 +63,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -79,6 +82,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -110,7 +114,13 @@ class AppScreensTest {
     private val recipes = RecipeRepository(db.recipes())
     private val coffeeBags = CoffeeBagRepository(db.coffeeBags())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
+
+    /** Whether the fake resolver treats the server as local, and an optional gate for the checking state. */
+    private var localServer = false
+    private var localServerGate: CompletableDeferred<Unit>? = null
+    private val checked = mutableListOf<Pair<String, String>>()
     private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
+    private val diagnosticShare = DiagnosticShare(context, diagnostics)
 
     /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
     private var now = 0L
@@ -125,14 +135,21 @@ class AppScreensTest {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(context, diagnostics) }
+            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
-        initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
+        initializer {
+            ServerViewModel(
+                settings,
+                { url, token -> checked += url to token; error("no server in tests") },
+                {}, {},
+                localNetwork = { localServerGate?.await(); localServer },
+            )
+        }
         initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
     }
@@ -402,16 +419,27 @@ class AppScreensTest {
     }
 
     @Test
-    fun settingsWarnsAboutCleartextAndSavesTheServer() {
+    fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.url_cleartext_warning)), 5_000)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_token))).performScrollTo().performTextReplacement("dev-token")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.url_http_not_local)), 5_000)
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.test_connection)).performClick()
+        compose.waitForIdle()
+        assertTrue(checked.isEmpty())
+        assertFalse(settings.serverConfigured)
 
+        // A local name saves, with no warning.
+        localServer = true
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://nas:8080")
+        compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         compose.waitUntil(5_000) { settings.serverConfigured }
+        assertEquals("http://nas:8080", settings.serverUrl)
     }
 
     @Test

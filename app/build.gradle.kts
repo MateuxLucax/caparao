@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.ksp)
     alias(libs.plugins.sentry.android)
+    // Adds the nonMinifiedRelease and benchmarkRelease variants and the generateReleaseBaselineProfile task (#312).
+    alias(libs.plugins.baselineprofile)
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
@@ -33,6 +35,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
         buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
+        // True only in debug and the two benchmark variants: gates the scripted scale and the benchmark seed (#312).
+        buildConfigField("boolean", "SCRIPTED_SCALE", "false")
     }
 
     signingConfigs {
@@ -50,14 +54,48 @@ android {
         // A separate package so a debug build installs next to the release one instead of over it (their signers differ).
         debug {
             applicationIdSuffix = ".debug"
+            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
         }
         release {
             // R8: Compose without shrinking is ~25 MB. Room and WorkManager ship their own keep rules.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Only the release key may sign a release: Android refuses an update signed by a different key, so a
+            // debug-signed release could force every user to uninstall. Without the keystore the APK stays unsigned
+            // (app-release-unsigned.apk); scripts/release-apk.sh builds and signs one locally (#327).
+            signingConfig = signingConfigs.findByName("release")
         }
+        // Created here, before the Baseline Profile plugin finalizes the DSL, so both variants can carry the
+        // debug source set and drive the scripted scale. Neither variant is a release APK (#312).
+        create("nonMinifiedRelease") {
+            isDebuggable = false
+            isMinifyEnabled = false
+            isShrinkResources = false
+            isProfileable = true
+            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        create("benchmarkRelease") {
+            initWith(getByName("release"))
+            // The plugin normally leaves its benchmark build type unminified; keep the reflection hooks readable.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            isDebuggable = false
+            isProfileable = true
+            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    sourceSets {
+        // The scripted scale and the benchmark fixture live in src/debug; only these two non-shipping variants include
+        // them, so a release APK still has no debug entry points (#312). Both source sets need the directory: the built-in
+        // Kotlin compiler does not read Kotlin files from java.srcDirs.
+        getByName("nonMinifiedRelease").java.srcDir("src/debug/java")
+        getByName("nonMinifiedRelease").kotlin.srcDir("src/debug/java")
+        getByName("benchmarkRelease").java.srcDir("src/debug/java")
+        getByName("benchmarkRelease").kotlin.srcDir("src/debug/java")
     }
 
     buildFeatures {
@@ -130,6 +168,8 @@ dependencies {
     // Crashes, ANRs and app events behind the Settings opt-in (#333). Core SDK only: no NDK and no
     // auto-installed integrations.
     implementation(libs.sentry.android.core)
+    // Installs the Baseline Profile on sideloaded builds, where Play cannot provide it (#312).
+    implementation(libs.profileinstaller)
 
     // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))
@@ -158,6 +198,14 @@ dependencies {
     // ui-test-junit4 pulls Espresso 3.5, which calls InputManager.getInstance (removed in recent Android).
     androidTestImplementation(libs.espresso.core)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    // The journeys that generate the release profile (#312); its APKs never ship.
+    baselineProfile(project(":baselineprofile"))
+}
+
+// Keep the generated profile in the source tree, next to the release variant it belongs to (#312).
+baselineProfile {
+    saveInSrc = true
 }
 
 // Material 3 Expressive components (#109) are still marked experimental.

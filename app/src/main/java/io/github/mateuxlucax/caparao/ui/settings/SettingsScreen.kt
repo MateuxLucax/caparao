@@ -117,14 +117,15 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
         Button(
             shapes = ButtonDefaults.shapes(),
             onClick = {
-                // Ask for local network access now, while the user is here; the worker can't ask.
+                // Check the host, then ask for local network access now, while the user is here; the worker can't ask.
                 scope.launch {
+                    if (!viewModel.checkHost(url, ServerCheck.Save)) return@launch
                     localNetworkAccess(url.trim())
                     viewModel.save(url, token)
                 }
             },
-            enabled = changed && viewModel.canSave(url, token),
-        ) { Text(stringResource(R.string.save)) }
+            enabled = changed && viewModel.canSave(url, token) && state.checking == null && !state.urlRefused,
+        ) { Text(stringResource(if (state.checking == ServerCheck.Save) R.string.server_checking else R.string.save)) }
     }
 }
 
