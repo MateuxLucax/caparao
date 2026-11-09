@@ -1,6 +1,6 @@
 // Wear OS companion: mirrors the phone's scale and brew over the Data Layer (#107).
 plugins {
-    id("com.android.application")
+    alias(libs.plugins.android.application)
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -71,21 +71,21 @@ android {
 
 dependencies {
     implementation(project(":wearlink"))
-    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation(libs.activity.compose)
     // One Compose version for the app, its tests and ui-test-manifest: mixed versions break the screen tests.
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    implementation("androidx.wear.compose:compose-material3:1.7.1")
-    implementation("androidx.wear.compose:compose-foundation:1.7.1")
-    implementation("com.google.android.gms:play-services-wearable:20.0.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation(platform(libs.compose.bom))
+    implementation(libs.wear.compose.material3)
+    implementation(libs.wear.compose.foundation)
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.lifecycle.runtime.compose)
     // The Ongoing Activity during a brew.
-    implementation("androidx.wear:wear-ongoing:1.1.0")
-    implementation("androidx.core:core:1.19.1")
+    implementation(libs.wear.ongoing)
+    implementation(libs.core)
 
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.17")
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(libs.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.espresso.core)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

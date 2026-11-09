@@ -1,7 +1,7 @@
 plugins {
-    id("com.android.application")
+    alias(libs.plugins.android.application)
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.ksp)
 }
 
 // CI passes -PversionName=1.2.3 -PversionCode=42; local builds fall back to dev values.
@@ -85,48 +85,48 @@ ksp {
 }
 
 dependencies {
-    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation(libs.activity.compose)
     // FileProvider for the export files shared through the share sheet (#76).
-    implementation("androidx.core:core-ktx:1.19.1")
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation(libs.core.ktx)
+    implementation(platform(libs.compose.bom))
     // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (#109).
-    implementation("androidx.compose.material3:material3:1.5.0-beta01")
+    implementation(libs.compose.material3)
     // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (#95).
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
     // Brews and their curves (#87, #88).
-    implementation("androidx.room:room-runtime:2.8.5")
-    ksp("androidx.room:room-compiler:2.8.5")
+    implementation(libs.room.runtime)
+    ksp(libs.room.compiler)
     // One upload job per brew, with a network constraint and backoff (#100).
-    implementation("androidx.work:work-runtime:2.12.0")
+    implementation(libs.work.runtime)
 
     // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))
-    implementation("com.google.android.gms:play-services-wearable:20.0.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
-    implementation("androidx.wear:wear-remote-interactions:1.2.0")
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.wear.remote.interactions)
     // play-services-wearable pulls Fragment 1.0, whose activity results lint rejects for MainActivity.
-    implementation("androidx.fragment:fragment:1.9.1")
+    implementation(libs.fragment)
 
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit4)
     // android.jar only ships a stub of org.json; JVM tests read the recorded sessions with the real one.
-    testImplementation("org.json:json:20250517")
+    testImplementation(libs.json)
     // runTest with virtual time for the connection logic, Dispatchers.setMain for ViewModel tests.
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    testImplementation(libs.kotlinx.coroutines.test)
     // Compose screens on the JVM (#88, 2026-10-29 amendment): test-only, nothing ships.
-    testImplementation("org.robolectric:robolectric:4.17")
-    testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.espresso.core)
 
 
-    androidTestImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test:runner:1.7.0")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
     // ui-test-junit4 pulls Espresso 3.5, which calls InputManager.getInstance (removed in recent Android).
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation(libs.espresso.core)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
 
 // Material 3 Expressive components (#109) are still marked experimental.
