@@ -45,12 +45,15 @@ class BrewRepository(
         refreshAfterChange()
     }
 
-    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes) and marks it unsynced. */
+    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes), marks it unsynced and bumps its revision. */
     suspend fun updateNotes(brew: Brew) =
         dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
 
-    /** The server confirmed [id] at [at] (epoch ms). */
-    suspend fun markSynced(id: String, at: Long) = dao.markSynced(id, at)
+    /**
+     * The server confirmed [id] at [at] (epoch ms), unless it changed since [revision]; false means the upload carried
+     * stale data and the brew needs another attempt (#315).
+     */
+    suspend fun markSynced(id: String, at: Long, revision: Int): Boolean = dao.markSynced(id, at, revision) > 0
 
     /** Ids of the brews the server hasn't confirmed, oldest first. */
     suspend fun unsyncedIds(): List<String> = dao.unsynced().map { it.id }
@@ -80,6 +83,7 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        revision = revision,
     )
 
     private fun Brew.toEntity() = BrewEntity(
@@ -102,5 +106,6 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        revision = revision,
     )
 }

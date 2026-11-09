@@ -39,8 +39,9 @@ class UploadRunner(
             SyncErrors.of(e) { localNetworkBlocked(url) }
         }
         if (error == null) {
+            // Edited while the request was in flight: the server has the old data, so it goes again with the new (#315).
             val at = now()
-            repository.markSynced(brewId, at)
+            if (!repository.markSynced(brewId, at, brew.revision)) return UploadOutcome.RETRY
             settings.lastSyncMs = at
             if (clearsLastError(brewId)) settings.setLastSyncError(null, null)
             return UploadOutcome.SUCCESS

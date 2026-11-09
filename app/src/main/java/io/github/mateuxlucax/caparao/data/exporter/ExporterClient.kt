@@ -18,12 +18,12 @@ class HttpStatusException(val code: Int, message: String) : Exception(message)
  * `POST {serverUrl}/api/v1/brews` with a Bearer token. The JSON wire format is built only in [body]. Throws
  * [HttpStatusException] for a non-2xx answer and IOException when the server can't be reached; sync/SyncErrors.kt maps both.
  */
-class ExporterClient(
+open class ExporterClient(
     private val connectTimeoutMs: Int = 15_000,
     private val readTimeoutMs: Int = 60_000,
 ) {
     /** Sends one brew; returns on `201` (new) or `200` (replaced, #91). */
-    suspend fun upload(serverUrl: String, token: String, brew: Brew, samples: List<BrewSample>) = withContext(Dispatchers.IO) {
+    open suspend fun upload(serverUrl: String, token: String, brew: Brew, samples: List<BrewSample>) = withContext(Dispatchers.IO) {
         request("POST", serverUrl, "/api/v1/brews", token, body(brew, samples).toString().toByteArray())
     }
 
