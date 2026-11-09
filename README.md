@@ -131,6 +131,26 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
 
+### Dependency verification
+
+Gradle checks every plugin and library it downloads against `gradle/verification-metadata.xml`: PGP signatures where
+the publisher signs, SHA-256 checksums otherwise. The public keys are in `gradle/verification-keyring.keys`, so a build
+does not depend on key servers, and `-sources`/`-javadoc` jars are trusted so Android Studio sync works. Build, E2E and
+Release all verify the same metadata.
+
+After a dependency bump (manual or Dependabot, #314), refresh the metadata in the same PR and commit both files:
+
+```bash
+./gradlew --write-verification-metadata pgp,sha256 --export-keys \
+  help assembleRelease testDebugUnitTest lint assembleDebug assembleDebugAndroidTest \
+  :wear:testDebugUnitTest :wearlink:test compileDebugAndroidTestKotlin
+```
+
+Review the diff: remove entries for versions no longer used and remove any `version` attribute from new `trusted-key`
+entries, so a key covers the library's future versions. If Gradle reports a key it cannot download, retry with
+`--refresh-keys` or add the key to `gradle/verification-keyring.keys`; leave an `ignored-key` only when the key is not
+published anywhere.
+
 Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroidTest`. Debug builds can replay a recorded session instead of the scale
 (the emulator has no Bluetooth):
 
