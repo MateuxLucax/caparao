@@ -28,7 +28,11 @@ import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -62,34 +66,59 @@ class BrewWidgetProvider : AppWidgetProvider() {
     ) {
         if (appWidgetIds.isEmpty()) return
         val pending = goAsync()
+        // Both the normal path and the watchdog below may reach the deadline, so finish the broadcast once.
+        val finished = AtomicBoolean(false)
+        val finish = { if (finished.compareAndSet(false, true)) pending.finish() }
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                BrewWidgetRefresh.run(
-                    read = {
-                        val repository = (context.applicationContext as CaparaoApplication).container.brews
-                        val zone = ZoneId.systemDefault()
-                        val window = brewWidgetWeekWindow(LocalDate.now(zone), zone)
-                        val weekBrews = repository.endedBetween(window.startInclusiveMs, window.endExclusiveMs)
-                        BrewWidgetContent(
-                            latest = repository.latest(),
-                            week = summarizeBrewWidgetWeek(weekBrews, window, zone),
+            refreshBounded(
+                read = {
+                    val repository = (context.applicationContext as CaparaoApplication).container.brews
+                    val zone = ZoneId.systemDefault()
+                    val window = brewWidgetWeekWindow(LocalDate.now(zone), zone)
+                    val weekBrews = repository.endedBetween(window.startInclusiveMs, window.endExclusiveMs)
+                    BrewWidgetContent(
+                        latest = repository.latest(),
+                        week = summarizeBrewWidgetWeek(weekBrews, window, zone),
+                    )
+                },
+                publish = { content ->
+                    appWidgetIds.forEach { id ->
+                        val options = optionsByWidgetId[id] ?: manager.getAppWidgetOptions(id)
+                        manager.updateAppWidget(
+                            id,
+                            responsiveViews(context, id, content.latest, content.week, options),
                         )
-                    },
-                    publish = { content ->
-                        appWidgetIds.forEach { id ->
-                            val options = optionsByWidgetId[id] ?: manager.getAppWidgetOptions(id)
-                            manager.updateAppWidget(
-                                id,
-                                responsiveViews(context, id, content.latest, content.week, options),
-                            )
-                        }
-                    },
-                )
-            } catch (failure: Exception) {
-                Log.w(TAG, "Brew widget refresh failed", failure)
-            } finally {
-                pending.finish()
+                    }
+                },
+                finish = finish,
+            )
+        }
+    }
+
+    /**
+     * Finishes the broadcast even when the read hangs or throws: Android reports a `goAsync()` window longer than about
+     * 10 s as a background ANR (#326). A timeout keeps the previous widget content and logs no personal data.
+     *
+     * [BrewWidgetRefresh.run] bounds cancellable work, but cancellation is cooperative: the read starts by touching
+     * `AppContainer`, a synchronous lazy init, and a blocking read cannot be interrupted. The watchdog therefore calls
+     * [finish] at the deadline on its own, so the broadcast is released even when `run` is still waiting for the read.
+     */
+    internal suspend fun <T> refreshBounded(read: suspend () -> T, publish: (T) -> Unit, finish: () -> Unit): Unit = coroutineScope {
+        val watchdog = launch {
+            delay(BrewWidgetRefresh.TIMEOUT_MS + FINISH_MARGIN_MS)
+            finish()
+        }
+        try {
+            if (BrewWidgetRefresh.run(read, publish) == BrewWidgetRefresh.Outcome.TIMED_OUT) {
+                Log.w(TAG, "Brew widget refresh timed out")
             }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            Log.w(TAG, "Brew widget refresh failed", failure)
+        } finally {
+            watchdog.cancel()
+            finish()
         }
     }
 
@@ -252,6 +281,9 @@ class BrewWidgetProvider : AppWidgetProvider() {
 
     companion object {
         private const val TAG = "BrewWidget"
+
+        /** The watchdog fires just after the cooperative timeout, still well inside the ~10 s broadcast window. */
+        private const val FINISH_MARGIN_MS = 250L
         private const val ACTION_REFRESH = "io.github.mateuxlucax.caparao.widget.REFRESH"
         private val WEEKDAY_IDS = intArrayOf(
             R.id.widget_weekly_day_0,
