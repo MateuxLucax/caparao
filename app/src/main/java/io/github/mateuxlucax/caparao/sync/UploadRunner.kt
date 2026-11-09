@@ -35,6 +35,7 @@ class UploadRunner(
         val brew = repository.get(brewId) ?: return UploadOutcome.SUCCESS
         if (brew.syncedAt != null) return UploadOutcome.SUCCESS
         val url = settings.serverUrl
+        var failure: Exception? = null
         val error = try {
             if (localNetworkBlocked(url)) throw SetupException(SyncError.Kind.LOCAL_NETWORK_PERMISSION)
             exporter.upload(url, settings.token, brew, repository.samples(brewId))
@@ -42,13 +43,13 @@ class UploadRunner(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // The event carries the stable kind; the exception is reported with the response body scrubbed away.
-            diagnostics.error(e, DiagnosticErrorContext.UPLOAD)
+            failure = e
             SyncErrors.of(e) { localNetworkBlocked(url) }
         }
         if (error == null) {
+            // Edited while the request was in flight: the server has the old data, so it goes again with the new (#315).
             val at = now()
-            repository.markSynced(brewId, at)
+            if (!repository.markSynced(brewId, at, brew.revision)) return UploadOutcome.RETRY
             settings.lastSyncMs = at
             if (clearsLastError(brewId)) settings.setLastSyncError(null, null)
             diagnostics.event(DiagnosticEvent.UploadSucceeded)
@@ -60,6 +61,11 @@ class UploadRunner(
             diagnostics.event(DiagnosticEvent.UploadRetried)
             return UploadOutcome.RETRY
         }
+        // A retryable failure (timeout, 5xx, no network) is the normal sync path, and a wrong token or URL is the user's
+        // to fix: neither is worth an error event. A refused body or a redirect is a contract problem, so it is (#333).
+        if (failure != null && error.kind in REPORTABLE_KINDS) {
+            diagnostics.error(failure, DiagnosticErrorContext.UPLOAD)
+        }
         return UploadOutcome.FAILURE
     }
 
@@ -70,5 +76,10 @@ class UploadRunner(
     private fun clearsLastError(brewId: String): Boolean {
         val last = settings.lastSyncError ?: return false
         return last.kind != SyncError.Kind.REJECTED || settings.lastSyncErrorBrewId == brewId
+    }
+
+    private companion object {
+        /** Stable failures that point at the app or the contract, not at the user's token, URL or network. */
+        val REPORTABLE_KINDS = setOf(SyncError.Kind.REJECTED, SyncError.Kind.REDIRECTED)
     }
 }

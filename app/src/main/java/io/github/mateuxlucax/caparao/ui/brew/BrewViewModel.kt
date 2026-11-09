@@ -16,6 +16,7 @@ import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.FilterDetector
 import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
 import io.github.mateuxlucax.caparao.brew.FrenchPressWater
+import io.github.mateuxlucax.caparao.brew.FrenchPressWaterTracker
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
@@ -123,6 +124,9 @@ class BrewViewModel(
     private var filterLiftBeganAtMs: Long? = null
     /** Highest tared water weight for the current French press, held as the server is lifted off the scale. */
     private var frenchPressWaterGrams = 0.0
+
+    /** The settled water as the brew runs (#322); the saved yield still comes from FrenchPressWater (#214). */
+    private var frenchPressWaterTracker: FrenchPressWaterTracker? = null
 
     /** French press: the settled water shown for each brewing reading, by its clock time, for the saved curve (#214). */
     private val frenchPressSettled = HashMap<Long, Double>()
@@ -461,7 +465,8 @@ class BrewViewModel(
             return
         }
         val timed = TimedReading(clock(), reading)
-        if (readings.size < MAX_READINGS) readings += timed
+        val recorded = readings.size < MAX_READINGS
+        if (recorded) readings += timed
         val before = current.phase
         current.onReading(timed)?.let(::send)
         val pauseState = current.pauseState
@@ -512,8 +517,17 @@ class BrewViewModel(
         val shownWeight = if (mode == BrewMode.FILTER && current.phase == BrewPhase.PAUSED) {
             pauseState?.waterWeightGrams ?: reading.weightGrams
         } else if (mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING) {
-            // The settled water, the same number the saved yield gets from FrenchPressWater (#214).
-            frenchPressWaterGrams = FrenchPressWater.of(readings, brewingSinceMs ?: timed.atMs, timed.atMs) ?: frenchPressWaterGrams
+            // The settled water, the same number the saved yield gets from FrenchPressWater (#214), kept reading by
+            // reading instead of rescanning the whole brew (#322).
+            val waterTracker = frenchPressWaterTracker
+            if (waterTracker == null) {
+                frenchPressWaterTracker = FrenchPressWaterTracker(since ?: timed.atMs).also { tracker ->
+                    readings.forEach { tracker.update(it) }
+                    frenchPressWaterGrams = tracker.waterGrams ?: frenchPressWaterGrams
+                }
+            } else if (recorded) {
+                frenchPressWaterGrams = waterTracker.update(timed) ?: frenchPressWaterGrams
+            }
             frenchPressSettled[timed.atMs] = frenchPressWaterGrams
             frenchPressWaterGrams
         } else {
@@ -943,6 +957,7 @@ class BrewViewModel(
         brewingSinceMs = null
         filterLiftBeganAtMs = null
         frenchPressWaterGrams = 0.0
+        frenchPressWaterTracker = null
         frenchPressSettled.clear()
         tracker = null
         frenchPressFinishTracker = null

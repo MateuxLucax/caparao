@@ -56,7 +56,7 @@ class CoffeeBagMigrationTest {
             db.version = 7
         }
 
-        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name).addMigrations(MIGRATION_7_8).build()
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name).addMigrations(MIGRATION_7_8, MIGRATION_8_9).build()
         try {
             val brews = db.brews()
             assertEquals("open", brews.get("after-open")!!.bagId)

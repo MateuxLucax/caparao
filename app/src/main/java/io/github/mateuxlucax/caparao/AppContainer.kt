@@ -23,6 +23,7 @@ import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleClock
 import io.github.mateuxlucax.caparao.data.scale.ScaleClient
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
+import io.github.mateuxlucax.caparao.data.watch.AndroidWatchTransport
 import io.github.mateuxlucax.caparao.sync.UploadRunner
 import io.github.mateuxlucax.caparao.sync.UploadScheduler
 import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
@@ -131,8 +132,8 @@ class AppContainer(context: Context) {
     /** Scale mode's timer, driven from Home and the watch. */
     private val scaleTimer = ScaleTimer { scale }
 
-    /** The paired watch, if any (#107); reads [scale] when it starts. */
-    val watch = WatchLink(appContext, scope, scaleTimer) { scale }
+    /** The paired watch, if any (#107); follows one that connects later (#324) and reads [scale] when it starts. */
+    val watch = WatchLink(AndroidWatchTransport(appContext), scope, scaleTimer, scale = { scale })
 
     /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {

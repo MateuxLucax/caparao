@@ -24,17 +24,9 @@ class LocalNetworkTest {
     }
 
     @Test
-    fun localRanges() {
-        listOf(
-            "10.0.2.2", "172.16.0.1", "172.31.255.255", "192.168.0.10", "127.0.0.1", "169.254.1.1",
-            "100.64.0.1", "100.127.255.255", "::1", "fd12:3456::1", "fe80::1",
-        ).forEach { assertTrue(it, LocalNetwork.isLocal("http://server:8080", resolver(it))) }
-    }
-
-    @Test
-    fun publicRanges() {
-        listOf("8.8.8.8", "172.32.0.1", "100.63.255.255", "100.128.0.1", "192.169.0.1", "2001:db8::1").forEach {
-            assertFalse(it, LocalNetwork.isLocal("https://example.com", resolver(it)))
+    fun addressClassificationIsSharedWithServerUrl() {
+        LocalAddressCases.all.forEach { (address, local) ->
+            assertEquals(address, local, LocalNetwork.isLocal("http://server:8080", resolver(address)))
         }
     }
 

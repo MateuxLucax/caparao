@@ -35,6 +35,8 @@ data class Brew(
     /** 1–5. */
     val rating: Int? = null,
     val notes: String? = null,
+    /** Changes when a write alters what the server receives; local only, never uploaded (#315). */
+    val revision: Int = 0,
 ) {
     /** The X of 1:X. */
     val ratio: Double get() = yieldGrams / doseGrams

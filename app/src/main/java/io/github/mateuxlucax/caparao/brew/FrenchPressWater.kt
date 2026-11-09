@@ -7,27 +7,28 @@ import kotlin.math.abs
  * before something heavy is set on it (a lid). A spoon in the bloom comes off again and a lift comes back, so neither
  * counts; the highest weight read does not count either, since a landing or a pour overshoot passes through it.
  *
- * Pure: the readings of a brew in order, from its first water to its end.
+ * Pure: the readings of a brew in order, from its first water to its end. [FrenchPressWaterTracker] keeps the same
+ * answer live, reading by reading, without rescanning the brew (#322).
  */
 object FrenchPressWater {
     /**
      * A rise this large within [LANDING_WINDOW_MS] is set on the scale, not poured: pours here reach about 12 g in half a
      * second, a spoon about 22 g in under a third of one.
      */
-    private const val LANDING_GRAMS = 18.0
-    private const val LANDING_WINDOW_MS = 500L
+    internal const val LANDING_GRAMS = 18.0
+    internal const val LANDING_WINDOW_MS = 500L
 
     /** Something set on the scale stays until the weight is back at its level for [LEFT_MS]; a spoon that comes off does. */
-    private const val LEFT_TOLERANCE_GRAMS = 2.0
-    private const val LEFT_MS = 1_000L
+    internal const val LEFT_TOLERANCE_GRAMS = 2.0
+    internal const val LEFT_MS = 1_000L
 
     /** The same threshold that ends a French press brew on removal: at or below it the press is off the scale. */
-    private const val OFF_SCALE_GRAMS = FrenchPressFinishTracker.REMOVAL_THRESHOLD_GRAMS
+    internal const val OFF_SCALE_GRAMS = FrenchPressFinishTracker.REMOVAL_THRESHOLD_GRAMS
 
     /** Pour overshoot and scale noise, and how long a level must hold: the filter detector's settled-water rule (#201). */
     private val settled = FilterConfig()
-    private val SETTLED_TOLERANCE_GRAMS = settled.settledWeightToleranceGrams
-    private val SETTLED_WINDOW_MS = settled.settledWeightHoldMs
+    internal val SETTLED_TOLERANCE_GRAMS = settled.settledWeightToleranceGrams
+    internal val SETTLED_WINDOW_MS = settled.settledWeightHoldMs
 
     /**
      * The water in [readings] from [startedAtMs] to [endedAtMs], or null when nothing was read on the scale. The brew is
@@ -51,9 +52,17 @@ object FrenchPressWater {
         val before = brew.subList(0, cut)
         val last = before.last()
         val window = before.filter { it.atMs >= last.atMs - SETTLED_WINDOW_MS }.map { it.grams() }.sorted()
+        return settledLevel(window, last.grams())
+    }
+
+    /**
+     * The settled level for a sorted [window] of grams ending at [lastGrams]: its median once the window holds, the last
+     * reading otherwise. The same rule the live tracker applies to the window before its cut (#322).
+     */
+    internal fun settledLevel(window: List<Double>, lastGrams: Double): Double {
         val median = window[window.size / 2]
         val settled = window.size >= 3 && window.all { abs(it - median) <= SETTLED_TOLERANCE_GRAMS }
-        return if (settled) median else last.grams()
+        return if (settled) median else lastGrams
     }
 
     /**

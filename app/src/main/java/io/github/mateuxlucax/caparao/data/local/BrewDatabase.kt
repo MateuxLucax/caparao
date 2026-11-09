@@ -42,6 +42,8 @@ data class BrewEntity(
     val notes: String? = null,
     /** The coffee bag this brew used; local only, never sent to the server (#288). No foreign key: deleting a bag unlinks its brews. */
     @ColumnInfo(name = "bag_id") val bagId: String? = null,
+    /** Changes whenever a write alters what the server receives (#315). Local only, never uploaded. */
+    @ColumnInfo(defaultValue = "0") val revision: Int = 0,
 )
 
 /** One point of a brew's curve; deleted with its brew. */
@@ -108,16 +110,17 @@ interface BrewDao {
     @Query("SELECT * FROM brews WHERE synced_at IS NULL ORDER BY started_at")
     suspend fun unsynced(): List<BrewEntity>
 
-    @Query("UPDATE brews SET synced_at = :at WHERE id = :id")
-    suspend fun markSynced(id: String, at: Long)
+    /** Confirms [id] only if its revision is still [revision]; zero rows means it changed during the upload (#315). */
+    @Query("UPDATE brews SET synced_at = :at WHERE id = :id AND revision = :revision")
+    suspend fun markSynced(id: String, at: Long, revision: Int): Int
 
     @Query("DELETE FROM brews WHERE id = :id")
     suspend fun delete(id: String)
 
-    /** The notes changed: the server's copy is stale, so the brew is unsynced again (#105). */
+    /** The notes changed: the server's copy is stale, so the brew is unsynced again and its revision grows (#105, #315). */
     @Query(
         "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
-            "notes = :notes, synced_at = NULL WHERE id = :id",
+            "notes = :notes, synced_at = NULL, revision = revision + 1 WHERE id = :id",
     )
     suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
 }
@@ -125,7 +128,7 @@ interface BrewDao {
 /** The app's database: brews, their curves and the recipes, only on the phone (#87). */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 8,
+    version = 9,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -139,7 +142,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .addCallback(SeedBuiltInRecipes)
             .build()
     }
@@ -225,6 +228,13 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
                 "AND brews.started_at >= coffee_bags.created_at ORDER BY coffee_bags.finished, coffee_bags.created_at DESC LIMIT 1) " +
                 "WHERE brews.coffee IS NOT NULL",
         )
+    }
+}
+
+/** Upload revisions, so a brew edited while a job is in flight is sent again (#315). */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE brews ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
     }
 }
 

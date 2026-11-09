@@ -3,7 +3,6 @@ package io.github.mateuxlucax.caparao.data.local
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
-import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -30,13 +29,8 @@ class BrewRepository(
     suspend fun endedBetween(startInclusive: Long, endExclusive: Long): List<Brew> =
         dao.endedBetween(startInclusive, endExclusive).map { it.toModel() }
 
-    /** Every brew with its curve, oldest first, for the export (#76). */
-    suspend fun allWithSamples(): List<BrewWithSamples> {
-        val samples = dao.allSamples().groupBy { it.brewId }
-        return dao.all().map { row ->
-            BrewWithSamples(row.toModel(), samples[row.id].orEmpty().map { BrewSample(it.atMs, it.weightGrams, it.flow) })
-        }
-    }
+    /** Every brew without its curve, oldest first, for the export (#76); [samples] reads one curve at a time (#319). */
+    suspend fun all(): List<Brew> = dao.all().map { it.toModel() }
 
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
@@ -45,12 +39,15 @@ class BrewRepository(
         refreshAfterChange()
     }
 
-    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes) and marks it unsynced. */
+    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes), marks it unsynced and bumps its revision. */
     suspend fun updateNotes(brew: Brew) =
         dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
 
-    /** The server confirmed [id] at [at] (epoch ms). */
-    suspend fun markSynced(id: String, at: Long) = dao.markSynced(id, at)
+    /**
+     * The server confirmed [id] at [at] (epoch ms), unless it changed since [revision]; false means the upload carried
+     * stale data and the brew needs another attempt (#315).
+     */
+    suspend fun markSynced(id: String, at: Long, revision: Int): Boolean = dao.markSynced(id, at, revision) > 0
 
     /** Ids of the brews the server hasn't confirmed, oldest first. */
     suspend fun unsyncedIds(): List<String> = dao.unsynced().map { it.id }
@@ -80,6 +77,7 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        revision = revision,
     )
 
     private fun Brew.toEntity() = BrewEntity(
@@ -102,5 +100,6 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        revision = revision,
     )
 }

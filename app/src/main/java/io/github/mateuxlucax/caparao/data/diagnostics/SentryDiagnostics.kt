@@ -123,6 +123,7 @@ internal class SentryDiagnostics(
     @Suppress("DEPRECATION")
     private fun configure(options: SentryAndroidOptions, consent: Long) {
         options.dsn = dsn
+        options.cacheDirPath = cacheDir.absolutePath
         options.environment = environment
         options.release = release
         options.setSendDefaultPii(false)

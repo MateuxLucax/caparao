@@ -1,49 +1,82 @@
 name: Release
 
-# Publish after a green Build on main. Manual and tag releases run the same Build checks and E2E first.
+# Publish only after the protected main-to-release PR is merged and its final tree matches the tested candidate.
 on:
-  workflow_dispatch:
-  push:
-    tags: ["v*"]
-  workflow_run:
-    workflows: [Build]
-    branches: [main]
-    types: [completed]
+  pull_request:
+    branches: [release]
+    types: [closed]
 
-# Actions are pinned to commit SHAs (tag in the comment). The signing secrets are only in the sign job, which can't
-# write to the repository; the release job can write and never sees them.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
 jobs:
-  validate:
-    if: github.event_name != 'workflow_run'
-    uses: ./.github/workflows/build.yml
+  verify-tree:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Find the successful release validation run
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          runs=$(gh api "repos/$GH_REPO/actions/workflows/release-validation.yml/runs?event=pull_request&per_page=100")
+          run_id=$(python3 scripts/ci/select-release-validation-run.py "$PR_NUMBER" "$PR_HEAD_SHA" <<< "$runs")
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download the tested tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download "${{ steps.candidate.outputs.run_id }}" --name "release-tree-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}" --dir "$RUNNER_TEMP/candidate"
+
+      - name: Require the merged tree to match the tested tree
+        run: |
+          tested_tree=$(cat "$RUNNER_TEMP/candidate/candidate-tree.txt")
+          merged_tree=$(git rev-parse 'HEAD^{tree}')
+          # GitHub creates a new merge commit SHA; publication must use the exact tree that passed Build and E2E.
+          [ "$tested_tree" = "$merged_tree" ] || {
+            echo "::error::merged tree $merged_tree differs from validated tree $tested_tree"
+            exit 1
+          }
+          echo "Validated tree: $merged_tree" >> "$GITHUB_STEP_SUMMARY"
 
   sign:
-    needs: validate
-    if: >-
-      always() &&
-      ((github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        needs.validate.result == 'skipped') ||
-       (github.event_name != 'workflow_run' && needs.validate.result == 'success'))
+    needs: verify-tree
+    if: needs.verify-tree.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.name }}
       signer: ${{ steps.signer.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           persist-credentials: false
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
-          # Same as Build: Robolectric's SDK 37 sandbox needs Java 21.
           java-version: "21"
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
@@ -51,15 +84,11 @@ jobs:
       - name: Compute version
         id: version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            name="${GITHUB_REF_NAME#v}"
-          else
-            name="$(tr -d '[:space:]' < VERSION).$GITHUB_RUN_NUMBER"
-          fi
+          name="$(tr -d '[:space:]' < VERSION).$GITHUB_RUN_NUMBER"
           echo "VERSION_NAME=$name" >> "$GITHUB_ENV"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
-      # Every release must be signed with the same release key, or updates won't install over the previous version.
+      # Only this job receives the existing release key; it cannot write to the repository.
       - name: Decode signing keystore
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -74,7 +103,7 @@ jobs:
           echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
-      - name: Build release APK
+      - name: Build release APKs
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -87,11 +116,9 @@ jobs:
         run: |
           ./gradlew --console=plain assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER" -PsentryDsn="$SENTRY_DSN"
           cp app/build/outputs/apk/release/app-release.apk "caparao-$VERSION_NAME.apk"
-          # The watch companion, same key (#107).
           cp wear/build/outputs/apk/release/wear-release.apk "caparao-wear-$VERSION_NAME.apk"
           rm -f "$RUNNER_TEMP/release.jks"
 
-      # Lets users check the APK's signer before installing (apksigner from the runner's Android SDK).
       - name: Signer certificate
         id: signer
         run: |
@@ -108,10 +135,9 @@ jobs:
             caparao-${{ env.VERSION_NAME }}.apk
             caparao-wear-${{ env.VERSION_NAME }}.apk
 
-  release:
+  publish:
     needs: sign
-    # validate is a skipped ancestor on workflow_run; bypass implicit success() so a successful sign can publish.
-    if: ${{ always() && needs.sign.result == 'success' }}
+    if: needs.sign.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -121,23 +147,17 @@ jobs:
       TAG: v${{ needs.sign.outputs.version }}
       APK: caparao-${{ needs.sign.outputs.version }}.apk
       WEAR_APK: caparao-wear-${{ needs.sign.outputs.version }}.apk
-      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha }}
       SIGNER_NOTE: "APK signer certificate SHA-256: `${{ needs.sign.outputs.signer }}`"
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: caparao-${{ needs.sign.outputs.version }}
 
-      # The release may already exist (drafted in the GitHub UI for a tag, or an earlier attempt of this run).
       - name: Publish GitHub Release
-        run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" "$WEAR_APK" --clobber
-            notes=$(gh release view "$TAG" --json body --jq .body)
-            if [[ "$notes" != *"$SIGNER_NOTE"* ]]; then
-              gh release edit "$TAG" --notes "$(printf '%s\n\n%s' "$notes" "$SIGNER_NOTE")"
-            fi
-          else
-            # GitHub puts --notes before the generated notes.
-            gh release create "$TAG" "$APK" "$WEAR_APK" --target "$TARGET_SHA" --title "$TAG" --generate-notes --notes "$SIGNER_NOTE"
-          fi
+        run: scripts/ci/publish-release.sh
