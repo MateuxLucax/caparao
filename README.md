@@ -174,9 +174,14 @@ drive the virtual clock without HTTP.
 then checks the stored brews and curves. The canonical [upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md)
 lives with the exporter; change it there first, then bump the pin and update the app and its client fixtures.
 
-Pull requests with build-relevant changes run Build checks and E2E (asset-, documentation- and license-only changes are
-filtered out). A green Build on `main` triggers the release for that same commit; manual and `v*` tag releases run Build
-and E2E before signing. Gitleaks runs locally when installed and is not part of CI.
+Development pull requests into `main` run Build and E2E except for changes limited to assets, documentation or the
+license. Every PR into `release` runs unfiltered Release validation, including those changes. Merging into `main` does
+not publish a release. To prepare one, dispatch **Open release PR** from the Actions tab. It opens or refreshes a pull
+request from `main` into `release`; its source, Build, E2E, tested-tree and template checks must pass before merging.
+Only a merged PR from this repository's `main` branch can start publication. Release validation records the candidate
+tree; after merge, the Release workflow compares that tree with the final merge tree before it signs the APKs with the
+existing key and creates the matching `v0.3.N` GitHub Release. It does not rerun Build/E2E. Manual and tag-triggered
+publication are disabled. Gitleaks runs locally when installed and is not part of CI.
 
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 

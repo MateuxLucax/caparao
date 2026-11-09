@@ -103,7 +103,8 @@ def check(body: str, required: list[str] | None = None) -> list[str]:
     if "Out of scope" in found and not re.sub(r"^[-*]\s*$", "", scope, flags=re.MULTILINE).strip():
         problems.append("## Out of scope: list what was left out, or write None")
 
-    if not CLOSING.search(body):
+    release_sync = os.environ.get("PR_BASE_REF") == "release" and os.environ.get("PR_HEAD_REF") == "main"
+    if not CLOSING.search(body) and not release_sync:
         problems.append("Link the issue this PR closes: Closes #<n>")
     return problems
 

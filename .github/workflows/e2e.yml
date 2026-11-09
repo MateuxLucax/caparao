@@ -1,6 +1,6 @@
 name: End-to-end
 
-# Reusable emulator gate for Build. Build runs on pull requests, main pushes and dispatches.
+# Reusable emulator gate for Build and release validation.
 on:
   workflow_call:
     inputs:

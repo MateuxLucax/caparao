@@ -1,0 +1,78 @@
+name: Open release PR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-pr-open
+  cancel-in-progress: false
+
+jobs:
+  open:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Create release PR token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Open or refresh main into release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body_file="$RUNNER_TEMP/release-pr.md"
+          cat > "$body_file" <<'EOF'
+          ## Objective
+
+          Validate and publish the current `main` commit through the protected `release` branch.
+
+          ## Description
+
+          This release PR contains no release-only changes. It was opened by the manual release workflow; see the release-flow decision in #362.
+
+          ## Test scenarios
+
+          | ID | Goal | Preconditions | Steps | Expected result | Status |
+          |----|------|---------------|-------|-----------------|--------|
+          | TS-01 | Validate and publish the current main commit | Protected release branch exists | 1. Wait for Build and End-to-end checks, then merge | The tested tree is signed and published | ⏭️ Waiting for PR checks |
+
+          ## Evidence
+
+          Release workflow run: __RUN_URL__
+
+          ## Screenshots
+
+          N/A
+
+          ## Out of scope
+
+          - Release-only code changes; this branch mirrors `main`.
+          EOF
+          sed -i "s|__RUN_URL__|$RUN_URL|" "$body_file"
+
+          PR_BASE_REF=release PR_HEAD_REF=main python3 scripts/ci/pr-template-check.py "$body_file"
+
+          number=$(gh pr list --base release --head main --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file "$body_file" --add-assignee MateuxLucax
+          else
+            gh pr create --base release --head main --title "Release: $(date -u +%F)" \
+              --body-file "$body_file" --assignee MateuxLucax
+          fi
