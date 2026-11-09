@@ -1,6 +1,8 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,9 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,13 +22,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -56,31 +58,43 @@ fun BrewChart(samples: List<BrewSample>, durationMs: Long, weightLabel: String, 
     val measurer = rememberTextMeasurer()
     val drawIn = rememberDrawIn(samples.size)
     Column(modifier) {
-        Canvas(Modifier.fillMaxWidth().height(220.dp)) {
-            val left = 36.dp.toPx()
-            val right = size.width - 36.dp.toPx()
-            val top = 8.dp.toPx()
-            val bottom = size.height - 20.dp.toPx()
-            fun x(ms: Long) = left + (right - left) * timeAxis.fraction(ms / 1000.0).toFloat()
-            fun yWeight(g: Double) = bottom - (bottom - top) * weightAxis.fraction(g).toFloat()
-            fun yFlow(f: Double) = bottom - (bottom - top) * flowAxis.fraction(f).toFloat()
-            weightAxis.ticks.forEach { tick ->
-                val y = yWeight(tick)
-                drawLine(grid, Offset(left, y), Offset(right, y), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
-                label(measurer, tick.toInt().toString(), Offset(0f, y), labelStyle)
-            }
-            flowAxis.ticks.forEachIndexed { i, tick ->
-                // Same number of gridlines rarely; label the flow axis at its own positions without lines.
-                if (i > 0) label(measurer, trim(tick), Offset(right + 6.dp.toPx(), yFlow(tick)), labelStyle)
-            }
-            timeAxis.ticks.forEach { tick ->
-                label(measurer, "${tick.toInt()}s", Offset(x((tick * 1000).toLong()) - 8.dp.toPx(), bottom + 12.dp.toPx()), labelStyle)
-            }
-            if (samples.size >= 2) {
-                drawCurve(samples.map { Offset(x(it.atMs), yFlow(it.flowGramsPerSecond)) }, flowColor, 2.5.dp.toPx(), drawIn.value)
-                drawCurve(samples.map { Offset(x(it.atMs), yWeight(it.weightGrams)) }, weightColor, 4.dp.toPx(), drawIn.value)
-            }
-        }
+        Spacer(
+            Modifier.fillMaxWidth().height(220.dp).drawWithCache {
+                // Everything that grows with the samples is built once per size or sample change (#320).
+                val left = 36.dp.toPx()
+                val right = size.width - 36.dp.toPx()
+                val top = 8.dp.toPx()
+                val bottom = size.height - 20.dp.toPx()
+                fun x(ms: Long) = left + (right - left) * timeAxis.fraction(ms / 1000.0).toFloat()
+                fun yWeight(g: Double) = bottom - (bottom - top) * weightAxis.fraction(g).toFloat()
+                fun yFlow(f: Double) = bottom - (bottom - top) * flowAxis.fraction(f).toFloat()
+                val gridWidth = 1.dp.toPx()
+                val gridYs = weightAxis.ticks.map { yWeight(it) }
+                val weightLabels = weightAxis.ticks.mapIndexed { i, tick -> axisLabel(measurer, tick.toInt().toString(), 0f, gridYs[i], labelStyle) }
+                val flowLabels = flowAxis.ticks.mapIndexedNotNull { i, tick ->
+                    // Same number of gridlines rarely; label the flow axis at its own positions without lines.
+                    if (i > 0) axisLabel(measurer, trim(tick), right + 6.dp.toPx(), yFlow(tick), labelStyle) else null
+                }
+                val timeLabels = timeAxis.ticks.map { tick ->
+                    axisLabel(measurer, "${tick.toInt()}s", x((tick * 1000).toLong()) - 8.dp.toPx(), bottom + 12.dp.toPx(), labelStyle)
+                }
+                val flowPath = if (samples.size >= 2) curvePath(samples.map { Offset(x(it.atMs), yFlow(it.flowGramsPerSecond)) }) else null
+                val weightPath = if (samples.size >= 2) curvePath(samples.map { Offset(x(it.atMs), yWeight(it.weightGrams)) }) else null
+                val flowStroke = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val weightStroke = Stroke(4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                onDrawBehind {
+                    gridYs.forEach { y -> drawLine(grid, Offset(left, y), Offset(right, y), strokeWidth = gridWidth, cap = StrokeCap.Round) }
+                    weightLabels.forEach { drawText(it.text, topLeft = it.at) }
+                    flowLabels.forEach { drawText(it.text, topLeft = it.at) }
+                    timeLabels.forEach { drawText(it.text, topLeft = it.at) }
+                    val progress = drawIn.value
+                    if (flowPath != null && weightPath != null) {
+                        drawCurve(flowPath, flowColor, flowStroke, left, right, progress)
+                        drawCurve(weightPath, weightColor, weightStroke, left, right, progress)
+                    }
+                }
+            },
+        )
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Legend(weightColor, weightLabel)
@@ -113,22 +127,33 @@ internal fun rememberDrawIn(key: Any): Animatable<Float, *> {
     return progress
 }
 
-internal fun androidx.compose.ui.graphics.drawscope.DrawScope.label(measurer: TextMeasurer, text: String, at: Offset, style: TextStyle) {
+/** An axis label measured once per chart size, with the top-left corner it is drawn at. */
+internal class AxisLabel(val text: TextLayoutResult, val at: Offset)
+
+/** Measures [text] centred vertically on [y], so a cached label draws without measuring again. */
+internal fun axisLabel(measurer: TextMeasurer, text: String, x: Float, y: Float, style: TextStyle): AxisLabel {
     val layout = measurer.measure(text, style)
-    drawText(layout, topLeft = Offset(at.x, at.y - layout.size.height / 2f))
+    return AxisLabel(layout, Offset(x, y - layout.size.height / 2f))
 }
 
-/** A thick polyline with round caps and joins, [progress] of it drawn from the first point. */
-internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(points: List<Offset>, color: Color, width: Float, progress: Float = 1f) {
-    var path = Path().apply {
-        moveTo(points.first().x, points.first().y)
-        points.drop(1).forEach { lineTo(it.x, it.y) }
+/** The polyline through [points], built once and reused by every frame of the draw-in. */
+internal fun curvePath(points: List<Offset>): Path = Path().apply {
+    moveTo(points.first().x, points.first().y)
+    for (i in 1 until points.size) lineTo(points[i].x, points[i].y)
+}
+
+/**
+ * Draws a cached [path]; while [progress] is below 1 only the part left of `left + (right - left) * progress`
+ * shows. Clipping a cached path instead of cutting a new segment keeps each draw-in frame allocation-free (#320).
+ */
+internal fun DrawScope.drawCurve(path: Path, color: Color, style: Stroke, left: Float, right: Float, progress: Float) {
+    if (progress >= 1f) {
+        drawPath(path, color, style = style)
+    } else {
+        clipRect(right = left + (right - left) * progress.coerceIn(0f, 1f)) {
+            drawPath(path, color, style = style)
+        }
     }
-    if (progress < 1f) {
-        val measure = PathMeasure().apply { setPath(path, false) }
-        path = Path().also { measure.getSegment(0f, measure.length * progress.coerceIn(0f, 1f), it, true) }
-    }
-    drawPath(path, color, style = Stroke(width, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
 @Composable

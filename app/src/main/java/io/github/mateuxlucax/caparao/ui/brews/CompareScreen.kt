@@ -1,10 +1,10 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,13 +23,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -71,6 +76,9 @@ fun CompareScreen(viewModel: CompareViewModel, onClose: () -> Unit) {
     }
 }
 
+/** A cached curve: its path, colour and stroke, all built once per size or brew change. */
+private class ComparedCurve(val path: Path, val color: Color, val stroke: Stroke)
+
 /** Weight over time, aligned at each brew's start; the axes hold the largest of all curves. */
 @Composable
 fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
@@ -81,26 +89,38 @@ fun CompareChart(brews: List<ComparedBrew>, modifier: Modifier = Modifier) {
     val labelStyle = chartLabelStyle()
     val measurer = rememberTextMeasurer()
     val drawIn = rememberDrawIn(brews.map { it.brew.id })
-    Canvas(modifier.fillMaxWidth().height(220.dp)) {
-        val left = 36.dp.toPx()
-        val right = size.width - 12.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 20.dp.toPx()
-        fun x(ms: Long) = left + (right - left) * timeAxis.fraction(ms / 1000.0).toFloat()
-        fun y(g: Double) = bottom - (bottom - top) * weightAxis.fraction(g).toFloat()
-        weightAxis.ticks.forEach { tick ->
-            drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
-            label(measurer, tick.toInt().toString(), Offset(0f, y(tick)), labelStyle)
-        }
-        timeAxis.ticks.forEach { tick ->
-            label(measurer, "${tick.toInt()}s", Offset(x((tick * 1000).toLong()) - 8.dp.toPx(), bottom + 12.dp.toPx()), labelStyle)
-        }
-        brews.forEachIndexed { i, compared ->
-            if (compared.samples.size >= 2) {
-                drawCurve(compared.samples.map { Offset(x(it.atMs), y(it.weightGrams)) }, colors[i % colors.size], 3.5.dp.toPx(), drawIn.value)
+    Spacer(
+        modifier.fillMaxWidth().height(220.dp).drawWithCache {
+            // Everything that grows with the samples is built once per size or sample change (#320).
+            val left = 36.dp.toPx()
+            val right = size.width - 12.dp.toPx()
+            val top = 8.dp.toPx()
+            val bottom = size.height - 20.dp.toPx()
+            fun x(ms: Long) = left + (right - left) * timeAxis.fraction(ms / 1000.0).toFloat()
+            fun y(g: Double) = bottom - (bottom - top) * weightAxis.fraction(g).toFloat()
+            val gridWidth = 1.dp.toPx()
+            val gridYs = weightAxis.ticks.map { y(it) }
+            val weightLabels = weightAxis.ticks.mapIndexed { i, tick -> axisLabel(measurer, tick.toInt().toString(), 0f, gridYs[i], labelStyle) }
+            val timeLabels = timeAxis.ticks.map { tick ->
+                axisLabel(measurer, "${tick.toInt()}s", x((tick * 1000).toLong()) - 8.dp.toPx(), bottom + 12.dp.toPx(), labelStyle)
             }
-        }
-    }
+            val stroke = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val curves = brews.mapIndexedNotNull { i, compared ->
+                if (compared.samples.size < 2) {
+                    null
+                } else {
+                    ComparedCurve(curvePath(compared.samples.map { Offset(x(it.atMs), y(it.weightGrams)) }), colors[i % colors.size], stroke)
+                }
+            }
+            onDrawBehind {
+                gridYs.forEach { y -> drawLine(grid, Offset(left, y), Offset(right, y), strokeWidth = gridWidth, cap = StrokeCap.Round) }
+                weightLabels.forEach { drawText(it.text, topLeft = it.at) }
+                timeLabels.forEach { drawText(it.text, topLeft = it.at) }
+                val progress = drawIn.value
+                curves.forEach { drawCurve(it.path, it.color, it.stroke, left, right, progress) }
+            }
+        },
+    )
 }
 
 /** One column per brew, headed by its colour and date: dose, yield, ratio, time, average flow and rating. */
