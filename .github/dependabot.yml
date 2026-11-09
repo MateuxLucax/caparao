@@ -1,0 +1,50 @@
+# Dependency update pull requests (#314), native to GitHub: no app or token to install.
+# Each ecosystem opens at most five PRs at once, labelled `tooling`; the Assign workflow adds the assignee.
+version: 2
+updates:
+  # Gradle: AGP, Kotlin, Compose, AndroidX and everything the Android and Wear builds pull. Weekly, grouped so one
+  # PR carries a coherent set. A dependency that matches several groups stays in the first match: keep the narrower
+  # groups above `androidx` and the catch-all last.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "tooling"
+    groups:
+      # The Compose BOM plus Material 3, which runs past the BOM on a beta (#109).
+      compose:
+        patterns:
+          - "androidx.compose:compose-bom"
+          - "androidx.compose.material3*"
+      # Kotlin, KSP, the Compose compiler plugin and coroutines move together.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx:kotlinx-coroutines*"
+          - "com.google.devtools.ksp*"
+      # JUnit, Robolectric, the AndroidX test libraries and the JSON parser used only by JVM tests.
+      test:
+        patterns:
+          - "junit:*"
+          - "org.robolectric*"
+          - "androidx.test*"
+          - "androidx.compose.ui:ui-test*"
+          - "org.json:json"
+      androidx:
+        patterns:
+          - "androidx.*"
+      # Everything else: the Android Gradle plugin, Play Services and the remaining libraries.
+      other:
+        patterns:
+          - "*"
+
+  # Workflow actions stay pinned to commit SHAs; Dependabot moves the SHA and its `# vX.Y.Z` comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "tooling"
