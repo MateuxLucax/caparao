@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -55,11 +56,14 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(SettingsStore.open(appContext))
 
     /** Opt-in BLE and brew lifecycle capture, retained privately and only shared on request. */
-    val diagnostics = DiagnosticRecorder(
+    private val recorder = DiagnosticRecorder(
         directory = appContext.filesDir.resolve("diagnostics"),
         scope = scope,
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
     )
+
+    /** The seam every producer reports through; [recorder] sits behind it until #333 replaces it with the Sentry implementation. */
+    val diagnostics: Diagnostics = recorder
 
     /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)
@@ -85,7 +89,7 @@ class AppContainer(context: Context) {
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
 
     /** Used by [UploadWorker]. */
-    val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked)
+    val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked, diagnostics = diagnostics)
 
     /** The real Dot over Bluetooth, or a recording after [replay]. */
     var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope, diagnostics = diagnostics)
@@ -126,7 +130,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
-        initializer { DiagnosticsViewModel(appContext, diagnostics) }
+        initializer { DiagnosticsViewModel(appContext, recorder) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }

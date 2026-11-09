@@ -27,7 +27,8 @@ import io.github.mateuxlucax.caparao.brew.scaleRecipeToWater
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.recordBrewPhase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -79,7 +80,7 @@ class BrewViewModel(
     /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
     private val onLive: (BrewUiState?) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
-    private val diagnostics: DiagnosticRecorder? = null,
+    private val diagnostics: Diagnostics = NoDiagnostics,
     /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
     private val animations: () -> Boolean = { true },
     /** The coffee bags to pick from before weighing and on the summary (#291); null leaves the coffee step out. */
@@ -144,7 +145,7 @@ class BrewViewModel(
     fun begin() {
         if (job?.isActive == true) return
         reset()
-        diagnostics?.recordEvent(DiagnosticEvent.BrewScreenOpened)
+        diagnostics.event(DiagnosticEvent.BrewScreenOpened)
         watchScale()
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
@@ -157,7 +158,7 @@ class BrewViewModel(
 
     /** The screen closed: stop listening; the next [begin] starts over. */
     fun end() {
-        diagnostics?.recordEvent(DiagnosticEvent.BrewScreenClosed)
+        diagnostics.event(DiagnosticEvent.BrewScreenClosed)
         job?.cancel()
         job = null
         reset()
@@ -361,7 +362,7 @@ class BrewViewModel(
         scaleWatchJob?.cancel()
         scaleWatchJob = null
         _uiState.update { it.copy(step = BrewStep.LIVE, dose = grams, phase = new.phase) }
-        diagnostics?.recordEvent(DiagnosticEvent.BrewArmed)
+        diagnostics.event(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
         // Espresso without a reading (Ready after a disconnect) takes the first one as its baseline.
         if (new is EspressoDetector) {
@@ -397,7 +398,7 @@ class BrewViewModel(
         val current = detector ?: return
         if (current.phase == BrewPhase.DONE) return
         val before = current.phase
-        diagnostics?.recordEvent(event)
+        diagnostics.event(event)
         current.stop(clock())
         if (mode == BrewMode.FILTER && _uiState.value.recipe == null && before in setOf(BrewPhase.BREWING, BrewPhase.PAUSED)) {
             alertOnce(StepEvent.AllDone)
@@ -701,7 +702,7 @@ class BrewViewModel(
             return
         }
         if (state is ScaleState.Failed && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED)) {
-            diagnostics?.recordEvent(DiagnosticEvent.BrewInterrupted)
+            diagnostics.event(DiagnosticEvent.BrewInterrupted)
             current.interrupt(clock())
             recordDiagnosticPhase(current.phase)
             finish(current)
@@ -850,7 +851,7 @@ class BrewViewModel(
         } else {
             bounded
         }
-        diagnostics?.recordEvent(DiagnosticEvent.BrewResultReady)
+        diagnostics.event(DiagnosticEvent.BrewResultReady)
         val removalAtMs = frenchPressFinishTracker?.removedAtMs ?: frenchPressFinishTracker?.removalStartedAtMs
         val summaryReadings = if (mode == BrewMode.FRENCH_PRESS) {
             readings.asSequence()
@@ -995,7 +996,7 @@ class BrewViewModel(
             BrewPhase.BREWING, BrewPhase.PAUSED -> DiagnosticBrewPhase.BREWING
             BrewPhase.DONE -> DiagnosticBrewPhase.DONE
         }
-        diagnostics?.recordBrewPhase(mode, diagnosticPhase)
+        diagnostics.recordBrewPhase(mode, diagnosticPhase)
     }
 
     companion object {
