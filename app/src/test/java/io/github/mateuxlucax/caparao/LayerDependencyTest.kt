@@ -6,8 +6,8 @@ import java.io.File
 
 /**
  * The package rules of #95: model <- data <- brew <- sync <- ui, only ui uses resources
- * (`R`, `BuildConfig`), and no layer refers to the root package (entry points and wiring). Checks imports and fully
- * qualified names written in the code.
+ * (`R`, `BuildConfig`), and no layer refers to the root package (entry points and wiring). Also keeps a `Context` out
+ * of every ViewModel constructor (#328). Checks imports and fully qualified names written in the code.
  */
 class LayerDependencyTest {
     private val base = "io.github.mateuxlucax.caparao"
@@ -26,6 +26,14 @@ class LayerDependencyTest {
 
     /** A fully qualified reference to something in the app, e.g. `io.github...caparao.data.Foo`. */
     private val reference = Regex("""\b${Regex.escape(base)}\.([A-Za-z_][\w.]*|\*)""")
+
+    /** A ViewModel class extending `ViewModel` directly or through a `*ViewModel` base, across lines, never across classes. */
+    private val viewModelDeclaration = Regex(
+        """\bclass\s+(\w+)\s*(?:<[^>]*>)?\s*\(((?:(?!\bclass\b)[\s\S])*?)\)\s*:\s*(?:[\w.]+\.)?[\w.]*ViewModel\s*\(""",
+    )
+
+    /** A constructor parameter of type `Context`, however it is spelled. */
+    private val contextParameter = Regex("""\bContext\b""")
 
     @Test
     fun layersOnlyUseLayersBelowThem() {
@@ -50,6 +58,34 @@ class LayerDependencyTest {
         assertEquals(listOf("R"), references(listOf("import $base.R")).filter { !violates("ui", it) })
         assertEquals(listOf("R"), references(listOf("import $base.R")).filter { violates("brew", it) })
     }
+
+    @Test
+    fun noViewModelTakesAContext() {
+        val violations = sources().flatMap { (_, path, lines) ->
+            viewModelsTakingContext(lines.joinToString("\n")).map { name -> "$path: $name takes a Context" }
+        }
+        assertEquals(emptyList<String>(), violations)
+    }
+
+    @Test
+    fun viewModelRuleCatchesAContextParameterInAnyConstructorShape() {
+        val source = """
+            class TakesContext(private val context: Context, private val repository: BrewRepository) : ViewModel() {
+            class TakesNoContext(private val repository: BrewRepository) : ViewModel() {
+            class TakesContextCallback(
+                private val onShare: (Context) -> Unit,
+                private val repository: BrewRepository,
+            ) : ViewModel() {
+        """.trimIndent()
+        assertEquals(listOf("TakesContext", "TakesContextCallback"), viewModelsTakingContext(source))
+    }
+
+    /** Names of the classes extending a `*ViewModel` whose primary constructor mentions a `Context`. */
+    private fun viewModelsTakingContext(source: String): List<String> =
+        viewModelDeclaration.findAll(source).mapNotNull { match ->
+            val (name, parameters) = match.destructured
+            name.takeIf { contextParameter.containsMatchIn(parameters) }
+        }.toList()
 
     /** (layer, path, lines) of every Kotlin file inside a layer package; root files may use anything. */
     private fun sources(): List<Triple<String, String, List<String>>> {

@@ -1,10 +1,10 @@
 package io.github.mateuxlucax.caparao.ui.settings
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.export.ExportedFile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -24,8 +24,10 @@ data class DiagnosticsUiState(
 )
 
 /** Starts, stops, and explicitly shares the app's bounded local diagnostic capture. */
-class DiagnosticsViewModel(context: Context, private val recorder: DiagnosticRecorder) : ViewModel() {
-    private val appContext = context.applicationContext
+class DiagnosticsViewModel(
+    private val recorder: DiagnosticRecorder,
+    private val diagnosticShare: DiagnosticShare,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(DiagnosticsUiState())
     val uiState: StateFlow<DiagnosticsUiState> = _uiState.asStateFlow()
 
@@ -65,7 +67,7 @@ class DiagnosticsViewModel(context: Context, private val recorder: DiagnosticRec
     }
 
     fun share() {
-        val file = runCatching { recorder.shareLatest(appContext) }.getOrNull()
+        val file = runCatching { diagnosticShare.latest() }.getOrNull()
         _uiState.update { it.copy(shareFile = file, shareFailed = file == null) }
     }
 

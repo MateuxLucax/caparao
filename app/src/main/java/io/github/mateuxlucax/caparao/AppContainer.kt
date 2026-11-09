@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -59,6 +60,9 @@ class AppContainer(context: Context) {
         scope = scope,
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
     )
+
+    /** The diagnostic share handle, built here with the application context; the ViewModel holds no Context (#328). */
+    private val diagnosticShare = DiagnosticShare(appContext, diagnostics)
 
     /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)
@@ -125,7 +129,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
-        initializer { DiagnosticsViewModel(appContext, diagnostics) }
+        initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
