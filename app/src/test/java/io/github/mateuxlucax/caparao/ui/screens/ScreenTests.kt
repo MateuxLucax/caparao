@@ -106,6 +106,8 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
+import io.github.mateuxlucax.caparao.ui.brew.FlowChart
+import io.github.mateuxlucax.caparao.ui.brew.FlowPoint
 import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
@@ -2085,6 +2087,33 @@ abstract class ScreenTests(private val lang: String, private val theme: String, 
         compose.waitForIdle()
         compose.onNodeWithTag("flow-chart-no-target").assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.guide_flow, Format.flow(4.0, locale))).assertIsDisplayed()
+    }
+
+    /** The cached chart paints its curve, and its moving last point follows the animated flow in the draw phase (#321). */
+    @Test
+    fun guidedFlowChartDrawsItsCurveAndFollowsTheFlow() {
+        val flow = mutableStateOf(2f)
+        var stroke = Color.Unspecified
+        compose.setContent {
+            AppTheme {
+                stroke = MaterialTheme.colorScheme.primary
+                FlowChart(
+                    liveFlow = 5.0,
+                    animatedFlow = flow,
+                    history = listOf(FlowPoint(0, 1.0), FlowPoint(2_000, 2.0), FlowPoint(4_000, 5.0)),
+                    target = 5.0,
+                    locale = locale,
+                )
+            }
+        }
+        fun chartPixels() = compose.onNodeWithTag("flow-chart-target").captureToImage().asAndroidBitmap().let { bitmap ->
+            IntArray(bitmap.width * bitmap.height) { i -> bitmap.getPixel(i % bitmap.width, i / bitmap.width) }
+        }
+        val painted = chartPixels()
+        assertTrue("the chart should draw its curve", painted.any { it == stroke.toArgb() })
+        flow.value = 0f
+        compose.waitForIdle()
+        assertTrue("the moving last point should follow the flow", !painted.contentEquals(chartPixels()))
     }
 
     /** French press shows live flow and its chart on bloom and pour only; wait and steep hide them (#224). */
