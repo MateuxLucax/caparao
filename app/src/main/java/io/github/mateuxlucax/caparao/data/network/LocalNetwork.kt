@@ -20,9 +20,10 @@ object LocalNetwork {
 
     /**
      * Whether the server at [url] is on the local network: its host ends with `.local` (mDNS, which itself
-     * needs the permission, so it isn't resolved) or any address it resolves to is private, loopback,
-     * link-local, unique local ([ServerUrl.isPrivate]) or CGNAT (100.64/10, which Android counts as local).
-     * Blocking: resolves the host, so call it off the main thread. A host that doesn't resolve isn't local.
+     * needs the permission, so it isn't resolved) or any address it resolves to is local
+     * ([ServerUrl.isLocalAddress]): private, loopback, link-local, unique local or CGNAT (100.64/10, which
+     * Android counts as local). Blocking: resolves the host, so call it off the main thread. A host that
+     * doesn't resolve isn't local.
      */
     fun isLocal(url: String, resolve: (String) -> Array<InetAddress> = InetAddress::getAllByName): Boolean {
         val host = ServerUrl.host(url) ?: return false
@@ -32,12 +33,7 @@ object LocalNetwork {
         } catch (e: Exception) {
             return false
         }
-        return addresses.any { ServerUrl.isPrivate(it) || isCgnat(it) }
-    }
-
-    private fun isCgnat(address: InetAddress): Boolean {
-        val bytes = address.address
-        return bytes.size == 4 && (bytes[0].toInt() and 0xFF) == 100 && (bytes[1].toInt() and 0xC0) == 64
+        return addresses.any { ServerUrl.isLocalAddress(it) }
     }
 
     /** Below [FIRST_SDK] the permission doesn't exist and access is implicitly granted. */

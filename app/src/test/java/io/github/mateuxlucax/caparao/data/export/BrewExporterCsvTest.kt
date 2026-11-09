@@ -7,6 +7,7 @@ import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -201,7 +202,15 @@ class BrewExporterCsvTest {
 
     private fun zipEntries(includeSamples: Boolean): Map<String, String> {
         val out = ByteArrayOutputStream()
-        BrewExporter.writeZip(out, brews, recipes, includeSamples)
+        runBlocking {
+            BrewExporter.writeZip(
+                out,
+                brews.map { it.brew },
+                { id -> brews.first { it.brew.id == id }.samples },
+                recipes,
+                includeSamples,
+            )
+        }
         val entries = LinkedHashMap<String, String>()
         ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
             var entry = zip.nextEntry

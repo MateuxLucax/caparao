@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.data.network
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,20 +25,24 @@ class ServerUrlTest {
     @Test
     fun cleartextToLocalHostsIsFine() {
         listOf(
-            "http://10.0.2.2:8080", "http://10.1.2.3", "http://172.16.0.1", "http://172.31.255.255",
-            "http://192.168.0.10:8080", "http://127.0.0.1", "http://169.254.1.1", "http://localhost:8080",
-            "http://LOCALHOST", "http://pi.local", "http://nas.lan", "http://server.home.arpa", "http://[::1]:8080",
-            "http://[fd12:3456::1]", "http://[fc00::1]", "http://[fe80::1]", "http://[febf::1]",
+            "http://localhost:8080", "http://LOCALHOST", "http://pi.local", "http://nas.lan",
+            "http://server.home.arpa",
         ).forEach { assertFalse(it, ServerUrl.isCleartextToPublicHost(it)) }
     }
 
     @Test
     fun cleartextToPublicHostsWarns() {
         listOf(
-            "http://example.com", "http://8.8.8.8", "http://172.32.0.1", "http://172.15.0.1", "http://192.169.0.1",
-            "http://11.0.0.1", "http://[2001:db8::1]", "http://[fec0::1]", "http://local.example.com",
-            "http://example.lan.com",
+            "http://example.com", "http://local.example.com", "http://example.lan.com",
         ).forEach { assertTrue(it, ServerUrl.isCleartextToPublicHost(it)) }
+    }
+
+    @Test
+    fun cleartextWarnsOnlyForPublicAddresses() {
+        LocalAddressCases.all.forEach { (address, local) ->
+            val url = LocalAddressCases.url(address)
+            assertEquals(url, local, !ServerUrl.isCleartextToPublicHost(url))
+        }
     }
 
     @Test
