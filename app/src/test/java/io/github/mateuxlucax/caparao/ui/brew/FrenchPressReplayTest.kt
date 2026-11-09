@@ -1,5 +1,8 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
+import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.FrenchPressWater
+import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -65,6 +68,10 @@ class FrenchPressReplayTest {
         )
         val decoder = FrameDecoder()
         var armed = false
+        /** Every reading the ViewModel got, as it got it: the reference [FrenchPressWater.of] runs over them. */
+        val fed = mutableListOf<TimedReading>()
+        /** When the first water arrived; null while the brew has not started. */
+        var firstWaterAtMs: Long? = null
         File("src/test/resources/sessions/press-spoon-lift-removal.jsonl").readLines().drop(1).map(::JSONObject)
             .takeWhile { it.getLong("t_ms") <= STOP_AT_MS }
             .filter { it.getString("dir") == "rx" }
@@ -81,13 +88,23 @@ class FrenchPressReplayTest {
                 decoder.feed(bytes).filterIsInstance<ScaleMessage.Weight>().forEach { weight ->
                     val reading = weight.reading
                     val onScale = reading.weightGrams > 5.0
-                    scale.send(
-                        when {
-                            lidAtMs != null && now >= lidAtMs && onScale ->
-                                reading.copy(weightGrams = reading.weightGrams + 189.0 + if (now < lidAtMs + 500) 40.0 else 0.0)
-                            else -> reading
-                        },
-                    )
+                    val sent = when {
+                        lidAtMs != null && now >= lidAtMs && onScale ->
+                            reading.copy(weightGrams = reading.weightGrams + 189.0 + if (now < lidAtMs + 500) 40.0 else 0.0)
+                        else -> reading
+                    }
+                    // The detector's first water: the first reading at or above 1 g, which starts the brew on the next.
+                    if (vm.uiState.value.phase == BrewPhase.READY) {
+                        firstWaterAtMs = if (sent.weightGrams >= 1.0) firstWaterAtMs ?: now else null
+                    }
+                    scale.send(sent)
+                    fed += TimedReading(now, sent)
+                    // The live weight is the reference water at every reading (#322).
+                    if (vm.uiState.value.phase == BrewPhase.BREWING) {
+                        val start = requireNotNull(firstWaterAtMs) { "the brew started without a first water at $now ms" }
+                        val reference = requireNotNull(FrenchPressWater.of(fed, start, now)) { "no water at $now ms" }
+                        assertEquals("the live water at $now ms", reference, vm.uiState.value.weightGrams, 0.0)
+                    }
                     if (lidAtMs != null && now > lidAtMs + 600 && now < REMOVED_AT_MS) lidWeights += vm.uiState.value.weightGrams
                     val state = vm.uiState.value
                     val current = state.steps.getOrNull(state.guide?.index ?: -1)?.kind
