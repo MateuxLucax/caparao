@@ -178,6 +178,19 @@ Pull requests with build-relevant changes run Build checks and E2E (asset-, docu
 filtered out). A green Build on `main` triggers the release for that same commit; manual and `v*` tag releases run Build
 and E2E before signing. Gitleaks runs locally when installed and is not part of CI.
 
+### Dependency updates
+
+[Dependabot](https://docs.github.com/en/code-security/dependabot) opens update PRs every week from
+`.github/dependabot.yml`, labelled `tooling` and assigned by the Assign workflow. Gradle updates arrive grouped:
+AndroidX, Compose with the BOM and Material 3, Kotlin with KSP, the Compose compiler and coroutines, test libraries, and
+everything else. Workflow actions stay pinned by SHA, and each update moves the SHA and its `# vX.Y.Z` comment. Material
+3 stays on the beta line on purpose (#109): its declared version is a prerelease, so Dependabot offers the next beta,
+while a stable dependency never moves to a prerelease.
+
+An update PR is reviewed like any other change: Build and E2E must pass, and the description check skips bot PRs because
+Dependabot writes its own body. With dependency verification (#313), a bump that changes a downloaded artifact also
+refreshes `gradle/verification-metadata.xml` in the same PR, so the checksum gate stays green.
+
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 
 ## Server
