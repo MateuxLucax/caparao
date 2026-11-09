@@ -132,7 +132,8 @@ private fun Main(
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // The brew screen on top of the tabs, registered by it: a shortcut compares against it before closing anything.
-    // Kept until close() runs: AnimatedContent still keeps the outgoing brew composed during the transition.
+    // Dropped when that screen goes away, by close() or by leaving the composition, but never over a newer
+    // registration: AnimatedContent still keeps the outgoing brew composed during the transition.
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
     // Each destination's ViewModels, held by the activity so a rotation keeps them; a destination that leaves for
     // good is cleared once its exit transition ends (#310).
@@ -223,9 +224,13 @@ private fun Main(
                         }
                     }
                     LaunchedEffect(brew) { brew.begin() }
+                    // Registers this brew screen for the shortcut above. Its disposal drops the entry only while it is
+                    // still the current one: a newer brew registers during the transition, before the outgoing screen
+                    // goes away.
                     DisposableEffect(brew) {
-                        openBrew.value = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
-                        onDispose {}
+                        val open = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
+                        openBrew.value = open
+                        onDispose { if (openBrew.value === open) openBrew.value = null }
                     }
                     BrewScreen(brew, onClose = close)
                 }
