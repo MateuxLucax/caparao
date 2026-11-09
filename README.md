@@ -178,6 +178,25 @@ Pull requests with build-relevant changes run Build checks and E2E (asset-, docu
 filtered out). A green Build on `main` triggers the release for that same commit; manual and `v*` tag releases run Build
 and E2E before signing. Gitleaks runs locally when installed and is not part of CI.
 
+### Release signing
+
+Every release must use the same key: Android only installs an update signed by the key that signed the installed app.
+`scripts/release-key.sh` creates it at `~/.config/caparao/release.jks`, stores its password in the macOS Keychain, and
+`--upload` copies the four secrets the Release workflow reads; back up both.
+
+A release build is signed only when `SIGNING_KEYSTORE_PATH` is set, together with `SIGNING_STORE_PASSWORD`,
+`SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`. Without them `./gradlew assembleRelease` produces an unsigned
+`app-release-unsigned.apk` that Android will not install; it never falls back to the debug key. For a signed local
+release:
+
+```bash
+scripts/release-apk.sh            # prints the signer SHA-256
+scripts/release-apk.sh --install  # also installs it on the connected device
+```
+
+The Release workflow sets the same variables from the repository secrets and publishes the signer SHA-256 with each
+release.
+
 Nothing secret lives in the repository: the server token is typed into the app. When installed, [gitleaks](https://github.com/gitleaks/gitleaks) runs from `scripts/check.sh` and the pre-commit hook.
 
 ## Server
