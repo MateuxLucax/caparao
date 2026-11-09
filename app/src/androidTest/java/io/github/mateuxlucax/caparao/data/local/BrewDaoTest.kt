@@ -70,13 +70,24 @@ class BrewDaoTest {
         dao.insertWithSamples(brew("a", "ESPRESSO", 1), samples("a"))
         dao.insertWithSamples(brew("b", "ESPRESSO", 2, syncedAt = 10), samples("b"))
         assertEquals(listOf("a"), dao.unsynced().map { it.id })
-        dao.markSynced("a", 20)
+        assertEquals(1, dao.markSynced("a", 20, revision = 0))
         assertEquals(20L, dao.get("a")!!.syncedAt)
         assertTrue(dao.unsynced().isEmpty())
     }
 
     @Test
-    fun notesUnsyncTheBrewAndKeepItsBagLink() = runBlocking {
+    fun markingSyncedOnlyMatchesTheRevisionThatWasUploaded() = runBlocking {
+        dao.insertWithSamples(brew("a", "FILTER", 1), samples("a"))
+        dao.updateNotes("a", null, null, null, null, null, "Sweet")
+
+        assertEquals(0, dao.markSynced("a", 20, revision = 0))
+        assertNull(dao.get("a")!!.syncedAt)
+        assertEquals(1, dao.markSynced("a", 20, revision = 1))
+        assertEquals(20L, dao.get("a")!!.syncedAt)
+    }
+
+    @Test
+    fun notesUnsyncTheBrewBumpItsRevisionAndKeepItsBagLink() = runBlocking {
         dao.insertWithSamples(brew("a", "FILTER", 1, syncedAt = 10).copy(coffee = "Old"), samples("a"))
         dao.updateNotes("a", "New", "bag-1", "22", 94, 5, "Sweet")
         val a = dao.get("a")!!
@@ -84,5 +95,6 @@ class BrewDaoTest {
         assertEquals(5, a.rating)
         assertEquals("Sweet", a.notes)
         assertNull(a.syncedAt)
+        assertEquals(1, a.revision)
     }
 }

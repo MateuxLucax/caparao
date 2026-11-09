@@ -7,6 +7,7 @@ import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -43,6 +44,17 @@ class BrewExportFilesTest {
         interrupted = false,
     )
     private val samples = listOf(BrewSample(0, 0.0, 0.0), BrewSample(15_000, 17.9, 2.1))
+    private val filter = brew.copy(
+        id = "b7c1a2d3-4e5f-4a6b-8c9d-0e1f2a3b4c5d",
+        mode = BrewMode.FILTER,
+        startedAt = 1_792_931_500_000,
+        durationMs = 150_000,
+        doseGrams = 15.0,
+        yieldGrams = 240.0,
+        timeToFirstDropMs = 0,
+    )
+    private val filterSamples = listOf(BrewSample(0, 15.0, 0.0), BrewSample(150_000, 240.0, 1.6))
+    private val brews = listOf(BrewWithSamples(brew, samples), BrewWithSamples(filter, filterSamples))
 
     /**
      * One test, not two: FileProvider caches its path strategy per authority for the process, and Robolectric gives
@@ -51,6 +63,7 @@ class BrewExportFilesTest {
     @Test
     fun writesTheZipAndTheSingleBrewJsonThroughTheProvider() = runBlocking {
         repository.save(brew, samples)
+        repository.save(filter, filterSamples)
         recipeRepository.save(
             Recipe(
                 id = "5d2b9f60-1c4e-4a8b-8e37-c0a1f6d3b7e5",
@@ -73,6 +86,10 @@ class BrewExportFilesTest {
         val entries = zipEntries(bytes)
         assertEquals(setOf("brews.json", "brews.csv", "recipes.csv", "samples.csv"), entries.keys)
         assertTrue(entries.getValue("recipes.csv").contains("V60"))
+        // The streamed archive must be what the in-memory export writes, with the platform's own org.json.
+        assertEquals(BrewExporter.json(brews), entries.getValue("brews.json"))
+        assertEquals(BrewExporter.brewsCsv(brews), entries.getValue("brews.csv"))
+        assertEquals(BrewExporter.samplesCsv(brews), entries.getValue("samples.csv"))
 
         val one = files.one(brew, samples)
         assertEquals("application/json", one.mimeType)

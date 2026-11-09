@@ -23,50 +23,7 @@ import java.io.OutputStream
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-
-/** App-owned events that are safe to include in a local diagnostic session. */
-sealed interface DiagnosticEvent {
-    val note: String
-
-    data object AppForeground : DiagnosticEvent { override val note = "app_foreground" }
-    data object AppBackground : DiagnosticEvent { override val note = "app_background" }
-    data object ScaleStarted : DiagnosticEvent { override val note = "scale_started" }
-    data object ScanStarted : DiagnosticEvent { override val note = "scan_started" }
-    data object ScaleNotFound : DiagnosticEvent { override val note = "scale_not_found" }
-    data object ScaleConnecting : DiagnosticEvent { override val note = "scale_connecting" }
-    data object ScaleConnected : DiagnosticEvent { override val note = "scale_connected" }
-    data object ScaleConnectionFailed : DiagnosticEvent { override val note = "scale_connection_failed" }
-    data object ScaleLinkLost : DiagnosticEvent { override val note = "scale_link_lost" }
-    data object ScaleStopped : DiagnosticEvent { override val note = "scale_stopped" }
-    data object BrewScreenOpened : DiagnosticEvent { override val note = "brew_screen_opened" }
-    data object BrewScreenClosed : DiagnosticEvent { override val note = "brew_screen_closed" }
-    data object BrewArmed : DiagnosticEvent { override val note = "brew_armed" }
-    data object BrewStopRequested : DiagnosticEvent { override val note = "brew_stop_requested" }
-    /** A filter lift past the last pour ends the brew, without Done (#277). */
-    data object BrewLiftEnded : DiagnosticEvent { override val note = "brew_lift_end" }
-    data object BrewInterrupted : DiagnosticEvent { override val note = "brew_interrupted" }
-    data object BrewResultReady : DiagnosticEvent { override val note = "brew_result_ready" }
-    data object SessionStarted : DiagnosticEvent { override val note = "session_started" }
-
-    data class BrewPhaseChanged(val mode: DiagnosticBrewMode, val phase: DiagnosticBrewPhase) : DiagnosticEvent {
-        override val note = "brew_${mode.note}_${phase.note}"
-    }
-}
-
-enum class DiagnosticBrewMode(val note: String) {
-    ESPRESSO("espresso"),
-    FILTER("filter"),
-    FRENCH_PRESS("french_press"),
-}
-
-/** Detector phases are copied into the data layer so free-form recipe or coffee text can never enter a log line. */
-enum class DiagnosticBrewPhase(val note: String) {
-    WAITING_FOR_CUP("waiting_for_cup"),
-    TARING("taring"),
-    READY("ready"),
-    BREWING("brewing"),
-    DONE("done"),
-}
+import java.util.Locale
 
 enum class DiagnosticIncompleteReason(val note: String) {
     SCALE_DISCONNECTED("scale_disconnected"),
@@ -129,17 +86,17 @@ class DiagnosticRecorder(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val limits: DiagnosticRecorderLimits = DiagnosticRecorderLimits(),
     private val outputStream: (File, Boolean) -> OutputStream = { file, append -> FileOutputStream(file, append) },
-) {
+) : Diagnostics, DiagnosticCapture {
     private val lock = Any()
     private val lifecycleLock = kotlinx.coroutines.sync.Mutex()
     private val _state = MutableStateFlow<DiagnosticRecorderState>(DiagnosticRecorderState.Idle)
-    val state: StateFlow<DiagnosticRecorderState> = _state.asStateFlow()
+    override val state: StateFlow<DiagnosticRecorderState> = _state.asStateFlow()
 
     private var active: Session? = null
     private var finishing: Session? = null
 
     /** Start one new recording. Returns false when already recording or when storage cannot create a file. */
-    suspend fun start(): Boolean = lifecycleLock.withLock {
+    override suspend fun start(): Boolean = lifecycleLock.withLock {
         synchronized(lock) {
             if (active != null) return@withLock false
             _state.value = DiagnosticRecorderState.Starting
@@ -172,14 +129,14 @@ class DiagnosticRecorder(
         synchronized(lock) {
             active = session
             _state.value = DiagnosticRecorderState.Recording(wallTime)
-            enqueueLocked(session, Payload.Event(DiagnosticEvent.SessionStarted.note))
+            enqueueLocked(session, Payload.Event(DiagnosticEvent.SessionStarted.note()))
         }
         scope.launch(ioDispatcher) { writeSession(session) }
         true
     }
 
     /** Close the active file and wait for its bounded queue to drain; safe when called concurrently. */
-    suspend fun stop(): DiagnosticRecorderState {
+    override suspend fun stop(): DiagnosticRecorderState {
         val session = synchronized(lock) {
             val current = active
             if (current != null) {
@@ -198,7 +155,7 @@ class DiagnosticRecorder(
     }
 
     /** Store one original GATT notification chunk, before the scale decoder can consume or transform it. */
-    fun recordNotification(bytes: ByteArray) {
+    override fun notification(bytes: ByteArray) {
         synchronized(lock) {
             val session = active ?: return
             if (bytes.size > limits.maxNotificationBytes) {
@@ -210,7 +167,7 @@ class DiagnosticRecorder(
     }
 
     /** Store a successful outgoing write. The caller passes a snapshot captured before handing bytes to Android BLE. */
-    fun recordCommand(bytes: ByteArray) {
+    override fun command(bytes: ByteArray) {
         synchronized(lock) {
             val session = active ?: return
             if (bytes.size > limits.maxNotificationBytes) {
@@ -221,29 +178,31 @@ class DiagnosticRecorder(
         }
     }
 
-    fun recordEvent(event: DiagnosticEvent) {
+    override fun event(event: DiagnosticEvent) {
         synchronized(lock) {
             val session = active ?: return
-            enqueueLocked(session, Payload.Event(event.note))
+            enqueueLocked(session, Payload.Event(event.note()))
         }
     }
 
     /** Logs the link drop and closes the session as incomplete. A deliberate app stop does not call this. */
     fun recordDisconnect() {
-        recordEvent(DiagnosticEvent.ScaleLinkLost)
-        finishAfterDisconnect()
+        event(DiagnosticEvent.ScaleLinkLost)
+        disconnect()
     }
 
-    /** Finish after the scale state has been published so an active brew can record its interrupted phase first. */
-    fun finishAfterDisconnect() {
+    override fun disconnect() {
         synchronized(lock) {
             val session = active ?: return
             markIncompleteLocked(session, DiagnosticIncompleteReason.SCALE_DISCONNECTED)
         }
     }
 
+    /** The local JSONL has no exception entry; the Sentry implementation reports handled errors instead (#333). */
+    override fun error(throwable: Throwable, context: DiagnosticErrorContext) = Unit
+
     /** Re-read the retained session list when Settings opens, including recovery after process death. */
-    suspend fun refresh() = withContext(ioDispatcher) {
+    override suspend fun refresh() = withContext(ioDispatcher) {
         val latest = listSessionFiles().maxByOrNull(File::lastModified)
         val recovered = latest?.let(::readSessionStatus)
         synchronized(lock) {
@@ -462,11 +421,37 @@ class DiagnosticRecorder(
 }
 
 /** Map every allowed app mode to a fixed token; user-entered recipe text never enters this event. */
-fun DiagnosticRecorder.recordBrewPhase(mode: BrewMode, phase: DiagnosticBrewPhase) {
+fun Diagnostics.recordBrewPhase(mode: BrewMode, phase: DiagnosticBrewPhase) {
     val diagnosticMode = when (mode) {
         BrewMode.ESPRESSO -> DiagnosticBrewMode.ESPRESSO
         BrewMode.FILTER -> DiagnosticBrewMode.FILTER
         BrewMode.FRENCH_PRESS -> DiagnosticBrewMode.FRENCH_PRESS
     }
-    recordEvent(DiagnosticEvent.BrewPhaseChanged(diagnosticMode, phase))
+    event(DiagnosticEvent.BrewPhaseChanged(diagnosticMode, phase))
+}
+
+/** The fixed note token the local capture writes; [DiagnosticEvent] payloads themselves hold no text. */
+private fun DiagnosticEvent.note(): String = when (this) {
+    DiagnosticEvent.AppForeground -> "app_foreground"
+    DiagnosticEvent.AppBackground -> "app_background"
+    DiagnosticEvent.ScaleStarted -> "scale_started"
+    DiagnosticEvent.ScanStarted -> "scan_started"
+    DiagnosticEvent.ScaleNotFound -> "scale_not_found"
+    DiagnosticEvent.ScaleConnecting -> "scale_connecting"
+    DiagnosticEvent.ScaleConnected -> "scale_connected"
+    DiagnosticEvent.ScaleConnectionFailed -> "scale_connection_failed"
+    DiagnosticEvent.ScaleLinkLost -> "scale_link_lost"
+    DiagnosticEvent.ScaleStopped -> "scale_stopped"
+    DiagnosticEvent.BrewScreenOpened -> "brew_screen_opened"
+    DiagnosticEvent.BrewScreenClosed -> "brew_screen_closed"
+    DiagnosticEvent.BrewArmed -> "brew_armed"
+    DiagnosticEvent.BrewStopRequested -> "brew_stop_requested"
+    DiagnosticEvent.BrewLiftEnded -> "brew_lift_end"
+    DiagnosticEvent.BrewInterrupted -> "brew_interrupted"
+    DiagnosticEvent.BrewResultReady -> "brew_result_ready"
+    DiagnosticEvent.UploadSucceeded -> "upload_succeeded"
+    is DiagnosticEvent.UploadFailed -> "upload_failed_${kind.name.lowercase(Locale.ROOT)}"
+    DiagnosticEvent.UploadRetried -> "upload_retried"
+    DiagnosticEvent.SessionStarted -> "session_started"
+    is DiagnosticEvent.BrewPhaseChanged -> "brew_${mode.note}_${phase.note}"
 }

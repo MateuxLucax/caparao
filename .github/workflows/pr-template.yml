@@ -16,8 +16,8 @@ concurrency:
 
 jobs:
   template:
-    # Dependency bots write their own descriptions.
-    if: github.event.pull_request.user.type != 'Bot'
+    # Dependency bots write their own descriptions; release PRs still use the repository template.
+    if: github.event.pull_request.user.type != 'Bot' || (github.event.pull_request.base.ref == 'release' && github.event.pull_request.head.ref == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,4 +33,6 @@ jobs:
       - name: Check the description
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: python3 scripts/ci/pr-template-check.py

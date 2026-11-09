@@ -2,10 +2,13 @@ package io.github.mateuxlucax.caparao.data.export
 
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.exporter.toContractValue
+import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.model.BrewWithSamples
 import io.github.mateuxlucax.caparao.model.Recipe
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.OutputStream
 import java.math.BigDecimal
@@ -27,41 +30,14 @@ object BrewExporter {
     /** One row per brew: the summary fields, the recipe name and the notes. */
     fun brewsCsv(brews: List<BrewWithSamples>): String = buildString {
         appendLine(BREWS_HEADER)
-        brews.forEach { (brew, _) ->
-            append(
-                listOf(
-                    csv(brew.id),
-                    brew.mode.toContractValue(),
-                    csv(Instant.ofEpochMilli(brew.startedAt).toString()),
-                    seconds(brew.durationMs),
-                    number(brew.doseGrams),
-                    number(brew.yieldGrams),
-                    when (brew.mode) {
-                        BrewMode.ESPRESSO -> brew.timeToFirstDropMs?.let { seconds(it) }.orEmpty()
-                        BrewMode.FILTER, BrewMode.FRENCH_PRESS -> ""
-                    },
-                    number(brew.flowAvgGramsPerSecond),
-                    number(brew.flowPeakGramsPerSecond),
-                    brew.interrupted.toString(),
-                    csv(brew.recipeName),
-                    csv(brew.coffee),
-                    csv(brew.grind),
-                    brew.waterTempCelsius?.toString().orEmpty(),
-                    brew.rating?.toString().orEmpty(),
-                    csv(brew.notes),
-                ).joinToString(","),
-            )
-            appendLine()
-        }
+        brews.forEach { appendLine(brewRow(it.brew)) }
     }
 
     /** One row per sample, `at_ms` relative to the brew's start. */
     fun samplesCsv(brews: List<BrewWithSamples>): String = buildString {
         appendLine(SAMPLES_HEADER)
         brews.forEach { (brew, samples) ->
-            samples.forEach { sample ->
-                appendLine(listOf(csv(brew.id), sample.atMs.toString(), number(sample.weightGrams), number(sample.flowGramsPerSecond)).joinToString(","))
-            }
+            samples.forEach { appendLine(sampleRow(brew.id, it)) }
         }
     }
 
@@ -106,21 +82,116 @@ object BrewExporter {
     /**
      * The shareable archive: `brews.json`, `brews.csv` and `recipes.csv` always, `samples.csv` only when
      * [includeSamples]. The JSON always carries the curve, since it is the re-postable copy.
+     *
+     * [brews] carries only the summary fields: [samples] is called once per brew and per entry that needs its curve,
+     * and the archive streams that brew's part straight to the zip, so peak memory follows the largest curve instead
+     * of the whole history (#319).
      */
-    fun writeZip(out: OutputStream, brews: List<BrewWithSamples>, recipes: List<Recipe>, includeSamples: Boolean) {
+    suspend fun writeZip(
+        out: OutputStream,
+        brews: List<Brew>,
+        samples: suspend (String) -> List<BrewSample>,
+        recipes: List<Recipe>,
+        includeSamples: Boolean,
+    ) {
         ZipOutputStream(BufferedOutputStream(out)).use { zip ->
-            zip.entry("brews.json", json(brews))
-            zip.entry("brews.csv", brewsCsv(brews))
+            zip.entry("brews.json") { writeJson(it, brews, samples) }
+            zip.entry("brews.csv") { writeBrewsCsv(it, brews) }
             zip.entry("recipes.csv", recipesCsv(recipes))
-            if (includeSamples) zip.entry("samples.csv", samplesCsv(brews))
+            if (includeSamples) zip.entry("samples.csv") { writeSamplesCsv(it, brews, samples) }
         }
     }
 
-    private fun ZipOutputStream.entry(name: String, content: String) {
+    private suspend fun writeJson(out: OutputStream, brews: List<Brew>, samples: suspend (String) -> List<BrewSample>) {
+        val writer = out.writer(Charsets.UTF_8)
+        when (brews.size) {
+            0 -> writer.write("[]")
+            1 -> writer.write(singleBrewJson(brews.single(), samples(brews.single().id)))
+            else -> {
+                writer.write("[\n")
+                brews.forEachIndexed { index, brew ->
+                    if (index > 0) writer.write(",\n")
+                    writer.write("  ")
+                    writer.write(brewJson(brew, samples(brew.id)))
+                }
+                writer.write("\n]")
+            }
+        }
+        writer.flush()
+    }
+
+    /** The whole array for one brew, exactly as the in-memory export prints it. */
+    private fun singleBrewJson(brew: Brew, samples: List<BrewSample>): String =
+        JSONArray().put(ExporterClient.body(brew, samples)).toString(2)
+
+    /**
+     * One brew's object as it appears at the second level of the indented array. org.json only indents from the top
+     * level, so a two-element array puts the object at that level; the `null` placeholder is dropped. A one-element
+     * array would print its fields two spaces shallower.
+     */
+    private fun brewJson(brew: Brew, samples: List<BrewSample>): String {
+        val placeholder = ",\n  null\n]"
+        val wrapped = JSONArray().put(ExporterClient.body(brew, samples)).put(JSONObject.NULL).toString(2)
+        check(wrapped.startsWith("[\n  ") && wrapped.endsWith(placeholder)) { "unexpected JSON indentation" }
+        return wrapped.substring("[\n  ".length, wrapped.length - placeholder.length)
+    }
+
+    private fun writeBrewsCsv(out: OutputStream, brews: List<Brew>) {
+        val writer = out.writer(Charsets.UTF_8)
+        writer.write(BREWS_HEADER)
+        writer.write("\n")
+        brews.forEach {
+            writer.write(brewRow(it))
+            writer.write("\n")
+        }
+        writer.flush()
+    }
+
+    private suspend fun writeSamplesCsv(out: OutputStream, brews: List<Brew>, samples: suspend (String) -> List<BrewSample>) {
+        val writer = out.writer(Charsets.UTF_8)
+        writer.write(SAMPLES_HEADER)
+        writer.write("\n")
+        for (brew in brews) {
+            for (sample in samples(brew.id)) {
+                writer.write(sampleRow(brew.id, sample))
+                writer.write("\n")
+            }
+        }
+        writer.flush()
+    }
+
+    private suspend fun ZipOutputStream.entry(name: String, content: String) = entry(name) { it.write(content.toByteArray(Charsets.UTF_8)) }
+
+    private suspend fun ZipOutputStream.entry(name: String, write: suspend (OutputStream) -> Unit) {
         putNextEntry(ZipEntry(name))
-        write(content.toByteArray(Charsets.UTF_8))
+        write(this)
         closeEntry()
     }
+
+    private fun brewRow(brew: Brew): String = listOf(
+        csv(brew.id),
+        brew.mode.toContractValue(),
+        csv(Instant.ofEpochMilli(brew.startedAt).toString()),
+        seconds(brew.durationMs),
+        number(brew.doseGrams),
+        number(brew.yieldGrams),
+        when (brew.mode) {
+            BrewMode.ESPRESSO -> brew.timeToFirstDropMs?.let { seconds(it) }.orEmpty()
+            BrewMode.FILTER, BrewMode.FRENCH_PRESS -> ""
+        },
+        number(brew.flowAvgGramsPerSecond),
+        number(brew.flowPeakGramsPerSecond),
+        brew.interrupted.toString(),
+        csv(brew.recipeName),
+        csv(brew.coffee),
+        csv(brew.grind),
+        brew.waterTempCelsius?.toString().orEmpty(),
+        brew.rating?.toString().orEmpty(),
+        csv(brew.notes),
+    ).joinToString(",")
+
+    private fun sampleRow(brewId: String, sample: BrewSample): String =
+        listOf(csv(brewId), sample.atMs.toString(), number(sample.weightGrams), number(sample.flowGramsPerSecond)).joinToString(",")
 
     /** Dot decimal separator, up to three decimals, whatever the device locale. */
     private fun number(value: Double): String {

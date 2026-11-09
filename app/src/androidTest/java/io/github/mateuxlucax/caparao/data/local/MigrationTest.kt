@@ -36,7 +36,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val brew = BrewRepository(db.brews()).get("a")!!
@@ -75,7 +75,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val brew = BrewRepository(db.brews()).get("existing")!!
@@ -107,7 +107,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first()
@@ -131,7 +131,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val bigBrew = RecipeRepository(db.recipes()).recipes.first().single { it.id == BuiltInRecipes.V60_BIG_ID }
@@ -157,7 +157,7 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val recipes = RecipeRepository(db.recipes()).recipes.first().associateBy { it.id }
@@ -168,6 +168,35 @@ class MigrationTest {
             assertEquals(255_000L to 285_000L, recipes.getValue(BuiltInRecipes.MELITTA_LITER_ID).let { it.targetMinMs!! to it.targetMaxMs!! })
             assertNull(recipes.getValue(BuiltInRecipes.FRENCH_PRESS_ID).targetMinMs)
             assertNull(recipes.getValue(BuiltInRecipes.FRENCH_PRESS_ID).targetMaxMs)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun from8AddsTheUploadRevisionAndKeepsExistingBrewsSynced() = runBlocking {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            for (sql in VERSION_8) db.execSQL(sql)
+            db.execSQL(
+                "INSERT INTO brews (id, mode, started_at, duration_ms, dose_grams, yield_grams, time_to_first_drop_ms, " +
+                    "flow_avg, flow_peak, interrupted, synced_at) VALUES ('synced', 'FILTER', 1000, 60000, 15.0, 250.0, NULL, 1.3, 4.8, 0, 123)",
+            )
+            db.execSQL(
+                "INSERT INTO brews (id, mode, started_at, duration_ms, dose_grams, yield_grams, time_to_first_drop_ms, " +
+                    "flow_avg, flow_peak, interrupted, synced_at) VALUES ('pending', 'ESPRESSO', 2000, 28000, 18.0, 36.0, 4000, 1.3, 2.4, 0, NULL)",
+            )
+            db.version = 8
+        }
+
+        val db = Room.databaseBuilder(context, BrewDatabase::class.java, name)
+            .addMigrations(MIGRATION_8_9)
+            .build()
+        try {
+            val dao = db.brews()
+            assertEquals(123L, dao.get("synced")!!.syncedAt)
+            assertEquals(0, dao.get("synced")!!.revision)
+            assertNull(dao.get("pending")!!.syncedAt)
+            assertEquals(0, dao.get("pending")!!.revision)
         } finally {
             db.close()
         }
@@ -260,6 +289,29 @@ class MigrationTest {
                 "`roasted_at` INTEGER, `weight_grams` REAL NOT NULL, `notes` TEXT, `finished` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
             "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
             "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3143a4074eb93ae955378051a2509310')",
+        )
+
+        /** app/schemas/…/8.json: the schema before the upload revision, with the coffee bag link and flow targets. */
+        val VERSION_8 = listOf(
+            "CREATE TABLE IF NOT EXISTS `brews` (`id` TEXT NOT NULL, `mode` TEXT NOT NULL, `started_at` INTEGER NOT NULL, " +
+                "`duration_ms` INTEGER NOT NULL, `dose_grams` REAL NOT NULL, `yield_grams` REAL NOT NULL, " +
+                "`time_to_first_drop_ms` INTEGER, `flow_avg` REAL NOT NULL, `flow_peak` REAL NOT NULL, `interrupted` INTEGER NOT NULL, " +
+                "`synced_at` INTEGER, `recipe_id` TEXT, `recipe_name` TEXT, `coffee` TEXT, `grind` TEXT, " +
+                "`water_temp_celsius` INTEGER, `rating` INTEGER, `notes` TEXT, `bag_id` TEXT, PRIMARY KEY(`id`))",
+            "CREATE INDEX IF NOT EXISTS `index_brews_started_at` ON `brews` (`started_at`)",
+            "CREATE TABLE IF NOT EXISTS `brew_samples` (`brew_id` TEXT NOT NULL, `at_ms` INTEGER NOT NULL, `weight_grams` REAL NOT NULL, " +
+                "`flow` REAL NOT NULL, PRIMARY KEY(`brew_id`, `at_ms`), FOREIGN KEY(`brew_id`) REFERENCES `brews`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            "CREATE TABLE IF NOT EXISTS `recipes` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `mode` TEXT NOT NULL, `method` TEXT NOT NULL, " +
+                "`dose_grams` REAL NOT NULL, `target_ratio` REAL NOT NULL, `grind` TEXT, `water_temp_celsius` INTEGER, `notes` TEXT, " +
+                "`target_min_ms` INTEGER, `target_max_ms` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+            "CREATE TABLE IF NOT EXISTS `recipe_steps` (`recipe_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                "`target_weight_grams` REAL, `target_at_ms` INTEGER NOT NULL, `target_flow_grams_per_second` REAL, " +
+                "PRIMARY KEY(`recipe_id`, `position`), FOREIGN KEY(`recipe_id`) REFERENCES `recipes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            "CREATE TABLE IF NOT EXISTS `coffee_bags` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `roaster` TEXT, `origin` TEXT, " +
+                "`roasted_at` INTEGER, `weight_grams` REAL NOT NULL, `notes` TEXT, `finished` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+            "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+            "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '766315d12c2fbeb27741876887cd6fe9')",
         )
     }
 }

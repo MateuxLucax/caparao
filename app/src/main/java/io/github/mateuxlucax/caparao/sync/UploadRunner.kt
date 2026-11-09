@@ -1,5 +1,8 @@
 package io.github.mateuxlucax.caparao.sync
 
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -20,6 +23,8 @@ class UploadRunner(
     private val exporter: ExporterClient,
     /** Whether Android 17 local network protection would block connecting to a URL. */
     private val localNetworkBlocked: suspend (String) -> Boolean = { false },
+    /** Upload outcomes go to the capture without the server's response body, which may carry the host (#330). */
+    private val diagnostics: Diagnostics = NoDiagnostics,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun run(brewId: String): UploadOutcome {
@@ -39,14 +44,21 @@ class UploadRunner(
             SyncErrors.of(e) { localNetworkBlocked(url) }
         }
         if (error == null) {
+            // Edited while the request was in flight: the server has the old data, so it goes again with the new (#315).
             val at = now()
-            repository.markSynced(brewId, at)
+            if (!repository.markSynced(brewId, at, brew.revision)) return UploadOutcome.RETRY
             settings.lastSyncMs = at
             if (clearsLastError(brewId)) settings.setLastSyncError(null, null)
+            diagnostics.event(DiagnosticEvent.UploadSucceeded)
             return UploadOutcome.SUCCESS
         }
         settings.setLastSyncError(error, brewId)
-        return if (error.kind.retry) UploadOutcome.RETRY else UploadOutcome.FAILURE
+        diagnostics.event(DiagnosticEvent.UploadFailed(error.kind))
+        if (error.kind.retry) {
+            diagnostics.event(DiagnosticEvent.UploadRetried)
+            return UploadOutcome.RETRY
+        }
+        return UploadOutcome.FAILURE
     }
 
     /**

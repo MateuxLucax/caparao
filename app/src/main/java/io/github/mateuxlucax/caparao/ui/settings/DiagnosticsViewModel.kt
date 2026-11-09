@@ -2,7 +2,7 @@ package io.github.mateuxlucax.caparao.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticCapture
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.export.ExportedFile
@@ -25,7 +25,7 @@ data class DiagnosticsUiState(
 
 /** Starts, stops, and explicitly shares the app's bounded local diagnostic capture. */
 class DiagnosticsViewModel(
-    private val recorder: DiagnosticRecorder,
+    private val capture: DiagnosticCapture,
     private val diagnosticShare: DiagnosticShare,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DiagnosticsUiState())
@@ -33,8 +33,8 @@ class DiagnosticsViewModel(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            recorder.refresh()
-            recorder.state.collect { state -> _uiState.update { it.copy(recorder = state, starting = state is DiagnosticRecorderState.Starting) } }
+            capture.refresh()
+            capture.state.collect { state -> _uiState.update { it.copy(recorder = state, starting = state is DiagnosticRecorderState.Starting) } }
         }
     }
 
@@ -43,7 +43,7 @@ class DiagnosticsViewModel(
         _uiState.update { it.copy(starting = true, startFailed = false, stopFailed = false, shareFile = null, shareFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (!recorder.start()) _uiState.update { it.copy(starting = false, startFailed = true) }
+                if (!capture.start()) _uiState.update { it.copy(starting = false, startFailed = true) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -57,7 +57,7 @@ class DiagnosticsViewModel(
         _uiState.update { it.copy(stopFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                recorder.stop()
+                capture.stop()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
@@ -29,6 +32,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.DestinationStores
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.model.ScaleState
 import org.junit.runner.RunWith
@@ -50,6 +54,7 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
@@ -104,6 +109,7 @@ class AppScreensTest {
     private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).build()
     private val brews = BrewRepository(db.brews())
     private val recipes = RecipeRepository(db.recipes())
+    private val coffeeBags = CoffeeBagRepository(db.coffeeBags())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
     private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
     private val diagnosticShare = DiagnosticShare(context, diagnostics)
@@ -123,8 +129,8 @@ class AppScreensTest {
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
             initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
-        initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
+        initializer { CoffeeBagsViewModel(coffeeBags) }
+        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
@@ -286,6 +292,115 @@ class AppScreensTest {
         // Back on the Brews tab it was opened from, now empty.
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         assertTrue(runBlocking { brews.get("b1") } == null)
+    }
+
+    /** The activity's registry, read back as the tests' only way to see which destinations still hold ViewModels. */
+    private fun destinationStores(owner: ViewModelStoreOwner) =
+        owner.viewModelStore.get(DestinationStores.KEY) as DestinationStores
+
+    @Test
+    fun aClosedBrewDetailIsClearedAndReopeningShowsFreshState() {
+        val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
+        runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        compose.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
+        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds("detail-b1"))
+
+        // Edit the notes, then leave: the ViewModel must not outlive the screen with the form still open.
+        compose.onNodeWithText(text(R.string.edit_notes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.save)), 5_000)
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
+
+        // Opened again: a fresh ViewModel, so the notes form is closed.
+        compose.waitForIdle()
+        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        compose.onNodeWithText(text(R.string.save)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aBrewOpenedFromACoffeeBagComesBackToTheSameBag() {
+        runBlocking {
+            coffeeBags.save(CoffeeBag(id = "bag1", name = "Ethiopia", weightGrams = 250.0, createdAt = 0))
+            brews.save(
+                Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false, bagId = "bag1"),
+                emptyList(),
+            )
+        }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        compose.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
+        compose.onNodeWithText("Ethiopia").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds("coffee-bag1"))
+
+        // A brew over the bag: the bag waits behind it and keeps its ViewModel.
+        compose.onNode(hasText(text(R.string.mode_espresso), substring = true) and hasClickAction()).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        assertTrue(stores.holds("coffee-bag1"))
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
+        assertTrue(stores.holds("coffee-bag1"))
+        compose.onNodeWithText(text(R.string.coffee_mark_finished)).assertExists()
+
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("coffee-bag1") }
+    }
+
+    /**
+     * A rotation disposes and rebuilds the content while the activity keeps its ViewModels; the restoration tester does
+     * the same, so a brew in progress must come back on the same ViewModel, still listening to the scale.
+     */
+    @Test
+    fun aStateRestorationKeepsTheRunningBrewAndItsViewModel() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
+        runEspressoToTheFirstDrops(scale)
+        val key = "brew-${BrewMode.ESPRESSO.name}"
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds(key))
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        // Still brewing on the same ViewModel, not a fresh dose step.
+        compose.onNodeWithText(text(R.string.stop)).assertExists()
+        assertTrue(stores.holds(key))
+
+        // Still listening: a reading after the restore reaches the detector.
+        pour(scale, 36.0, 36.5, 0.5)
+        compose.onNodeWithText(text(R.string.stop)).assertExists()
     }
 
     @Test

@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.caparao.sync
 
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.FakeDiagnostics
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.exporter.LocalServer
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -11,6 +13,9 @@ import io.github.mateuxlucax.caparao.model.SyncError
 import io.github.mateuxlucax.caparao.model.SyncError.Kind
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakePreferences
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -23,7 +28,8 @@ class UploadRunnerTest {
     private val repository = BrewRepository(dao)
     private val settings = SettingsStore(FakePreferences())
     private var blocked = false
-    private val runner = UploadRunner(repository, settings, ExporterClient(1_000, 1_000), { blocked }, now = { 42_000L })
+    private val diagnostics = FakeDiagnostics()
+    private val runner = UploadRunner(repository, settings, ExporterClient(1_000, 1_000), { blocked }, diagnostics, now = { 42_000L })
 
     @After
     fun tearDown() = server.close()
@@ -46,6 +52,7 @@ class UploadRunnerTest {
         assertEquals(42_000L, syncedAt("b1"))
         assertEquals(42_000L, settings.lastSyncMs)
         assertEquals("/api/v1/brews", server.requests.single().path)
+        assertEquals(listOf(DiagnosticEvent.UploadSucceeded), diagnostics.events)
     }
 
     @Test
@@ -71,6 +78,7 @@ class UploadRunnerTest {
         assertEquals(UploadOutcome.RETRY, run("b1"))
         assertNull(syncedAt("b1"))
         assertEquals(Kind.SERVER, settings.lastSyncError?.kind)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.SERVER), DiagnosticEvent.UploadRetried), diagnostics.events)
     }
 
     @Test
@@ -80,6 +88,7 @@ class UploadRunnerTest {
         server.status(401)
         assertEquals(UploadOutcome.FAILURE, run("b1"))
         assertEquals(SyncError(Kind.UNAUTHORIZED), settings.lastSyncError)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.UNAUTHORIZED)), diagnostics.events)
     }
 
     @Test
@@ -90,6 +99,7 @@ class UploadRunnerTest {
         assertEquals(UploadOutcome.FAILURE, run("b1"))
         assertEquals(Kind.LOCAL_NETWORK_PERMISSION, settings.lastSyncError?.kind)
         assertEquals(0, server.requests.size)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.LOCAL_NETWORK_PERMISSION)), diagnostics.events)
     }
 
     @Test
@@ -126,5 +136,37 @@ class UploadRunnerTest {
         run("b1")
         configure()
         assertNull(settings.lastSyncError)
+    }
+
+    @Test
+    fun notesEditedDuringAnUploadStayUnsyncedAndGoOutOnTheRetry() = runBlocking {
+        configure()
+        save("b1")
+        val uploadStarted = CompletableDeferred<Unit>()
+        val releaseUpload = CompletableDeferred<Unit>()
+        val sentNotes = mutableListOf<String?>()
+        var attempts = 0
+        // Suspends the first upload so the test can edit the brew while the request is in flight, like the real server.
+        val exporter = object : ExporterClient() {
+            override suspend fun upload(serverUrl: String, token: String, brew: Brew, samples: List<BrewSample>) {
+                sentNotes += brew.notes
+                if (++attempts == 1) {
+                    uploadStarted.complete(Unit)
+                    releaseUpload.await()
+                }
+            }
+        }
+        val runner = UploadRunner(repository, settings, exporter, { blocked }, now = { 42_000L })
+
+        val firstAttempt = async(Dispatchers.Default) { runner.run("b1") }
+        uploadStarted.await()
+        repository.updateNotes(repository.get("b1")!!.copy(notes = "Sweet"))
+        releaseUpload.complete(Unit)
+
+        assertEquals(UploadOutcome.RETRY, firstAttempt.await())
+        assertNull(syncedAt("b1"))
+        assertEquals(UploadOutcome.SUCCESS, runner.run("b1"))
+        assertEquals(listOf(null, "Sweet"), sentNotes)
+        assertEquals(42_000L, syncedAt("b1"))
     }
 }

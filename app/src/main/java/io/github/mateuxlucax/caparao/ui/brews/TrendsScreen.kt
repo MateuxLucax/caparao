@@ -1,9 +1,9 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,11 +22,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,25 +88,35 @@ private fun TrendCard(title: String, values: List<Double>, minimum: Double, form
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             values.lastOrNull()?.let { Text(format(it), style = MaterialTheme.typography.headlineSmall.merge(flex(weight = 600))) }
-            Canvas(Modifier.fillMaxWidth().height(96.dp)) {
-                val left = 36.dp.toPx()
-                val right = size.width - 8.dp.toPx()
-                val top = 4.dp.toPx()
-                val bottom = size.height - 4.dp.toPx()
-                fun x(i: Int) = if (values.size < 2) (left + right) / 2 else left + (right - left) * i / (values.size - 1)
-                fun y(v: Double) = bottom - (bottom - top) * axis.fraction(v).toFloat()
-                listOf(0.0, axis.max).forEach { tick ->
-                    drawLine(grid, Offset(left, y(tick)), Offset(right, y(tick)), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
-                    label(measurer, format(tick), Offset(0f, y(tick)), labelStyle)
-                }
-                val points = values.mapIndexed { i, v -> Offset(x(i), y(v)) }
-                if (points.size >= 2) drawCurve(points, color, 3.5.dp.toPx(), drawIn.value)
-                // Only the newest brew gets a dot: a ring in the card's colour around a solid centre.
-                points.lastOrNull()?.takeIf { drawIn.value >= 1f || points.size < 2 }?.let {
-                    drawCircle(surface, 6.dp.toPx(), it)
-                    drawCircle(color, 4.dp.toPx(), it)
-                }
-            }
+            Spacer(
+                Modifier.fillMaxWidth().height(96.dp).drawWithCache {
+                    // Everything that grows with the values is built once per size or value change (#320).
+                    val left = 36.dp.toPx()
+                    val right = size.width - 8.dp.toPx()
+                    val top = 4.dp.toPx()
+                    val bottom = size.height - 4.dp.toPx()
+                    fun x(i: Int) = if (values.size < 2) (left + right) / 2 else left + (right - left) * i / (values.size - 1)
+                    fun y(v: Double) = bottom - (bottom - top) * axis.fraction(v).toFloat()
+                    val gridWidth = 1.dp.toPx()
+                    val gridYs = listOf(y(0.0), y(axis.max))
+                    val labels = listOf(0.0, axis.max).mapIndexed { i, tick -> axisLabel(measurer, format(tick), 0f, gridYs[i], labelStyle) }
+                    val points = values.mapIndexed { i, v -> Offset(x(i), y(v)) }
+                    val path = if (points.size >= 2) curvePath(points) else null
+                    val dot = points.lastOrNull()
+                    val stroke = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    onDrawBehind {
+                        gridYs.forEach { y -> drawLine(grid, Offset(left, y), Offset(right, y), strokeWidth = gridWidth, cap = StrokeCap.Round) }
+                        labels.forEach { drawText(it.text, topLeft = it.at) }
+                        val progress = drawIn.value
+                        if (path != null) drawCurve(path, color, stroke, left, right, progress)
+                        // Only the newest brew gets a dot: a ring in the card's colour around a solid centre.
+                        if (dot != null && (progress >= 1f || points.size < 2)) {
+                            drawCircle(surface, 6.dp.toPx(), dot)
+                            drawCircle(color, 4.dp.toPx(), dot)
+                        }
+                    }
+                },
+            )
         }
     }
 }
