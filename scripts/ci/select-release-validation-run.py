@@ -13,10 +13,11 @@ def select_run_id(payload: dict[str, Any], pull_request: int, head_sha: str) -> 
         run
         for run in payload.get("workflow_runs", [])
         if run.get("head_sha") == head_sha
-        and any(
+        # GitHub clears pull_requests after merge; the named artifact checks the PR number next.
+        and (not run.get("pull_requests") or any(
             item.get("number") == pull_request and item.get("base", {}).get("ref") == "release"
-            for item in run.get("pull_requests", [])
-        )
+            for item in run["pull_requests"]
+        ))
     ]
     latest = max(runs, key=lambda run: run.get("created_at", ""), default=None)
     return latest.get("id") if latest and latest.get("conclusion") == "success" else None
