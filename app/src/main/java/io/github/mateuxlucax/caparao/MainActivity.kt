@@ -145,12 +145,12 @@ class MainActivity : ComponentActivity() {
     // The watch mirrors the phone only while the app is visible, like the scale connection (#92).
     override fun onStart() {
         super.onStart()
-        container.diagnostics.recordEvent(DiagnosticEvent.AppForeground)
+        container.diagnostics.event(DiagnosticEvent.AppForeground)
         container.watch.start()
     }
 
     override fun onStop() {
-        container.diagnostics.recordEvent(DiagnosticEvent.AppBackground)
+        container.diagnostics.event(DiagnosticEvent.AppBackground)
         container.watch.stop()
         super.onStop()
     }

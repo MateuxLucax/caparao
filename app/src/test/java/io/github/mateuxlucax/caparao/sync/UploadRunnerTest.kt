@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.caparao.sync
 
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.FakeDiagnostics
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.exporter.LocalServer
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -23,7 +25,8 @@ class UploadRunnerTest {
     private val repository = BrewRepository(dao)
     private val settings = SettingsStore(FakePreferences())
     private var blocked = false
-    private val runner = UploadRunner(repository, settings, ExporterClient(1_000, 1_000), { blocked }, now = { 42_000L })
+    private val diagnostics = FakeDiagnostics()
+    private val runner = UploadRunner(repository, settings, ExporterClient(1_000, 1_000), { blocked }, diagnostics, now = { 42_000L })
 
     @After
     fun tearDown() = server.close()
@@ -46,6 +49,7 @@ class UploadRunnerTest {
         assertEquals(42_000L, syncedAt("b1"))
         assertEquals(42_000L, settings.lastSyncMs)
         assertEquals("/api/v1/brews", server.requests.single().path)
+        assertEquals(listOf(DiagnosticEvent.UploadSucceeded), diagnostics.events)
     }
 
     @Test
@@ -71,6 +75,7 @@ class UploadRunnerTest {
         assertEquals(UploadOutcome.RETRY, run("b1"))
         assertNull(syncedAt("b1"))
         assertEquals(Kind.SERVER, settings.lastSyncError?.kind)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.SERVER), DiagnosticEvent.UploadRetried), diagnostics.events)
     }
 
     @Test
@@ -80,6 +85,7 @@ class UploadRunnerTest {
         server.status(401)
         assertEquals(UploadOutcome.FAILURE, run("b1"))
         assertEquals(SyncError(Kind.UNAUTHORIZED), settings.lastSyncError)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.UNAUTHORIZED)), diagnostics.events)
     }
 
     @Test
@@ -90,6 +96,7 @@ class UploadRunnerTest {
         assertEquals(UploadOutcome.FAILURE, run("b1"))
         assertEquals(Kind.LOCAL_NETWORK_PERMISSION, settings.lastSyncError?.kind)
         assertEquals(0, server.requests.size)
+        assertEquals(listOf(DiagnosticEvent.UploadFailed(Kind.LOCAL_NETWORK_PERMISSION)), diagnostics.events)
     }
 
     @Test

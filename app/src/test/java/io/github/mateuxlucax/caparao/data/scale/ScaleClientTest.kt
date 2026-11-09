@@ -1,7 +1,9 @@
 package io.github.mateuxlucax.caparao.data.scale
 
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.FakeDiagnostics
+import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
 import io.github.mateuxlucax.caparao.model.ScaleBattery
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleReading
@@ -12,7 +14,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
@@ -22,9 +23,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.json.JSONObject
-import java.io.File
-import java.nio.file.Files
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScaleClientTest {
@@ -75,7 +73,7 @@ class ScaleClientTest {
     private val refused = BleException(BleException.Reason.PAIRING_REFUSED, "refused")
     private val failed = BleException(BleException.Reason.FAILED, "gatt 133")
 
-    private fun TestScope.client(transport: FakeTransport, diagnostics: DiagnosticRecorder? = null): ScaleClient {
+    private fun TestScope.client(transport: FakeTransport, diagnostics: Diagnostics = NoDiagnostics): ScaleClient {
         transport.now = { currentTime }
         return ScaleClient(transport, backgroundScope, diagnostics) { currentTime }
     }
@@ -174,8 +172,9 @@ class ScaleClientTest {
 
     @Test
     fun lostLinkClearsTheReadingAndReconnectsAfterASecond() = runTest {
+        val diagnostics = FakeDiagnostics()
         val transport = FakeTransport()
-        val client = client(transport)
+        val client = client(transport, diagnostics)
         client.start()
         advanceTimeBy(701)
         transport.events.emit(BleEvent.Notification(weight47))
@@ -183,6 +182,8 @@ class ScaleClientTest {
         runCurrent()
         assertEquals(ScaleState.Failed(ScaleError.CONNECTION_LOST, retrying = true), client.state.value)
         assertNull(client.reading.value)
+        assertTrue(DiagnosticEvent.ScaleLinkLost in diagnostics.events)
+        assertEquals(1, diagnostics.disconnects.get())
         advanceTimeBy(1_000 + 701)
         assertTrue(client.state.value is ScaleState.Connected)
         assertEquals(2, transport.calls.count { it == "scan" })
@@ -250,18 +251,10 @@ class ScaleClientTest {
     }
 
     @Test
-    fun liveLinkRecordsWholeNotificationChunksAndOnlySuccessfulWrites() = runTest {
-        val directory = Files.createTempDirectory("caparao-scale-diagnostics-").toFile()
-        val recorder = DiagnosticRecorder(
-            directory,
-            backgroundScope,
-            monotonicNanos = { currentTime * 1_000_000L },
-            wallClockMillis = { 1_700_000_000_000L },
-            ioDispatcher = StandardTestDispatcher(testScheduler),
-        )
-        assertTrue(recorder.start())
+    fun liveLinkReportsWholeNotificationChunksAndOnlySuccessfulWrites() = runTest {
+        val diagnostics = FakeDiagnostics()
         val transport = FakeTransport()
-        val client = client(transport, recorder)
+        val client = client(transport, diagnostics)
         client.start()
         advanceTimeBy(701)
 
@@ -276,18 +269,12 @@ class ScaleClientTest {
         runCurrent()
         assertEquals(listOf(ScaleReading(47.4, 0.0, 0, false), ScaleReading(47.4, 0.0, 0, false)), readings.await())
 
-        val saved = recorder.stop() as DiagnosticRecorderState.Ready
-        val rows = saved.file.readLines().drop(1).map(::JSONObject)
-        val received = rows.filter { it.getString("dir") == "rx" }
-        assertEquals(listOf(originalChunk.toHex()), received.map { it.getString("hex") })
-        val sent = rows.filter { it.getString("dir") == "tx" }
+        assertEquals(listOf(originalChunk.toHex()), diagnostics.notifications.map { it.toHex() })
         assertEquals(
             listOf(DotProtocol.unitGrams(), DotProtocol.standardMode(), DotProtocol.readBattery(), DotProtocol.tare()).map { it.toHex() },
-            sent.map { it.getString("hex") },
+            diagnostics.commands.map { it.toHex() },
         )
-        assertTrue(rows.any { it.getString("note") == "scale_connected" })
-        assertTrue(saved.complete)
-        directory.deleteRecursively()
+        assertTrue(DiagnosticEvent.ScaleConnected in diagnostics.events)
     }
 
     @Test
