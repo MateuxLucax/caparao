@@ -32,8 +32,17 @@ class FakeBrewDao : BrewDao {
     override suspend fun samples(brewId: String) = samples[brewId].orEmpty()
     override suspend fun unsynced() = brews.value.filter { it.syncedAt == null }.sortedBy { it.startedAt }
 
-    override suspend fun markSynced(id: String, at: Long) {
-        brews.value = brews.value.map { if (it.id == id) it.copy(syncedAt = at) else it }
+    override suspend fun markSynced(id: String, at: Long, revision: Int): Int {
+        var updated = 0
+        brews.value = brews.value.map {
+            if (it.id == id && it.revision == revision) {
+                updated++
+                it.copy(syncedAt = at)
+            } else {
+                it
+            }
+        }
+        return updated
     }
 
     override suspend fun delete(id: String) {
@@ -43,7 +52,20 @@ class FakeBrewDao : BrewDao {
 
     override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?) {
         brews.value = brews.value.map {
-            if (it.id == id) it.copy(coffee = coffee, bagId = bagId, grind = grind, waterTempCelsius = waterTempCelsius, rating = rating, notes = notes, syncedAt = null) else it
+            if (it.id == id) {
+                it.copy(
+                    coffee = coffee,
+                    bagId = bagId,
+                    grind = grind,
+                    waterTempCelsius = waterTempCelsius,
+                    rating = rating,
+                    notes = notes,
+                    syncedAt = null,
+                    revision = it.revision + 1,
+                )
+            } else {
+                it
+            }
         }
     }
 }
