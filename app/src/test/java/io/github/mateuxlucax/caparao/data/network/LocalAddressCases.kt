@@ -1,8 +1,8 @@
 package io.github.mateuxlucax.caparao.data.network
 
 /**
- * The address classification [ServerUrl.isLocalAddress] defines, shared by [ServerUrlTest] and
- * [LocalNetworkTest] so the two checks are tested against one table.
+ * The address classification [ServerUrl.isLocalAddress] defines, used by [LocalNetworkTest] so every local address
+ * family the server form accepts is pinned in one table.
  */
 object LocalAddressCases {
 

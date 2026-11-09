@@ -169,12 +169,13 @@
     <string name="hide_token">Ocultar</string>
     <string name="test_connection">Testar conexão</string>
     <string name="test_running">Testando…</string>
+    <string name="server_checking">Conferindo…</string>
     <string name="test_ok">Conectado.</string>
     <string name="save">Salvar</string>
     <string name="server_saved">Salvo.</string>
     <string name="remove_server">Remover servidor</string>
     <string name="server_settings">Configurar servidor</string>
-    <string name="url_cleartext_warning">Sem HTTPS o token trafega sem criptografia. Use HTTP somente na sua própria rede.</string>
+    <string name="url_http_not_local">Fora da sua rede local. Use HTTPS neste servidor.</string>
     <string name="local_network_needed">Este servidor está na sua rede local. Aprove a permissão de acesso a rede local.</string>
     <string name="local_network_allow">Permitir rede local</string>
     <string name="local_network_denied">Rede local não permitida. Permita nas configurações do app.</string>

@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.data.network
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -23,31 +22,12 @@ class ServerUrlTest {
     }
 
     @Test
-    fun cleartextToLocalHostsIsFine() {
+    fun cleartextOnlyForHttpWithAHost() {
         listOf(
-            "http://localhost:8080", "http://LOCALHOST", "http://pi.local", "http://nas.lan",
-            "http://server.home.arpa",
-        ).forEach { assertFalse(it, ServerUrl.isCleartextToPublicHost(it)) }
-    }
-
-    @Test
-    fun cleartextToPublicHostsWarns() {
+            "http://coffee.example.com", "http://192.168.0.10:8080", "HTTP://host", " http://host/ ",
+        ).forEach { assertTrue(it, ServerUrl.isCleartext(it)) }
         listOf(
-            "http://example.com", "http://local.example.com", "http://example.lan.com",
-        ).forEach { assertTrue(it, ServerUrl.isCleartextToPublicHost(it)) }
-    }
-
-    @Test
-    fun cleartextWarnsOnlyForPublicAddresses() {
-        LocalAddressCases.all.forEach { (address, local) ->
-            val url = LocalAddressCases.url(address)
-            assertEquals(url, local, !ServerUrl.isCleartextToPublicHost(url))
-        }
-    }
-
-    @Test
-    fun httpsNeverWarns() {
-        assertFalse(ServerUrl.isCleartextToPublicHost("https://example.com"))
-        assertFalse(ServerUrl.isCleartextToPublicHost("not a url"))
+            "https://coffee.example.com", "not a url", "ftp://example.com", "http://",
+        ).forEach { assertFalse(it, ServerUrl.isCleartext(it)) }
     }
 }
