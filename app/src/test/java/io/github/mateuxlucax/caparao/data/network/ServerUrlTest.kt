@@ -22,27 +22,12 @@ class ServerUrlTest {
     }
 
     @Test
-    fun cleartextToLocalHostsIsFine() {
+    fun cleartextOnlyForHttpWithAHost() {
         listOf(
-            "http://10.0.2.2:8080", "http://10.1.2.3", "http://172.16.0.1", "http://172.31.255.255",
-            "http://192.168.0.10:8080", "http://127.0.0.1", "http://169.254.1.1", "http://localhost:8080",
-            "http://LOCALHOST", "http://pi.local", "http://nas.lan", "http://server.home.arpa", "http://[::1]:8080",
-            "http://[fd12:3456::1]", "http://[fc00::1]", "http://[fe80::1]", "http://[febf::1]",
-        ).forEach { assertFalse(it, ServerUrl.isCleartextToPublicHost(it)) }
-    }
-
-    @Test
-    fun cleartextToPublicHostsWarns() {
+            "http://coffee.example.com", "http://192.168.0.10:8080", "HTTP://host", " http://host/ ",
+        ).forEach { assertTrue(it, ServerUrl.isCleartext(it)) }
         listOf(
-            "http://example.com", "http://8.8.8.8", "http://172.32.0.1", "http://172.15.0.1", "http://192.169.0.1",
-            "http://11.0.0.1", "http://[2001:db8::1]", "http://[fec0::1]", "http://local.example.com",
-            "http://example.lan.com",
-        ).forEach { assertTrue(it, ServerUrl.isCleartextToPublicHost(it)) }
-    }
-
-    @Test
-    fun httpsNeverWarns() {
-        assertFalse(ServerUrl.isCleartextToPublicHost("https://example.com"))
-        assertFalse(ServerUrl.isCleartextToPublicHost("not a url"))
+            "https://coffee.example.com", "not a url", "ftp://example.com", "http://",
+        ).forEach { assertFalse(it, ServerUrl.isCleartext(it)) }
     }
 }

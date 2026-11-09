@@ -55,6 +55,7 @@ import io.github.mateuxlucax.caparao.ui.components.SearchingLogo
 import io.github.mateuxlucax.caparao.ui.components.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.settings.ServerCheck
 import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.launch
@@ -74,6 +75,7 @@ private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actio
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
     var url by rememberSaveable { mutableStateOf(server.savedUrl) }
     var token by rememberSaveable { mutableStateOf(server.savedToken) }
+    val serverState by server.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val localNetworkAccess = rememberLocalNetworkAccess(server::isLocalNetworkBlocked, actions)
     val finish = {
@@ -126,14 +128,15 @@ private fun Steps(viewModel: OnboardingViewModel, server: ServerViewModel, actio
                         Button(
                             shapes = ButtonDefaults.shapes(),
                             onClick = {
-                                // Ask for local network access now, while the user is here; the upload job can't ask.
+                                // Check the host, then ask for local network access now, while the user is here.
                                 scope.launch {
+                                    if (!server.checkHost(url, ServerCheck.Save)) return@launch
                                     localNetworkAccess(url.trim())
                                     if (server.save(url, token)) finish()
                                 }
                             },
-                            enabled = server.canSave(url, token),
-                        ) { Text(stringResource(R.string.finish)) }
+                            enabled = server.canSave(url, token) && serverState.checking == null && !serverState.urlRefused,
+                        ) { Text(stringResource(if (serverState.checking == ServerCheck.Save) R.string.server_checking else R.string.finish)) }
                     }
                 }
             }

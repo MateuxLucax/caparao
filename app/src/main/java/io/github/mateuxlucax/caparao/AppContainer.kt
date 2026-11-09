@@ -9,6 +9,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
+import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -20,6 +22,7 @@ import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleClock
 import io.github.mateuxlucax.caparao.data.scale.ScaleClient
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
+import io.github.mateuxlucax.caparao.data.watch.AndroidWatchTransport
 import io.github.mateuxlucax.caparao.sync.UploadRunner
 import io.github.mateuxlucax.caparao.sync.UploadScheduler
 import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
@@ -54,11 +57,17 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(SettingsStore.open(appContext))
 
     /** Opt-in BLE and brew lifecycle capture, retained privately and only shared on request. */
-    val diagnostics = DiagnosticRecorder(
+    private val recorder = DiagnosticRecorder(
         directory = appContext.filesDir.resolve("diagnostics"),
         scope = scope,
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
     )
+
+    /** The diagnostic share handle, built here with the application context; the ViewModel holds no Context (#328). */
+    private val diagnosticShare = DiagnosticShare(appContext, recorder)
+
+    /** The seam every producer reports through; [recorder] sits behind it until #333 replaces it with the Sentry implementation. */
+    val diagnostics: Diagnostics = recorder
 
     /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)
@@ -84,7 +93,7 @@ class AppContainer(context: Context) {
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
 
     /** Used by [UploadWorker]. */
-    val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked)
+    val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked, diagnostics = diagnostics)
 
     /** The real Dot over Bluetooth, or a recording after [replay]. */
     var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope, diagnostics = diagnostics)
@@ -115,8 +124,8 @@ class AppContainer(context: Context) {
     /** Scale mode's timer, driven from Home and the watch. */
     private val scaleTimer = ScaleTimer { scale }
 
-    /** The paired watch, if any (#107); reads [scale] when it starts. */
-    val watch = WatchLink(appContext, scope, scaleTimer) { scale }
+    /** The paired watch, if any (#107); follows one that connects later (#324) and reads [scale] when it starts. */
+    val watch = WatchLink(AndroidWatchTransport(appContext), scope, scaleTimer, scale = { scale })
 
     /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
@@ -125,7 +134,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
-        initializer { DiagnosticsViewModel(appContext, diagnostics) }
+        initializer { DiagnosticsViewModel(recorder, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }

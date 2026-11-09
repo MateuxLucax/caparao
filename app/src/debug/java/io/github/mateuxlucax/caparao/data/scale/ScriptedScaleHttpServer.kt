@@ -4,13 +4,23 @@ import io.github.mateuxlucax.caparao.model.ScaleState
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.charset.StandardCharsets
 
 /** Small, loopback-only control surface. This class only exists in the debug variant. */
-class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
-    private val socket = ServerSocket(PORT, 8, InetAddress.getByName("127.0.0.1"))
+class ScriptedScaleHttpServer(initialSource: ScriptedScaleSource) {
+    /** Replaced by a later activity in the same process: a WARM benchmark launch recreates the activity (#312). */
+    @Volatile
+    private var source: ScriptedScaleSource = initialSource
+
+    private val socket = ServerSocket().apply {
+        // A WARM benchmark relaunch recreates the activity in the same process; the previous server's loopback
+        // connections can still be in TIME_WAIT, so allow rebinding the port (#312).
+        reuseAddress = true
+        bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), PORT), 8)
+    }
 
     init {
         Thread({
@@ -145,5 +155,15 @@ class ScriptedScaleHttpServer(private val source: ScriptedScaleSource) {
     companion object {
         const val PORT = 8765
         private const val MAX_BODY_BYTES = 1_000_000
+
+        /** The process's server; a WARM benchmark launch recreates the activity but not the process. */
+        @Volatile
+        private var active: ScriptedScaleHttpServer? = null
+
+        /** Replaces the server's source, creating the server on the first call in a process. */
+        @JvmStatic
+        @Synchronized
+        fun install(source: ScriptedScaleSource): ScriptedScaleHttpServer =
+            active?.also { it.source = source } ?: ScriptedScaleHttpServer(source).also { active = it }
     }
 }

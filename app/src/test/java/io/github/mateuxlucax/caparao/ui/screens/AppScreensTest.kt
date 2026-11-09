@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +24,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
@@ -29,6 +33,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.DestinationStores
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.model.ScaleState
 import org.junit.runner.RunWith
@@ -36,6 +41,7 @@ import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -49,6 +55,7 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.BrewSample
+import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
@@ -56,6 +63,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -74,6 +82,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -103,8 +112,15 @@ class AppScreensTest {
     private val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).build()
     private val brews = BrewRepository(db.brews())
     private val recipes = RecipeRepository(db.recipes())
+    private val coffeeBags = CoffeeBagRepository(db.coffeeBags())
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
+
+    /** Whether the fake resolver treats the server as local, and an optional gate for the checking state. */
+    private var localServer = false
+    private var localServerGate: CompletableDeferred<Unit>? = null
+    private val checked = mutableListOf<Pair<String, String>>()
     private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
+    private val diagnosticShare = DiagnosticShare(context, diagnostics)
 
     /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
     private var now = 0L
@@ -119,14 +135,21 @@ class AppScreensTest {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(context, diagnostics) }
+            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
         initializer { RecipesViewModel(recipes) }
-        initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
+        initializer { CoffeeBagsViewModel(coffeeBags) }
+        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
-        initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
+        initializer {
+            ServerViewModel(
+                settings,
+                { url, token -> checked += url to token; error("no server in tests") },
+                {}, {},
+                localNetwork = { localServerGate?.await(); localServer },
+            )
+        }
         initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
     }
@@ -286,17 +309,137 @@ class AppScreensTest {
         assertTrue(runBlocking { brews.get("b1") } == null)
     }
 
+    /** The activity's registry, read back as the tests' only way to see which destinations still hold ViewModels. */
+    private fun destinationStores(owner: ViewModelStoreOwner) =
+        owner.viewModelStore.get(DestinationStores.KEY) as DestinationStores
+
     @Test
-    fun settingsWarnsAboutCleartextAndSavesTheServer() {
+    fun aClosedBrewDetailIsClearedAndReopeningShowsFreshState() {
+        val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
+        runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        compose.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
+        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds("detail-b1"))
+
+        // Edit the notes, then leave: the ViewModel must not outlive the screen with the form still open.
+        compose.onNodeWithText(text(R.string.edit_notes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.save)), 5_000)
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
+
+        // Opened again: a fresh ViewModel, so the notes form is closed.
+        compose.waitForIdle()
+        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        compose.onNodeWithText(text(R.string.save)).assertDoesNotExist()
+    }
+
+    @Test
+    fun aBrewOpenedFromACoffeeBagComesBackToTheSameBag() {
+        runBlocking {
+            coffeeBags.save(CoffeeBag(id = "bag1", name = "Ethiopia", weightGrams = 250.0, createdAt = 0))
+            brews.save(
+                Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false, bagId = "bag1"),
+                emptyList(),
+            )
+        }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        compose.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
+        compose.onNodeWithText("Ethiopia").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds("coffee-bag1"))
+
+        // A brew over the bag: the bag waits behind it and keeps its ViewModel.
+        compose.onNode(hasText(text(R.string.mode_espresso), substring = true) and hasClickAction()).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        assertTrue(stores.holds("coffee-bag1"))
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
+        assertTrue(stores.holds("coffee-bag1"))
+        compose.onNodeWithText(text(R.string.coffee_mark_finished)).assertExists()
+
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntil(5_000) { !stores.holds("coffee-bag1") }
+    }
+
+    /**
+     * A rotation disposes and rebuilds the content while the activity keeps its ViewModels; the restoration tester does
+     * the same, so a brew in progress must come back on the same ViewModel, still listening to the scale.
+     */
+    @Test
+    fun aStateRestorationKeepsTheRunningBrewAndItsViewModel() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        lateinit var owner: ViewModelStoreOwner
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            owner = checkNotNull(LocalViewModelStoreOwner.current)
+            AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") }
+        }
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.onNodeWithText(text(R.string.next)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
+        compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
+        runEspressoToTheFirstDrops(scale)
+        val key = "brew-${BrewMode.ESPRESSO.name}"
+        val stores = destinationStores(owner)
+        assertTrue(stores.holds(key))
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        // Still brewing on the same ViewModel, not a fresh dose step.
+        compose.onNodeWithText(text(R.string.stop)).assertExists()
+        assertTrue(stores.holds(key))
+
+        // Still listening: a reading after the restore reaches the detector.
+        pour(scale, 36.0, 36.5, 0.5)
+        compose.onNodeWithText(text(R.string.stop)).assertExists()
+    }
+
+    @Test
+    fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.url_cleartext_warning)), 5_000)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_token))).performScrollTo().performTextReplacement("dev-token")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.url_http_not_local)), 5_000)
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.test_connection)).performClick()
+        compose.waitForIdle()
+        assertTrue(checked.isEmpty())
+        assertFalse(settings.serverConfigured)
 
+        // A local name saves, with no warning.
+        localServer = true
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://nas:8080")
+        compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
         compose.waitUntil(5_000) { settings.serverConfigured }
+        assertEquals("http://nas:8080", settings.serverUrl)
     }
 
     @Test

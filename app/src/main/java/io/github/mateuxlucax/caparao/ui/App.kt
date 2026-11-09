@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -131,8 +132,27 @@ private fun Main(
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // The brew screen on top of the tabs, registered by it: a shortcut compares against it before closing anything.
-    // Kept until close() runs: AnimatedContent still keeps the outgoing brew composed during the transition.
+    // Dropped when that screen goes away, by close() or by leaving the composition, but never over a newer
+    // registration: AnimatedContent still keeps the outgoing brew composed during the transition.
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
+    // Each destination's ViewModels, held by the activity so a rotation keeps them; a destination that leaves for
+    // good is cleared once its exit transition ends (#310).
+    val stores = viewModel<DestinationStores>(key = DestinationStores.KEY)
+    // What closing the current screen goes back to, deepest first: a destination still on this path stays open (and
+    // keeps its ViewModels) while a deeper one is on screen, and is released only when it is not here any more.
+    val openDestinations = remember {
+        {
+            buildList {
+                add(Destination.Tabs)
+                coffee?.let { add(Destination.Coffee(it)) }
+                brewing?.let { add(Destination.Brew(it)) }
+                opened?.let { add(Destination.Detail(it)) }
+                comparing?.let { add(Destination.Compare(it.split(','))) }
+                trends?.let { add(Destination.Trends(TrendKey.decode(it))) }
+                editing?.let { add(Destination.Recipe(it)) }
+            }
+        }
+    }
     LaunchedEffect(shortcut) {
         val requested = shortcut?.destination ?: return@LaunchedEffect
         val open = openBrew.value
@@ -166,68 +186,80 @@ private fun Main(
     val density = LocalDensity.current
     // Deeper destinations come in from the right and go back out to the left, whichever screen they open over.
     AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState.depth > initialState.depth, density) }, label = "screen") { shown ->
-        when (shown) {
-            is Destination.Detail -> {
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
-                BrewDetailScreen(
-                    viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
-                    onClose = { opened = null },
-                    onCompare = { comparing = it.joinToString(",") },
-                    onTrends = { trends = it.encode() },
-                )
+        val key = shown.storeKey
+        CompositionLocalProvider(LocalViewModelStoreOwner provides stores.owner(key)) {
+            // Runs when the exit transition has finished and the screen is gone, not while it is merely hidden under a
+            // deeper one: the destination then still sits on the path to the tabs (#310).
+            DisposableEffect(shown) {
+                onDispose { if (shown !in openDestinations()) stores.release(key) }
             }
-            is Destination.Compare -> {
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CompareViewModel.BREW_IDS, shown.ids) }
-                CompareScreen(viewModel(key = "compare-${shown.ids.joinToString(",")}", factory = viewModelFactory, extras = extras)) { comparing = null }
-            }
-            is Destination.Trends -> {
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(TrendsViewModel.KEY, shown.key) }
-                TrendsScreen(viewModel(key = "trends-${shown.key.encode()}", factory = viewModelFactory, extras = extras)) { trends = null }
-            }
-            is Destination.Brew -> {
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
-                // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
-                // listening to the scale; a rotation keeps the brew going.
-                val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
-                val close = remember(brew) {
-                    {
-                        brew.end()
-                        brewing = null
-                        openBrew.value = null
+            when (shown) {
+                is Destination.Detail -> {
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
+                    BrewDetailScreen(
+                        viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
+                        onClose = { opened = null },
+                        onCompare = { comparing = it.joinToString(",") },
+                        onTrends = { trends = it.encode() },
+                    )
+                }
+                is Destination.Compare -> {
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CompareViewModel.BREW_IDS, shown.ids) }
+                    CompareScreen(viewModel(key = "compare-${shown.ids.joinToString(",")}", factory = viewModelFactory, extras = extras)) { comparing = null }
+                }
+                is Destination.Trends -> {
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(TrendsViewModel.KEY, shown.key) }
+                    TrendsScreen(viewModel(key = "trends-${shown.key.encode()}", factory = viewModelFactory, extras = extras)) { trends = null }
+                }
+                is Destination.Brew -> {
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
+                    // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
+                    // listening to the scale; a rotation keeps the brew going.
+                    val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
+                    val close = remember(brew) {
+                        {
+                            brew.end()
+                            brewing = null
+                            openBrew.value = null
+                        }
                     }
+                    LaunchedEffect(brew) { brew.begin() }
+                    // Registers this brew screen for the shortcut above. Its disposal drops the entry only while it is
+                    // still the current one: a newer brew registers during the transition, before the outgoing screen
+                    // goes away.
+                    DisposableEffect(brew) {
+                        val open = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
+                        openBrew.value = open
+                        onDispose { if (openBrew.value === open) openBrew.value = null }
+                    }
+                    BrewScreen(brew, onClose = close)
                 }
-                LaunchedEffect(brew) { brew.begin() }
-                DisposableEffect(brew) {
-                    openBrew.value = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
-                    onDispose {}
+                is Destination.Coffee -> {
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
+                    CoffeeBagDetailScreen(
+                        viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
+                        viewModel(factory = viewModelFactory),
+                        onOpenBrew = { opened = it },
+                        onClose = { coffee = null },
+                    )
                 }
-                BrewScreen(brew, onClose = close)
-            }
-            is Destination.Coffee -> {
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
-                CoffeeBagDetailScreen(
-                    viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
-                    viewModel(factory = viewModelFactory),
-                    onOpenBrew = { opened = it },
-                    onClose = { coffee = null },
+                is Destination.Recipe -> {
+                    val target = shown.key.split(':', limit = 2).let { (kind, value) ->
+                        if (kind == "edit") RecipeEditorViewModel.Target.Edit(value) else RecipeEditorViewModel.Target.New(BrewMode.valueOf(value))
+                    }
+                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, target) }
+                    RecipeEditorScreen(viewModel(key = "recipe-${shown.key}", factory = viewModelFactory, extras = extras)) { editing = null }
+                }
+                Destination.Tabs -> Tabs(
+                    viewModelFactory, actions, versionName, tab,
+                    onTab = { tab = it },
+                    onBrew = { brewing = it },
+                    onOpen = { opened = it },
+                    onRecipe = { editing = it },
+                    onCoffee = { coffee = it },
+                    onCompare = { comparing = it.joinToString(",") },
                 )
             }
-            is Destination.Recipe -> {
-                val target = shown.key.split(':', limit = 2).let { (kind, value) ->
-                    if (kind == "edit") RecipeEditorViewModel.Target.Edit(value) else RecipeEditorViewModel.Target.New(BrewMode.valueOf(value))
-                }
-                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, target) }
-                RecipeEditorScreen(viewModel(key = "recipe-${shown.key}", factory = viewModelFactory, extras = extras)) { editing = null }
-            }
-            Destination.Tabs -> Tabs(
-                viewModelFactory, actions, versionName, tab,
-                onTab = { tab = it },
-                onBrew = { brewing = it },
-                onOpen = { opened = it },
-                onRecipe = { editing = it },
-                onCoffee = { coffee = it },
-                onCompare = { comparing = it.joinToString(",") },
-            )
         }
     }
 }
@@ -248,6 +280,21 @@ internal sealed interface Destination {
     data class Recipe(val key: String) : Destination
     data class Coffee(val id: String) : Destination
 }
+
+/**
+ * The key of this destination's [DestinationStores] entry, one per open screen: the same brew, bag or recipe reopened
+ * later gets a fresh entry, while a destination still on the back path keeps the one it has (#310).
+ */
+internal val Destination.storeKey: String
+    get() = when (this) {
+        Destination.Tabs -> "tabs"
+        is Destination.Brew -> "brew-${mode.name}"
+        is Destination.Detail -> "detail-$id"
+        is Destination.Compare -> "compare-${ids.joinToString(",")}"
+        is Destination.Trends -> "trends-${key.encode()}"
+        is Destination.Recipe -> "recipe-$key"
+        is Destination.Coffee -> "coffee-$id"
+    }
 
 /**
  * How far a destination is from the tabs: Compare and Trends open over a saved brew, so going from them back to the brew

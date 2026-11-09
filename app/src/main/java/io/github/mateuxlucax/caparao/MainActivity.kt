@@ -59,7 +59,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.DEBUG || BuildConfig.SCRIPTED_SCALE) {
+            // Non-shipping variants only: start on Home and give the Brews journeys a list to scroll (#312).
+            if (BuildConfig.SCRIPTED_SCALE && savedInstanceState == null) {
+                if (intent.getBooleanExtra(EXTRA_BENCHMARK_ONBOARDED, false)) container.settings.onboardingDone = true
+                if (intent.getBooleanExtra(EXTRA_BENCHMARK_SEED_BREWS, false)) {
+                    Class.forName("io.github.mateuxlucax.caparao.BenchmarkFixtures")
+                        .getMethod("seed", AppContainer::class.java)
+                        .invoke(null, container)
+                }
+            }
             intent.getStringExtra(EXTRA_REPLAY)?.let {
                 container.replay(
                     it,
@@ -145,12 +154,12 @@ class MainActivity : ComponentActivity() {
     // The watch mirrors the phone only while the app is visible, like the scale connection (#92).
     override fun onStart() {
         super.onStart()
-        container.diagnostics.recordEvent(DiagnosticEvent.AppForeground)
+        container.diagnostics.event(DiagnosticEvent.AppForeground)
         container.watch.start()
     }
 
     override fun onStop() {
-        container.diagnostics.recordEvent(DiagnosticEvent.AppBackground)
+        container.diagnostics.event(DiagnosticEvent.AppBackground)
         container.watch.stop()
         super.onStop()
     }
@@ -202,6 +211,12 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_REPLAY_REPEAT = "replay_repeat"
         const val EXTRA_SCRIPTED = "scripted"
         const val EXTRA_SCRIPTED_API = "scripted_api"
+
+        /** Benchmark variants only: start on Home instead of onboarding (#312). */
+        const val EXTRA_BENCHMARK_ONBOARDED = "benchmark_onboarded"
+
+        /** Benchmark variants only: seed the Brews list before the first frame (#312). */
+        const val EXTRA_BENCHMARK_SEED_BREWS = "benchmark_seed_brews"
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"
