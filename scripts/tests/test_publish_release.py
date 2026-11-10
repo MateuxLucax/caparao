@@ -20,6 +20,7 @@ with open(os.environ["GH_CALLS"], "a", encoding="utf-8") as log:
 state = json.loads(os.environ["GH_STATE"])
 if args[0] == "api":
     if state.get("tag_sha") is None:
+        print(json.dumps({"message": "No commit found for SHA: v0.3.42", "status": "422"}))
         raise SystemExit(1)
     print(state["tag_sha"])
 elif args[:2] == ["release", "view"] and "--json" in args:
