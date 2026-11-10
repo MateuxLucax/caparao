@@ -42,6 +42,12 @@ class ReleaseValidationRunTest(unittest.TestCase):
         }
         self.assertEqual(2, selector.select_run_id(payload, 362, "new"))
 
+    def test_merged_pr_with_empty_metadata_keeps_exact_head_sha(self) -> None:
+        run = workflow_run(5, "new", "2026-11-09T12:00:00Z", "success", "new")
+        run["pull_requests"] = []
+        self.assertEqual(5, selector.select_run_id({"workflow_runs": [run]}, 362, "new"))
+        self.assertIsNone(selector.select_run_id({"workflow_runs": [run]}, 362, "other"))
+
     def test_latest_failed_rerun_fails_closed_despite_older_success(self) -> None:
         payload = {
             "workflow_runs": [
