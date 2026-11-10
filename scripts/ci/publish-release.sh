@@ -3,7 +3,9 @@ set -euo pipefail
 
 : "${TAG:?}" "${TARGET_SHA:?}" "${GH_REPO:?}" "${APK:?}" "${WEAR_APK:?}" "${SIGNER_NOTE:?}"
 
-tag_sha=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha 2>/dev/null || true)
+if ! tag_sha=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha 2>/dev/null); then
+  tag_sha=
+fi
 if gh release view "$TAG" >/dev/null 2>&1; then
   [ "$tag_sha" = "$TARGET_SHA" ] || {
     echo "::error::release $TAG points to ${tag_sha:-no commit}, expected $TARGET_SHA"
