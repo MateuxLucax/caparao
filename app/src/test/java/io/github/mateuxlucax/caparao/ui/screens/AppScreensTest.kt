@@ -231,7 +231,7 @@ class AppScreensTest {
     fun diagnosticsCaptureRequiresStartAndIsNeverSharedLocally() {
         settings.remoteDiagnostics = true
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
