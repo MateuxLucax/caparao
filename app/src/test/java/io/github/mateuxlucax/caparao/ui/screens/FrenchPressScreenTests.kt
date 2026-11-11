@@ -62,7 +62,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository

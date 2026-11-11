@@ -9,7 +9,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
+import io.github.mateuxlucax.caparao.data.diagnostics.removeLegacyDiagnosticCaptures
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.FanOutDiagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.SentryDiagnostics
@@ -41,7 +42,7 @@ import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
+import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,8 +69,8 @@ class AppContainer(context: Context) {
     )
 
     /** Opt-in BLE and brew lifecycle capture, retained privately only until Sentry confirms delivery. */
-    private val recorder = DiagnosticRecorder(
-        directory = appContext.filesDir.resolve("diagnostics"),
+    private val captureWriter = CaptureWriter(
+        directory = appContext.filesDir.resolve("captures"),
         scope = scope,
         monotonicNanos = SystemClock::elapsedRealtimeNanos,
         optedIn = { settings.remoteDiagnostics },
@@ -80,12 +81,16 @@ class AppContainer(context: Context) {
     )
 
     init {
-        scope.launch(Dispatchers.IO) { recorder.refresh() }
-        scope.launch { settings.remoteDiagnosticsChanges.collect { enabled -> if (!enabled) recorder.clear() } }
+        scope.launch(Dispatchers.IO) {
+            val migrations = appContext.getSharedPreferences("caparao-migrations", Context.MODE_PRIVATE)
+            removeLegacyDiagnosticCaptures(appContext.filesDir, migrations)
+            captureWriter.refresh()
+        }
+        scope.launch { settings.remoteDiagnosticsChanges.collect { enabled -> if (!enabled) captureWriter.clear() } }
     }
 
-    /** The seam every producer reports through: the local capture and, while opted in, Sentry. */
-    val diagnostics: Diagnostics = FanOutDiagnostics(recorder, sentry)
+    /** The seam every producer reports through: the replay capture and, while opted in, Sentry. */
+    val diagnostics: Diagnostics = FanOutDiagnostics(captureWriter, sentry)
 
     /** Public for the screen tests, which empty it between runs. */
     val database = BrewDatabase.open(appContext)
@@ -131,7 +136,7 @@ class AppContainer(context: Context) {
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
         initializer { ExportViewModel(export) }
-        initializer { DiagnosticsViewModel(recorder, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
+        initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }

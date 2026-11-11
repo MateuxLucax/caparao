@@ -3,7 +3,7 @@ package io.github.mateuxlucax.caparao.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticCapture
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriterState
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class DiagnosticsUiState(
-    val recorder: DiagnosticRecorderState = DiagnosticRecorderState.Idle,
+data class CaptureUiState(
+    val capture: CaptureWriterState = CaptureWriterState.Idle,
     val starting: Boolean = false,
     val startFailed: Boolean = false,
     val stopFailed: Boolean = false,
@@ -22,18 +22,18 @@ data class DiagnosticsUiState(
 )
 
 /** Controls opt-in diagnostics and the bounded brew capture that is uploaded to Sentry. */
-class DiagnosticsViewModel(
+class CaptureViewModel(
     private val capture: DiagnosticCapture,
     private val settings: SettingsStore,
     val available: Boolean = true,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(DiagnosticsUiState(optedIn = settings.remoteDiagnostics))
-    val uiState: StateFlow<DiagnosticsUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(CaptureUiState(optedIn = settings.remoteDiagnostics))
+    val uiState: StateFlow<CaptureUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
             capture.refresh()
-            capture.state.collect { state -> _uiState.update { it.copy(recorder = state, starting = state is DiagnosticRecorderState.Starting) } }
+            capture.state.collect { state -> _uiState.update { it.copy(capture = state, starting = state is CaptureWriterState.Starting) } }
         }
         viewModelScope.launch {
             settings.remoteDiagnosticsChanges.collect { enabled -> _uiState.update { it.copy(optedIn = enabled) } }
@@ -43,7 +43,7 @@ class DiagnosticsViewModel(
     fun setOptedIn(enabled: Boolean) { settings.remoteDiagnostics = enabled }
 
     fun start() {
-        if (_uiState.value.starting || _uiState.value.recorder is DiagnosticRecorderState.Recording || _uiState.value.recorder is DiagnosticRecorderState.Starting) return
+        if (_uiState.value.starting || _uiState.value.capture is CaptureWriterState.Recording || _uiState.value.capture is CaptureWriterState.Starting) return
         _uiState.update { it.copy(starting = true, startFailed = false, stopFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -57,7 +57,7 @@ class DiagnosticsViewModel(
     }
 
     fun stop() {
-        if (_uiState.value.recorder !is DiagnosticRecorderState.Recording) return
+        if (_uiState.value.capture !is CaptureWriterState.Recording) return
         _uiState.update { it.copy(stopFailed = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {

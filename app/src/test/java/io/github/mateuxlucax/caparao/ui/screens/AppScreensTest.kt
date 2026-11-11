@@ -41,7 +41,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -74,7 +74,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
+import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -119,7 +119,7 @@ class AppScreensTest {
     private var localServer = false
     private var localServerGate: CompletableDeferred<Unit>? = null
     private val checked = mutableListOf<Pair<String, String>>()
-    private val diagnostics = DiagnosticRecorder(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
+    private val diagnostics = CaptureWriter(context.cacheDir.resolve("app-screen-tests-${System.nanoTime()}"), scope)
 
     /** The brew screen's clock, moved by [pour] and [hold] so a whole shot runs without waiting in real time. */
     private var now = 0L
@@ -137,7 +137,7 @@ class AppScreensTest {
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(diagnostics, settings, available = true) }
+            initializer { CaptureViewModel(diagnostics, settings, available = true) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(coffeeBags) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
@@ -228,7 +228,7 @@ class AppScreensTest {
     }
 
     @Test
-    fun diagnosticsCaptureRequiresStartAndIsNeverSharedLocally() {
+    fun diagnosticsCaptureIsOptInAndRetainsFailedUploads() {
         settings.remoteDiagnostics = true
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
@@ -238,7 +238,7 @@ class AppScreensTest {
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertExists().assertIsEnabled().performClick()
-        compose.waitUntil(5_000) { diagnostics.state.value is io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState.Recording }
+        compose.waitUntil(5_000) { diagnostics.state.value is io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriterState.Recording }
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.capture_running)), 5_000)
 
         compose.onNodeWithText(text(R.string.capture_stop)).performScrollTo().performClick()
