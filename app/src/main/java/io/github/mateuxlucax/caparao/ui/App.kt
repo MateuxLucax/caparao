@@ -14,11 +14,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +58,7 @@ import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailScreen
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeesScreen
+import io.github.mateuxlucax.caparao.ui.components.LocalSystemBack
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
@@ -127,6 +130,8 @@ private fun Main(
     val backStack = rememberNavBackStack(Destination.Tabs)
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
     var shortcutTab by remember { mutableStateOf<Tab?>(null) }
+    // Each entry's own system-back policy: a screen registers one when back does more than pop it (#352).
+    val backActions = remember { mutableStateMapOf<Destination, () -> Unit>() }
     val density = LocalDensity.current
     val viewModelStoreDecorator: ViewModelStoreNavEntryDecorator<NavKey> = if (entryStoreProvider == null) {
         rememberViewModelStoreNavEntryDecorator()
@@ -136,6 +141,15 @@ private fun Main(
 
     fun clearToTabs() {
         while (backStack.size > 1) backStack.removeLastOrNull()
+    }
+
+    // Navigation 3 owns system back (#352): a screen with custom back (brew steps, discarding a dirty recipe) registers
+    // it; every other screen just pops itself, guarded so a second gesture during the exit transition cannot empty
+    // the stack.
+    fun handleBack() {
+        val top = backStack.lastOrNull() ?: return
+        val action = backActions[top]
+        if (action != null) action() else backStack.popEntry(top)
     }
 
     LaunchedEffect(shortcut) {
@@ -163,10 +177,7 @@ private fun Main(
 
     NavDisplay(
         backStack = backStack,
-        onBack = {
-            if (backStack.lastOrNull() is Destination.Brew) openBrew.value?.close() ?: backStack.removeLastOrNull()
-            else backStack.removeLastOrNull()
-        },
+        onBack = { handleBack() },
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             viewModelStoreDecorator,
@@ -185,10 +196,16 @@ private fun Main(
             entry<Destination.Brew> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
                 val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
-                val close = remember(brew) {
+                val close = remember(brew, shown) {
+                    var ended = false
                     {
-                        brew.end()
-                        backStack.removeLastOrNull()
+                        // Idempotent: a second close or system back during the exit transition must not end the brew
+                        // again or pop the entry underneath (#352).
+                        if (!ended) {
+                            ended = true
+                            brew.end()
+                        }
+                        backStack.popEntry(shown)
                         openBrew.value = null
                     }
                 }
@@ -198,13 +215,15 @@ private fun Main(
                     openBrew.value = open
                     onDispose { if (openBrew.value === open) openBrew.value = null }
                 }
-                BrewScreen(brew, onClose = close)
+                CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
+                    BrewScreen(brew, onClose = close)
+                }
             }
             entry<Destination.Detail> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
                 BrewDetailScreen(
                     viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
-                    onClose = { backStack.removeLastOrNull() },
+                    onClose = { backStack.popEntry(shown) },
                 )
             }
             entry<Destination.Coffee> { shown ->
@@ -213,13 +232,13 @@ private fun Main(
                     viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
                     viewModel(factory = viewModelFactory),
                     onOpenBrew = { backStack.add(Destination.Detail(it)) },
-                    onClose = { backStack.removeLastOrNull() },
+                    onClose = { backStack.popEntry(shown) },
                 )
             }
             entry<Destination.Recipe> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, shown.target) }
-                RecipeEditorScreen(viewModel(key = "recipe-${shown.target}", factory = viewModelFactory, extras = extras)) {
-                    backStack.removeLastOrNull()
+                CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
+                    RecipeEditorScreen(viewModel(key = "recipe-${shown.target}", factory = viewModelFactory, extras = extras), onClose = { backStack.popEntry(shown) })
                 }
             }
         },
@@ -234,6 +253,15 @@ private fun Main(
  * shortcut consults it before ending a brew or reopening a mode that is already on screen.
  */
 private class OpenBrew(val mode: BrewMode, val running: () -> Boolean, val close: () -> Unit)
+
+/** The registrar a screen uses to claim system back for [key]; stable per entry so registration does not churn (#352). */
+@Composable
+private fun rememberSystemBack(
+    key: Destination,
+    backActions: MutableMap<Destination, () -> Unit>,
+): ((() -> Unit)?) -> Unit = remember(key, backActions) {
+    { action -> if (action == null) backActions.remove(key) else backActions[key] = action }
+}
 
 /** Each entry's key is saved by Navigation 3 across rotation and process recreation. */
 @Serializable

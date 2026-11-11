@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.recipes
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.material3.FilledTonalIconButton
@@ -61,6 +60,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.components.BrewModeGroup
+import io.github.mateuxlucax.caparao.ui.components.SystemBack
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm.Field
@@ -74,7 +74,7 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
     // An untouched editor closes at once; one with changes asks before losing them (#181).
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val close = { if (state.dirty) confirmDiscard = true else onClose() }
-    BackHandler(onBack = close)
+    SystemBack(close)
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
         AlertDialog(

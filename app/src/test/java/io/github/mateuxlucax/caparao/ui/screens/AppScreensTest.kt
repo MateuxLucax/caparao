@@ -412,6 +412,77 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.stop)).assertExists()
     }
 
+    /**
+     * Rotation and process death restore the whole typed stack: a coffee bag with a saved brew's detail on top keeps
+     * both entries and the detail's ViewModel state, and back walks the stack one entry at a time (#352).
+     */
+    @Test
+    fun aStateRestorationKeepsAMultiEntryStackAndItsDetailViewModel() {
+        runBlocking {
+            coffeeBags.save(CoffeeBag(id = "bag1", name = "Ethiopia", weightGrams = 250.0, createdAt = 0))
+            brews.save(
+                Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false, bagId = "bag1"),
+                listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0)),
+            )
+        }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
+            val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
+            AppTheme {
+                App(factory(idle), onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
+        compose.onNodeWithText("Ethiopia").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        compose.onNodeWithText("18.0", substring = true).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        // Leave the notes form open: it lives in the detail's entry ViewModel, so only a retained store restores it.
+        compose.onNodeWithText(text(R.string.edit_notes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.save)), 5_000)
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.save)).assertExists()
+        // Back pops only the detail, revealing the bag it was opened from, then the tabs.
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_coffees)), 5_000)
+    }
+
+    /** The riskiest typed key survives restore: [RecipeEditorViewModel.Target] is a nested sealed type (#352). */
+    @Test
+    fun aRecipeEditorSurvivesStateRestorationWithItsTypedKey() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
+            val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
+            AppTheme {
+                App(factory(idle), onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        // Still the new-espresso editor, not the recipe list.
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
+        compose.onNodeWithText(text(R.string.no_recipes_title)).assertDoesNotExist()
+    }
+
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
@@ -528,6 +599,29 @@ class AppScreensTest {
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+    }
+
+    @Test
+    fun aHomeShortcutOpensTheHomeTabFromAnotherTab() {
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale), onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+
+        shortcut.value = LauncherShortcut.WIDGET_HOME
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.tab_home)).assertIsSelected()
+        assertEquals(1, consumed)
     }
 
     @Test
