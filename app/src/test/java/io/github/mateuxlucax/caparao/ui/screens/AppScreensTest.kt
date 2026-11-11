@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
@@ -129,29 +130,33 @@ class AppScreensTest {
         scale: ScaleSource,
         clock: () -> Long = SystemClock::elapsedRealtime,
         onboardingDone: () -> Unit = {},
-    ) = viewModelFactory {
-        initializer { HomeViewModel(scale) }
-        initializer { OnboardingViewModel(scale, onboardingDone) }
-        initializer { ScaleStatusViewModel(scale) }
-        initializer { TargetRatioViewModel(settings) }
+    ): ViewModelProvider.Factory {
+        // These Compose tests host App directly, so mirror MainActivity.onResume().
+        scale.start()
+        return viewModelFactory {
+            initializer { HomeViewModel(scale) }
+            initializer { OnboardingViewModel(scale, onboardingDone) }
+            initializer { ScaleStatusViewModel(scale) }
+            initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
             initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
-        initializer { RecipesViewModel(recipes) }
-        initializer { CoffeeBagsViewModel(coffeeBags) }
-        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
-        initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-        initializer { BrewsViewModel(brews, settings.syncStatus) {} }
-        // No server is reached: Test connection fails, saving enqueues nothing.
-        initializer {
-            ServerViewModel(
-                settings,
-                { url, token -> checked += url to token; error("no server in tests") },
-                {}, {},
-                localNetwork = { localServerGate?.await(); localServer },
-            )
+            initializer { RecipesViewModel(recipes) }
+            initializer { CoffeeBagsViewModel(coffeeBags) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
+            initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
+            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            // No server is reached: Test connection fails, saving enqueues nothing.
+            initializer {
+                ServerViewModel(
+                    settings,
+                    { url, token -> checked += url to token; error("no server in tests") },
+                    {}, {},
+                    localNetwork = { localServerGate?.await(); localServer },
+                )
+            }
+            initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
+            initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
         }
-        initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
     }
 
     @After
@@ -186,7 +191,7 @@ class AppScreensTest {
     @Test
     fun onboardingConnectsToTheScaleAndOpensHome() {
         var done = false
-        compose.setContent { AppTheme { App(factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
         compose.onNodeWithText(text(R.string.get_started)).performClick()
@@ -204,7 +209,7 @@ class AppScreensTest {
 
     @Test
     fun tabsSwitchScreensAndHomeIsLive() {
-        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
@@ -227,7 +232,7 @@ class AppScreensTest {
     @Test
     fun diagnosticsCaptureRequiresStartAndCanBeSharedAfterStop() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
@@ -248,7 +253,7 @@ class AppScreensTest {
     fun espressoOpensTheDoseStepAndBackCloses() {
         // A connected scale that sends nothing: the replay would brew and save before Close on the JVM's fast clock.
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -270,7 +275,7 @@ class AppScreensTest {
             context.assets.open("sessions/synthetic-espresso.jsonl").bufferedReader().use { it.readLines() },
             startPaused = true,
         )
-        compose.setContent { AppTheme { App(factory(replay), replay, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(replay), onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -291,7 +296,7 @@ class AppScreensTest {
     fun aSavedBrewOpensFromTheListAndDeleteRemovesIt() {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
-        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
@@ -321,7 +326,7 @@ class AppScreensTest {
         lateinit var owner: ViewModelStoreOwner
         compose.setContent {
             owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+            AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") }
         }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
@@ -357,7 +362,7 @@ class AppScreensTest {
         lateinit var owner: ViewModelStoreOwner
         compose.setContent {
             owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") }
+            AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") }
         }
 
         compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
@@ -391,7 +396,7 @@ class AppScreensTest {
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") }
+            AppTheme { App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test") }
         }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
@@ -420,7 +425,7 @@ class AppScreensTest {
 
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
-        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
@@ -450,7 +455,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    factory(idle), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -474,7 +479,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test",
+                    factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test",
                     shortcut = LauncherShortcut.FILTER,
                     onShortcutConsumed = {},
                 )
@@ -504,7 +509,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
+                    factory(idle), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -525,7 +530,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
+                    factory(scale), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -543,7 +548,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -586,7 +591,7 @@ class AppScreensTest {
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         try {
             val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-            compose.setContent { AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") } }
+            compose.setContent { AppTheme { App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test") } }
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
@@ -614,7 +619,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -647,7 +652,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -676,7 +681,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -701,7 +706,7 @@ class AppScreensTest {
     @Test
     fun aRecipeCreatedInTheRecipesTabIsPickedForTheNextBrew() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)

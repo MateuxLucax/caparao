@@ -29,8 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
@@ -38,7 +36,6 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
-import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.brew.BrewScreen
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -77,7 +74,7 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 
 /**
  * Onboarding on first launch, then the four tabs under a top bar with the name and the scale connection.
- * The scale is connected only while the app is visible (#92).
+ * The activity owns the scale connection so configuration changes can reuse it; resume still retries (#364).
  *
  * [shortcut] is the launcher shortcut still to apply (#116), consumed with [onShortcutConsumed] once [Main] has opened
  * its destination. It waits here, above the onboarding gate, so a first run still onboards and then honors it.
@@ -85,22 +82,12 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 @Composable
 fun App(
     viewModelFactory: ViewModelProvider.Factory,
-    scale: ScaleSource,
     onboardingDone: Boolean,
     actions: AppActions,
     versionName: String,
     shortcut: LauncherShortcut? = null,
     onShortcutConsumed: () -> Unit = {},
 ) {
-    LifecycleStartEffect(scale) {
-        scale.start()
-        onStopOrDispose { scale.stop() }
-    }
-    // Back from turning Bluetooth on or granting the permission (dialogs that only pause the app): try again.
-    LifecycleResumeEffect(scale) {
-        scale.start()
-        onPauseOrDispose {}
-    }
     var onboarded by rememberSaveable { mutableStateOf(onboardingDone) }
     if (!onboarded) {
         OnboardingScreen(viewModel(factory = viewModelFactory), viewModel(key = "server-onboarding", factory = viewModelFactory), actions) {

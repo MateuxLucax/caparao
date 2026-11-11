@@ -70,6 +70,7 @@ class AppTest {
     private val settings = SettingsStore(context.getSharedPreferences("app-test", Context.MODE_PRIVATE))
 
     private fun factory(scale: ScaleSource, onboardingDone: () -> Unit = {}) = viewModelFactory {
+        scale.start()
         initializer { HomeViewModel(scale) }
         initializer { OnboardingViewModel(scale, onboardingDone) }
         initializer { ScaleStatusViewModel(scale) }
@@ -94,7 +95,7 @@ class AppTest {
     @Test
     fun onboardingConnectsToTheScaleAndOpensHome() {
         var done = false
-        compose.setContent { AppTheme { App(factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
         compose.onNodeWithText(text(R.string.get_started)).performClick()
@@ -112,7 +113,7 @@ class AppTest {
 
     @Test
     fun tabsSwitchScreensAndHomeIsLive() {
-        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
@@ -134,7 +135,7 @@ class AppTest {
 
     @Test
     fun espressoOpensTheDoseStepAndBackCloses() {
-        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
