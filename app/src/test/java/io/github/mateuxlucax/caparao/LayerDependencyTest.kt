@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
 
@@ -29,7 +30,7 @@ class LayerDependencyTest {
 
     /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */
     private val uiFeaturePackages = setOf(
-        "home", "brew", "brews", "recipes", "coffees", "settings", "onboarding", "widget", "launcher", "server",
+        "home", "brew", "brews", "recipes", "coffees", "settings", "onboarding", "widget", "server",
     )
 
     /** Packages shared by features: they use no feature, `sync` or `data` (#391). */
@@ -126,38 +127,43 @@ class LayerDependencyTest {
             "import $base.ui.components.ScaleReadout",
             "import $base.ui.server.ServerForm",
             "import $base.data.local.BrewRepository",
-            "import $base.ui.AppActions",
+            "import $base.ui.App",
         )
-        assertEquals(listOf("ui.brews.NotesForm", "ui.AppActions"), uiViolations("brew", feature))
+        assertEquals(listOf("ui.brews.NotesForm", "ui.App"), uiViolations("brew", feature))
         val shared = listOf(
             "import $base.ui.brew.BrewStep",
             "import $base.data.local.BrewRepository",
+            "import $base.sync.UploadScheduler",
             "import $base.ui.theme.Motion",
         )
-        assertEquals(listOf("ui.brew.BrewStep", "data.local.BrewRepository"), uiViolations("components", shared))
+        assertEquals(listOf("ui.brew.BrewStep", "data.local.BrewRepository", "sync.UploadScheduler"), uiViolations("components", shared))
+        assertThrows(IllegalStateException::class.java) { uiViolations("stats", emptyList()) }
     }
 
     /** "ui.x.y" references that break the feature boundaries inside `ui` for [pkg] (#391). */
-    private fun uiViolations(pkg: String, lines: List<String>): List<String> = references(lines).mapNotNull { referenced ->
-        val first = referenced.substringBefore('.')
-        when {
-            first == "data" || first == "sync" -> referenced.takeIf { pkg in uiSharedPackages }
-            first != "ui" -> null
-            else -> {
-                val inner = referenced.removePrefix("ui.")
-                val sub = inner.substringBefore('.')
-                val packageReference = sub.firstOrNull()?.isLowerCase() == true
-                val allowed = when {
-                    // A class directly in `ui` (navigation and wiring) is outside every feature.
-                    !packageReference -> false
-                    pkg in uiFeaturePackages -> sub == pkg || sub in uiAllowedForFeatures
-                    pkg in uiSharedPackages -> sub in uiSharedPackages
-                    else -> true
+    private fun uiViolations(pkg: String, lines: List<String>): List<String> {
+        check(pkg in uiFeaturePackages || pkg in uiSharedPackages) { "unknown ui package: $pkg" }
+        return references(lines).mapNotNull { referenced ->
+            val first = referenced.substringBefore('.')
+            when {
+                first == "data" || first == "sync" -> referenced.takeIf { pkg in uiSharedPackages }
+                first != "ui" -> null
+                else -> {
+                    val inner = referenced.removePrefix("ui.")
+                    val sub = inner.substringBefore('.')
+                    val packageReference = sub.firstOrNull()?.isLowerCase() == true
+                    val allowed = when {
+                        // A class directly in `ui` (navigation and wiring) is outside every feature.
+                        !packageReference -> false
+                        pkg in uiFeaturePackages -> sub == pkg || sub in uiAllowedForFeatures
+                        pkg in uiSharedPackages -> sub in uiSharedPackages
+                        else -> false
+                    }
+                    referenced.takeUnless { allowed }
                 }
-                referenced.takeUnless { allowed }
             }
-        }
-    }.toList()
+        }.toList()
+    }
 
     /** (feature package, path, lines) of every Kotlin file in a package under `ui`, root files excluded. */
     private fun uiSources(): List<Triple<String, String, List<String>>> {
