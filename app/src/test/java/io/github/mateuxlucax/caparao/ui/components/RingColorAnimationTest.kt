@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals

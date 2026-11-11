@@ -102,6 +102,7 @@ class BrewSession(
             else reading.reading.weightGrams
         var displayedWeight = shownWeight
         if (mode == BrewMode.FRENCH_PRESS && detector.phase == BrewPhase.BREWING) {
+            // The saved press yield is settled water, not the detector's running maximum (#214).
             val waterTracker = frenchPressWaterTracker
             if (waterTracker == null) {
                 frenchPressWaterTracker = FrenchPressWaterTracker(since ?: reading.atMs).also { tracker ->
@@ -124,6 +125,7 @@ class BrewSession(
         val guideWeight = if (detector.phase == BrewPhase.PAUSED || mode == BrewMode.FRENCH_PRESS) displayedWeight else reading.reading.weightGrams
         val (guide, guideEvents) = advanceGuide(reading.atMs, since, activeAt, guideWeight, flow, reading.reading.weightGrams)
         val events = guideEvents + readingEvents(before, displayedWeight, activeAt?.let { it - since!! } ?: 0L)
+        // A lift is judged on the water before it; the pause reading may already be below the settled weight (#277).
         val filterEnds = mode == BrewMode.FILTER && before == BrewPhase.BREWING && detector.phase == BrewPhase.PAUSED &&
             filterLiftEndsBrew(previousWeight)
         val result = readingState(
@@ -175,6 +177,7 @@ class BrewSession(
         }
         BrewMode.FILTER -> when {
             from == BrewPhase.READY && to == BrewPhase.BREWING && steps.isEmpty() -> once(StepEvent.FirstWater)
+            from == BrewPhase.PAUSED && to == BrewPhase.DONE && steps.isEmpty() -> once(StepEvent.AllDone)
             from == BrewPhase.BREWING && to == BrewPhase.PAUSED -> listOf(StepEvent.Paused)
             from == BrewPhase.PAUSED && to == BrewPhase.BREWING -> listOf(StepEvent.Resumed)
             else -> emptyList()
@@ -197,12 +200,25 @@ class BrewSession(
                     once(StepEvent.PastTargetBand).let(::addAll)
                 }
             }
-            val min = targetMinMs
-            val max = targetMaxMs
-            if (steps.isNotEmpty() && guideTracker?.state?.allDone(steps.size) == true && min != null && max != null && min <= max) {
-                if (elapsedMs > max) once(StepEvent.DrainTimePassed).let(::addAll)
-                else if (elapsedMs >= min) once(StepEvent.DrainTimeEntered).let(::addAll)
+            when (drainWindow(elapsedMs)) {
+                DrainWindow.BEFORE -> Unit
+                DrainWindow.INSIDE -> once(StepEvent.DrainTimeEntered).let(::addAll)
+                DrainWindow.PAST -> once(StepEvent.DrainTimePassed).let(::addAll)
+                null -> Unit
             }
+        }
+    }
+
+    private fun drainWindow(elapsedMs: Long): DrainWindow? {
+        if (mode != BrewMode.FILTER || detector.phase !in setOf(BrewPhase.BREWING, BrewPhase.PAUSED) ||
+            steps.isEmpty() || guideTracker?.state?.allDone(steps.size) != true
+        ) return null
+        val min = targetMinMs ?: return null
+        val max = targetMaxMs?.takeIf { min <= it } ?: return null
+        return when {
+            elapsedMs < min -> DrainWindow.BEFORE
+            elapsedMs <= max -> DrainWindow.INSIDE
+            else -> DrainWindow.PAST
         }
     }
 
@@ -225,7 +241,11 @@ class BrewSession(
     }
 
     fun onClock(atMs: Long): BrewClockState {
-        val since = brewingSinceMs ?: return BrewClockState(0L, guideTracker?.state, emptyList())
+        val since = brewingSinceMs ?: return BrewClockState(
+            elapsedMs = 0L,
+            guide = guideTracker?.state,
+            guideEvents = emptyList(),
+        )
         val (guide, events) = advanceGuide(atMs, since, atMs, frenchPressWaterGrams, 0.0, removalWeightGrams = null)
         val deadlineEvents = if (mode == BrewMode.FRENCH_PRESS) {
             pressDeadlineEvents(atMs, null, guide?.allDone(guideSteps.size) == true)
@@ -234,6 +254,7 @@ class BrewSession(
         val removed = finish?.removedAtMs != null
         return BrewClockState(
             elapsedMs = atMs - since,
+            drainWindow = drainWindow(atMs - since),
             guide = guide,
             guideEvents = events + deadlineEvents,
             frenchPressRemoved = removed,
@@ -264,6 +285,7 @@ class BrewSession(
         guideEvents = guideEvents,
         returnedToPreparation = returnedToPreparation,
         filterLiftEndsBrew = filterLiftEndsBrew,
+        drainWindow = drainWindow(elapsedMs),
         frenchPressRemoved = finishTracker?.removedAtMs != null,
         frenchPressRemovalPending = finishTracker?.removalStartedAtMs != null && finishTracker?.removedAtMs == null,
     )
@@ -338,6 +360,7 @@ class BrewSession(
                 ?.let { bounded.copy(yieldGrams = it) } ?: bounded
         } else bounded
         val summaryReadings = when {
+            // The saved curve ends when the press first leaves the scale for good (#223).
             mode == BrewMode.FRENCH_PRESS -> readings.asSequence()
                 .filter { it.atMs in result.startedAtMs..result.endedAtMs && (removalAtMs == null || it.atMs < removalAtMs) }
                 .mapNotNull { reading ->
@@ -388,17 +411,21 @@ data class BrewReadingState(
     val guideEvents: List<StepEvent>,
     val returnedToPreparation: Boolean,
     val filterLiftEndsBrew: Boolean,
+    val drainWindow: DrainWindow?,
     val frenchPressRemoved: Boolean,
     val frenchPressRemovalPending: Boolean,
 )
 
 data class BrewClockState(
     val elapsedMs: Long,
+    val drainWindow: DrainWindow? = null,
     val guide: StepState?,
     val guideEvents: List<StepEvent>,
     val frenchPressRemoved: Boolean = false,
     val frenchPressRemovalPending: Boolean = false,
 )
+
+enum class DrainWindow { BEFORE, INSIDE, PAST }
 
 private const val FILTER_PREPARE_LIFT_MS = 2_000L
 private const val MAX_READINGS = 12_000

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.brew.ratioBand
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex

@@ -9,6 +9,8 @@ import io.github.mateuxlucax.caparao.ui.components.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
+import io.github.mateuxlucax.caparao.brew.DrainWindow as BrewDrainWindow
+import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepState
@@ -96,6 +98,7 @@ class BrewViewModel(
     /** The timer rolling back to the saved time, before the summary opens (#197). */
     private var rollJob: Job? = null
     private var session: BrewSession? = null
+    private val filterConfig = FilterConfig()
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
@@ -431,6 +434,7 @@ class BrewViewModel(
                 flowGramsPerSecond = state.flowGramsPerSecond,
                 elapsedMs = state.elapsedMs,
                 pauseRemainingMs = state.pauseRemainingMs,
+                drainWindow = state.drainWindow?.let(::drainWindow),
                 guide = visible(state.guide) ?: it.guide,
                 freeSteps = if (mode == BrewMode.FRENCH_PRESS && it.recipe == null && state.guide != null) current.guideSteps else it.freeSteps,
                 frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
@@ -563,6 +567,7 @@ class BrewViewModel(
                 _uiState.update {
                     it.copy(
                         elapsedMs = state.elapsedMs,
+                        drainWindow = state.drainWindow?.let(::drainWindow),
                         guide = visible(state.guide) ?: it.guide,
                         frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
                         frenchPressRemovalPending = state.frenchPressRemovalPending,
@@ -574,6 +579,12 @@ class BrewViewModel(
 
     private fun send(command: ScaleCommand) = when (command) {
         ScaleCommand.TARE -> scale.tare()
+    }
+
+    private fun drainWindow(window: BrewDrainWindow) = when (window) {
+        BrewDrainWindow.BEFORE -> BrewUiState.Window.BEFORE
+        BrewDrainWindow.INSIDE -> BrewUiState.Window.INSIDE
+        BrewDrainWindow.PAST -> BrewUiState.Window.PAST
     }
 
     private fun finish(done: BrewSession) {

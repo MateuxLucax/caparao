@@ -424,14 +424,25 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         val pouringRecipe = recipe.copy(
             steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
         )
-        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING) = BrewUiState(
-            mode = shownRecipe.mode,
-            step = BrewStep.LIVE,
-            phase = phase,
-            elapsedMs = elapsedMs,
-            recipe = shownRecipe,
-            guide = StepState(1, 1f, null, null, null, null),
-        )
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING): BrewUiState {
+            val guidedSteps = if (shownRecipe == pouringRecipe) 2 else 1
+            val drainWindow = when {
+                shownRecipe.mode != BrewMode.FILTER || shownRecipe.targetMinMs == null || shownRecipe.targetMaxMs == null ||
+                    shownRecipe.steps.size != guidedSteps -> null
+                elapsedMs < shownRecipe.targetMinMs -> BrewUiState.Window.BEFORE
+                elapsedMs <= shownRecipe.targetMaxMs -> BrewUiState.Window.INSIDE
+                else -> BrewUiState.Window.PAST
+            }
+            return BrewUiState(
+                mode = shownRecipe.mode,
+                step = BrewStep.LIVE,
+                phase = phase,
+                elapsedMs = elapsedMs,
+                drainWindow = drainWindow,
+                recipe = shownRecipe,
+                guide = StepState(1, 1f, null, null, null, null),
+            )
+        }
 
         var current by mutableStateOf(state(100_000, pouringRecipe))
         compose.setContent { AppTheme { GuidedStep(current) {} } }
