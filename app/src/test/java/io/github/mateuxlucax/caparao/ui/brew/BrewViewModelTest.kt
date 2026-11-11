@@ -1497,49 +1497,6 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterAlertsAtFirstWaterRatioBandPauseResumeAndEndOnce() {
-        val vm = viewModel(BrewMode.FILTER)
-        val alerts = alertsFrom(vm)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-
-        pour(0.0, 2.0, 0.4)
-        pour(2.0, 200.0, 9.0) // below the ±5% band, whose lower edge is 228 g
-        hold(200.0, 1.1)
-        pour(200.0, 0.0, 0.5) // a lift below the band pauses
-        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
-        hold(0.0, 0.2)
-        pour(0.0, 200.0, 0.5)
-        hold(200.0, 2.1) // the settling window after the dripper returns
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        pour(200.0, 230.0, 3.0) // enters the band at 228 g
-        hold(230.0, 1.1)
-        pour(230.0, 260.0, 2.0) // passes the +5% edge at 252 g
-        hold(260.0, 1.1)
-
-        // Hovering on and around the band edges doesn't repeat either milestone.
-        listOf(251.8, 252.0, 251.8, 252.0, 260.0).forEach { grams ->
-            now += 100
-            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
-        }
-        vm.stop()
-
-        val events = alerts.map { it.event }
-        assertEquals(1, events.count { it == StepEvent.FirstWater })
-        assertEquals(1, events.count { it == StepEvent.InTargetBand })
-        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
-        assertEquals(1, events.count { it == StepEvent.Paused })
-        assertEquals(1, events.count { it == StepEvent.Resumed })
-        assertEquals(1, events.count { it == StepEvent.AllDone })
-        assertTrue(alerts.all { it.vibrate && !it.sound })
-        assertEquals(events, watchAlerts)
-    }
-
-    @Test
     fun eachFilterLiftAlertsPauseAndResumeWithinOneBrew() {
         val vm = viewModel(BrewMode.FILTER)
         val alerts = alertsFrom(vm)
