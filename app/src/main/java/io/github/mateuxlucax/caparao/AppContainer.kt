@@ -20,7 +20,6 @@ import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.scale.AndroidBleTransport
-import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.data.scale.ScaleClock
 import io.github.mateuxlucax.caparao.data.scale.ScaleClient
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
@@ -107,39 +106,18 @@ class AppContainer(context: Context) {
     /** Used by [UploadWorker]. */
     val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked, diagnostics = diagnostics)
 
-    /** The real Dot over Bluetooth, or a recording after [replay]. */
-    var scale: ScaleSource = ScaleClient(AndroidBleTransport(appContext), scope, diagnostics = diagnostics)
-        private set
-
-    /**
-     * Debug builds only: plays a recorded session from the assets instead of the scale, for the emulator, which has no
-     * Bluetooth (scripts/e2e.sh, the instrumented tests). Must run before the first screen is created.
-     */
-    fun replay(
-        session: String,
-        startAtMs: Long,
-        startPaused: Boolean = false,
-        playbackSpeed: Double = 1.0,
-        repeat: Boolean = true,
-    ) {
-        scale.stop()
-        val lines = appContext.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() }
-        scale = ReplayScaleSource(scope, lines, startAtMs, startPaused, playbackSpeed, repeat)
-    }
-
-    /** Installs a debug-only source created by the debug source set. */
-    fun installDebugScaleSource(source: ScaleSource) {
-        scale.stop()
-        scale = source
-    }
+    /** Chosen once at startup; debug variants may provide replay or a scripted source. */
+    val scale: ScaleSource = (appContext as CaparaoApplication).debugHooks.createScale(appContext, scope)
+        ?: ScaleClient(AndroidBleTransport(appContext), scope, diagnostics = diagnostics)
+    private val scaleClock = scale as? ScaleClock
 
     /** Scale mode's timer, driven from Home and the watch. */
-    private val scaleTimer = ScaleTimer { scale }
+    private val scaleTimer = ScaleTimer(scale)
 
     /** The paired watch, if any (#107); follows one that connects later (#324) and reads [scale] when it starts. */
-    val watch = WatchLink(AndroidWatchTransport(appContext), scope, scaleTimer, scale = { scale })
+    val watch = WatchLink(AndroidWatchTransport(appContext), scope, scaleTimer, scale)
 
-    /** Creates the screens' ViewModels with their dependencies; reads [scale] when each ViewModel is created. */
+    /** Creates the screens' ViewModels with their dependencies; each receives the selected [scale]. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
         initializer { HomeViewModel(scale, scaleTimer) }
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
@@ -159,7 +137,7 @@ class AppContainer(context: Context) {
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
-                clock = { (scale as? ScaleClock)?.nowMs ?: SystemClock.elapsedRealtime() },
+                clock = { scaleClock?.nowMs ?: SystemClock.elapsedRealtime() },
                 onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
                 onWatchAlert = watch::alert, diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,

@@ -63,7 +63,7 @@ class WatchLinkTest {
     private val connected = ScaleState.Connected(battery = null)
 
     private fun TestScope.link(transport: FakeWatchTransport, scale: FakeScaleSource) =
-        WatchLink(transport, backgroundScope, ScaleTimer { scale }, { scale }) { currentTime }
+        WatchLink(transport, backgroundScope, ScaleTimer(scale), scale) { currentTime }
 
     private fun connectedScale() = FakeScaleSource().apply {
         state.value = connected

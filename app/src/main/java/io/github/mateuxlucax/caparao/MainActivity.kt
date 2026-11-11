@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
 class MainActivity : ComponentActivity() {
     private val container get() = (application as CaparaoApplication).container
+    private val debugHooks get() = (application as CaparaoApplication).debugHooks
 
     /** Waiting for the answer to the Bluetooth permission request. */
     private var permissionResult: CompletableDeferred<Boolean>? = null
@@ -59,31 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG || BuildConfig.SCRIPTED_SCALE) {
-            // Non-shipping variants only: start on Home and give the Brews journeys a list to scroll (#312).
-            if (BuildConfig.SCRIPTED_SCALE && savedInstanceState == null) {
-                if (intent.getBooleanExtra(EXTRA_BENCHMARK_ONBOARDED, false)) container.settings.onboardingDone = true
-                if (intent.getBooleanExtra(EXTRA_BENCHMARK_SEED_BREWS, false)) {
-                    Class.forName("io.github.mateuxlucax.caparao.BenchmarkFixtures")
-                        .getMethod("seed", AppContainer::class.java)
-                        .invoke(null, container)
-                }
-            }
-            intent.getStringExtra(EXTRA_REPLAY)?.let {
-                container.replay(
-                    it,
-                    intent.getLongExtra(EXTRA_REPLAY_AT_MS, 0),
-                    intent.getBooleanExtra(EXTRA_REPLAY_PAUSED, false),
-                    intent.getDoubleExtra(EXTRA_REPLAY_SPEED, 1.0),
-                    intent.getBooleanExtra(EXTRA_REPLAY_REPEAT, true),
-                )
-            }
-            if (savedInstanceState == null && (intent.hasExtra(EXTRA_SCRIPTED) || intent.getBooleanExtra(EXTRA_SCRIPTED_API, false))) {
-                Class.forName("io.github.mateuxlucax.caparao.data.scale.DebugScaleSourceFactory")
-                    .getMethod("install", MainActivity::class.java, AppContainer::class.java, Intent::class.java)
-                    .invoke(null, this, container, intent)
-            }
-        }
+        debugHooks.prepare(intent, savedInstanceState)
+        debugHooks.onActivityCreate(container)
         requestedShortcut.value = LauncherShortcut.pendingOnCreate(
             savedId = savedInstanceState?.getString(STATE_SHORTCUT),
             launchAction = intent.action,
@@ -199,24 +177,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         val BLUETOOTH_PERMISSIONS = arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-
-        /** Debug builds: name of a recorded session in the assets to play instead of the scale (see [AppContainer.replay]). */
-        const val EXTRA_REPLAY = "replay"
-        const val EXTRA_REPLAY_AT_MS = "replay_at_ms"
-        /** Hold debug replay until an instrumentation test has finished setting up its brew screen. */
-        const val EXTRA_REPLAY_PAUSED = "replay_paused"
-        /** Speed up a debug replay while its detector follows the captured timeline. */
-        const val EXTRA_REPLAY_SPEED = "replay_speed"
-        /** Whether a debug replay loops after its final frame. */
-        const val EXTRA_REPLAY_REPEAT = "replay_repeat"
-        const val EXTRA_SCRIPTED = "scripted"
-        const val EXTRA_SCRIPTED_API = "scripted_api"
-
-        /** Benchmark variants only: start on Home instead of onboarding (#312). */
-        const val EXTRA_BENCHMARK_ONBOARDED = "benchmark_onboarded"
-
-        /** Benchmark variants only: seed the Brews list before the first frame (#312). */
-        const val EXTRA_BENCHMARK_SEED_BREWS = "benchmark_seed_brews"
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"

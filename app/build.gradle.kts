@@ -33,10 +33,9 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["applicationClass"] = ".CaparaoApplication"
         // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
         buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
-        // True only in debug and the two benchmark variants: gates the scripted scale and the benchmark seed (#312).
-        buildConfigField("boolean", "SCRIPTED_SCALE", "false")
     }
 
     signingConfigs {
@@ -54,7 +53,7 @@ android {
         // A separate package so a debug build installs next to the release one instead of over it (their signers differ).
         debug {
             applicationIdSuffix = ".debug"
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
         }
         release {
             // R8: Compose without shrinking is ~25 MB. Room and WorkManager ship their own keep rules.
@@ -73,17 +72,17 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             isProfileable = true
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
             signingConfig = signingConfigs.getByName("debug")
         }
         create("benchmarkRelease") {
             initWith(getByName("release"))
-            // The plugin normally leaves its benchmark build type unminified; keep the reflection hooks readable.
+            // The plugin normally leaves its benchmark build type unminified; keep benchmark sources inspectable.
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = false
             isProfileable = true
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -103,7 +102,7 @@ android {
         buildConfig = true
     }
 
-    // Debug builds bundle the recorded sessions so the emulator can replay them (AppContainer.replay).
+    // Debug builds bundle recorded sessions for replay tests and scripted scenarios.
     sourceSets["debug"].assets.srcDir("src/test/resources")
 
     compileOptions {
