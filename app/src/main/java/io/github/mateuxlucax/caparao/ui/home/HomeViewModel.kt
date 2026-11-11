@@ -18,7 +18,7 @@ data class HomeUiState(
 )
 
 /** The live scale readout: connection, weight, flow, battery, and the tare and timer controls. */
-class HomeViewModel(private val scale: ScaleSource, private val timer: ScaleTimer = ScaleTimer { scale }) : ViewModel() {
+class HomeViewModel(private val scale: ScaleSource, private val timer: ScaleTimer = ScaleTimer(scale)) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> = combine(scale.state, scale.reading, timer.running) { state, reading, running ->
         HomeUiState(state, reading, running && state is ScaleState.Connected)

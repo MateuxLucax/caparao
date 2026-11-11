@@ -22,7 +22,7 @@
     <!-- No backups (allowBackup); dataExtractionRules keeps data out of cloud backups and device transfers.
          Cleartext HTTP is allowed for servers on the local network; Settings warns when it goes to a public host. -->
     <application
-        android:name=".CaparaoApplication"
+        android:name="${applicationClass}"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"

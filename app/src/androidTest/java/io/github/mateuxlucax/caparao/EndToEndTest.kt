@@ -78,10 +78,10 @@ class EndToEndTest {
         prepareServer(serverUrl!!, token!!)
 
         val intent = Intent(context, MainActivity::class.java)
-            .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-espresso")
-            .putExtra(MainActivity.EXTRA_REPLAY_PAUSED, true)
-            .putExtra(MainActivity.EXTRA_REPLAY_SPEED, 8.0)
-            .putExtra(MainActivity.EXTRA_REPLAY_REPEAT, false)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY, "synthetic-espresso")
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_PAUSED, true)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_SPEED, 8.0)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_REPEAT, false)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             val replay = (context.applicationContext as CaparaoApplication).container.scale as ReplayScaleSource
             fun brewState(): BrewUiState? {
@@ -194,10 +194,10 @@ class EndToEndTest {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             .setAction(LauncherShortcut.FRENCH_PRESS.action)
-            .putExtra(MainActivity.EXTRA_REPLAY, "synthetic-french-press")
-            .putExtra(MainActivity.EXTRA_REPLAY_PAUSED, true)
-            .putExtra(MainActivity.EXTRA_REPLAY_SPEED, 8.0)
-            .putExtra(MainActivity.EXTRA_REPLAY_REPEAT, false)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY, "synthetic-french-press")
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_PAUSED, true)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_SPEED, 8.0)
+            .putExtra(DebugScaleHooks.EXTRA_REPLAY_REPEAT, false)
         val activity = InstrumentationRegistry.getInstrumentation().startActivitySync(intent) as MainActivity
         val container = (context.applicationContext as CaparaoApplication).container
         val replay = container.scale as ReplayScaleSource

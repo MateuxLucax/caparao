@@ -12,8 +12,7 @@ import java.util.UUID
  * list and detail journeys have something to scroll and open (#312).
  *
  * The Benchmark Profile generator and the macrobenchmarks launch the app with
- * [MainActivity.EXTRA_BENCHMARK_SEED_BREWS]; the app reaches this class by reflection, exactly as
- * it reaches the debug scripted scale.
+ * [DebugScaleHooks.EXTRA_BENCHMARK_SEED_BREWS]; the debug hook seeds the fixture before the first frame.
  */
 object BenchmarkFixtures {
     private const val FILTER_BREWS = 12

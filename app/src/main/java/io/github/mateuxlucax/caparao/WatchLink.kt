@@ -27,7 +27,7 @@ class WatchLink(
     private val transport: WatchTransport,
     private val scope: CoroutineScope,
     private val timer: ScaleTimer,
-    private val scale: () -> ScaleSource,
+    private val scale: ScaleSource,
     private val now: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
     /** The open brew screen's state, null without one (BrewViewModel.onLive). */
@@ -55,7 +55,7 @@ class WatchLink(
             transport.commands.collect(::command)
         }
         job = scope.launch {
-            val source = scale()
+            val source = scale
             var lastState: WatchState? = null
             // Readings arrive about 10 times a second even when equal; state and brew changes cover the gaps.
             merge(source.readings, source.state, brew, timer.running).collect {
@@ -95,7 +95,7 @@ class WatchLink(
 
     private fun command(path: String) {
         when (path) {
-            WatchPaths.TARE -> scale().tare()
+            WatchPaths.TARE -> scale.tare()
             WatchPaths.TIMER_TOGGLE -> timer.toggle()
             WatchPaths.TIMER_RESET -> timer.reset()
         }
