@@ -264,7 +264,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
         }
         scale.start()
-        compose.setContent { AppTheme { App(factory, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
         play(scale, atMs)
         return scale
     }

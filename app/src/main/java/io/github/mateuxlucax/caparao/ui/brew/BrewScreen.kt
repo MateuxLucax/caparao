@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -87,6 +86,7 @@ import io.github.mateuxlucax.caparao.ui.brews.BrewNotesFields
 import io.github.mateuxlucax.caparao.ui.brews.NotesForm
 import io.github.mateuxlucax.caparao.ui.components.RatioTarget
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
+import io.github.mateuxlucax.caparao.ui.components.SystemBack
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.theme.Motion
@@ -127,7 +127,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
             else -> closeBrew()
         }
     }
-    BackHandler(onBack = back)
+    SystemBack(back)
     if (confirmRestart) {
         AlertDialog(
             onDismissRequest = { confirmRestart = false },

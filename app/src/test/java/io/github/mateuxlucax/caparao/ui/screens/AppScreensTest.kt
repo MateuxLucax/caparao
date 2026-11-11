@@ -18,13 +18,14 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTextReplacement
-import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
@@ -34,7 +35,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.DestinationStores
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.model.ScaleState
 import org.junit.runner.RunWith
@@ -191,7 +191,7 @@ class AppScreensTest {
     @Test
     fun onboardingConnectsToTheScaleAndOpensHome() {
         var done = false
-        compose.setContent { AppTheme { App(factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
         compose.onNodeWithText(text(R.string.get_started)).performClick()
@@ -209,7 +209,7 @@ class AppScreensTest {
 
     @Test
     fun tabsSwitchScreensAndHomeIsLive() {
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
@@ -232,7 +232,7 @@ class AppScreensTest {
     @Test
     fun diagnosticsCaptureRequiresStartAndCanBeSharedAfterStop() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
@@ -253,7 +253,7 @@ class AppScreensTest {
     fun espressoOpensTheDoseStepAndBackCloses() {
         // A connected scale that sends nothing: the replay would brew and save before Close on the JVM's fast clock.
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -269,13 +269,27 @@ class AppScreensTest {
     }
 
     @Test
+    fun systemBackReturnsFromBrewToTheTabs() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
+
+        androidx.test.espresso.Espresso.pressBack()
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+        compose.onNodeWithText(text(R.string.ratio_caption)).assertDoesNotExist()
+    }
+
+    @Test
     fun aPausedEspressoReplayCanAdvanceFromWeighToLive() {
         val replay = ReplayScaleSource(
             scope,
             context.assets.open("sessions/synthetic-espresso.jsonl").bufferedReader().use { it.readLines() },
             startPaused = true,
         )
-        compose.setContent { AppTheme { App(factory(replay), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(replay), replay, onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -296,7 +310,7 @@ class AppScreensTest {
     fun aSavedBrewOpensFromTheListAndDeleteRemovesIt() {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
@@ -314,35 +328,23 @@ class AppScreensTest {
         assertTrue(runBlocking { brews.get("b1") } == null)
     }
 
-    /** The activity's registry, read back as the tests' only way to see which destinations still hold ViewModels. */
-    private fun destinationStores(owner: ViewModelStoreOwner) =
-        owner.viewModelStore.get(DestinationStores.KEY) as DestinationStores
-
     @Test
     fun aClosedBrewDetailIsClearedAndReopeningShowsFreshState() {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        lateinit var owner: ViewModelStoreOwner
-        compose.setContent {
-            owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") }
-        }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
         compose.onNodeWithText("1:2.0").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
-        val stores = destinationStores(owner)
-        assertTrue(stores.holds("detail-b1"))
-
         // Edit the notes, then leave: the ViewModel must not outlive the screen with the form still open.
         compose.onNodeWithText(text(R.string.edit_notes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.save)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
 
-        // Opened again: a fresh ViewModel, so the notes form is closed.
+        // Opened again: a fresh entry ViewModel, so the notes form is closed.
         compose.waitForIdle()
         compose.onNodeWithText("1:2.0").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
@@ -359,30 +361,20 @@ class AppScreensTest {
             )
         }
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        lateinit var owner: ViewModelStoreOwner
-        compose.setContent {
-            owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") }
-        }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
         compose.onNodeWithText("Ethiopia").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
-        val stores = destinationStores(owner)
-        assertTrue(stores.holds("coffee-bag1"))
-
         // A brew over the bag: the bag waits behind it and keeps its ViewModel.
         compose.onNode(hasText(text(R.string.mode_espresso), substring = true) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
-        assertTrue(stores.holds("coffee-bag1"))
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.waitUntil(5_000) { !stores.holds("detail-b1") }
-        assertTrue(stores.holds("coffee-bag1"))
         compose.onNodeWithText(text(R.string.coffee_mark_finished)).assertExists()
 
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.waitUntil(5_000) { !stores.holds("coffee-bag1") }
+        compose.onNodeWithText(text(R.string.tab_coffees)).assertExists()
     }
 
     /**
@@ -392,11 +384,13 @@ class AppScreensTest {
     @Test
     fun aStateRestorationKeepsTheRunningBrewAndItsViewModel() {
         val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        lateinit var owner: ViewModelStoreOwner
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
-            owner = checkNotNull(LocalViewModelStoreOwner.current)
-            AppTheme { App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test") }
+            val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
+            val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
+            AppTheme {
+                App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+            }
         }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
@@ -407,25 +401,91 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
         compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
         runEspressoToTheFirstDrops(scale)
-        val key = "brew-${BrewMode.ESPRESSO.name}"
-        val stores = destinationStores(owner)
-        assertTrue(stores.holds(key))
-
         restoration.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
 
         // Still brewing on the same ViewModel, not a fresh dose step.
         compose.onNodeWithText(text(R.string.stop)).assertExists()
-        assertTrue(stores.holds(key))
 
         // Still listening: a reading after the restore reaches the detector.
         pour(scale, 36.0, 36.5, 0.5)
         compose.onNodeWithText(text(R.string.stop)).assertExists()
     }
 
+    /**
+     * Rotation and process death restore the whole typed stack: a coffee bag with a saved brew's detail on top keeps
+     * both entries and the detail's ViewModel state, and back walks the stack one entry at a time (#352).
+     */
+    @Test
+    fun aStateRestorationKeepsAMultiEntryStackAndItsDetailViewModel() {
+        runBlocking {
+            coffeeBags.save(CoffeeBag(id = "bag1", name = "Ethiopia", weightGrams = 250.0, createdAt = 0))
+            brews.save(
+                Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false, bagId = "bag1"),
+                listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0)),
+            )
+        }
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
+            val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
+            AppTheme {
+                App(factory(idle), idle, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
+        compose.onNodeWithText("Ethiopia").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        compose.onNodeWithText("18.0", substring = true).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
+        // Leave the notes form open: it lives in the detail's entry ViewModel, so only a retained store restores it.
+        compose.onNodeWithText(text(R.string.edit_notes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.save)), 5_000)
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.save)).assertExists()
+        // Back pops only the detail, revealing the bag it was opened from, then the tabs.
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_coffees)), 5_000)
+    }
+
+    /** The riskiest typed key survives restore: [RecipeEditorViewModel.Target] is a nested sealed type (#352). */
+    @Test
+    fun aRecipeEditorSurvivesStateRestorationWithItsTypedKey() {
+        val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
+            val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
+            AppTheme {
+                App(factory(idle), idle, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+            }
+        }
+
+        compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
+        compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
+        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        // Still the new-espresso editor, not the recipe list.
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
+        compose.onNodeWithText(text(R.string.no_recipes_title)).assertDoesNotExist()
+    }
+
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
@@ -455,7 +515,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), onboardingDone = true, actions, "1.0-test",
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -479,7 +539,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test",
+                    factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test",
                     shortcut = LauncherShortcut.FILTER,
                     onShortcutConsumed = {},
                 )
@@ -509,7 +569,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), onboardingDone = true, actions, "1.0-test",
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -530,7 +590,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale), onboardingDone = true, actions, "1.0-test",
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -542,13 +602,36 @@ class AppScreensTest {
     }
 
     @Test
+    fun aHomeShortcutOpensTheHomeTabFromAnotherTab() {
+        val shortcut = mutableStateOf<LauncherShortcut?>(null)
+        var consumed = 0
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
+                    shortcut = shortcut.value,
+                    onShortcutConsumed = { consumed++; shortcut.value = null },
+                )
+            }
+        }
+        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+
+        shortcut.value = LauncherShortcut.WIDGET_HOME
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.tab_home)).assertIsSelected()
+        assertEquals(1, consumed)
+    }
+
+    @Test
     fun aSuggestedModeShortcutDuringARunningBrewKeepsItAndItsReadings() {
         val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         val shortcut = mutableStateOf<LauncherShortcut?>(null)
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -591,7 +674,7 @@ class AppScreensTest {
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         try {
             val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-            compose.setContent { AppTheme { App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test") } }
+            compose.setContent { AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") } }
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
@@ -619,7 +702,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -652,7 +735,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -681,7 +764,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -706,7 +789,7 @@ class AppScreensTest {
     @Test
     fun aRecipeCreatedInTheRecipesTabIsPickedForTheNextBrew() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)

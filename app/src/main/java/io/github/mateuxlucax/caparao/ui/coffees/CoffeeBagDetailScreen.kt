@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.coffees
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,7 +63,6 @@ fun CoffeeBagDetailScreen(
     val editing by bagsViewModel.editing.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
-    BackHandler(onBack = onClose)
     Scaffold(
         topBar = {
             TopAppBar(

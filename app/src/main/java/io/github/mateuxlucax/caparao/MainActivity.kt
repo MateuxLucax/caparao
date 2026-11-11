@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
 class MainActivity : ComponentActivity() {
+    internal val navEntryStoreProvider by lazy { ViewModelStoreProvider(this, "navigation-entries") }
     private val container get() = (application as CaparaoApplication).container
     internal var configurationChange: () -> Boolean = { isChangingConfigurations }
     private val debugHooks get() = (application as CaparaoApplication).debugHooks
@@ -81,11 +83,13 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 App(
                     container.viewModelFactory,
+                    container.scale,
                     container.settings.onboardingDone,
                     actions,
                     BuildConfig.VERSION_NAME,
                     shortcut = shortcut,
                     onShortcutConsumed = ::shortcutConsumed,
+                    entryStoreProvider = navEntryStoreProvider,
                 )
             }
         }

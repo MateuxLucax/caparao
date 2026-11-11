@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,7 +49,6 @@ fun BrewDetailScreen(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     ShareFile(state.share, viewModel::shared)
-    BackHandler(onBack = onClose)
     Scaffold(
         topBar = {
             TopAppBar(

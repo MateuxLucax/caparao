@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.ksp)
     alias(libs.plugins.sentry.android)
@@ -151,6 +152,10 @@ ksp {
 
 dependencies {
     implementation(libs.activity.compose)
+    implementation(libs.navigation3.runtime)
+    implementation(libs.navigation3.ui)
+    implementation(libs.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.core)
     // FileProvider for the export files shared through the share sheet (#76).
     implementation(libs.core.ktx)
     implementation(platform(libs.compose.bom))
