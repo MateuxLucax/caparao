@@ -47,6 +47,7 @@ decisions and work tracking.
 
 ## Validation and devices
 
+- Keep screen-flow Robolectric tests feature-scoped under `app/src/test/.../ui/screens/`; shared fixtures live in `ScreenTestSupport`.
 - Only one worker may use the emulator at a time. Never install builds on the user's phone without asking first.
 - Preserve real-device calibration and validation needs; scripted scales and replay fixtures do not replace checks with
   the real Dot.
