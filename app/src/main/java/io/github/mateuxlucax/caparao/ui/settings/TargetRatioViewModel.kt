@@ -26,5 +26,4 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
         set(value) {
             settings.guideSound = value
         }
-
 }

@@ -358,7 +358,6 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText("Caparaó natural", substring = true).assertIsDisplayed()
     }
 
-    /** The home tab in each brand color (#108). */
     /** H1: plain http to a public host is refused, with the fix under the field, and nothing is sent. */
 }
 

@@ -61,7 +61,7 @@ import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order, then the target ratios and the guide's alerts. */
+/** Server, permissions and scale, in the wireframe's order, then the guide's alerts. */
 @Composable
 fun SettingsScreen(
     server: ServerViewModel,

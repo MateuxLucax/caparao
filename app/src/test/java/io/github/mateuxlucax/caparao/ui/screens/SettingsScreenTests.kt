@@ -261,6 +261,15 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
     }
 
+    @Test
+    fun settingsHasNoColorsOption() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.section_data)).performScrollTo().assertIsDisplayed()
+        val removedColorLabels = if (lang == "pt-BR") listOf("Cores", "Sistema") else listOf("Colors", "System")
+        removedColorLabels.forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+    }
+
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */
 }
 

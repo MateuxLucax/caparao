@@ -15,7 +15,7 @@ import org.junit.Test
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-/** The ring's ±5% band and the greens it wears in each theme (#192). */
+/** The ring's ±5% band and the containers it wears in each theme (#192). */
 @RunWith(RobolectricTestRunner::class)
 class RingColorTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
@@ -41,7 +41,7 @@ class RingColorTest {
     }
 
     @Test
-    fun shortOfTheBandWearsTheLightGreenAndTheDarkThemeTheMutedOne() {
+    fun shortOfTheBandWearsTheMutedContainerOfEachTheme() {
         assertEquals(light.primaryContainer, light.ringStroke(TargetBand.BELOW, dark = false))
         assertEquals(dark.primaryContainer, dark.ringStroke(TargetBand.BELOW, dark = true))
         assertEquals(light.primary, light.ringStroke(TargetBand.AT, dark = false))

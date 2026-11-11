@@ -15621,7 +15621,6 @@ SPLio/github/mateuxlucax/caparao/ui/theme/Motion$$ExternalSyntheticLambda2;-><in
 Lio/github/mateuxlucax/caparao/ui/theme/Motion$$ExternalSyntheticLambda3;
 SPLio/github/mateuxlucax/caparao/ui/theme/Motion$$ExternalSyntheticLambda3;-><init>(ZI)V
 Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt;
-Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt$$ExternalSyntheticLambda0;
 Lio/github/mateuxlucax/caparao/ui/theme/TypeKt;
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;->animatedFlex$lambda$0(Landroidx/compose/runtime/State;)F

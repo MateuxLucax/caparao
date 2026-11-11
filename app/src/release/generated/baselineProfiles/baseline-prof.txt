@@ -21755,7 +21755,6 @@ PLio/github/mateuxlucax/caparao/ui/theme/Motion$$ExternalSyntheticLambda3;->invo
 Lio/github/mateuxlucax/caparao/ui/theme/MotionKt;
 HSPLio/github/mateuxlucax/caparao/ui/theme/MotionKt;->animationsOff(Landroidx/compose/runtime/Composer;I)Z
 Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt;
-Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt$$ExternalSyntheticLambda0;
 Lio/github/mateuxlucax/caparao/ui/theme/TypeKt;
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;->animatedFlex$lambda$0(Landroidx/compose/runtime/State;)F
