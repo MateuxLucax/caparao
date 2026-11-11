@@ -346,7 +346,14 @@ class BrewSession(
             once(StepEvent.AllDone)
         } else emptyList()
     }
-    fun interrupt(atMs: Long) = detector.interrupt(atMs)
+
+    fun onScaleLost(atMs: Long) {
+        if (mode == BrewMode.FRENCH_PRESS && guideTracker != null && phase == BrewPhase.BREWING) return
+        if (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED) {
+            interrupt(atMs)
+        }
+    }
+    private fun interrupt(atMs: Long) = detector.interrupt(atMs)
 
     fun finish(): BrewSessionResult? {
         val detected = detector.result ?: return null

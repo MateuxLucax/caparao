@@ -372,7 +372,7 @@ class BrewViewModel(
         diagnostics.event(event)
         current.stop(clock()).forEach(::alert)
         recordDiagnosticPhase(current.phase)
-        finish(current)
+        finish()
     }
 
     /** The notes on the summary changed. */
@@ -442,7 +442,7 @@ class BrewViewModel(
             )
         }
         if (state.phase == BrewPhase.DONE) {
-            finish(current)
+            finish()
         }
     }
 
@@ -511,17 +511,16 @@ class BrewViewModel(
         }
         val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
-        // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
-        // A French press keeps steeping instead, free or with a recipe (#221, #218).
-        if (state is ScaleState.Failed && mode == BrewMode.FRENCH_PRESS && current.guideSteps.isNotEmpty() && current.phase == BrewPhase.BREWING) {
-            keepSteepRunning()
-            return
-        }
-        if (state is ScaleState.Failed && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED)) {
-            diagnostics.event(DiagnosticEvent.BrewInterrupted)
-            current.interrupt(clock())
-            recordDiagnosticPhase(current.phase)
-            finish(current)
+        if (state is ScaleState.Failed) {
+            val keepSteeping = mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING && current.guideSteps.isNotEmpty()
+            current.onScaleLost(clock())
+            if (keepSteeping) {
+                keepSteepRunning()
+            } else if (current.phase == BrewPhase.DONE && current.result?.interrupted == true) {
+                diagnostics.event(DiagnosticEvent.BrewInterrupted)
+                recordDiagnosticPhase(current.phase)
+                finish()
+            }
         }
     }
 
@@ -587,7 +586,8 @@ class BrewViewModel(
         BrewDrainWindow.PAST -> BrewUiState.Window.PAST
     }
 
-    private fun finish(done: BrewSession) {
+    private fun finish() {
+        val done = session ?: return
         steepClockJob?.cancel()
         val result = done.finish()
         if (result == null) {
