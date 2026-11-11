@@ -37,7 +37,7 @@ class BrewSession(
 
     fun onReading(reading: TimedReading): ScaleCommand? = detector.onReading(reading)
     /** Advances the filter clock and flow from each reading; reports a pre-pour setup lift. */
-    fun onFilterReading(reading: TimedReading, isLive: Boolean): FilterReadingState {
+    fun onFilterReading(reading: TimedReading): FilterReadingState {
         require(mode == BrewMode.FILTER) { "Filter readings require a filter session" }
         val before = detector.phase
         val command = detector.onReading(reading)
@@ -60,7 +60,7 @@ class BrewSession(
         }
 
         var returnedToPreparation = false
-        if (isLive && detector.phase == BrewPhase.READY) {
+        if (detector.phase == BrewPhase.READY) {
             if (reading.reading.weightGrams < 0.0) {
                 val since = liftBeganAtMs ?: reading.atMs.also { liftBeganAtMs = it }
                 if (reading.atMs - since >= FILTER_PREPARE_LIFT_MS) {
@@ -122,7 +122,7 @@ class BrewSession(
             return guide.state.index == lastPour && weightGrams >= target - StepTracker.TOLERANCE_GRAMS
         }
         val ratio = if (doseGrams > 0.0 && weightGrams > 0.0) weightGrams / doseGrams else null
-        return ratio == null || (ratio - targetRatio) / targetRatio >= -0.05 - 1e-9
+        return ratio == null || ratioBand(ratio, targetRatio) != RatioBand.BELOW
     }
 
     fun clearRun() {

@@ -15,6 +15,7 @@ import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
 import io.github.mateuxlucax.caparao.brew.FrenchPressWater
 import io.github.mateuxlucax.caparao.brew.FrenchPressWaterTracker
 import io.github.mateuxlucax.caparao.brew.FlowSmoother
+import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepState
@@ -113,6 +114,7 @@ class BrewViewModel(
     private var session: BrewSession? = null
     private val readings = ArrayList<TimedReading>()
     private val smoother = FlowSmoother()
+    private val filterConfig = FilterConfig()
     private var brewingSinceMs: Long? = null
     /** A negative tared weight held for two seconds means filter or press setup was lifted before water. */
     private var filterLiftBeganAtMs: Long? = null
@@ -457,7 +459,7 @@ class BrewViewModel(
             return
         }
         val timed = TimedReading(clock(), reading)
-        val filterReading = if (mode == BrewMode.FILTER) current.onFilterReading(timed, _uiState.value.step == BrewStep.LIVE) else null
+        val filterReading = if (mode == BrewMode.FILTER) current.onFilterReading(timed) else null
         if (filterReading?.returnedToPreparation == true) {
             returnToPreparation(reading)
             return

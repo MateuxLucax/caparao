@@ -33,22 +33,18 @@ class BrewSessionTest {
             null,
             null,
         )
-        val script = SyntheticSession()
-        script.hold(400.0, 0.3).hold(0.0, 1.0)
-        script.readings.toList().forEach { session.onFilterReading(it, isLive = true) }
-        script.readings.clear()
-        script.ramp(0.0, 250.0, 30.0)
-        val guideEvents = script.readings.toList().flatMap { session.onFilterReading(it, isLive = true).guideEvents }
-        script.readings.clear()
+        val tare = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
+        tare.readings.forEach(session::onFilterReading)
+        val pour = SyntheticSession(tare.nowMs).ramp(0.0, 250.0, 30.0)
+        val guideEvents = pour.readings.flatMap { session.onFilterReading(it).guideEvents }
         assertTrue(guideEvents.any { it is StepEvent.Reached })
-        val liftAt = script.nowMs
-        script.ramp(250.0, 190.0, 0.3)
-        val paused = script.readings.map { session.onFilterReading(it, isLive = true) }.last()
-        script.readings.clear()
+        val liftAt = pour.nowMs
+        val lift = SyntheticSession(pour.nowMs).ramp(250.0, 190.0, 0.3)
+        val paused = lift.readings.map(session::onFilterReading).last()
         assertEquals(BrewPhase.PAUSED, paused.phase)
-        assertEquals(0L, session.pauseIntervals().size.toLong())
-        script.ramp(190.0, 250.0, 0.3).hold(250.0, 2.0)
-        val resumed = script.readings.map { session.onFilterReading(it, isLive = true) }.last()
+        assertEquals(0, session.pauseIntervals().size)
+        val returnAndHold = SyntheticSession(lift.nowMs).ramp(190.0, 250.0, 0.3).hold(250.0, 2.0)
+        val resumed = returnAndHold.readings.map(session::onFilterReading).last()
         assertEquals(BrewPhase.BREWING, resumed.phase)
         assertEquals(liftAt, session.pauseIntervals().single().first)
         assertTrue(session.pauseIntervals().single().second > liftAt)
