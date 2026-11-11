@@ -33,6 +33,9 @@ interface BrewSession {
     companion object {
         const val FRENCH_PRESS_ALERT_INTERVAL_MS = FrenchPressSession.ALERT_INTERVAL_MS
 
+        operator fun invoke(plan: BrewPlan, filterConfig: FilterConfig = FilterConfig()): BrewSession =
+            plan.createSession(filterConfig)
+
         operator fun invoke(
             mode: BrewMode,
             doseGrams: Double,

@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
-import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagEntity
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
@@ -11,6 +10,7 @@ import io.github.mateuxlucax.caparao.model.BrewSample
 import io.github.mateuxlucax.caparao.ui.FakeBrewDao
 import io.github.mateuxlucax.caparao.ui.FakeCoffeeBagDao
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

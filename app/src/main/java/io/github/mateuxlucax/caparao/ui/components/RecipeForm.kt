@@ -1,9 +1,12 @@
 package io.github.mateuxlucax.caparao.ui.components
 
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.BrewLimits
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
+import io.github.mateuxlucax.caparao.ui.components.formatClockText
+import io.github.mateuxlucax.caparao.ui.components.parseClockText
 import java.util.Locale
 
 /** One step row as typed: weight in grams, start as m:ss, and an optional flow target in g/s. */
@@ -28,9 +31,9 @@ data class RecipeForm(
     fun validate(): Set<Field> = buildSet {
         if (name.isBlank()) add(Field.NAME)
         if (method.isBlank()) add(Field.METHOD)
-        if (number(dose)?.takeIf { it in DOSE } == null) add(Field.DOSE)
-        if (number(ratio)?.takeIf { it in RATIO } == null) add(Field.RATIO)
-        if (temp.isNotBlank() && temp.trim().toIntOrNull()?.takeIf { it in TEMP } == null) add(Field.TEMP)
+        if (number(dose)?.takeIf { it in BrewLimits.DOSE_GRAMS } == null) add(Field.DOSE)
+        if (number(ratio)?.takeIf { it in BrewLimits.RATIO } == null) add(Field.RATIO)
+        if (temp.isNotBlank() && temp.trim().toIntOrNull()?.takeIf { it in BrewLimits.TEMPERATURE_CELSIUS } == null) add(Field.TEMP)
         when (mode) {
             BrewMode.ESPRESSO -> {
                 val min = seconds(minSeconds)
@@ -55,7 +58,7 @@ data class RecipeForm(
                     val start = clock(step.start)
                     val weight = number(step.weight)
                     if (start == null || start < lastStart) add(Field.STEPS)
-                    if (step.kind.pours && (weight == null || weight <= lastWeight || weight > MAX_WATER)) add(Field.STEPS)
+                    if (step.kind.pours && (weight == null || weight <= lastWeight || weight > BrewLimits.WATER_GRAMS.endInclusive)) add(Field.STEPS)
                     if (step.kind.pours && step.flowTarget.isNotBlank() && flowRate(step.flowTarget) == null) add(Field.STEPS)
                     if (step.kind == StepKind.PRESS && (mode != BrewMode.FRENCH_PRESS || index != steps.lastIndex)) add(Field.STEPS)
                     lastStart = start ?: lastStart
@@ -108,12 +111,6 @@ data class RecipeForm(
     enum class Field { NAME, METHOD, DOSE, RATIO, TEMP, WINDOW, STEPS }
 
     companion object {
-        val DOSE = 1.0..100.0
-        val RATIO = 0.5..30.0
-        val TEMP = 1..100
-        private const val MAX_WATER = 2000.0
-        private const val DEFAULT_STEEP = "4:00"
-
         private fun flowRate(text: String): Double? = number(text)?.takeIf { it.isFinite() }
 
         /** Suggestions for [method]; any text is allowed. */
@@ -143,7 +140,7 @@ data class RecipeForm(
                 )
             }.let { steps ->
                 if (recipe.mode == BrewMode.FRENCH_PRESS && steps.lastOrNull()?.kind != StepKind.PRESS) {
-                    steps + StepForm(StepKind.PRESS, start = DEFAULT_STEEP)
+                    steps + StepForm(StepKind.PRESS, start = clockText(BrewLimits.DEFAULT_STEEP_MS))
                 } else {
                     steps
                 }
@@ -157,7 +154,7 @@ data class RecipeForm(
             steps = when (mode) {
                 BrewMode.ESPRESSO -> emptyList()
                 BrewMode.FILTER -> listOf(StepForm(StepKind.BLOOM, start = "0:00"))
-                BrewMode.FRENCH_PRESS -> listOf(StepForm(StepKind.BLOOM, start = "0:00"), StepForm(StepKind.PRESS, start = DEFAULT_STEEP))
+                BrewMode.FRENCH_PRESS -> listOf(StepForm(StepKind.BLOOM, start = "0:00"), StepForm(StepKind.PRESS, start = clockText(BrewLimits.DEFAULT_STEEP_MS)))
             },
         )
 
@@ -167,18 +164,9 @@ data class RecipeForm(
         private fun seconds(text: String): Long? = text.trim().toLongOrNull()?.takeIf { it in 1..600 }
 
         /** m:ss, or plain seconds. */
-        fun clock(text: String): Long? {
-            val t = text.trim()
-            val parts = t.split(':')
-            val secs = when (parts.size) {
-                1 -> parts[0].toLongOrNull()
-                2 -> parts[0].toLongOrNull()?.let { m -> parts[1].takeIf { it.length == 2 }?.toLongOrNull()?.takeIf { it < 60 }?.let { m * 60 + it } }
-                else -> null
-            }
-            return secs?.takeIf { it in 0..3600 }?.times(1000)
-        }
+        fun clock(text: String): Long? = parseClockText(text)
 
-        fun clockText(ms: Long): String = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
+        fun clockText(ms: Long): String = formatClockText(ms)
 
         /** No trailing ",0": 18 and 16,7. */
         fun plain(value: Double, locale: Locale): String =

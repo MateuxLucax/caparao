@@ -34,55 +34,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.CoffeeBag
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.animationsOff
-
-/**
- * A brew's notes as typed (#105), on the save screen and in the brew detail. The coffee is a bag (#291): its name is kept
- * with the link, and typing a bag's exact name links it again.
- */
-data class NotesForm(
-    val coffee: String = "",
-    /** The bag the coffee links to; null when the name is free text. */
-    val bagId: String? = null,
-    val grind: String = "",
-    val temp: String = "",
-    /** 1–5, null when not rated. */
-    val rating: Int? = null,
-    val notes: String = "",
-) {
-    /** The temperature is empty or 1–100 °C. */
-    val valid: Boolean get() = temp.isBlank() || temp.trim().toIntOrNull() in 1..100
-
-    /** The coffee name typed as [text]; it links to the open bag of that name, if any. */
-    fun withCoffee(text: String, bags: List<CoffeeBag>) = copy(coffee = text, bagId = bags.find { it.name == text }?.id)
-
-    /** The coffee is [bag]. */
-    fun withBag(bag: CoffeeBag) = copy(coffee = bag.name, bagId = bag.id)
-
-    /** [brew] with these notes; blank fields become null. Call only when [valid]. */
-    fun applyTo(brew: Brew) = brew.copy(
-        coffee = coffee.trim().ifEmpty { null },
-        bagId = bagId.takeIf { coffee.isNotBlank() },
-        grind = grind.trim().ifEmpty { null },
-        waterTempCelsius = temp.trim().toIntOrNull(),
-        rating = rating,
-        notes = notes.trim().ifEmpty { null },
-    )
-
-    companion object {
-        /** [brew]'s notes, with the coffee and bag it was saved with. */
-        fun of(brew: Brew) = NotesForm(
-            coffee = brew.coffee.orEmpty(),
-            bagId = brew.bagId,
-            grind = brew.grind.orEmpty(),
-            temp = brew.waterTempCelsius?.toString().orEmpty(),
-            rating = brew.rating,
-            notes = brew.notes.orEmpty(),
-        )
-    }
-}
 
 /** Coffee (the open bags to pick), grind, temperature, a 1–5 rating and notes. */
 @Composable

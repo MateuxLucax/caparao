@@ -4,6 +4,32 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.RecipeStep
 
 internal fun createBrewSession(
+    plan: BrewPlan,
+    filterConfig: FilterConfig,
+): BrewSession = if (plan.mode == BrewMode.FRENCH_PRESS) {
+    FrenchPressSession(
+        plan.doseGrams,
+        plan.targetRatio,
+        plan.brewRecipe?.steps.orEmpty(),
+        plan.brewRecipe?.targetMinMs,
+        plan.brewRecipe?.targetMaxMs,
+        freeWaterGrams = if (plan.recipe == null) plan.doseGrams * plan.targetRatio else null,
+        freeSteepMs = if (plan.recipe == null) plan.steepMs else null,
+        filterConfig = filterConfig,
+    )
+} else {
+    DetectorBrewSession(
+        plan.mode,
+        plan.doseGrams,
+        plan.targetRatio,
+        plan.brewRecipe?.steps.orEmpty(),
+        plan.brewRecipe?.targetMinMs,
+        plan.brewRecipe?.targetMaxMs,
+        filterConfig = filterConfig,
+    )
+}
+
+internal fun createBrewSession(
     mode: BrewMode,
     doseGrams: Double,
     targetRatio: Double,
