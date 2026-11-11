@@ -100,25 +100,42 @@ class BrewWidgetLayoutTest {
     }
 
     @Test
-    fun lastBrewLayoutFitsExpandedWidgetSizes() {
+    fun lastBrewAndEmptyStatesFitExpandedWidgetSizes() {
         val base = ApplicationProvider.getApplicationContext<Context>()
+        val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
+        val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
+        // Expanded sizes grow from the declared minimum: 1.5x width with 1.25x height, then 2x with 1.5x.
+        val sizes = listOf(minWidth * 3 / 2 to minHeight * 5 / 4, minWidth * 2 to minHeight * 3 / 2)
         val brew = Brew("expanded", BrewMode.FILTER, 0L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false)
         for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
             for (night in listOf(false, true)) {
                 val context = configured(base, locale, night)
-                for ((width, height) in listOf(260 to 210, 408 to 250)) {
+                for ((width, height) in sizes) {
                     for (latest in listOf(brew, null)) {
                         val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
-                        val density = context.resources.displayMetrics.density
-                        val widthPx = (width * density).roundToInt()
-                        val heightPx = (height * density).roundToInt()
                         root.measure(
-                            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
-                            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+                            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                            View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
                         )
-                        root.layout(0, 0, widthPx, heightPx)
-                        assertEquals(View.VISIBLE, root.findViewById<View>(if (latest == null) R.id.widget_empty_content else R.id.widget_last_brew).visibility)
+                        root.layout(0, 0, width, height)
+                        val saved = latest != null
+                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_title).visibility)
+                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
+                        assertEquals(if (saved) View.GONE else View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
+                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
+                        assertEquals(
+                            context.getString(if (saved) R.string.widget_brew_espresso else R.string.widget_brew_coffee),
+                            root.findViewById<TextView>(R.id.widget_action_label).text,
+                        )
                         assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
+                        if (saved) {
+                            assertEquals(context.getString(R.string.widget_last_brew_title), root.findViewById<TextView>(R.id.widget_title).text)
+                            assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_method).text)
+                            assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
+                        } else {
+                            assertEquals(context.getString(R.string.widget_empty_title), root.findViewById<TextView>(R.id.widget_empty_title).text)
+                            assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
+                        }
                     }
                 }
             }
