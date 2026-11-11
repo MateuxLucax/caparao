@@ -19921,8 +19921,6 @@ Lio/github/mateuxlucax/caparao/data/local/SettingsStore;
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;-><init>(Landroid/content/SharedPreferences;)V
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->currentSyncStatus()Lio/github/mateuxlucax/caparao/data/local/SyncStatus;
-SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->getBrandColors()Z
-SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->getBrandColorsChanges()Lkotlinx/coroutines/flow/Flow;
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->getGuideSound()Z
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->getGuideVibration()Z
 SPLio/github/mateuxlucax/caparao/data/local/SettingsStore;->getGuideVibrationOn()Lio/github/mateuxlucax/caparao/data/local/VibrationTarget;
@@ -21730,10 +21728,6 @@ Lio/github/mateuxlucax/caparao/ui/settings/ExportViewModel;
 Lio/github/mateuxlucax/caparao/ui/settings/ScaleStatusViewModel;
 Lio/github/mateuxlucax/caparao/ui/settings/ServerViewModel;
 Lio/github/mateuxlucax/caparao/ui/settings/TargetRatioViewModel;
-Lio/github/mateuxlucax/caparao/ui/theme/BrandColor;
-SPLio/github/mateuxlucax/caparao/ui/theme/BrandColor;->$values()[Lio/github/mateuxlucax/caparao/ui/theme/BrandColor;
-SPLio/github/mateuxlucax/caparao/ui/theme/BrandColor;-><clinit>()V
-SPLio/github/mateuxlucax/caparao/ui/theme/BrandColor;-><init>(Ljava/lang/String;IJLandroidx/compose/material3/ColorScheme;Landroidx/compose/material3/ColorScheme;)V
 Lio/github/mateuxlucax/caparao/ui/theme/Motion;
 SPLio/github/mateuxlucax/caparao/ui/theme/Motion;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/theme/Motion;-><init>()V
@@ -21761,9 +21755,7 @@ PLio/github/mateuxlucax/caparao/ui/theme/Motion$$ExternalSyntheticLambda3;->invo
 Lio/github/mateuxlucax/caparao/ui/theme/MotionKt;
 HSPLio/github/mateuxlucax/caparao/ui/theme/MotionKt;->animationsOff(Landroidx/compose/runtime/Composer;I)Z
 Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt;
-SPLio/github/mateuxlucax/caparao/ui/theme/ThemeKt;->AppTheme(Lio/github/mateuxlucax/caparao/ui/theme/BrandColor;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 Lio/github/mateuxlucax/caparao/ui/theme/ThemeKt$$ExternalSyntheticLambda0;
-SPLio/github/mateuxlucax/caparao/ui/theme/ThemeKt$$ExternalSyntheticLambda0;-><init>(Lio/github/mateuxlucax/caparao/ui/theme/BrandColor;Lkotlin/jvm/functions/Function2;II)V
 Lio/github/mateuxlucax/caparao/ui/theme/TypeKt;
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/theme/TypeKt;->animatedFlex$lambda$0(Landroidx/compose/runtime/State;)F

@@ -123,7 +123,6 @@ import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -260,27 +259,6 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         compose.waitUntil(5_000) { settings.serverConfigured }
         assertEquals("http://nas.local:8080", settings.serverUrl)
         compose.onNodeWithText(text(R.string.url_http_not_local)).assertDoesNotExist()
-    }
-
-    /** Types [value] into the server field labeled [label], scrolling it into view. */
-    @Test
-    fun brandColors() {
-        var brand by mutableStateOf<BrandColor?>(null)
-        open("press-ramp", 38_300, brand = { brand })
-        BrandColor.entries.forEach {
-            brand = it
-            compose.waitForIdle()
-            compose.onNodeWithContentDescription(text(R.string.tare)).assertIsDisplayed()
-        }
-        // The Colors section in Settings, switching from the system's colors to Caparaó's.
-        brand = null
-        click(R.string.tab_settings)
-        // "Caparaó" is also the app's title, so the option is the clickable node with that text.
-        compose.onNodeWithText(text(R.string.colors_system)).performScrollTo().assertIsDisplayed()
-        compose.onNode(hasText(text(R.string.colors_brand)) and hasClickAction()).performClick()
-        brand = BrandColor.LEAF
-        compose.waitForIdle()
-        compose.onAllNodesWithText(text(R.string.colors_brand)).onFirst().assertIsDisplayed()
     }
 
     /** An espresso from the synthetic session (cup already on the scale), then the list and the brew's chart. */

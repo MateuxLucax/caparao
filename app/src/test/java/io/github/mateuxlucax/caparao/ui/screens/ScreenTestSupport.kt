@@ -123,7 +123,6 @@ import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -239,7 +238,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         session: String,
         atMs: Long,
         onboardingDone: Boolean = true,
-        brand: () -> BrandColor? = { BrandColor.LEAF },
     ): SessionScale {
         val scale = SessionScale(context.assets.open("sessions/$session.jsonl").bufferedReader().use { it.readLines() })
         val factory = viewModelFactory {
@@ -273,7 +271,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         }
         scale.start()
-        compose.setContent { AppTheme(brand()) { App(factory, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        compose.setContent { AppTheme { App(factory, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
         play(scale, atMs)
         return scale
     }

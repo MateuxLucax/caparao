@@ -5,7 +5,7 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 
 /**
- * The Settings tab's brew preferences: the guide's alerts and the app's colors. Ratios live in the recipes and, for a
+ * The Settings tab's brew preferences: the guide's alerts. Ratios live in the recipes and, for a
  * free brew, on the dose step.
  */
 class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
@@ -27,9 +27,4 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
             settings.guideSound = value
         }
 
-    var brandColors: Boolean
-        get() = settings.brandColors
-        set(value) {
-            settings.brandColors = value
-        }
 }

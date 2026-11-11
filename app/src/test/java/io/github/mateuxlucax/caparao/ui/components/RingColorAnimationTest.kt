@@ -2,6 +2,7 @@ package io.github.mateuxlucax.caparao.ui.components
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
@@ -9,7 +10,6 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
@@ -23,7 +23,7 @@ class RingColorAnimationTest {
     val compose = createComposeRule()
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val light = BrandColor.LEAF.light
+    private val light = dynamicLightColorScheme(context)
 
     @Test
     fun coloursChangeWithoutTheTransitionWhenAnimationsAreOff() {
@@ -60,7 +60,7 @@ class RingColorAnimationTest {
         val band = mutableStateOf(TargetBand.BELOW)
         val shown = mutableStateOf<RingColors?>(null)
         compose.setContent {
-            AppTheme(BrandColor.LEAF) {
+            AppTheme {
                 val colors = rememberRingColors(band.value)
                 SideEffect { shown.value = colors }
             }
