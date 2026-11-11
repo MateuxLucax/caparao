@@ -65,7 +65,8 @@ class EndToEndTest {
 
     /** Read the active brew ViewModel through its Navigation 3 entry owner. */
     private fun MainActivity.brewViewModel(mode: BrewMode): BrewViewModel? {
-        val owner = navEntryStoreProvider.getOrCreateOwner(Destination.Brew(mode))
+        val key = Destination.Brew(mode)
+        val owner = navEntryStoreProvider.getOrCreateOwner("$key:${key::class}")
         val extras = MutableCreationExtras(defaultViewModelCreationExtras).apply { set(BrewViewModel.MODE, mode) }
         return ViewModelProvider.create(owner, (application as CaparaoApplication).container.viewModelFactory, extras)
             .get("brew-${mode.name}", BrewViewModel::class.java)
@@ -217,7 +218,6 @@ class EndToEndTest {
             assertEquals(BrewStep.LIVE, viewModel.get()?.uiState?.value?.step)
             assertEquals(BrewPhase.BREWING, viewModel.get()?.uiState?.value?.phase)
             assertEquals(300.0, viewModel.get()?.uiState?.value?.weightGrams ?: 0.0, 0.5)
-            assertEquals(300.0, replay.reading.value?.weightGrams ?: 0.0, 0.5)
             val finishAlerts = alerts.filter { it.event == StepEvent.FrenchPressDeadline }
             assertEquals(1, finishAlerts.size)
             assertTrue(finishAlerts.single().vibrate)

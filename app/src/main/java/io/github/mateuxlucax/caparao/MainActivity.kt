@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 App(
                     container.viewModelFactory,
+                    container.scale,
                     container.settings.onboardingDone,
                     actions,
                     BuildConfig.VERSION_NAME,

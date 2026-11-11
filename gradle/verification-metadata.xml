@@ -590,7 +590,7 @@
       </component>
       <component group="org.bouncycastle" name="bc-jdk18on-bom" version="1.80.2">
          <artifact name="bc-jdk18on-bom-1.80.2.pom">
-            <sha256 value="5f59cc51b21d92ddc08cc93b488983ea43dd211fe8d950335ef31bcdd7b15b47" origin="Maven Central, verified against the configured Bouncy Castle signing key" reason="Artifact is not signed"/>
+            <sha256 value="5f59cc51b21d92ddc08cc93b488983ea43dd211fe8d950335ef31bcdd7b15b47" origin="Maven Central, verified against the configured Bouncy Castle signing key"/>
          </artifact>
       </component>
       <component group="org.eclipse.ee4j" name="project" version="1.0.5">

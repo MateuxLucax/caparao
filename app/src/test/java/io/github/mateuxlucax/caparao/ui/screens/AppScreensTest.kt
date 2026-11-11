@@ -191,7 +191,7 @@ class AppScreensTest {
     @Test
     fun onboardingConnectsToTheScaleAndOpensHome() {
         var done = false
-        compose.setContent { AppTheme { App(factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.welcome_title)).assertExists()
         compose.onNodeWithText(text(R.string.get_started)).performClick()
@@ -209,7 +209,7 @@ class AppScreensTest {
 
     @Test
     fun tabsSwitchScreensAndHomeIsLive() {
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
@@ -232,7 +232,7 @@ class AppScreensTest {
     @Test
     fun diagnosticsCaptureRequiresStartAndCanBeSharedAfterStop() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
@@ -253,7 +253,7 @@ class AppScreensTest {
     fun espressoOpensTheDoseStepAndBackCloses() {
         // A connected scale that sends nothing: the replay would brew and save before Close on the JVM's fast clock.
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
 
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -271,7 +271,7 @@ class AppScreensTest {
     @Test
     fun systemBackReturnsFromBrewToTheTabs() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
@@ -289,7 +289,7 @@ class AppScreensTest {
             context.assets.open("sessions/synthetic-espresso.jsonl").bufferedReader().use { it.readLines() },
             startPaused = true,
         )
-        compose.setContent { AppTheme { App(factory(replay), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(replay), replay, onboardingDone = true, actions, "1.0-test") } }
 
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -310,7 +310,7 @@ class AppScreensTest {
     fun aSavedBrewOpensFromTheListAndDeleteRemovesIt() {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
@@ -333,7 +333,7 @@ class AppScreensTest {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
@@ -361,7 +361,7 @@ class AppScreensTest {
             )
         }
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
@@ -389,7 +389,7 @@ class AppScreensTest {
             val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
             val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
             AppTheme {
-                App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+                App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
             }
         }
 
@@ -431,7 +431,7 @@ class AppScreensTest {
             val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
             val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
             AppTheme {
-                App(factory(idle), onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+                App(factory(idle), idle, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
             }
         }
 
@@ -465,7 +465,7 @@ class AppScreensTest {
             val parentOwner = checkNotNull(LocalViewModelStoreOwner.current)
             val entryStores = remember(parentOwner) { ViewModelStoreProvider(parentOwner, "navigation-entries") }
             AppTheme {
-                App(factory(idle), onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
+                App(factory(idle), idle, onboardingDone = true, actions, "1.0-test", entryStoreProvider = entryStores)
             }
         }
 
@@ -485,7 +485,7 @@ class AppScreensTest {
 
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
-        compose.setContent { AppTheme { App(factory(scale), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
@@ -515,7 +515,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), onboardingDone = true, actions, "1.0-test",
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -539,7 +539,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale) { done = true }, onboardingDone = false, actions, "1.0-test",
+                    factory(scale) { done = true }, scale, onboardingDone = false, actions, "1.0-test",
                     shortcut = LauncherShortcut.FILTER,
                     onShortcutConsumed = {},
                 )
@@ -569,7 +569,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(idle), onboardingDone = true, actions, "1.0-test",
+                    factory(idle), idle, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -590,7 +590,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale), onboardingDone = true, actions, "1.0-test",
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -608,7 +608,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale), onboardingDone = true, actions, "1.0-test",
+                    factory(scale), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { consumed++; shortcut.value = null },
                 )
@@ -631,7 +631,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -674,7 +674,7 @@ class AppScreensTest {
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         try {
             val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-            compose.setContent { AppTheme { App(factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test") } }
+            compose.setContent { AppTheme { App(factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test") } }
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.mode_espresso)), 5_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.ratio_caption)), 5_000)
@@ -702,7 +702,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -735,7 +735,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -764,7 +764,7 @@ class AppScreensTest {
         compose.setContent {
             AppTheme {
                 App(
-                    factory(scale, clock = { now }), onboardingDone = true, actions, "1.0-test",
+                    factory(scale, clock = { now }), scale, onboardingDone = true, actions, "1.0-test",
                     shortcut = shortcut.value,
                     onShortcutConsumed = { shortcut.value = null },
                 )
@@ -789,7 +789,7 @@ class AppScreensTest {
     @Test
     fun aRecipeCreatedInTheRecipesTabIsPickedForTheNextBrew() {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
-        compose.setContent { AppTheme { App(factory(idle), onboardingDone = true, actions, "1.0-test") } }
+        compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
