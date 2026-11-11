@@ -60,6 +60,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -114,6 +115,7 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
+import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -175,6 +177,8 @@ abstract class ScreenOnboardingTests(lang: String, theme: String, compactOnly: B
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.onNodeWithText(text(R.string.brews_empty_title)).assertIsDisplayed()
         click(R.string.tab_settings)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.section_diagnostics)), 5_000)
+        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().assertIsDisplayed()
         // The built-in V60 recipe in the editor: its name, then its method on the card.
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()

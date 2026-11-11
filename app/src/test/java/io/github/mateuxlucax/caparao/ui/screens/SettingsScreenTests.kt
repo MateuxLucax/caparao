@@ -15,12 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -42,12 +40,14 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
@@ -60,6 +60,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -114,6 +115,7 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
+import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -147,6 +149,84 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
+    @Test
+    fun diagnosticsOptInControlsCaptureSection() {
+        openDiagnosticsCard(optedIn = false)
+        compose.onNodeWithTag("diagnostics-opt-in").performScrollTo().assert(isOn().not())
+        compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
+
+        compose.onNodeWithTag("diagnostics-opt-in").performClick()
+        compose.waitUntil(5_000) { settings.remoteDiagnostics }
+        waitFor(R.string.capture_start)
+        compose.onNodeWithTag("diagnostics-opt-in").assert(isOn())
+
+        compose.onNodeWithTag("diagnostics-opt-in").performClick()
+        compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
+    }
+
+    @Test
+    fun diagnosticsSectionIsHiddenWithoutSentry() {
+        openDiagnosticsCard(optedIn = true, available = false)
+        compose.onNodeWithText(text(R.string.section_diagnostics)).assertDoesNotExist()
+    }
+
+    @Test
+    fun diagnosticsCopyNamesUploadedData() {
+        openDiagnosticsCard(optedIn = false)
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_text)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.section_diagnostics)).assertIsDisplayed()
+        compose.onNodeWithTag("diagnostics-opt-in").performClick()
+        waitFor(R.string.capture_start)
+        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun diagnosticsIdle() {
+        openDiagnosticsCard()
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun diagnosticsRecording() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        compose.onNodeWithText(context.getString(R.string.capture_elapsed, 0, 0)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.capture_stop)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun diagnosticsPendingUpload() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        diagnosticsAction(R.string.capture_stop)
+        waitFor(R.string.capture_pending)
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun diagnosticsSent() {
+        diagnosticsSendSucceeds = true
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        diagnosticsAction(R.string.capture_stop)
+        waitFor(R.string.capture_sent)
+    }
+
+    @Test
+    fun diagnosticsIncomplete() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        diagnostics.recordDisconnect()
+        waitFor(R.string.diagnostics_incomplete)
+        compose.onNodeWithText(text(R.string.diagnostics_reason_disconnected)).assertIsDisplayed()
+    }
+
     @Test
     fun serverRefusesPublicHttp() {
         localServer = false
