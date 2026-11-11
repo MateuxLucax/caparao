@@ -5,6 +5,8 @@ import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewMode
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.FakeDiagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
@@ -32,6 +34,7 @@ import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -586,6 +589,28 @@ class BrewViewModelTest {
         assertTrue(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.ESPRESSO, DiagnosticBrewPhase.WAITING_FOR_CUP) in diagnostics.events)
         assertTrue(DiagnosticEvent.BrewStopRequested in diagnostics.events)
         assertFalse(DiagnosticEvent.BrewResultReady in diagnostics.events)
+    }
+
+    @Test
+    fun brewViewModelWritesToTheRealCaptureWhileRecording() {
+        val directory = java.nio.file.Files.createTempDirectory("brew-capture").toFile()
+        val scope = CoroutineScope(Dispatchers.IO)
+        val capture = DiagnosticRecorder(directory, scope, ioDispatcher = Dispatchers.IO)
+        try {
+            runBlocking { assertTrue(capture.start()) }
+            val vm = viewModel(BrewMode.ESPRESSO, capture)
+            vm.begin()
+            vm.setDose(18.0)
+            vm.ready()
+            hold(0.0, 10.0)
+            assertTrue(capture.state.value is DiagnosticRecorderState.Recording)
+
+            val result = runBlocking { capture.stop() } as DiagnosticRecorderState.Ready
+            assertTrue(result.file.readText().contains("brew_espresso_waiting_for_cup"))
+        } finally {
+            scope.cancel()
+            directory.deleteRecursively()
+        }
     }
 
     @Test

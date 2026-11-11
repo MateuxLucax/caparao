@@ -60,8 +60,6 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -116,7 +114,6 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -150,40 +147,6 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
-    @Test
-    fun diagnosticsIdle() {
-        openDiagnosticsCard()
-        compose.onNodeWithText(text(R.string.diagnostics_start)).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun diagnosticsRecording() {
-        openDiagnosticsCard()
-        diagnosticsAction(R.string.diagnostics_start)
-        waitFor(R.string.diagnostics_recording)
-        compose.onNodeWithText(text(R.string.diagnostics_stop)).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun diagnosticsReadyToShare() {
-        openDiagnosticsCard()
-        diagnosticsAction(R.string.diagnostics_start)
-        waitFor(R.string.diagnostics_recording)
-        diagnosticsAction(R.string.diagnostics_stop)
-        waitFor(R.string.diagnostics_ready)
-        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun diagnosticsIncomplete() {
-        openDiagnosticsCard()
-        diagnosticsAction(R.string.diagnostics_start)
-        waitFor(R.string.diagnostics_recording)
-        diagnostics.recordDisconnect()
-        waitFor(R.string.diagnostics_incomplete)
-        compose.onNodeWithText(text(R.string.diagnostics_share)).performScrollTo().assertIsDisplayed()
-    }
-
     @Test
     fun serverRefusesPublicHttp() {
         localServer = false

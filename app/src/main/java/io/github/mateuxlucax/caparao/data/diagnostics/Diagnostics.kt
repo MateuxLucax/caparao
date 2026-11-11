@@ -66,7 +66,7 @@ interface Diagnostics {
     fun event(event: DiagnosticEvent)
 
     /** One original GATT notification chunk, before the scale decoder consumes or transforms it. */
-    fun notification(bytes: ByteArray)
+    fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification)
 
     /** One successful outgoing write, snapshotted before the bytes went to Android BLE. */
     fun command(bytes: ByteArray)
@@ -81,10 +81,19 @@ interface Diagnostics {
     fun error(throwable: Throwable, context: DiagnosticErrorContext)
 }
 
+enum class DiagnosticFrameType { WEIGHT, BATTERY, ACK, MODEL, UNKNOWN }
+
+data class DiagnosticFrameClassification(
+    val completedFrames: List<DiagnosticFrameType>,
+    val hasPartialFrame: Boolean,
+    val pendingFrameType: DiagnosticFrameType? = null,
+    val discardPendingBytes: Boolean = false,
+)
+
 /** Sink for builds and tests that collect nothing; the default until the Settings capture is started. */
 object NoDiagnostics : Diagnostics {
     override fun event(event: DiagnosticEvent) = Unit
-    override fun notification(bytes: ByteArray) = Unit
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) = Unit
     override fun command(bytes: ByteArray) = Unit
     override fun disconnect() = Unit
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = Unit
@@ -98,7 +107,8 @@ class FanOutDiagnostics(private val sinks: List<Diagnostics>) : Diagnostics {
     constructor(vararg sinks: Diagnostics) : this(sinks.toList())
 
     override fun event(event: DiagnosticEvent) = sinks.forEach { it.event(event) }
-    override fun notification(bytes: ByteArray) = sinks.forEach { it.notification(bytes) }
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) =
+        sinks.forEach { it.notification(bytes, classification) }
     override fun command(bytes: ByteArray) = sinks.forEach { it.command(bytes) }
     override fun disconnect() = sinks.forEach { it.disconnect() }
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = sinks.forEach { it.error(throwable, context) }
