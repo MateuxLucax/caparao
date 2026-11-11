@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
 
@@ -21,8 +22,25 @@ class LayerDependencyTest {
         "ui" to emptyList(),
     )
 
-    /** Root package names each layer may still use: the generated resource classes, in `ui` only. */
-    private val allowedRoot = mapOf("ui" to setOf("R", "BuildConfig"))
+    /**
+     * Root package names each layer may still use: the generated resource classes, and the app-level wiring that
+     * mirrors UI state to the watch (`WatchMirror`), in `ui` only.
+     */
+    private val allowedRoot = mapOf("ui" to setOf("R", "BuildConfig", "WatchMirror"))
+
+    /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */
+    private val uiFeaturePackages = setOf(
+        "home", "brew", "brews", "recipes", "coffees", "settings", "onboarding", "widget", "server",
+    )
+
+    /** Packages shared by features: they use no feature, `sync` or `data` (#391). */
+    private val uiSharedPackages = setOf("components", "theme", "format")
+
+    /** The server form is a feature other features may reuse, but it still sees no other feature (#391). */
+    private val uiServerPackage = "server"
+
+    /** What a feature package may use from `ui`. */
+    private val uiAllowedForFeatures = uiSharedPackages + uiServerPackage
 
     /** A fully qualified reference to something in the app, e.g. `io.github...caparao.data.Foo`. */
     private val reference = Regex("""\b${Regex.escape(base)}\.([A-Za-z_][\w.]*|\*)""")
@@ -92,6 +110,71 @@ class LayerDependencyTest {
             ) : ViewModel() {
         """.trimIndent()
         assertEquals(listOf("TakesContext", "TakesContextCallback"), viewModelsTakingContext(source))
+    }
+
+    @Test
+    fun uiFeaturesOnlyUseSharedUiAndTheLayersBelow() {
+        val violations = uiSources().flatMap { (feature, path, lines) ->
+            uiViolations(feature, lines).map { "$path uses $it" }
+        }
+        assertEquals(emptyList<String>(), violations)
+    }
+
+    @Test
+    fun uiBoundaryRuleCatchesFeatureToFeatureAndSharedToFeatureImports() {
+        val feature = listOf(
+            "import $base.ui.brews.NotesForm",
+            "import $base.ui.components.ScaleReadout",
+            "import $base.ui.server.ServerForm",
+            "import $base.data.local.BrewRepository",
+            "import $base.ui.App",
+        )
+        assertEquals(listOf("ui.brews.NotesForm", "ui.App"), uiViolations("brew", feature))
+        val shared = listOf(
+            "import $base.ui.brew.BrewStep",
+            "import $base.data.local.BrewRepository",
+            "import $base.sync.UploadScheduler",
+            "import $base.ui.theme.Motion",
+        )
+        assertEquals(listOf("ui.brew.BrewStep", "data.local.BrewRepository", "sync.UploadScheduler"), uiViolations("components", shared))
+        assertThrows(IllegalStateException::class.java) { uiViolations("stats", emptyList()) }
+    }
+
+    /** "ui.x.y" references that break the feature boundaries inside `ui` for [pkg] (#391). */
+    private fun uiViolations(pkg: String, lines: List<String>): List<String> {
+        check(pkg in uiFeaturePackages || pkg in uiSharedPackages) { "unknown ui package: $pkg" }
+        return references(lines).mapNotNull { referenced ->
+            val first = referenced.substringBefore('.')
+            when {
+                first == "data" || first == "sync" -> referenced.takeIf { pkg in uiSharedPackages }
+                first != "ui" -> null
+                else -> {
+                    val inner = referenced.removePrefix("ui.")
+                    val sub = inner.substringBefore('.')
+                    val packageReference = sub.firstOrNull()?.isLowerCase() == true
+                    val allowed = when {
+                        // A class directly in `ui` (navigation and wiring) is outside every feature.
+                        !packageReference -> false
+                        pkg in uiFeaturePackages -> sub == pkg || sub in uiAllowedForFeatures
+                        pkg in uiSharedPackages -> sub in uiSharedPackages
+                        else -> false
+                    }
+                    referenced.takeUnless { allowed }
+                }
+            }
+        }.toList()
+    }
+
+    /** (feature package, path, lines) of every Kotlin file in a package under `ui`, root files excluded. */
+    private fun uiSources(): List<Triple<String, String, List<String>>> {
+        val root = File("src/main/java/" + base.replace('.', '/') + "/ui")
+        return root.walk().filter { it.extension == "kt" }.mapNotNull { file ->
+            val relative = file.relativeTo(root).path
+            val pkg = relative.substringBefore(File.separatorChar)
+            // Root-package files (App, WatchMirror) wire every feature and are checked by the layer rule above.
+            if (pkg.isEmpty() || !relative.contains(File.separatorChar)) return@mapNotNull null
+            Triple(pkg, relative, file.readLines())
+        }.toList().also { check(it.isNotEmpty()) { "no ui sources found under $root" } }
     }
 
     /** Names of the classes extending a `*ViewModel` whose primary constructor mentions a `Context`. */

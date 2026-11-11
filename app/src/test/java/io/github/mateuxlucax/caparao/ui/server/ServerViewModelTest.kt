@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.settings
+package io.github.mateuxlucax.caparao.ui.server
 
 import io.github.mateuxlucax.caparao.data.exporter.HttpStatusException
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
@@ -7,7 +7,7 @@ import io.github.mateuxlucax.caparao.model.SyncError
 import io.github.mateuxlucax.caparao.model.SyncError.Kind
 import io.github.mateuxlucax.caparao.ui.FakePreferences
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
-import io.github.mateuxlucax.caparao.ui.components.TestResult
+import io.github.mateuxlucax.caparao.ui.server.TestResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

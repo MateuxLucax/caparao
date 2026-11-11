@@ -1,5 +1,8 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import io.github.mateuxlucax.caparao.ui.components.BrewChart
+import io.github.mateuxlucax.caparao.ui.components.BrewNotesFields
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
+import io.github.mateuxlucax.caparao.ui.components.BrewNumbers
 import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -48,7 +51,7 @@ fun BrewDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
-    ShareFile(state.share, viewModel::shared)
+    ShareFile(state.share?.uri, state.share?.mimeType, viewModel::shared)
     Scaffold(
         topBar = {
             TopAppBar(

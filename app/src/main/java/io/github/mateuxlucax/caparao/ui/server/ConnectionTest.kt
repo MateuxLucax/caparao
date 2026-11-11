@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.components
+package io.github.mateuxlucax.caparao.ui.server
 
 import io.github.mateuxlucax.caparao.data.network.ServerUrl
 import io.github.mateuxlucax.caparao.model.SetupException

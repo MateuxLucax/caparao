@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagEntity
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository

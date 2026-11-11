@@ -48,6 +48,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.ui.components.wholeGrams
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -215,7 +216,6 @@ private fun Field(value: String, label: Int, keyboard: KeyboardType = KeyboardTy
     )
 
 /** Bag grams as the list shows them: whole grams, e.g. "142 of 250 g left". */
-internal fun wholeGrams(value: Double, locale: Locale): String = String.format(locale, "%.0f", value)
 
 /** The roast day as the date picker gives it (UTC midnight). */
 internal fun roastDay(millis: Long): String =

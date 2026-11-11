@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.launcher
+package io.github.mateuxlucax.caparao.ui.components
 
 import io.github.mateuxlucax.caparao.model.BrewMode
 

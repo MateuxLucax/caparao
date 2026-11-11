@@ -1,12 +1,12 @@
-package io.github.mateuxlucax.caparao.ui.settings
+package io.github.mateuxlucax.caparao.ui.server
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.network.ServerUrl
-import io.github.mateuxlucax.caparao.ui.components.ConnectionTest
-import io.github.mateuxlucax.caparao.ui.components.TestResult
+import io.github.mateuxlucax.caparao.ui.server.ConnectionTest
+import io.github.mateuxlucax.caparao.ui.server.TestResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

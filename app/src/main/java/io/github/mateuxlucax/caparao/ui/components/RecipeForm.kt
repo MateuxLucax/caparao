@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.recipes
+package io.github.mateuxlucax.caparao.ui.components
 
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.Recipe

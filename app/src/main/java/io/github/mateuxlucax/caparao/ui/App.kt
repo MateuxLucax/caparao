@@ -58,12 +58,13 @@ import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailScreen
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeesScreen
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.components.LocalSystemBack
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusIcon
 import io.github.mateuxlucax.caparao.ui.home.HomeScreen
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
-import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
-import io.github.mateuxlucax.caparao.ui.launcher.ShortcutDestination
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.components.ShortcutDestination
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel

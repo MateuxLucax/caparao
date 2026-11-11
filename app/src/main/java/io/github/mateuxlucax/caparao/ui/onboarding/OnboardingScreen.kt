@@ -45,18 +45,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleState
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PourAnimation
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SearchingLogo
-import io.github.mateuxlucax.caparao.ui.components.ServerForm
-import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
+import io.github.mateuxlucax.caparao.ui.server.ServerForm
+import io.github.mateuxlucax.caparao.ui.server.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
-import io.github.mateuxlucax.caparao.ui.settings.ServerCheck
-import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.server.ServerCheck
+import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.launch
 

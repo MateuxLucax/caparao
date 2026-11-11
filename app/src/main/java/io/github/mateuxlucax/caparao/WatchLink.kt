@@ -6,8 +6,6 @@ import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.data.watch.WatchTransport
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
-import io.github.mateuxlucax.caparao.ui.watch.SnapshotThrottle
-import io.github.mateuxlucax.caparao.ui.watch.WatchMirror
 import io.github.mateuxlucax.caparao.watch.WatchPaths
 import io.github.mateuxlucax.caparao.watch.WatchSnapshot
 import io.github.mateuxlucax.caparao.watch.WatchState

@@ -38,7 +38,7 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.local.SyncStatus
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.SyncError
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.components.SyncErrorLine
 import io.github.mateuxlucax.caparao.ui.components.EmptyState
 import io.github.mateuxlucax.caparao.ui.components.icon

@@ -31,7 +31,7 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brew.GuideAlert
-import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob

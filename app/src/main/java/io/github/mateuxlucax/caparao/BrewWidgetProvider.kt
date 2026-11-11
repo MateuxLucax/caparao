@@ -13,6 +13,7 @@ import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.components.icon
 import io.github.mateuxlucax.caparao.ui.components.label
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetRefresh
 import io.github.mateuxlucax.caparao.ui.widget.actionIconForWidget
 import io.github.mateuxlucax.caparao.ui.widget.shortcutForWidget

@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui
+package io.github.mateuxlucax.caparao.ui.components
 
 /** Things only the activity can do, passed to the screens. They never go into a ViewModel. */
 class AppActions(

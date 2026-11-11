@@ -1,4 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.brews
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

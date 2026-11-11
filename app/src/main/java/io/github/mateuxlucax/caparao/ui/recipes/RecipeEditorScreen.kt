@@ -63,7 +63,9 @@ import io.github.mateuxlucax.caparao.ui.components.BrewModeGroup
 import io.github.mateuxlucax.caparao.ui.components.SystemBack
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
-import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm.Field
+import io.github.mateuxlucax.caparao.ui.components.RecipeForm
+import io.github.mateuxlucax.caparao.ui.components.StepForm
+import io.github.mateuxlucax.caparao.ui.components.RecipeForm.Field
 
 /** Creates or edits a recipe (wireframe 2); closes after saving or deleting. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -361,12 +363,3 @@ private fun ErrorText(id: Int) = Text(stringResource(id), color = MaterialTheme.
 internal fun stepKindsFor(mode: BrewMode): List<StepKind> =
     StepKind.entries.filter { (it != StepKind.STIR && it != StepKind.PRESS) || mode == BrewMode.FRENCH_PRESS }
 
-val StepKind.label: Int
-    get() = when (this) {
-        StepKind.BLOOM -> R.string.step_bloom
-        StepKind.POUR -> R.string.step_pour
-        StepKind.WAIT -> R.string.step_wait
-        StepKind.SWIRL -> R.string.step_swirl
-        StepKind.STIR -> R.string.step_stir
-        StepKind.PRESS -> R.string.step_press
-    }

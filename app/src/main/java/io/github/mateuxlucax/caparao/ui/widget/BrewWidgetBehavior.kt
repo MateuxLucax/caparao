@@ -2,7 +2,7 @@ package io.github.mateuxlucax.caparao.ui.widget
 
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.components.icon
-import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 
 /** Espresso suggests Filter; both water-based methods suggest Espresso. French press is never suggested. */
 internal fun suggestedModeAfter(latestMode: BrewMode): BrewMode = when (latestMode) {
