@@ -5,6 +5,7 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -50,4 +51,51 @@ class BrewSessionTest {
         assertTrue(session.pauseIntervals().single().second > liftAt)
         assertTrue(session.pauseIntervals().single().second - liftAt in 1_000L..2_000L)
     }
+
+    @Test
+    fun finishRebasesTheFilterCurveAcrossAPause() {
+        val session = BrewSession(BrewMode.FILTER, 20.0, 2.0, emptyList(), null, null)
+        val tare = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
+        tare.readings.forEach(session::onFilterReading)
+        val pour = SyntheticSession(tare.nowMs).ramp(0.0, 100.0, 12.0)
+        pour.readings.forEach(session::onFilterReading)
+        val lift = SyntheticSession(pour.nowMs).ramp(100.0, 40.0, 0.3)
+        lift.readings.forEach(session::onFilterReading)
+        val returnAndHold = SyntheticSession(lift.nowMs).ramp(40.0, 100.0, 0.3).hold(100.0, 2.0)
+        returnAndHold.readings.forEach(session::onFilterReading)
+
+        val activeDurationMs = returnAndHold.nowMs - (filterStartMs(session)) - session.pauseIntervals().sumOf { it.second - it.first }
+        val readings = session.readings()
+        assertTrue(readings.isNotEmpty())
+        (readings as MutableList).clear()
+        assertFalse(session.readings().isEmpty())
+        session.stop(returnAndHold.nowMs)
+        val summary = requireNotNull(session.finish()).summary
+
+        assertEquals(activeDurationMs, summary.durationMs)
+        assertEquals(summary.durationMs, summary.curve.last().atMs)
+        assertTrue(summary.curve.zipWithNext().all { (before, after) -> after.atMs - before.atMs >= 100 })
+    }
+
+    @Test
+    fun finishCutsTheFrenchPressCurveAtRemoval() {
+        val session = BrewSession(BrewMode.FRENCH_PRESS, 20.0, 2.0, emptyList(), null, null)
+        val tare = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val pour = SyntheticSession(tare.nowMs).ramp(0.0, 60.0, 8.0).hold(60.0, 4.0)
+        pour.readings.forEach(session::onReading)
+        session.stop(pour.nowMs)
+        val readings = session.readings()
+        val startedAtMs = requireNotNull(session.result).startedAtMs
+        val removalAtMs = pour.nowMs - 1_000
+        val removedAtMs = pour.nowMs - 500
+        val settled = readings.associate { it.atMs to 60.0 }
+
+        val result = requireNotNull(session.finish(removedAtMs, removalAtMs, settled))
+
+        assertFalse(result.summary.curve.isEmpty())
+        assertTrue(result.summary.curve.all { it.atMs < removalAtMs - startedAtMs })
+    }
+
+    private fun filterStartMs(session: BrewSession) = requireNotNull(session.startedAtMs)
 }
