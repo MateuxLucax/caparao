@@ -15,12 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -173,22 +171,13 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     }
 
     @Test
-    fun captureDiagnosticsScreenshots() {
+    fun diagnosticsCopyNamesUploadedData() {
         openDiagnosticsCard(optedIn = false)
-        val output = java.io.File("/tmp/caparao-334").apply { mkdirs() }
-        compose.onNodeWithTag("diagnostics-opt-in").performScrollTo()
-        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo()
-        compose.onRoot().performTouchInput { swipeUp(startY = 0.9f, endY = 0.7f) }
-        java.io.FileOutputStream(java.io.File(output, "diagnostics-off.png")).use { stream ->
-            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-        }
+        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.section_diagnostics)).assertIsDisplayed()
         compose.onNodeWithTag("diagnostics-opt-in").performClick()
         waitFor(R.string.capture_start)
-        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo()
-        compose.onRoot().performTouchInput { swipeUp(startY = 0.9f, endY = 0.8f) }
-        java.io.FileOutputStream(java.io.File(output, "diagnostics-on.png")).use { stream ->
-            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-        }
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -232,6 +221,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         waitFor(R.string.capture_running)
         diagnostics.recordDisconnect()
         waitFor(R.string.diagnostics_incomplete)
+        compose.onNodeWithText(text(R.string.diagnostics_reason_disconnected)).assertIsDisplayed()
     }
 
     @Test

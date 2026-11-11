@@ -272,7 +272,7 @@
     <string name="share_export">Share export</string>
     <string name="section_diagnostics">Diagnostics</string>
     <string name="diagnostics_on">Send diagnostics to Sentry</string>
-    <string name="diagnostics_text">Crashes and app events are sent to Sentry. A brew recording with your phone model and app version is uploaded when you capture a brew.</string>
+    <string name="diagnostics_text">Crashes and app events are sent to Sentry. A brew recording with your phone model, Android version and app version is uploaded when you capture a brew.</string>
     <string name="capture_title">Brew capture</string>
     <string name="capture_start">Capture next brew</string>
     <string name="capture_running">Capturing…</string>
