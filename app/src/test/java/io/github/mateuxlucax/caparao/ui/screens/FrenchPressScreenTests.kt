@@ -112,8 +112,6 @@ import io.github.mateuxlucax.caparao.ui.brew.FlowPoint
 import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
-import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
-import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -413,10 +411,6 @@ abstract class ScreenFrenchPressTests(lang: String, theme: String, compactOnly: 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
     }
 
-    /**
-     * Compare and trends (#106) on three saved V60 brews: two picked with a long press, their curves overlaid with
-     * the rating row, then the recipe's trends from the newest one's detail.
-     */
 }
 
 @Config(qualifiers = "en-w411dp-h891dp-notnight-xxhdpi")

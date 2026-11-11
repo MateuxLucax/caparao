@@ -112,8 +112,6 @@ import io.github.mateuxlucax.caparao.ui.brew.FlowPoint
 import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
-import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
-import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel

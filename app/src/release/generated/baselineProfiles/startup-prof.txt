@@ -15421,7 +15421,6 @@ SPLio/github/mateuxlucax/caparao/ui/ComposableSingletons$AppKt$$ExternalSyntheti
 Lio/github/mateuxlucax/caparao/ui/Destination;
 Lio/github/mateuxlucax/caparao/ui/Destination$Brew;
 Lio/github/mateuxlucax/caparao/ui/Destination$Coffee;
-Lio/github/mateuxlucax/caparao/ui/Destination$Compare;
 Lio/github/mateuxlucax/caparao/ui/Destination$Detail;
 Lio/github/mateuxlucax/caparao/ui/Destination$Recipe;
 Lio/github/mateuxlucax/caparao/ui/Destination$Tabs;
@@ -15429,7 +15428,6 @@ SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;-><init>()V
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;->equals(Ljava/lang/Object;)Z
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;->hashCode()I
-Lio/github/mateuxlucax/caparao/ui/Destination$Trends;
 Lio/github/mateuxlucax/caparao/ui/Tab;
 SPLio/github/mateuxlucax/caparao/ui/Tab;->$values()[Lio/github/mateuxlucax/caparao/ui/Tab;
 SPLio/github/mateuxlucax/caparao/ui/Tab;-><clinit>()V
@@ -15442,8 +15440,6 @@ Lio/github/mateuxlucax/caparao/ui/brew/BrewUiState;
 Lio/github/mateuxlucax/caparao/ui/brew/BrewViewModel;
 Lio/github/mateuxlucax/caparao/ui/brews/BrewDetailViewModel;
 Lio/github/mateuxlucax/caparao/ui/brews/BrewsViewModel;
-Lio/github/mateuxlucax/caparao/ui/brews/CompareViewModel;
-Lio/github/mateuxlucax/caparao/ui/brews/TrendsViewModel;
 Lio/github/mateuxlucax/caparao/ui/coffees/CoffeeBagDetailViewModel;
 Lio/github/mateuxlucax/caparao/ui/coffees/CoffeeBagsViewModel;
 Lio/github/mateuxlucax/caparao/ui/components/ComposableSingletons$ScaleKt;
