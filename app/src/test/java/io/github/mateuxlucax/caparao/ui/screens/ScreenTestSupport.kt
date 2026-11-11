@@ -272,7 +272,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
             initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         }
-        compose.setContent { AppTheme(brand()) { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        scale.start()
+        compose.setContent { AppTheme(brand()) { App(factory, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
         play(scale, atMs)
         return scale
     }

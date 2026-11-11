@@ -20316,7 +20316,6 @@ SPLio/github/mateuxlucax/caparao/ui/AppKt;->App$lambda$1$0(Lio/github/mateuxluca
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->App$lambda$2$0(Lio/github/mateuxlucax/caparao/data/scale/ScaleSource;Landroidx/lifecycle/compose/LifecycleResumePauseEffectScope;)Landroidx/lifecycle/compose/LifecyclePauseOrDisposeEffectResult;
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->App$lambda$3$0(Z)Landroidx/compose/runtime/MutableState;
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->App$lambda$4(Landroidx/compose/runtime/MutableState;)Z
-SPLio/github/mateuxlucax/caparao/ui/AppKt;->App(Landroidx/lifecycle/ViewModelProvider$Factory;Lio/github/mateuxlucax/caparao/data/scale/ScaleSource;ZLio/github/mateuxlucax/caparao/ui/AppActions;Ljava/lang/String;Lio/github/mateuxlucax/caparao/ui/launcher/LauncherShortcut;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->Main$lambda$0$0()Landroidx/compose/runtime/MutableState;
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->Main$lambda$1(Landroidx/compose/runtime/MutableState;)Lio/github/mateuxlucax/caparao/model/BrewMode;
 SPLio/github/mateuxlucax/caparao/ui/AppKt;->Main$lambda$10(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
@@ -20458,7 +20457,6 @@ Lio/github/mateuxlucax/caparao/ui/AppKt$$ExternalSyntheticLambda7;
 SPLio/github/mateuxlucax/caparao/ui/AppKt$$ExternalSyntheticLambda7;-><init>(Z)V
 SPLio/github/mateuxlucax/caparao/ui/AppKt$$ExternalSyntheticLambda7;->invoke()Ljava/lang/Object;
 Lio/github/mateuxlucax/caparao/ui/AppKt$$ExternalSyntheticLambda9;
-SPLio/github/mateuxlucax/caparao/ui/AppKt$$ExternalSyntheticLambda9;-><init>(Landroidx/lifecycle/ViewModelProvider$Factory;Lio/github/mateuxlucax/caparao/data/scale/ScaleSource;ZLio/github/mateuxlucax/caparao/ui/AppActions;Ljava/lang/String;Lio/github/mateuxlucax/caparao/ui/launcher/LauncherShortcut;Lkotlin/jvm/functions/Function0;II)V
 Lio/github/mateuxlucax/caparao/ui/AppKt$App$lambda$1$0$$inlined$onStopOrDispose$1;
 SPLio/github/mateuxlucax/caparao/ui/AppKt$App$lambda$1$0$$inlined$onStopOrDispose$1;-><init>(Landroidx/lifecycle/compose/LifecycleStartStopEffectScope;Lio/github/mateuxlucax/caparao/data/scale/ScaleSource;)V
 Lio/github/mateuxlucax/caparao/ui/AppKt$App$lambda$2$0$$inlined$onPauseOrDispose$1;

@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
 class MainActivity : ComponentActivity() {
     private val container get() = (application as CaparaoApplication).container
+    internal var configurationChange: () -> Boolean = { isChangingConfigurations }
     private val debugHooks get() = (application as CaparaoApplication).debugHooks
 
     /** Waiting for the answer to the Bluetooth permission request. */
@@ -82,7 +83,6 @@ class MainActivity : ComponentActivity() {
             AppTheme(BrandColor.LEAF.takeIf { brandColors }) {
                 App(
                     container.viewModelFactory,
-                    container.scale,
                     container.settings.onboardingDone,
                     actions,
                     BuildConfig.VERSION_NAME,
@@ -137,10 +137,15 @@ class MainActivity : ComponentActivity() {
         container.watch.start()
     }
 
+    override fun onResume() {
+        super.onResume()
+        container.scale.start()
+    }
+
     override fun onStop() {
         container.diagnostics.event(DiagnosticEvent.AppBackground)
         container.watch.stop()
-        stopScaleIfBackgrounded(isChangingConfigurations)
+        stopScaleIfBackgrounded(configurationChange())
         super.onStop()
     }
 
