@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import io.github.mateuxlucax.caparao.ui.components.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.BrewConnection
+import io.github.mateuxlucax.caparao.brew.BrewConnectionAction
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
 import io.github.mateuxlucax.caparao.brew.DrainWindow as BrewDrainWindow
@@ -511,17 +513,21 @@ class BrewViewModel(
         }
         val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
-        // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
-        // A French press keeps steeping instead, free or with a recipe (#221, #218).
-        if (state is ScaleState.Failed && mode == BrewMode.FRENCH_PRESS && current.guideSteps.isNotEmpty() && current.phase == BrewPhase.BREWING) {
-            keepSteepRunning()
-            return
-        }
-        if (state is ScaleState.Failed && (current.phase == BrewPhase.BREWING || current.phase == BrewPhase.PAUSED)) {
-            diagnostics.event(DiagnosticEvent.BrewInterrupted)
-            current.interrupt(clock())
-            recordDiagnosticPhase(current.phase)
-            finish(current)
+        when (current.onScaleConnection(
+            connection = when (state) {
+                is ScaleState.Connected -> BrewConnection.CONNECTED
+                is ScaleState.Failed -> BrewConnection.FAILED
+                else -> BrewConnection.OTHER
+            },
+            atMs = clock(),
+        )) {
+            BrewConnectionAction.NONE -> Unit
+            BrewConnectionAction.KEEP_STEEPING -> keepSteepRunning()
+            BrewConnectionAction.INTERRUPTED -> {
+                diagnostics.event(DiagnosticEvent.BrewInterrupted)
+                recordDiagnosticPhase(current.phase)
+                finish(current)
+            }
         }
     }
 

@@ -346,6 +346,18 @@ class BrewSession(
             once(StepEvent.AllDone)
         } else emptyList()
     }
+
+    fun onScaleConnection(connection: BrewConnection, atMs: Long): BrewConnectionAction {
+        if (connection != BrewConnection.FAILED) return BrewConnectionAction.NONE
+        if (mode == BrewMode.FRENCH_PRESS && guideTracker != null && phase == BrewPhase.BREWING) {
+            return BrewConnectionAction.KEEP_STEEPING
+        }
+        if (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED) {
+            detector.interrupt(atMs)
+            return BrewConnectionAction.INTERRUPTED
+        }
+        return BrewConnectionAction.NONE
+    }
     fun interrupt(atMs: Long) = detector.interrupt(atMs)
 
     fun finish(): BrewSessionResult? {
@@ -426,6 +438,10 @@ data class BrewClockState(
 )
 
 enum class DrainWindow { BEFORE, INSIDE, PAST }
+
+enum class BrewConnection { CONNECTED, FAILED, OTHER }
+
+enum class BrewConnectionAction { NONE, KEEP_STEEPING, INTERRUPTED }
 
 private const val FILTER_PREPARE_LIFT_MS = 2_000L
 private const val MAX_READINGS = 12_000
