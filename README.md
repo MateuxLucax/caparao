@@ -34,7 +34,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
   timer buttons, step vibration and a finish alert.
 - **Coffee bags:** name, roaster, origin and process, roast date, weight, notes and a finished flag; the brew notes
   suggest open bags first.
-- **Home-screen widget:** the last brew or a 7-day summary with brews, beverage, dose and caffeine.
+- **Home-screen widget:** the last brew, with a shortcut to start the next one.
 - **Offline-first:** no account and no server needed. Sync is an add-on.
 - **Your data:** brews go to any server that follows the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).

@@ -78,8 +78,6 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
-import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
-import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
@@ -196,111 +194,6 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         assertWidgetVisibility(empty, R.id.widget_empty_content, View.VISIBLE)
         assertWidgetText(empty, R.id.widget_empty_title, text(R.string.widget_empty_title))
         assertWidgetText(empty, R.id.widget_action_label, text(R.string.widget_brew_coffee))
-    }
-
-    /** The expanded widget's estimates and neutral empty-week state, rendered at its 260×210 dp breakpoint. */
-    @Test
-    fun weeklyWidget() {
-        val zone = ZoneId.of("UTC")
-        val today = LocalDate.of(2026, 10, 18)
-        val window = brewWidgetWeekWindow(today, zone)
-        val days = window.days
-        val atNoon = { date: LocalDate -> date.atTime(12, 0).atZone(zone).toInstant().toEpochMilli() }
-        fun savedBrew(
-            id: String,
-            dayIndex: Int,
-            mode: BrewMode,
-            dose: Double,
-            yield: Double,
-            interrupted: Boolean = false,
-        ) = Brew(
-            id = id,
-            mode = mode,
-            startedAt = atNoon(days[dayIndex]) - 28_000,
-            durationMs = 28_000,
-            doseGrams = dose,
-            yieldGrams = yield,
-            timeToFirstDropMs = if (mode == BrewMode.ESPRESSO) 4_000 else null,
-            flowAvgGramsPerSecond = 1.3,
-            flowPeakGramsPerSecond = 2.4,
-            interrupted = interrupted,
-        )
-
-        val saved = listOf(
-            savedBrew("filter-1", 1, BrewMode.FILTER, 15.0, 250.0),
-            savedBrew("espresso-1", 2, BrewMode.ESPRESSO, 18.0, 36.0),
-            savedBrew("espresso-2", 2, BrewMode.ESPRESSO, 18.0, 40.0),
-            savedBrew("filter-2", 4, BrewMode.FILTER, 15.0, 250.0),
-            savedBrew("filter-3", 4, BrewMode.FILTER, 15.0, 250.0),
-            savedBrew("filter-4", 5, BrewMode.FILTER, 15.0, 250.0),
-            savedBrew("filter-5", 5, BrewMode.FILTER, 15.0, 250.0),
-            savedBrew("espresso-3", 5, BrewMode.ESPRESSO, 18.0, 36.0),
-            savedBrew("interrupted-filter", 6, BrewMode.FILTER, 15.0, 100.0, interrupted = true),
-        )
-        var week by mutableStateOf(summarizeBrewWidgetWeek(saved, window, zone))
-        val emptyWeek = summarizeBrewWidgetWeek(emptyList(), window, zone)
-        val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
-        val widthDp = context.resources.getDimension(R.dimen.widget_weekly_min_width) / context.resources.displayMetrics.density
-        val heightDp = context.resources.getDimension(R.dimen.widget_weekly_min_height) / context.resources.displayMetrics.density
-        var rendered: View? = null
-        compose.setContent {
-            Box(Modifier.background(wallpaper)) {
-                key(week) {
-                    AndroidView(
-                        // The RemoteViews the provider builds, applied to a real view as on a home screen.
-                        factory = { BrewWidgetProvider().weeklyViews(context, 1, BrewMode.FILTER, week).apply(context, null).also { rendered = it } },
-                        modifier = Modifier.size(widthDp.dp, heightDp.dp).testTag("weekly-widget"),
-                    )
-                }
-            }
-        }
-        compose.waitForIdle()
-        compose.onNodeWithTag("weekly-widget").assertExists()
-
-        // The rendered week: title, brew count, and the estimate values as shown (not just the format strings).
-        val savedView = rendered
-        assertNotNull("the applied widget view was not created", savedView)
-        assertWidgetText(savedView!!, R.id.widget_weekly_title, text(R.string.widget_weekly_title))
-        assertWidgetVisibility(savedView, R.id.widget_weekly_content, View.VISIBLE)
-        assertWidgetVisibility(savedView, R.id.widget_weekly_empty, View.GONE)
-        assertWidgetText(
-            savedView,
-            R.id.widget_weekly_brews_value,
-            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.count(context, week.brewCount),
-        )
-        assertWidgetText(
-            savedView,
-            R.id.widget_weekly_beverage_value,
-            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.beverageVolume(context, week.estimatedBeverageMl),
-        )
-        assertWidgetText(
-            savedView,
-            R.id.widget_weekly_dose_value,
-            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.dose(context, week.doseGrams),
-        )
-        assertWidgetText(
-            savedView,
-            R.id.widget_weekly_caffeine_value,
-            io.github.mateuxlucax.caparao.ui.widget.BrewWidgetFormat.caffeine(context, week.estimatedCaffeineMg),
-        )
-        // The rendered estimates: beverage and caffeine carry ≈, dose is recorded and has none.
-        val beverage = widgetText(savedView, R.id.widget_weekly_beverage_value)
-        val caffeine = widgetText(savedView, R.id.widget_weekly_caffeine_value)
-        val dose = widgetText(savedView, R.id.widget_weekly_dose_value)
-        assertTrue(beverage.startsWith("≈ "))
-        assertTrue(caffeine.startsWith("≈ "))
-        assertFalse(dose.startsWith("≈"))
-
-        week = emptyWeek
-        compose.waitForIdle()
-        compose.onNodeWithTag("weekly-widget").assertExists()
-
-        // The rendered empty week: the neutral message, no stats row.
-        val emptyView = rendered
-        assertNotNull("the applied widget view was not created", emptyView)
-        assertWidgetText(emptyView!!, R.id.widget_weekly_empty, text(R.string.widget_weekly_empty))
-        assertWidgetVisibility(emptyView, R.id.widget_weekly_empty, View.VISIBLE)
-        assertWidgetVisibility(emptyView, R.id.widget_weekly_content, View.GONE)
     }
 
     /** The Coffees tab, with an open bag and a finished one (#110). */

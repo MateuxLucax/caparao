@@ -23,22 +23,13 @@
     <string name="mode_french_press_short">Press</string>
 
     <!-- Home-screen widget -->
-    <string name="widget_description">Last brew or a 7-day summary</string>
+    <string name="widget_description">Last brew</string>
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_french_press">Brew French press</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
-    <string name="widget_weekly_title">Last 7 days</string>
-    <string name="widget_weekly_empty">No brews this week</string>
-    <string name="widget_weekly_brews">Brews</string>
-    <string name="widget_weekly_beverage">Beverage</string>
-    <string name="widget_weekly_dose">Dose</string>
-    <string name="widget_weekly_caffeine">Caffeine</string>
-    <string name="widget_weekly_chart_description">Brews per day: %1$s</string>
-    <string name="widget_amount_with_unit">%1$s %2$s</string>
-    <string name="widget_approximate_amount">≈ %1$s</string>
 
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
@@ -348,8 +339,6 @@
     <string name="water_field">Water in ml</string>
     <string name="espresso_window">%1$s–%2$s s</string>
     <string name="unit_ml">ml</string>
-    <string name="unit_l">L</string>
-    <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="tab_coffees">Coffees</string>
     <string name="coffees_empty">No coffee on the shelf.</string>

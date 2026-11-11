@@ -29,7 +29,6 @@ class TranslationsTest {
         val allowed = setOf(
             "unit_grams", "unit_grams_per_second", "mode_espresso", "battery_percent", "permissions_title", "label_dose", "ratio_value",
             "recipe_dose", "step_bloom", "mode_manual", "recipe_summary_espresso", "recipe_summary_espresso_no_window", "espresso_window", "unit_ml",
-            "unit_l", "unit_mg", "widget_amount_with_unit", "widget_approximate_amount", "widget_weekly_dose",
             "prepare_rdt", "prepare_wdt", "prepare_dose",
             "milestone_and_step",
         )
