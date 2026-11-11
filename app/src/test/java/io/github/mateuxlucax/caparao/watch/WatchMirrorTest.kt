@@ -1,21 +1,13 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.model.BrewMode
-import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
-import io.github.mateuxlucax.caparao.ui.brew.BrewStep
-import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
-import io.github.mateuxlucax.caparao.watch.WatchAlert
-import io.github.mateuxlucax.caparao.watch.WatchGuide
-import io.github.mateuxlucax.caparao.watch.WatchSnapshot
-import io.github.mateuxlucax.caparao.watch.WatchState
-import io.github.mateuxlucax.caparao.watch.WatchStepKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,6 +16,17 @@ import org.junit.Test
 class WatchMirrorTest {
     private val connected = ScaleState.Connected(battery = null)
     private val reading = ScaleReading(weightGrams = 18.2, flowGramsPerSecond = -0.4, timerSeconds = 12, overload = false)
+
+    private fun live(
+        mode: BrewMode,
+        phase: BrewPhase,
+        weightGrams: Double,
+        flowGramsPerSecond: Double = 0.0,
+        elapsedMs: Long,
+        guide: StepState? = null,
+        steps: List<RecipeStep> = emptyList(),
+        frenchPressRemoved: Boolean = false,
+    ) = WatchBrewState(false, mode, phase, weightGrams, flowGramsPerSecond, elapsedMs, guide, steps, frenchPressRemoved)
 
     @Test
     fun disconnectedSendsNothingButTheState() {
@@ -36,19 +39,20 @@ class WatchMirrorTest {
         val snapshot = WatchMirror.snapshot(connected, reading, null, timerRunning = true)
         assertEquals(WatchSnapshot(WatchState.SCALE, 18.2f, 0f, 12_000, timerRunning = true), snapshot)
         // The dose step is still weighing, not brewing.
-        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO), false).state)
+        val before = WatchBrewState(true, BrewMode.ESPRESSO, BrewPhase.WAITING_FOR_CUP, 0.0, 0.0, 0, null, emptyList(), false)
+        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, before, false).state)
         // Nor is the coffee step, which comes before the beans are weighed (#291).
-        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, BrewUiState(BrewMode.ESPRESSO, step = BrewStep.COFFEE), false).state)
+        assertEquals(WatchState.SCALE, WatchMirror.snapshot(connected, reading, before.copy(beforeBrew = true), false).state)
     }
 
     @Test
     fun aLiveBrewShowsItsOwnNumbers() {
-        val brew = BrewUiState(BrewMode.ESPRESSO, step = BrewStep.LIVE, phase = BrewPhase.BREWING, weightGrams = 30.5, flowGramsPerSecond = 1.9, elapsedMs = 21_400)
+        val brew = live(BrewMode.ESPRESSO, BrewPhase.BREWING, 30.5, 1.9, 21_400)
         assertEquals(WatchSnapshot(WatchState.BREWING, 30.5f, 1.9f, 21_400, timerRunning = false), WatchMirror.snapshot(connected, reading, brew, false))
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.READY), false).state)
         assertEquals(WatchState.READY, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.WAITING_FOR_CUP), false).state)
-        assertEquals(WatchState.DONE, WatchMirror.snapshot(connected, reading, brew.copy(step = BrewStep.SUMMARY), false).state)
-        val paused = brew.copy(mode = BrewMode.FILTER, phase = BrewPhase.PAUSED, weightGrams = 25.0, flowGramsPerSecond = 0.0)
+        assertEquals(WatchState.DONE, WatchMirror.snapshot(connected, reading, brew.copy(phase = BrewPhase.DONE), false).state)
+        val paused = live(BrewMode.FILTER, BrewPhase.PAUSED, 25.0, 0.0, 21_400)
         assertEquals(WatchSnapshot(WatchState.BREWING, 25.0f, 0f, 21_400, timerRunning = true), WatchMirror.snapshot(connected, reading, paused, true))
     }
 
@@ -59,32 +63,23 @@ class WatchMirrorTest {
             RecipeStep(StepKind.WAIT, null, 0),
             RecipeStep(StepKind.POUR, 150.0, 45_000),
         )
-        val recipe = Recipe("r", "V60", BrewMode.FILTER, "V60", 15.0, 16.0, steps = steps, createdAt = 0, updatedAt = 0)
-        val brew = BrewUiState(
-            BrewMode.FILTER, step = BrewStep.LIVE, phase = BrewPhase.BREWING, weightGrams = 90.0, elapsedMs = 50_000,
-            recipe = recipe, guide = StepState(2, 0.4f, null, null, 3_000, null),
+        val brew = live(
+            BrewMode.FILTER, BrewPhase.BREWING, 90.0, elapsedMs = 50_000,
+            guide = StepState(2, 0.4f, null, null, 3_000, null), steps = steps,
         )
         assertEquals(WatchGuide(2, 3, WatchStepKind.POUR, 150f, null, 3_000), WatchMirror.snapshot(connected, reading, brew, false).guide)
         // All steps done: the count stays, the step is gone.
         assertEquals(WatchGuide(3, 3, null, null, null, null), WatchMirror.guide(brew.copy(guide = StepState(3, 1f, null, null, null, null))))
         // A free brew has no guide.
-        assertEquals(null, WatchMirror.snapshot(connected, reading, brew.copy(recipe = null, guide = null), false).guide)
+        assertEquals(null, WatchMirror.snapshot(connected, reading, brew.copy(steps = emptyList(), guide = null), false).guide)
     }
 
     @Test
     fun aFrenchPressDeadlineUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
-        val recipe = Recipe(
-            "press", "French press", BrewMode.FRENCH_PRESS, "French press", 20.0, 15.0,
-            steps = listOf(RecipeStep(StepKind.PRESS, null, 240_000)), createdAt = 0, updatedAt = 0,
-        )
-        val brew = BrewUiState(
-            BrewMode.FRENCH_PRESS,
-            step = BrewStep.LIVE,
-            phase = BrewPhase.BREWING,
-            weightGrams = 300.0,
-            elapsedMs = 180_000,
-            recipe = recipe,
-            guide = StepState(0, 0.75f, 60_000, null, null, null),
+        val steps = listOf(RecipeStep(StepKind.PRESS, null, 240_000))
+        val brew = live(
+            BrewMode.FRENCH_PRESS, BrewPhase.BREWING, 300.0, elapsedMs = 180_000,
+            guide = StepState(0, 0.75f, 60_000, null, null, null), steps = steps,
         )
 
         val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
@@ -107,24 +102,15 @@ class WatchMirrorTest {
 
     @Test
     fun aFrenchPressStirUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
-        val recipe = Recipe(
-            "stir", "French press", BrewMode.FRENCH_PRESS, "French press", 20.0, 15.0,
-            steps = listOf(
-                RecipeStep(StepKind.BLOOM, 62.0, 0),
-                RecipeStep(StepKind.STIR, null, 5_000),
-                RecipeStep(StepKind.POUR, 154.0, 70_000),
-                RecipeStep(StepKind.PRESS, null, 240_000),
-            ),
-            createdAt = 0, updatedAt = 0,
+        val steps = listOf(
+            RecipeStep(StepKind.BLOOM, 62.0, 0),
+            RecipeStep(StepKind.STIR, null, 5_000),
+            RecipeStep(StepKind.POUR, 154.0, 70_000),
+            RecipeStep(StepKind.PRESS, null, 240_000),
         )
-        val brew = BrewUiState(
-            BrewMode.FRENCH_PRESS,
-            step = BrewStep.LIVE,
-            phase = BrewPhase.BREWING,
-            weightGrams = 62.0,
-            elapsedMs = 15_000,
-            recipe = recipe,
-            guide = StepState(1, 0.2f, 55_000, null, null, null),
+        val brew = live(
+            BrewMode.FRENCH_PRESS, BrewPhase.BREWING, 62.0, elapsedMs = 15_000,
+            guide = StepState(1, 0.2f, 55_000, null, null, null), steps = steps,
         )
 
         val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)

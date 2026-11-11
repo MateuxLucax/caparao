@@ -31,6 +31,8 @@ import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
 import io.github.mateuxlucax.caparao.ui.components.NotesForm
+import io.github.mateuxlucax.caparao.watch.WatchMirror
+import io.github.mateuxlucax.caparao.watch.WatchState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,12 +64,16 @@ class BrewViewModelTest {
     /** What the watch was asked to vibrate for. */
     private val watchAlerts = mutableListOf<StepEvent>()
 
-    private fun viewModel(mode: BrewMode, diagnostics: Diagnostics = NoDiagnostics, animations: () -> Boolean = { true }) = BrewViewModel(
-        mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
-        onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
-        onDiscarded = { id -> uploads += "discarded $id" },
-        onWatchAlert = { watchAlerts += it }, diagnostics = diagnostics, animations = animations, coffeeBags = bags,
-    )
+    private fun viewModel(mode: BrewMode, diagnostics: Diagnostics = NoDiagnostics, animations: () -> Boolean = { true }): BrewViewModel {
+        val vm = BrewViewModel(
+            mode, scale, BrewRepository(dao), settings, recipes, clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
+            onSaved = { id -> uploads += "saved $id, stored ${dao.brews.value.any { it.id == id }}" },
+            onDiscarded = { id -> uploads += "discarded $id" },
+            diagnostics = diagnostics, animations = animations, coffeeBags = bags,
+        )
+        CoroutineScope(Dispatchers.Main).launch { vm.watchAlerts.collect { watchAlerts += it } }
+        return vm
+    }
 
     /** [seconds] of readings at 10 Hz, the weight moving linearly from [from] to [to]. */
     private fun pour(from: Double, to: Double, seconds: Double) {
@@ -79,6 +85,21 @@ class BrewViewModelTest {
     }
 
     private fun hold(weight: Double, seconds: Double) = pour(weight, weight, seconds)
+
+    @Test
+    fun watchKeepsReadyDuringWeighingAndPreparation() {
+        val vm = viewModel(BrewMode.ESPRESSO)
+        vm.begin()
+        vm.planDose(18.0)
+        assertEquals(WatchState.SCALE, WatchMirror.snapshot(scale.state.value, scale.reading.value, vm.watchBrew.value, false).state)
+        vm.weigh()
+        assertEquals(BrewStep.WEIGH, vm.uiState.value.step)
+        assertEquals(WatchState.READY, WatchMirror.snapshot(scale.state.value, scale.reading.value, vm.watchBrew.value, false).state)
+        vm.setDose(18.0)
+        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
+        assertEquals(WatchState.READY, WatchMirror.snapshot(scale.state.value, scale.reading.value, vm.watchBrew.value, false).state)
+        vm.end()
+    }
 
     /** Lets the timer roll back to the saved time, then the summary open (#197). */
     private fun rolled() = main.dispatcher.scheduler.advanceUntilIdle()

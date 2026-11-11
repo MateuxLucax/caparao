@@ -32,14 +32,18 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.watch.WatchBrewState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -63,10 +67,6 @@ class BrewViewModel(
     private val onSaved: (String) -> Unit = {},
     /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
     private val onDiscarded: (String) -> Unit = {},
-    /** Called for a guide moment the watch should vibrate for (WatchLink.alert). */
-    private val onWatchAlert: (StepEvent) -> Unit = {},
-    /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
-    private val onLive: (BrewUiState?) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
     private val diagnostics: Diagnostics = NoDiagnostics,
     /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
@@ -81,6 +81,15 @@ class BrewViewModel(
 
     /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
     val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
+
+    private val _watchAlerts = MutableSharedFlow<StepEvent>(extraBufferCapacity = 16)
+
+    /** The guide moments the watch should vibrate for; AppContainer connects them to the watch link. */
+    val watchAlerts: SharedFlow<StepEvent> = _watchAlerts.asSharedFlow()
+
+    /** What the watch mirrors: the session's live run or the pre-brew flag, never the screen's state (#389). */
+    val watchBrew: StateFlow<WatchBrewState?> =
+        _uiState.map { it.toWatchBrew() }.stateIn(viewModelScope, SharingStarted.Eagerly, _uiState.value.toWatchBrew())
 
     /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
     val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
@@ -111,7 +120,6 @@ class BrewViewModel(
         watchScale()
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
-            launch { _uiState.collect(onLive) }
             launch { recipes.recipes.collect { all -> onRecipes(all.filter { it.mode == mode }) } }
             coffeeBags?.let { bags -> launch { bags.bags.collect { all -> _uiState.update { it.copy(bags = all.filterNot(CoffeeBag::finished)) } } } }
             scale.state.collect(::onScaleState)
@@ -124,7 +132,6 @@ class BrewViewModel(
         job?.cancel()
         job = null
         reset()
-        onLive(null)
     }
 
     /** On the dose step: follow [recipe], or none for a free brew. Its dose fills the dose field. */
@@ -509,7 +516,7 @@ class BrewViewModel(
         val target = settings.guideVibrationOn
         val vibrate = phoneVibrates
         val sound = settings.guideSound
-        if (settings.guideVibration && target.watch) onWatchAlert(event)
+        if (settings.guideVibration && target.watch) _watchAlerts.tryEmit(event)
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
 
@@ -620,6 +627,18 @@ class BrewViewModel(
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
     }
+
+    private fun BrewUiState.toWatchBrew() = WatchBrewState(
+        beforeBrew = step == BrewStep.DOSE || step == BrewStep.COFFEE,
+        mode = mode,
+        phase = if (step == BrewStep.SUMMARY || phase == BrewPhase.DONE) BrewPhase.DONE else phase,
+        weightGrams = weightGrams,
+        flowGramsPerSecond = flowGramsPerSecond,
+        elapsedMs = elapsedMs,
+        guide = guide,
+        steps = steps,
+        frenchPressRemoved = frenchPressRemoved,
+    )
 
     /** The open bag a brew used most recently, or null when none has been used. */
     private fun lastUsedBag(bags: List<CoffeeBag>): CoffeeBag? =

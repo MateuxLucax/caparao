@@ -32,7 +32,6 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
-import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
@@ -43,6 +42,8 @@ import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
+import io.github.mateuxlucax.caparao.watch.ScaleTimer
+import io.github.mateuxlucax.caparao.watch.WatchLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -148,11 +149,11 @@ class AppContainer(context: Context) {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 clock = { scaleClock?.nowMs ?: SystemClock.elapsedRealtime() },
-                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted, onLive = { watch.brew.value = it },
-                onWatchAlert = watch::alert, diagnostics = diagnostics,
+                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted,
+                diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
                 coffeeBags = coffeeBags,
-            )
+            ).also { watch.attach(it.watchBrew, it.watchAlerts) }
         }
     }
 }

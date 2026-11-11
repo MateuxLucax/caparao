@@ -19,6 +19,7 @@ class LayerDependencyTest {
         "data" to listOf("brew", "sync", "ui"),
         "brew" to listOf("sync", "ui"),
         "sync" to listOf("ui"),
+        "watch" to listOf("ui"),
         "ui" to emptyList(),
     )
 

@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.data.watch.WatchTransport
@@ -6,10 +6,6 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
-import io.github.mateuxlucax.caparao.ui.brew.BrewStep
-import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
-import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
-import io.github.mateuxlucax.caparao.watch.WatchPaths
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -103,12 +99,16 @@ class WatchLinkTest {
         val transport = FakeWatchTransport()
         val scale = connectedScale()
         val link = link(transport, scale)
-        link.brew.value = BrewUiState(
-            BrewMode.ESPRESSO,
-            step = BrewStep.LIVE,
+        link.brew.value = WatchBrewState(
+            beforeBrew = false,
+            mode = BrewMode.ESPRESSO,
             phase = BrewPhase.READY,
             weightGrams = 30.0,
+            flowGramsPerSecond = 0.0,
             elapsedMs = 20_000,
+            guide = null,
+            steps = emptyList(),
+            frenchPressRemoved = false,
         )
         link.start()
         runCurrent()

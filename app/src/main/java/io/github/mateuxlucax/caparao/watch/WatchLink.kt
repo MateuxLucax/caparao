@@ -1,17 +1,15 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.watch
 
 import android.os.SystemClock
 import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.data.watch.WatchTransport
-import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
-import io.github.mateuxlucax.caparao.ui.home.ScaleTimer
-import io.github.mateuxlucax.caparao.watch.WatchPaths
-import io.github.mateuxlucax.caparao.watch.WatchSnapshot
-import io.github.mateuxlucax.caparao.watch.WatchState
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
@@ -28,8 +26,8 @@ class WatchLink(
     private val scale: ScaleSource,
     private val now: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
-    /** The open brew screen's state, null without one (BrewViewModel.onLive). */
-    val brew = MutableStateFlow<BrewUiState?>(null)
+    /** The open brew's state, null without one (BrewViewModel.watchBrew). */
+    val brew = MutableStateFlow<WatchBrewState?>(null)
 
     /** Reachable watches, updated by the capability listener's collector on another thread. */
     @Volatile
@@ -42,6 +40,19 @@ class WatchLink(
     private var job: Job? = null
     private var watchesJob: Job? = null
     private var commandsJob: Job? = null
+    private var mirrorJob: Job? = null
+    private var alertsJob: Job? = null
+
+    /**
+     * Connects the open brew screen's live state and its guide events (AppContainer). The link keeps watching them
+     * while the app lives, so a screen that closes leaves its last state behind and a new one replaces it.
+     */
+    fun attach(brew: StateFlow<WatchBrewState?>, alerts: SharedFlow<StepEvent>) {
+        mirrorJob?.cancel()
+        alertsJob?.cancel()
+        mirrorJob = scope.launch { brew.collect { this@WatchLink.brew.value = it } }
+        alertsJob = scope.launch { alerts.collect(::alert) }
+    }
 
     fun start() {
         if (job != null) return
