@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Keep app data out of cloud backups and device-to-device transfers: the settings will hold the
-    server token, and brews are personal data that only go to the server the user configures.
+    Keep app data out of cloud backups and device-to-device transfers: the settings hold the server
+    token, brews are personal data, and replay captures are only sent after opt-in.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="." />
         <exclude domain="database" path="." />
-        <exclude domain="file" path="diagnostics/" />
+        <exclude domain="file" path="captures/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="." />
         <exclude domain="database" path="." />
-        <exclude domain="file" path="diagnostics/" />
+        <exclude domain="file" path="captures/" />
     </device-transfer>
 </data-extraction-rules>

@@ -59,7 +59,7 @@ enum class DiagnosticErrorContext {
 }
 
 /**
- * The seam every diagnostic call site uses (#332), so a remote implementation can replace the local recorder behind it.
+ * The seam every diagnostic call site uses (#332), keeping capture and remote reporting behind one interface.
  * Implementations must return quickly: the BLE collector and the brew detector call them without a blocking I/O step.
  */
 interface Diagnostics {
@@ -100,8 +100,7 @@ object NoDiagnostics : Diagnostics {
 }
 
 /**
- * Forwards every call to all [sinks]. #333 runs the remote reporter beside the local capture; the recorder is removed
- * once captures are uploaded (#336), and this goes with it.
+ * Forwards every call to all [sinks], including the remote reporter and the replay capture writer.
  */
 class FanOutDiagnostics(private val sinks: List<Diagnostics>) : Diagnostics {
     constructor(vararg sinks: Diagnostics) : this(sinks.toList())

@@ -51,8 +51,8 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticIncompleteReason
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureIncompleteReason
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriterState
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -83,7 +83,7 @@ fun SettingsScreen(
     scale: ScaleStatusViewModel,
     targets: TargetRatioViewModel,
     export: ExportViewModel,
-    diagnostics: DiagnosticsViewModel,
+    diagnostics: CaptureViewModel,
     actions: AppActions, versionName: String,
     modifier: Modifier = Modifier,
 ) {
@@ -227,9 +227,9 @@ private fun DataSection(viewModel: ExportViewModel) {
 
 /** Opt-in diagnostics upload and capture of the next brew. */
 @Composable
-private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
+private fun DiagnosticsSection(viewModel: CaptureViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val recorder = state.recorder
+    val capture = state.capture
     val still = animationsOff()
     val optInLabel = stringResource(R.string.diagnostics_on)
     Row(
@@ -252,55 +252,55 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.capture_title), style = MaterialTheme.typography.titleMedium)
-            val status = if (state.starting) R.string.diagnostics_starting else when (recorder) {
-                DiagnosticRecorderState.Idle -> null
-                DiagnosticRecorderState.Starting -> R.string.diagnostics_starting
-                is DiagnosticRecorderState.Recording -> R.string.capture_running
-                is DiagnosticRecorderState.Finalizing -> R.string.diagnostics_saving
-                is DiagnosticRecorderState.Ready -> when {
-                    !recorder.complete -> R.string.diagnostics_incomplete
-                    recorder.sent -> R.string.capture_sent
-                    recorder.pending -> R.string.capture_pending
+            val status = if (state.starting) R.string.diagnostics_starting else when (capture) {
+                CaptureWriterState.Idle -> null
+                CaptureWriterState.Starting -> R.string.diagnostics_starting
+                is CaptureWriterState.Recording -> R.string.capture_running
+                is CaptureWriterState.Finalizing -> R.string.diagnostics_saving
+                is CaptureWriterState.Ready -> when {
+                    !capture.complete -> R.string.diagnostics_incomplete
+                    capture.sent -> R.string.capture_sent
+                    capture.pending -> R.string.capture_pending
                     else -> R.string.diagnostics_saving
                 }
-                is DiagnosticRecorderState.Failed -> R.string.diagnostics_start_failed
+                is CaptureWriterState.Failed -> R.string.diagnostics_start_failed
             }
             if (status != null) {
                 Text(
                     stringResource(status),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (recorder is DiagnosticRecorderState.Failed || recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+                    color = if (capture is CaptureWriterState.Failed || capture is CaptureWriterState.Ready && !capture.complete) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
             }
-            if (recorder is DiagnosticRecorderState.Recording) {
-                var elapsedSeconds by remember(recorder.startedAtEpochMillis) { mutableStateOf(0L) }
-                LaunchedEffect(recorder.startedAtEpochMillis) {
+            if (capture is CaptureWriterState.Recording) {
+                var elapsedSeconds by remember(capture.startedAtEpochMillis) { mutableStateOf(0L) }
+                LaunchedEffect(capture.startedAtEpochMillis) {
                     while (true) {
-                        elapsedSeconds = ((System.currentTimeMillis() - recorder.startedAtEpochMillis) / 1000).coerceAtLeast(0)
+                        elapsedSeconds = ((System.currentTimeMillis() - capture.startedAtEpochMillis) / 1000).coerceAtLeast(0)
                         delay(1_000)
                     }
                 }
                 Text(stringResource(R.string.capture_elapsed, elapsedSeconds / 60, elapsedSeconds % 60))
             }
-            if (recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+            if (capture is CaptureWriterState.Ready && !capture.complete) {
                 Text(
-                    stringResource(incompleteReasonString(recorder.reason)),
+                    stringResource(incompleteReasonString(capture.reason)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            if (recorder is DiagnosticRecorderState.Ready && !recorder.complete && (recorder.pending || recorder.sent)) {
+            if (capture is CaptureWriterState.Ready && !capture.complete && (capture.pending || capture.sent)) {
                 Text(
-                    stringResource(if (recorder.sent) R.string.capture_sent else R.string.capture_pending),
+                    stringResource(if (capture.sent) R.string.capture_sent else R.string.capture_pending),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (state.startFailed && recorder !is DiagnosticRecorderState.Failed && !(recorder is DiagnosticRecorderState.Ready && recorder.pending)) {
+            if (state.startFailed && capture !is CaptureWriterState.Failed && !(capture is CaptureWriterState.Ready && capture.pending)) {
                 Text(stringResource(R.string.diagnostics_start_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             if (state.stopFailed) {
@@ -308,16 +308,16 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!state.starting) {
-                    when (recorder) {
-                        is DiagnosticRecorderState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
+                    when (capture) {
+                        is CaptureWriterState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
                             Text(stringResource(R.string.capture_stop))
                         }
-                        DiagnosticRecorderState.Starting, is DiagnosticRecorderState.Finalizing -> Unit
+                        CaptureWriterState.Starting, is CaptureWriterState.Finalizing -> Unit
                         else -> {
                             Button(
                                 shapes = ButtonDefaults.shapes(),
                                 onClick = viewModel::start,
-                                enabled = recorder !is DiagnosticRecorderState.Ready || recorder.sent,
+                                enabled = capture !is CaptureWriterState.Ready || capture.sent,
                             ) {
                                 Text(stringResource(R.string.capture_start))
                             }
@@ -329,13 +329,13 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
     }
 }
 
-private fun incompleteReasonString(reason: DiagnosticIncompleteReason?): Int = when (reason) {
-    DiagnosticIncompleteReason.SCALE_DISCONNECTED -> R.string.diagnostics_reason_disconnected
-    DiagnosticIncompleteReason.SESSION_SIZE_LIMIT -> R.string.diagnostics_reason_size_limit
-    DiagnosticIncompleteReason.SESSION_DURATION_LIMIT -> R.string.diagnostics_reason_duration_limit
-    DiagnosticIncompleteReason.WRITER_OVERRUN -> R.string.diagnostics_reason_writer_overrun
-    DiagnosticIncompleteReason.STORAGE_ERROR -> R.string.diagnostics_reason_storage
-    DiagnosticIncompleteReason.PROCESS_INTERRUPTED, null -> R.string.diagnostics_reason_interrupted
+private fun incompleteReasonString(reason: CaptureIncompleteReason?): Int = when (reason) {
+    CaptureIncompleteReason.SCALE_DISCONNECTED -> R.string.diagnostics_reason_disconnected
+    CaptureIncompleteReason.SESSION_SIZE_LIMIT -> R.string.diagnostics_reason_size_limit
+    CaptureIncompleteReason.SESSION_DURATION_LIMIT -> R.string.diagnostics_reason_duration_limit
+    CaptureIncompleteReason.WRITER_OVERRUN -> R.string.diagnostics_reason_writer_overrun
+    CaptureIncompleteReason.STORAGE_ERROR -> R.string.diagnostics_reason_storage
+    CaptureIncompleteReason.PROCESS_INTERRUPTED, null -> R.string.diagnostics_reason_interrupted
 }
 
 

@@ -24,7 +24,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-enum class DiagnosticIncompleteReason(val note: String) {
+enum class CaptureIncompleteReason(val note: String) {
     SCALE_DISCONNECTED("scale_disconnected"),
     SESSION_SIZE_LIMIT("session_size_limit"),
     SESSION_DURATION_LIMIT("session_duration_limit"),
@@ -33,25 +33,25 @@ enum class DiagnosticIncompleteReason(val note: String) {
     PROCESS_INTERRUPTED("process_interrupted"),
 }
 
-enum class DiagnosticRecorderError { STORAGE }
+enum class CaptureWriterError { STORAGE }
 
-sealed interface DiagnosticRecorderState {
-    data object Idle : DiagnosticRecorderState
-    data object Starting : DiagnosticRecorderState
-    data class Recording(val startedAtEpochMillis: Long) : DiagnosticRecorderState
-    data class Finalizing(val reason: DiagnosticIncompleteReason?) : DiagnosticRecorderState
+sealed interface CaptureWriterState {
+    data object Idle : CaptureWriterState
+    data object Starting : CaptureWriterState
+    data class Recording(val startedAtEpochMillis: Long) : CaptureWriterState
+    data class Finalizing(val reason: CaptureIncompleteReason?) : CaptureWriterState
     data class Ready(
         val file: File,
         val complete: Boolean,
-        val reason: DiagnosticIncompleteReason? = null,
+        val reason: CaptureIncompleteReason? = null,
         val sent: Boolean = false,
         val pending: Boolean = false,
-    ) : DiagnosticRecorderState
-    data class Failed(val reason: DiagnosticRecorderError) : DiagnosticRecorderState
+    ) : CaptureWriterState
+    data class Failed(val reason: CaptureWriterError) : CaptureWriterState
 }
 
 /** Limits apply per installation. Starting a session reserves room for its full size cap. */
-data class DiagnosticRecorderLimits(
+data class CaptureWriterLimits(
     val maxSessionBytes: Long = MAX_SESSION_BYTES,
     val queueCapacity: Int = WRITER_QUEUE_CAPACITY,
     val maxNotificationBytes: Int = MAX_NOTIFICATION_BYTES,
@@ -78,13 +78,13 @@ data class DiagnosticRecorderLimits(
  * Stores opt-in raw BLE sessions as bounded JSONL. Calls made from BLE and brew handling only copy small values and
  * use [Channel.trySend]; file I/O runs on [ioDispatcher] and cannot hold up the detector or GATT event collector.
  */
-class DiagnosticRecorder(
+class CaptureWriter(
     private val directory: File,
     private val scope: CoroutineScope,
     private val monotonicNanos: () -> Long = System::nanoTime,
     private val wallClockMillis: () -> Long = System::currentTimeMillis,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val limits: DiagnosticRecorderLimits = DiagnosticRecorderLimits(),
+    private val limits: CaptureWriterLimits = CaptureWriterLimits(),
     private val outputStream: (File, Boolean) -> OutputStream = { file, append -> FileOutputStream(file, append) },
     private val optedIn: () -> Boolean = { true },
     private val send: suspend (File, Boolean, String) -> Boolean = { _, _, _ -> false },
@@ -94,8 +94,8 @@ class DiagnosticRecorder(
 ) : Diagnostics, DiagnosticCapture {
     private val lock = Any()
     private val lifecycleLock = kotlinx.coroutines.sync.Mutex()
-    private val _state = MutableStateFlow<DiagnosticRecorderState>(DiagnosticRecorderState.Idle)
-    override val state: StateFlow<DiagnosticRecorderState> = _state.asStateFlow()
+    private val _state = MutableStateFlow<CaptureWriterState>(CaptureWriterState.Idle)
+    override val state: StateFlow<CaptureWriterState> = _state.asStateFlow()
 
     private var active: Session? = null
     private var finishing: Session? = null
@@ -105,7 +105,7 @@ class DiagnosticRecorder(
         if (!optedIn()) return@withLock false
         synchronized(lock) {
             if (active != null) return@withLock false
-            _state.value = DiagnosticRecorderState.Starting
+            _state.value = CaptureWriterState.Starting
         }
         finishingSession()?.let { it.finished.await() }
 
@@ -115,7 +115,7 @@ class DiagnosticRecorder(
             latest to (latest == null || repairInterruptedFile(latest))
         }
         if (!validPendingFile) {
-            synchronized(lock) { _state.value = DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE) }
+            synchronized(lock) { _state.value = CaptureWriterState.Failed(CaptureWriterError.STORAGE) }
             return@withLock false
         }
         if (pending != null) {
@@ -144,7 +144,7 @@ class DiagnosticRecorder(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            synchronized(lock) { _state.value = DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE) }
+            synchronized(lock) { _state.value = CaptureWriterState.Failed(CaptureWriterError.STORAGE) }
             return@withLock false
         }
 
@@ -152,19 +152,19 @@ class DiagnosticRecorder(
         val session = Session(file, startNanos, headerBytes, Channel(limits.queueCapacity))
         synchronized(lock) {
             active = session
-            _state.value = DiagnosticRecorderState.Recording(wallTime)
+            _state.value = CaptureWriterState.Recording(wallTime)
             enqueueLocked(session, Payload.Event(DiagnosticEvent.SessionStarted.note()))
         }
         scope.launch(ioDispatcher) { writeSession(session) }
         session.durationTimer = scope.launch {
             kotlinx.coroutines.delay(limits.maxDurationMillis)
-            synchronized(lock) { if (active === session) markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_DURATION_LIMIT) }
+            synchronized(lock) { if (active === session) markIncompleteLocked(session, CaptureIncompleteReason.SESSION_DURATION_LIMIT) }
         }
         true
     }
 
     /** Close the active file and wait for its bounded queue to drain; safe when called concurrently. */
-    override suspend fun stop(): DiagnosticRecorderState {
+    override suspend fun stop(): CaptureWriterState {
         val session = synchronized(lock) {
             val current = active
             if (current != null) {
@@ -191,7 +191,7 @@ class DiagnosticRecorder(
             }
             if (bytes.isEmpty()) return
             if (bytes.size > limits.maxNotificationBytes) {
-                markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_SIZE_LIMIT)
+                markIncompleteLocked(session, CaptureIncompleteReason.SESSION_SIZE_LIMIT)
                 return
             }
             if (session.droppingPartialFrame) {
@@ -231,7 +231,7 @@ class DiagnosticRecorder(
         synchronized(lock) {
             val session = active ?: return
             if (bytes.size > limits.maxNotificationBytes) {
-                markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_SIZE_LIMIT)
+                markIncompleteLocked(session, CaptureIncompleteReason.SESSION_SIZE_LIMIT)
                 return
             }
             enqueueLocked(session, Payload.Raw("tx", bytes.copyOf(), "command"))
@@ -257,7 +257,7 @@ class DiagnosticRecorder(
     override fun disconnect() {
         synchronized(lock) {
             val session = active ?: return
-            markIncompleteLocked(session, DiagnosticIncompleteReason.SCALE_DISCONNECTED)
+            markIncompleteLocked(session, CaptureIncompleteReason.SCALE_DISCONNECTED)
         }
     }
 
@@ -269,7 +269,7 @@ class DiagnosticRecorder(
         if (synchronized(lock) { active != null || finishing != null }) return@withContext
         if (!optedIn()) {
             listSessionFiles().forEach(File::delete)
-            synchronized(lock) { if (active == null) _state.value = DiagnosticRecorderState.Idle }
+            synchronized(lock) { if (active == null) _state.value = CaptureWriterState.Idle }
             return@withContext
         }
         expireOldSessions()
@@ -278,9 +278,9 @@ class DiagnosticRecorder(
         synchronized(lock) {
             // A settings screen can request refresh just as recording starts. Do not overwrite the newer state.
             val current = _state.value
-            val settled = current == DiagnosticRecorderState.Idle || current is DiagnosticRecorderState.Ready || current is DiagnosticRecorderState.Failed
+            val settled = current == CaptureWriterState.Idle || current is CaptureWriterState.Ready || current is CaptureWriterState.Failed
             if (active == null && finishing == null && settled) {
-                _state.value = recovered ?: if (latest == null) DiagnosticRecorderState.Idle else DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE)
+                _state.value = recovered ?: if (latest == null) CaptureWriterState.Idle else CaptureWriterState.Failed(CaptureWriterError.STORAGE)
             }
         }
         if (recovered != null) upload(recovered.file, recovered.complete, readSessionMode(recovered.file))
@@ -288,10 +288,10 @@ class DiagnosticRecorder(
 
     /** Remove unsent files immediately when consent is withdrawn. */
     override suspend fun clear() = withContext(ioDispatcher) {
-        synchronized(lock) { active?.let { markIncompleteLocked(it, DiagnosticIncompleteReason.PROCESS_INTERRUPTED) } }
+        synchronized(lock) { active?.let { markIncompleteLocked(it, CaptureIncompleteReason.PROCESS_INTERRUPTED) } }
         finishingSession()?.finished?.await()
         listSessionFiles().forEach(File::delete)
-        synchronized(lock) { if (active == null) _state.value = DiagnosticRecorderState.Idle }
+        synchronized(lock) { if (active == null) _state.value = CaptureWriterState.Idle }
     }
 
     private fun enqueueLocked(session: Session, payload: Payload) {
@@ -309,7 +309,7 @@ class DiagnosticRecorder(
 
     private fun enqueueLineLocked(session: Session, line: PendingLine) {
         if (session.channel.trySend(line).isFailure) {
-            markIncompleteLocked(session, DiagnosticIncompleteReason.WRITER_OVERRUN)
+            markIncompleteLocked(session, CaptureIncompleteReason.WRITER_OVERRUN)
         }
     }
 
@@ -324,7 +324,7 @@ class DiagnosticRecorder(
         session.heldLines.clear()
         held.forEach { line ->
             if (session.channel.trySend(line).isFailure) {
-                if (session.incompleteReason == null) session.incompleteReason = DiagnosticIncompleteReason.WRITER_OVERRUN
+                if (session.incompleteReason == null) session.incompleteReason = CaptureIncompleteReason.WRITER_OVERRUN
                 return false
             }
         }
@@ -332,12 +332,12 @@ class DiagnosticRecorder(
     }
 
     /** Caller holds [lock]. */
-    private fun markIncompleteLocked(session: Session, reason: DiagnosticIncompleteReason) {
+    private fun markIncompleteLocked(session: Session, reason: CaptureIncompleteReason) {
         if (session.incompleteReason == null) session.incompleteReason = reason
         finishLocked(session, session.incompleteReason)
     }
 
-    private fun finishLocked(session: Session, reason: DiagnosticIncompleteReason?) {
+    private fun finishLocked(session: Session, reason: CaptureIncompleteReason?) {
         if (active !== session) return
         if (session.pendingNotifications.isNotEmpty()) {
             discardPendingNotificationsLocked(session)
@@ -349,7 +349,7 @@ class DiagnosticRecorder(
         if (session.incompleteReason == null && reason != null) session.incompleteReason = reason
         session.endingAtMs = elapsedMsLocked(session)
         session.channel.close()
-        _state.value = DiagnosticRecorderState.Finalizing(session.incompleteReason)
+        _state.value = CaptureWriterState.Finalizing(session.incompleteReason)
     }
 
     private suspend fun writeSession(session: Session) {
@@ -361,7 +361,7 @@ class DiagnosticRecorder(
                 for (line in session.channel) {
                     val encoded = encode(line)
                     if (bytesWritten + encoded.size + limits.footerReserveBytes > limits.maxSessionBytes) {
-                        synchronized(lock) { markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_SIZE_LIMIT) }
+                        synchronized(lock) { markIncompleteLocked(session, CaptureIncompleteReason.SESSION_SIZE_LIMIT) }
                         break
                     }
                     stream.write(encoded)
@@ -387,13 +387,13 @@ class DiagnosticRecorder(
         }
 
         val reason = synchronized(lock) {
-            if (writeFailed && session.incompleteReason == null) session.incompleteReason = DiagnosticIncompleteReason.STORAGE_ERROR
+            if (writeFailed && session.incompleteReason == null) session.incompleteReason = CaptureIncompleteReason.STORAGE_ERROR
             session.incompleteReason
         }
         val result = if (session.file.isFile) {
-            DiagnosticRecorderState.Ready(session.file, complete = reason == null && !writeFailed, reason = reason)
+            CaptureWriterState.Ready(session.file, complete = reason == null && !writeFailed, reason = reason)
         } else {
-            DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE)
+            CaptureWriterState.Failed(CaptureWriterError.STORAGE)
         }
         synchronized(lock) {
             if (active === session) active = null
@@ -401,7 +401,7 @@ class DiagnosticRecorder(
             _state.value = result
         }
         session.finished.complete(Unit)
-        if (result is DiagnosticRecorderState.Ready && optedIn()) scope.launch(ioDispatcher) { upload(result.file, result.complete, session.mode) }
+        if (result is CaptureWriterState.Ready && optedIn()) scope.launch(ioDispatcher) { upload(result.file, result.complete, session.mode) }
     }
 
     private suspend fun upload(file: File, complete: Boolean, mode: String = "unknown") {
@@ -409,20 +409,20 @@ class DiagnosticRecorder(
         if (runCatching { send(file, complete, mode) }.getOrDefault(false)) {
             file.delete()
             synchronized(lock) {
-                val current = _state.value as? DiagnosticRecorderState.Ready
+                val current = _state.value as? CaptureWriterState.Ready
                 if (current?.file == file) _state.value = current.copy(sent = true, pending = false)
             }
         } else {
             synchronized(lock) {
-                val current = _state.value as? DiagnosticRecorderState.Ready
+                val current = _state.value as? CaptureWriterState.Ready
                 if (current?.file == file) _state.value = current.copy(pending = true)
             }
         }
     }
 
     private fun prepareDirectory() {
-        if (!directory.exists() && !directory.mkdirs()) throw IOException("diagnostic directory")
-        if (!directory.isDirectory) throw IOException("diagnostic directory")
+        if (!directory.exists() && !directory.mkdirs()) throw IOException("capture directory")
+        if (!directory.isDirectory) throw IOException("capture directory")
     }
 
     private fun listSessionFiles(): List<File> = directory.listFiles()
@@ -466,7 +466,7 @@ class DiagnosticRecorder(
         return jsonLine(json)
     }
 
-    private fun footer(session: Session, reason: DiagnosticIncompleteReason?): ByteArray {
+    private fun footer(session: Session, reason: CaptureIncompleteReason?): ByteArray {
         val at = synchronized(lock) { session.endingAtMs ?: elapsedMsLocked(session) }
         val json = JSONObject()
             .put("t_ms", at)
@@ -487,15 +487,15 @@ class DiagnosticRecorder(
         return session.lastElapsedMs
     }
 
-    private fun readSessionStatus(file: File): DiagnosticRecorderState.Ready {
+    private fun readSessionStatus(file: File): CaptureWriterState.Ready {
         val finalLine = runCatching { file.useLines { it.lastOrNull() } }.getOrNull()
         val footer = runCatching { finalLine?.let(::JSONObject) }.getOrNull()
         val complete = footer?.optString("note") == "session_end" && footer.optBoolean("complete", false)
         val reason = if (complete) null else {
             val encoded = footer?.optString("reason").orEmpty()
-            DiagnosticIncompleteReason.entries.firstOrNull { it.note == encoded } ?: DiagnosticIncompleteReason.PROCESS_INTERRUPTED
+            CaptureIncompleteReason.entries.firstOrNull { it.note == encoded } ?: CaptureIncompleteReason.PROCESS_INTERRUPTED
         }
-        return DiagnosticRecorderState.Ready(file, complete, reason)
+        return CaptureWriterState.Ready(file, complete, reason)
     }
 
     private fun readSessionMode(file: File): String = runCatching {
@@ -534,7 +534,7 @@ class DiagnosticRecorder(
                     .put("hex", "")
                     .put("note", "session_incomplete")
                     .put("complete", false)
-                    .put("reason", DiagnosticIncompleteReason.PROCESS_INTERRUPTED.note)
+                    .put("reason", CaptureIncompleteReason.PROCESS_INTERRUPTED.note)
                 stream.write((footer.toString() + "\n").toByteArray(Charsets.UTF_8))
             }
             true
@@ -554,7 +554,7 @@ class DiagnosticRecorder(
         var nextSequence = 0L
         var lastElapsedMs = 0L
         var endingAtMs: Long? = null
-        var incompleteReason: DiagnosticIncompleteReason? = null
+        var incompleteReason: CaptureIncompleteReason? = null
         var mode = "unknown"
         val pendingNotifications = mutableListOf<PendingLine>()
         val heldLines = mutableListOf<PendingLine>()
@@ -583,7 +583,7 @@ class DiagnosticRecorder(
     companion object {
         const val FORMAT_NAME = "caparao-diagnostic-jsonl"
         const val FORMAT_VERSION = 2
-        private const val FILE_PREFIX = "diagnostic-"
+        private const val FILE_PREFIX = "capture-"
         private const val FILE_SUFFIX = ".jsonl"
         private const val FLUSH_EVERY_LINES = 8
         private const val MAX_PENDING_AGE_MILLIS = 7 * 24 * 60 * 60 * 1000L
