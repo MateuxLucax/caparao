@@ -410,7 +410,6 @@ abstract class ScreenFrenchPressTests(lang: String, theme: String, compactOnly: 
         )
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.guide_press_serve)), 5_000)
     }
-
 }
 
 @Config(qualifiers = "en-w411dp-h891dp-notnight-xxhdpi")

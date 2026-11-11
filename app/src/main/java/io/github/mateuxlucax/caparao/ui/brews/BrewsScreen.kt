@@ -1,6 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -128,8 +128,7 @@ private fun BrewRow(brew: Brew, shape: Shape, onClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
     Card(
-        // Consuming a long press prevents it from registering as a tap without starting a selection mode.
-        modifier = Modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = {}),
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
         shape = shape,
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

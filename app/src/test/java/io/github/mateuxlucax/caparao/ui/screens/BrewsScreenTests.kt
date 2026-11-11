@@ -177,12 +177,14 @@ abstract class ScreenBrewsTests(lang: String, theme: String, compactOnly: Boolea
             )
         }
         compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
+        // A long press no longer starts a selection mode; it opens the detail like a tap.
         row(250.0).performTouchInput { longClick() }
-        compose.waitForIdle()
+        waitFor(R.string.delete)
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
+        // A tap still opens the detail.
         row(250.0).performClick()
         waitFor(R.string.delete)
-        compose.onNodeWithText("Compare with last").assertDoesNotExist()
-        compose.onNodeWithText("Trends").assertDoesNotExist()
         compose.onNodeWithText(text(R.string.brew_notes)).assertExists()
         compose.waitForIdle()
     }
