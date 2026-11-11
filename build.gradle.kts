@@ -11,6 +11,7 @@ buildscript {
 
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     // Room's annotation processor (#88, 2026-10 amendment).
     alias(libs.plugins.ksp) apply false
     // R8 mapping upload for the release build only (#333); the app module applies it.

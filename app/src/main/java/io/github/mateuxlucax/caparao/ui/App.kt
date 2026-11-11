@@ -14,8 +14,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,10 +33,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.ViewModelStoreNavEntryDecorator
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.ui.brew.BrewScreen
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -57,6 +67,7 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import kotlinx.serialization.Serializable
 
 /** The bottom-bar tabs, in order. */
 enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int) {
@@ -77,19 +88,29 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
 @Composable
 fun App(
     viewModelFactory: ViewModelProvider.Factory,
+    scale: ScaleSource,
     onboardingDone: Boolean,
     actions: AppActions,
     versionName: String,
     shortcut: LauncherShortcut? = null,
     onShortcutConsumed: () -> Unit = {},
+    entryStoreProvider: ViewModelStoreProvider? = null,
 ) {
+    LifecycleStartEffect(scale) {
+        scale.start()
+        onStopOrDispose { scale.stop() }
+    }
+    LifecycleResumeEffect(scale) {
+        scale.start()
+        onPauseOrDispose {}
+    }
     var onboarded by rememberSaveable { mutableStateOf(onboardingDone) }
     if (!onboarded) {
         OnboardingScreen(viewModel(factory = viewModelFactory), viewModel(key = "server-onboarding", factory = viewModelFactory), actions) {
             onboarded = true
         }
     } else {
-        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed)
+        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed, entryStoreProvider)
     }
 }
 
@@ -101,129 +122,111 @@ private fun Main(
     versionName: String,
     shortcut: LauncherShortcut?,
     onShortcutConsumed: () -> Unit,
+    entryStoreProvider: ViewModelStoreProvider?,
 ) {
-    var brewing by rememberSaveable { mutableStateOf<BrewMode?>(null) }
-    var opened by rememberSaveable { mutableStateOf<String?>(null) }
-    // A coffee bag open over the tabs (#290); a brew opened from it goes on top and comes back to it.
-    var coffee by rememberSaveable { mutableStateOf<String?>(null) }
-    // "edit:<id>" or "new:<mode>", saveable as a string.
-    var editing by rememberSaveable { mutableStateOf<String?>(null) }
-    // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    // The brew screen on top of the tabs, registered by it: a shortcut checks it before closing anything.
-    // Dropped when that screen goes away, by close() or by leaving the composition, but never over a newer
-    // registration: AnimatedContent still keeps the outgoing brew composed during the transition.
+    val backStack = rememberNavBackStack(Destination.Tabs)
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
-    // Each destination's ViewModels, held by the activity so a rotation keeps them; a destination that leaves for
-    // good is cleared once its exit transition ends (#310).
-    val stores = viewModel<DestinationStores>(key = DestinationStores.KEY)
-    // What closing the current screen goes back to, deepest first: a destination still on this path stays open (and
-    // keeps its ViewModels) while a deeper one is on screen, and is released only when it is not here any more.
-    val openDestinations = remember {
-        {
-            buildList {
-                add(Destination.Tabs)
-                coffee?.let { add(Destination.Coffee(it)) }
-                brewing?.let { add(Destination.Brew(it)) }
-                opened?.let { add(Destination.Detail(it)) }
-                editing?.let { add(Destination.Recipe(it)) }
-            }
-        }
+    var shortcutTab by remember { mutableStateOf<Tab?>(null) }
+    val density = LocalDensity.current
+    val viewModelStoreDecorator: ViewModelStoreNavEntryDecorator<NavKey> = if (entryStoreProvider == null) {
+        rememberViewModelStoreNavEntryDecorator()
+    } else {
+        rememberViewModelStoreNavEntryDecorator(entryStoreProvider)
     }
+
+    fun clearToTabs() {
+        while (backStack.size > 1) backStack.removeLastOrNull()
+    }
+
     LaunchedEffect(shortcut) {
         val requested = shortcut?.destination ?: return@LaunchedEffect
         val open = openBrew.value
-        // A brew in progress is never interrupted: the shortcut is consumed and the brew stays, whichever one it was.
-        if (open?.running() == true) {
+        if (
+            open?.running() == true ||
+            requested is ShortcutDestination.Brew && requested.mode == (backStack.lastOrNull() as? Destination.Brew)?.mode
+        ) {
             onShortcutConsumed()
             return@LaunchedEffect
         }
-        // The open mode keeps its screen, its ViewModel and its scale listener instead of being ended and reopened.
-        if (open != null && requested == ShortcutDestination.Brew(open.mode)) {
-            onShortcutConsumed()
-            return@LaunchedEffect
-        }
-        opened = null
-        editing = null
-        if (open != null) open.close() else brewing = null
+
+        open?.close()
+        clearToTabs()
         when (requested) {
-            is ShortcutDestination.Brew -> brewing = requested.mode
-            ShortcutDestination.Brews -> tab = Tab.BREWS
-            ShortcutDestination.Home -> tab = Tab.HOME
-        }
-        onShortcutConsumed()
-    }
-    val destination = editing?.let { Destination.Recipe(it) }
-        ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) }
-        ?: coffee?.let { Destination.Coffee(it) } ?: Destination.Tabs
-    val density = LocalDensity.current
-    // Deeper destinations come in from the right and go back out to the left, whichever screen they open over.
-    AnimatedContent(destination, transitionSpec = { Motion.sharedAxisX(targetState.depth > initialState.depth, density) }, label = "screen") { shown ->
-        val key = shown.storeKey
-        CompositionLocalProvider(LocalViewModelStoreOwner provides stores.owner(key)) {
-            // Runs when the exit transition has finished and the screen is gone, not while it is merely hidden under a
-            // deeper one: the destination then still sits on the path to the tabs (#310).
-            DisposableEffect(shown) {
-                onDispose { if (shown !in openDestinations()) stores.release(key) }
+            is ShortcutDestination.Brew -> {
+                backStack.add(Destination.Brew(requested.mode))
+                onShortcutConsumed()
             }
-            when (shown) {
-                is Destination.Detail -> {
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
-                    BrewDetailScreen(
-                        viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
-                        onClose = { opened = null },
-                    )
-                }
-                is Destination.Brew -> {
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
-                    // One ViewModel per mode, begun when the screen opens and ended when it closes, so a closed brew never keeps
-                    // listening to the scale; a rotation keeps the brew going.
-                    val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
-                    val close = remember(brew) {
-                        {
-                            brew.end()
-                            brewing = null
-                            openBrew.value = null
-                        }
-                    }
-                    LaunchedEffect(brew) { brew.begin() }
-                    // Registers this brew screen for the shortcut above. Its disposal drops the entry only while it is
-                    // still the current one: a newer brew registers during the transition, before the outgoing screen
-                    // goes away.
-                    DisposableEffect(brew) {
-                        val open = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
-                        openBrew.value = open
-                        onDispose { if (openBrew.value === open) openBrew.value = null }
-                    }
-                    BrewScreen(brew, onClose = close)
-                }
-                is Destination.Coffee -> {
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
-                    CoffeeBagDetailScreen(
-                        viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
-                        viewModel(factory = viewModelFactory),
-                        onOpenBrew = { opened = it },
-                        onClose = { coffee = null },
-                    )
-                }
-                is Destination.Recipe -> {
-                    val target = shown.key.split(':', limit = 2).let { (kind, value) ->
-                        if (kind == "edit") RecipeEditorViewModel.Target.Edit(value) else RecipeEditorViewModel.Target.New(BrewMode.valueOf(value))
-                    }
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, target) }
-                    RecipeEditorScreen(viewModel(key = "recipe-${shown.key}", factory = viewModelFactory, extras = extras)) { editing = null }
-                }
-                Destination.Tabs -> Tabs(
-                    viewModelFactory, actions, versionName, tab,
-                    onTab = { tab = it },
-                    onBrew = { brewing = it },
-                    onOpen = { opened = it },
-                    onRecipe = { editing = it },
-                    onCoffee = { coffee = it },
+            ShortcutDestination.Home -> shortcutTab = Tab.HOME
+            ShortcutDestination.Brews -> shortcutTab = Tab.BREWS
+        }
+    }
+
+    NavDisplay(
+        backStack = backStack,
+        onBack = {
+            if (backStack.lastOrNull() is Destination.Brew) openBrew.value?.close() ?: backStack.removeLastOrNull()
+            else backStack.removeLastOrNull()
+        },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            viewModelStoreDecorator,
+        ),
+        entryProvider = entryProvider {
+            entry<Destination.Tabs> {
+                Tabs(
+                    viewModelFactory, actions, versionName, shortcutTab,
+                    onShortcutTabConsumed = { shortcutTab = null; onShortcutConsumed() },
+                    onBrew = { backStack.add(Destination.Brew(it)) },
+                    onOpen = { backStack.add(Destination.Detail(it)) },
+                    onRecipe = { backStack.add(Destination.Recipe(it)) },
+                    onCoffee = { backStack.add(Destination.Coffee(it)) },
                 )
             }
-        }
-    }
+            entry<Destination.Brew> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
+                val brew: BrewViewModel = viewModel(key = "brew-${shown.mode.name}", factory = viewModelFactory, extras = extras)
+                val close = remember(brew) {
+                    {
+                        brew.end()
+                        backStack.removeLastOrNull()
+                        openBrew.value = null
+                    }
+                }
+                LaunchedEffect(brew) { brew.begin() }
+                DisposableEffect(brew) {
+                    val open = OpenBrew(shown.mode, running = { brew.uiState.value.phase == BrewPhase.BREWING || brew.uiState.value.phase == BrewPhase.PAUSED }, close = close)
+                    openBrew.value = open
+                    onDispose { if (openBrew.value === open) openBrew.value = null }
+                }
+                BrewScreen(brew, onClose = close)
+            }
+            entry<Destination.Detail> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
+                BrewDetailScreen(
+                    viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onClose = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<Destination.Coffee> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
+                CoffeeBagDetailScreen(
+                    viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
+                    viewModel(factory = viewModelFactory),
+                    onOpenBrew = { backStack.add(Destination.Detail(it)) },
+                    onClose = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<Destination.Recipe> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(RecipeEditorViewModel.TARGET, shown.target) }
+                RecipeEditorScreen(viewModel(key = "recipe-${shown.target}", factory = viewModelFactory, extras = extras)) {
+                    backStack.removeLastOrNull()
+                }
+            }
+        },
+        transitionSpec = { Motion.sharedAxisX(forward = true, density) },
+        popTransitionSpec = { Motion.sharedAxisX(forward = false, density) },
+        predictivePopTransitionSpec = { Motion.sharedAxisX(forward = false, density) },
+    )
 }
 
 /**
@@ -232,36 +235,15 @@ private fun Main(
  */
 private class OpenBrew(val mode: BrewMode, val running: () -> Boolean, val close: () -> Unit)
 
-/** What fills the screen under [Main]. */
-internal sealed interface Destination {
-    data object Tabs : Destination
-    data class Brew(val mode: BrewMode) : Destination
-    data class Detail(val id: String) : Destination
-    data class Recipe(val key: String) : Destination
-    data class Coffee(val id: String) : Destination
+/** Each entry's key is saved by Navigation 3 across rotation and process recreation. */
+@Serializable
+internal sealed interface Destination : NavKey {
+    @Serializable data object Tabs : Destination
+    @Serializable data class Brew(val mode: BrewMode) : Destination
+    @Serializable data class Detail(val id: String) : Destination
+    @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
+    @Serializable data class Coffee(val id: String) : Destination
 }
-
-/**
- * The key of this destination's [DestinationStores] entry, one per open screen: the same brew, bag or recipe reopened
- * later gets a fresh entry, while a destination still on the back path keeps the one it has (#310).
- */
-internal val Destination.storeKey: String
-    get() = when (this) {
-        Destination.Tabs -> "tabs"
-        is Destination.Brew -> "brew-${mode.name}"
-        is Destination.Detail -> "detail-$id"
-        is Destination.Recipe -> "recipe-$key"
-        is Destination.Coffee -> "coffee-$id"
-    }
-
-/**
- * How far a destination is from the tabs, so closing it moves back through the same path it opened from.
- */
-internal val Destination.depth: Int
-    get() = when (this) {
-        Destination.Tabs -> 0
-        else -> 1
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -269,13 +251,17 @@ private fun Tabs(
     viewModelFactory: ViewModelProvider.Factory,
     actions: AppActions,
     versionName: String,
-    tab: Tab,
-    onTab: (Tab) -> Unit,
+    shortcutTab: Tab?,
+    onShortcutTabConsumed: () -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
-    onRecipe: (String) -> Unit,
+    onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
 ) {
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    LaunchedEffect(shortcutTab) {
+        shortcutTab?.let { tab = it; onShortcutTabConsumed() }
+    }
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
     Scaffold(
@@ -290,7 +276,7 @@ private fun Tabs(
                 Tab.entries.forEach { entry ->
                     ShortNavigationBarItem(
                         selected = tab == entry,
-                        onClick = { onTab(entry) },
+                        onClick = { tab = entry },
                         icon = { Icon(painterResource(entry.icon), contentDescription = null) },
                         label = { Text(stringResource(entry.label)) },
                     )
@@ -304,12 +290,12 @@ private fun Tabs(
                 Tab.HOME -> HomeScreen(scale, actions, onBrew, modifier)
                 Tab.RECIPES -> RecipesScreen(
                     viewModel(factory = viewModelFactory),
-                    onOpen = { onRecipe("edit:${it.id}") },
-                    onNew = { onRecipe("new:${it.name}") },
+                    onOpen = { onRecipe(RecipeEditorViewModel.Target.Edit(it.id)) },
+                    onNew = { onRecipe(RecipeEditorViewModel.Target.New(it)) },
                     modifier,
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier = modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     viewModel(key = "server-settings", factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
@@ -36,9 +37,10 @@ class RecipeEditorViewModel(
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : ViewModel() {
     /** A recipe to edit, or a new one in a mode. */
+    @Serializable
     sealed interface Target {
-        data class Edit(val id: String) : Target
-        data class New(val mode: BrewMode) : Target
+        @Serializable data class Edit(val id: String) : Target
+        @Serializable data class New(val mode: BrewMode) : Target
     }
 
     private var existing: Recipe? = null

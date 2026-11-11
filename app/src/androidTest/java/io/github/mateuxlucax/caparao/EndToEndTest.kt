@@ -3,7 +3,6 @@ package io.github.mateuxlucax.caparao
 import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasClickAction
@@ -13,32 +12,29 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.printToLog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
-import io.github.mateuxlucax.caparao.model.BrewMode
-import io.github.mateuxlucax.caparao.ui.DestinationStores
+import io.github.mateuxlucax.caparao.ui.Destination
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brew.GuideAlert
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -46,6 +42,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 
@@ -64,11 +61,11 @@ class EndToEndTest {
 
     private fun text(id: Int) = context.getString(id)
 
-    /** The brew screen's ViewModel, which lives in its destination store since #310. */
-    private fun MainActivity.brewViewModel(mode: String): BrewViewModel? =
-        (viewModelStore.get(DestinationStores.KEY) as? DestinationStores)
-            ?.viewModels("brew-$mode")
-            ?.get("brew-$mode") as? BrewViewModel
+    /** Read the active brew ViewModel through its Navigation 3 entry owner. */
+    private fun MainActivity.brewViewModel(mode: BrewMode): BrewViewModel? {
+        val owner = navEntryStoreProvider.getOrCreateOwner(Destination.Brew(mode))
+        return androidx.lifecycle.ViewModelProvider(owner).get("brew-${mode.name}", BrewViewModel::class.java)
+    }
 
     @Test
     fun anEspressoReachesTheServer() {
@@ -86,24 +83,8 @@ class EndToEndTest {
             val replay = (context.applicationContext as CaparaoApplication).container.scale as ReplayScaleSource
             fun brewState(): BrewUiState? {
                 val state = AtomicReference<BrewUiState?>()
-                scenario.onActivity { activity ->
-                    state.set(activity.brewViewModel("ESPRESSO")?.uiState?.value)
-                }
+                scenario.onActivity { activity -> state.set(activity.brewViewModel(BrewMode.ESPRESSO)?.uiState?.value) }
                 return state.get()
-            }
-            fun semanticsSnapshot(): String {
-                val markers = listOf(
-                    R.string.ratio_caption,
-                    R.string.weigh_beans_title,
-                    R.string.prepare_portafilter_title,
-                    R.string.prepare_ready,
-                    R.string.tare,
-                    R.string.cup_on,
-                    R.string.brew_saved,
-                ).filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
-                    .map { text(it) }
-                val weighNext = compose.onAllNodes(hasTestTag("weigh-step-next")).fetchSemanticsNodes()
-                return "visible=$markers, weighNextCount=${weighNext.size}, weighNextConfig=${weighNext.joinToString { it.config.toString() }}"
             }
             compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 10_000)
             compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
@@ -113,8 +94,6 @@ class EndToEndTest {
             compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             // The replay has not started, so Next keeps the planned 18 g dose.
             val beforeNext = brewState()
-            val beforeSemantics = semanticsSnapshot()
-            compose.onRoot(useUnmergedTree = true).printToLog("E2E-before-weigh-next")
             val weighNext = compose.onNodeWithTag("weigh-step-next").assertIsEnabled()
             val weighNextBounds = weighNext.fetchSemanticsNode().boundsInRoot
             assertTrue(
@@ -123,17 +102,10 @@ class EndToEndTest {
             )
             weighNext.assertIsDisplayed().performClick()
             val afterNext = brewState()
-            val afterSemantics = semanticsSnapshot()
-            compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next")
             compose.waitForIdle()
             val afterIdle = brewState()
-            compose.onRoot(useUnmergedTree = true).printToLog("E2E-after-weigh-next-idle")
             if (afterIdle?.step != BrewStep.PREPARE_PORTAFILTER) {
-                throw AssertionError(
-                    "Weigh Next did not enter portafilter preparation: before=${describe(beforeNext)} ($beforeSemantics), " +
-                        "afterClick=${describe(afterNext)} ($afterSemantics), " +
-                        "afterIdle=${describe(afterIdle)} (${semanticsSnapshot()})",
-                )
+                throw AssertionError("Weigh Next did not enter portafilter preparation: before=$beforeNext, afterClick=$afterNext, afterIdle=$afterIdle")
             }
             compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 10_000)
             val readyButton = compose.onNodeWithTag("portafilter-ready").assertIsEnabled().assertIsDisplayed()
@@ -206,10 +178,10 @@ class EndToEndTest {
         try {
             // The shortcut opens the built-in French press recipe, whose water is the control (no ratio caption).
             compose.waitUntilAtLeastOneExists(hasText("French press") and isSelectable(), 10_000)
-            val brewViewModel = activity.brewViewModel("FRENCH_PRESS")
+            val brewViewModel = activity.brewViewModel(BrewMode.FRENCH_PRESS)
             viewModel.set(brewViewModel)
             if (brewViewModel != null) alertScope.launch { brewViewModel.alerts.collect(alerts::add) }
-            assertNotNull("French press view model is created with the dose screen", viewModel.get())
+            assertNotNull("French press ViewModel is created in its entry", viewModel.get())
             compose.onNodeWithText(text(R.string.next)).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 10_000)
             compose.onNodeWithTag("weigh-step-next").assertIsEnabled().performClick()
@@ -227,10 +199,8 @@ class EndToEndTest {
                 val state = viewModel.get()?.uiState?.value
                 throw AssertionError(
                     "French press removal guide did not appear: replayMs=${replay.nowMs}, " +
-                        "scale=${replay.state.value}, reading=${replay.reading.value}, " +
-                        "step=${state?.step}, phase=${state?.phase}, elapsedMs=${state?.elapsedMs}, " +
-                        "recipe=${state?.recipe?.name}, recipeSteps=${state?.recipe?.steps}, " +
-                        "guide=${state?.guide}, saved=${state?.saved != null}",
+                        "scale=${replay.state.value}, reading=${replay.reading.value}, step=${state?.step}, phase=${state?.phase}, " +
+                        "elapsedMs=${state?.elapsedMs}, recipe=${state?.recipe?.name}, guide=${state?.guide}",
                     removalGuideError,
                 )
             }
@@ -243,6 +213,7 @@ class EndToEndTest {
             assertEquals(BrewStep.LIVE, viewModel.get()?.uiState?.value?.step)
             assertEquals(BrewPhase.BREWING, viewModel.get()?.uiState?.value?.phase)
             assertEquals(300.0, viewModel.get()?.uiState?.value?.weightGrams ?: 0.0, 0.5)
+            assertEquals(300.0, replay.reading.value?.weightGrams ?: 0.0, 0.5)
             val finishAlerts = alerts.filter { it.event == StepEvent.FrenchPressDeadline }
             assertEquals(1, finishAlerts.size)
             assertTrue(finishAlerts.single().vibrate)
@@ -292,7 +263,6 @@ class EndToEndTest {
     }
 
     private fun describe(state: BrewUiState?): String = state?.let {
-        "step=${it.step}, phase=${it.phase}, dose=${it.dose}, connected=${it.connected}, " +
-            "weight=${it.weightGrams}, saved=${it.saved != null}"
+        "step=${it.step}, phase=${it.phase}, dose=${it.dose}, connected=${it.connected}, weight=${it.weightGrams}, saved=${it.saved != null}"
     } ?: "missing"
 }
