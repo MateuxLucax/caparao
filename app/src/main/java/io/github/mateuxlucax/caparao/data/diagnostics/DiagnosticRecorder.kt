@@ -4,6 +4,7 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -118,8 +119,9 @@ class DiagnosticRecorder(
             return@withLock false
         }
         if (pending != null) {
-            val status = readSessionStatus(pending)
-            upload(pending, status.complete, readSessionMode(pending))
+            val status = withContext(ioDispatcher) {
+                readSessionStatus(pending).also { upload(pending, it.complete, readSessionMode(pending)) }
+            }
             if (pending.exists()) {
                 synchronized(lock) { _state.value = status.copy(pending = true) }
                 return@withLock false
@@ -154,7 +156,7 @@ class DiagnosticRecorder(
             enqueueLocked(session, Payload.Event(DiagnosticEvent.SessionStarted.note()))
         }
         scope.launch(ioDispatcher) { writeSession(session) }
-        scope.launch {
+        session.durationTimer = scope.launch {
             kotlinx.coroutines.delay(limits.maxDurationMillis)
             synchronized(lock) { if (active === session) markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_DURATION_LIMIT) }
         }
@@ -342,6 +344,7 @@ class DiagnosticRecorder(
         }
         flushHeldLocked(session)
         active = null
+        session.durationTimer?.cancel()
         finishing = session
         if (session.incompleteReason == null && reason != null) session.incompleteReason = reason
         session.endingAtMs = elapsedMsLocked(session)
@@ -547,6 +550,7 @@ class DiagnosticRecorder(
         val channel: Channel<PendingLine>,
     ) {
         val finished = CompletableDeferred<Unit>()
+        var durationTimer: Job? = null
         var nextSequence = 0L
         var lastElapsedMs = 0L
         var endingAtMs: Long? = null

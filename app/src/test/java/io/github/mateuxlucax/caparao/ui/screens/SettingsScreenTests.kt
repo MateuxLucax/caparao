@@ -173,10 +173,12 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     @Test
     fun diagnosticsCopyNamesUploadedData() {
         openDiagnosticsCard(optedIn = false)
-        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_text)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertIsDisplayed()
         compose.onNodeWithTag("diagnostics-opt-in").performClick()
         waitFor(R.string.capture_start)
+        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
     }
 
@@ -191,6 +193,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         openDiagnosticsCard()
         diagnosticsAction(R.string.capture_start)
         waitFor(R.string.capture_running)
+        compose.onNodeWithText(context.getString(R.string.capture_elapsed, 0, 0)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.capture_stop)).performScrollTo().assertIsDisplayed()
     }
 

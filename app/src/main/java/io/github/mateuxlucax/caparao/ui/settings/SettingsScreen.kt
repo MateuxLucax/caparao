@@ -29,6 +29,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
@@ -242,7 +244,7 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
             onCheckedChange = viewModel::setOptedIn,
         )
     }
-    Text(stringResource(R.string.diagnostics_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(if (state.optedIn) R.string.diagnostics_text else R.string.diagnostics_off_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     AnimatedVisibility(
         visible = state.optedIn,
         enter = fadeIn(Motion.standardOrSnap(still)) + expandVertically(Motion.standardOrSnap(still)),
@@ -273,6 +275,16 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
+            }
+            if (recorder is DiagnosticRecorderState.Recording) {
+                var elapsedSeconds by remember(recorder.startedAtEpochMillis) { mutableStateOf(0L) }
+                LaunchedEffect(recorder.startedAtEpochMillis) {
+                    while (true) {
+                        elapsedSeconds = ((System.currentTimeMillis() - recorder.startedAtEpochMillis) / 1000).coerceAtLeast(0)
+                        delay(1_000)
+                    }
+                }
+                Text(stringResource(R.string.capture_elapsed, elapsedSeconds / 60, elapsedSeconds % 60))
             }
             if (recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
                 Text(
