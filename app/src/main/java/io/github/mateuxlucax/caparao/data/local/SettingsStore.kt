@@ -67,15 +67,6 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_GUIDE_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_GUIDE_SOUND, value).apply()
 
-    /** Caparaó's own colors instead of the system's Material You (#108); off by default. */
-    var brandColors: Boolean
-        get() = prefs.getBoolean(KEY_BRAND_COLORS, false)
-        set(value) = prefs.edit().putBoolean(KEY_BRAND_COLORS, value).apply()
-
-    /** [brandColors] now and after every change, so the theme switches at once. */
-    val brandColorsChanges: Flow<Boolean>
-        get() = prefs.changes(setOf(KEY_BRAND_COLORS)).map { brandColors }.distinctUntilChanged()
-
     /**
      * Opt-in remote diagnostics (#333), off by default and independent of the upload server. The Settings UI is #334;
      * until then only tests flip it. Turning it on records [remoteDiagnosticsConsentMs].
@@ -149,7 +140,6 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_GUIDE_VIBRATION = "guide_vibration"
         private const val KEY_GUIDE_VIBRATION_ON = "guide_vibration_on"
         private const val KEY_GUIDE_SOUND = "guide_sound"
-        private const val KEY_BRAND_COLORS = "brand_colors"
         private const val KEY_REMOTE_DIAGNOSTICS = "remote_diagnostics"
         private const val KEY_REMOTE_DIAGNOSTICS_CONSENT = "remote_diagnostics_consent_ms"
         private const val KEY_TARGET_RATIO = "target_ratio_"

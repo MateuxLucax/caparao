@@ -39,7 +39,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 - **Your data:** brews go to any server that follows the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).
 - **Export:** recipes and brews as CSV, or brews as JSON in the upload format, in a zip through the share sheet.
-- **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
+- **Material 3 Expressive:** Roboto Flex, Material You colors in light and dark themes.
 
 The screens above are emulator captures with a scripted scale standing in for the Dot.
 

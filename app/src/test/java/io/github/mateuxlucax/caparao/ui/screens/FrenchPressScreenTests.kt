@@ -2,6 +2,8 @@ package io.github.mateuxlucax.caparao.ui.screens
 import android.content.Context
 import android.os.Looper
 import android.provider.Settings
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.luminance
 import io.github.mateuxlucax.caparao.ui.components.PressArt
@@ -119,7 +121,6 @@ import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -401,7 +402,7 @@ abstract class ScreenFrenchPressTests(lang: String, theme: String, compactOnly: 
         compose.onAllNodesWithText(text(R.string.guide_remove_press)).assertCountEquals(0)
         compose.onAllNodesWithText(text(R.string.guide_time_up)).assertCountEquals(0)
         val bitmap = compose.onNodeWithTag("brew-screen").captureToImage().asAndroidBitmap()
-        val deadlineColors = listOf(BrandColor.LEAF.light.errorContainer, BrandColor.LEAF.dark.errorContainer).map { it.toArgb() }
+        val deadlineColors = listOf(dynamicLightColorScheme(context).errorContainer, dynamicDarkColorScheme(context).errorContainer).map { it.toArgb() }
         assertTrue(
             "the deadline error color is off while the press is being confirmed",
             (0 until bitmap.height).none { y -> (0 until bitmap.width).any { x -> bitmap.getPixel(x, y) in deadlineColors } },

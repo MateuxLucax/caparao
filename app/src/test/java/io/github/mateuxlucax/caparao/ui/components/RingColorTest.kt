@@ -1,19 +1,26 @@
 package io.github.mateuxlucax.caparao.ui.components
 
+import android.content.Context
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.test.core.app.ApplicationProvider
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.luminance
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-/** The ring's ±5% band and the greens it wears in each theme (#192). */
+/** The ring's ±5% band and the containers it wears in each theme (#192). */
+@RunWith(RobolectricTestRunner::class)
 class RingColorTest {
-    private val light = BrandColor.LEAF.light
-    private val dark = BrandColor.LEAF.dark
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val light = dynamicLightColorScheme(context)
+    private val dark = dynamicDarkColorScheme(context)
 
     @Test
     fun bothEdgesOfTheBandStayPrimary() {
@@ -34,7 +41,7 @@ class RingColorTest {
     }
 
     @Test
-    fun shortOfTheBandWearsTheLightGreenAndTheDarkThemeTheMutedOne() {
+    fun shortOfTheBandWearsTheMutedContainerOfEachTheme() {
         assertEquals(light.primaryContainer, light.ringStroke(TargetBand.BELOW, dark = false))
         assertEquals(dark.primaryContainer, dark.ringStroke(TargetBand.BELOW, dark = true))
         assertEquals(light.primary, light.ringStroke(TargetBand.AT, dark = false))

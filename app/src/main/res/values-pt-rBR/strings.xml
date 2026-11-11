@@ -256,7 +256,6 @@
     <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
-    <string name="section_colors">Cores</string>
     <string name="section_data">Dados</string>
     <string name="section_data_text">Exporte suas receitas e preparos em CSV e JSON.</string>
     <string name="export">Exportar</string>
@@ -283,7 +282,6 @@
     <string name="diagnostics_reason_writer_overrun">O armazenamento não acompanhou. Inicie outra gravação.</string>
     <string name="diagnostics_reason_storage">Erro de armazenamento. Libere espaço e inicie outra gravação.</string>
     <string name="diagnostics_reason_interrupted">O app foi fechado antes do fim. Inicie outra gravação.</string>
-    <string name="colors_system">Sistema</string>
     <string name="section_guide_alerts">Alertas do preparo</string>
     <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. No espresso, ao detectar a xícara, ao tarar, na primeira gota e ao chegar no alvo.</string>
     <string name="guide_vibration">Vibrar</string>

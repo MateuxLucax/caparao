@@ -22,7 +22,6 @@ import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.AppActions
 import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CompletableDeferred
@@ -78,9 +77,8 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) lifecycleScope.launch { container.uploads.ensurePending() }
         keepScreenOnWhileConnected()
         setContent {
-            val brandColors by container.settings.brandColorsChanges.collectAsStateWithLifecycle(container.settings.brandColors)
             val shortcut by requestedShortcut.collectAsStateWithLifecycle()
-            AppTheme(BrandColor.LEAF.takeIf { brandColors }) {
+            AppTheme {
                 App(
                     container.viewModelFactory,
                     container.settings.onboardingDone,

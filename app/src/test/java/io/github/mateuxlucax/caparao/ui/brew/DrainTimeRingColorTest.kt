@@ -1,14 +1,20 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
+import android.content.Context
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.test.core.app.ApplicationProvider
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.contrast
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@RunWith(RobolectricTestRunner::class)
 class DrainTimeRingColorTest {
     @Test
     fun drainBarUsesRingColorsAndReadableTextInBothThemes() {
@@ -17,7 +23,8 @@ class DrainTimeRingColorTest {
             BrewUiState.Window.INSIDE to TargetBand.AT,
             BrewUiState.Window.PAST to TargetBand.ABOVE,
         )
-        for ((scheme, dark) in listOf(BrandColor.LEAF.light to false, BrandColor.LEAF.dark to true)) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        for ((scheme, dark) in listOf(dynamicLightColorScheme(context) to false, dynamicDarkColorScheme(context) to true)) {
             for ((window, band) in cases) {
                 val actual = drainTimeRingColors(scheme, window, dark)
                 assertEquals("$window in dark=$dark", scheme.ringStroke(band, dark), actual.stroke)

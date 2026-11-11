@@ -119,7 +119,6 @@ import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
-import io.github.mateuxlucax.caparao.ui.theme.BrandColor
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -355,7 +354,6 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText("Caparaó natural", substring = true).assertIsDisplayed()
     }
 
-    /** The home tab in each brand color (#108). */
     /** H1: plain http to a public host is refused, with the fix under the field, and nothing is sent. */
 }
 

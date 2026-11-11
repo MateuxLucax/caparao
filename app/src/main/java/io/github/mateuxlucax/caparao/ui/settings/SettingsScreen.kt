@@ -61,7 +61,7 @@ import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order, then the target ratios, the guide's alerts and the colors. */
+/** Server, permissions and scale, in the wireframe's order, then the guide's alerts. */
 @Composable
 fun SettingsScreen(
     server: ServerViewModel,
@@ -82,7 +82,6 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
         SectionCard(stringResource(R.string.section_data)) { DataSection(export) }
-        SectionCard(stringResource(R.string.section_colors)) { ColorsSection(targets) }
         Text(
             stringResource(R.string.version, versionName),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -280,19 +279,6 @@ private fun incompleteReasonString(reason: DiagnosticIncompleteReason?): Int = w
     DiagnosticIncompleteReason.WRITER_OVERRUN -> R.string.diagnostics_reason_writer_overrun
     DiagnosticIncompleteReason.STORAGE_ERROR -> R.string.diagnostics_reason_storage
     DiagnosticIncompleteReason.PROCESS_INTERRUPTED, null -> R.string.diagnostics_reason_interrupted
-}
-
-/** System colors (Material You) or Caparaó's green; the theme follows the choice at once. */
-@Composable
-private fun ColorsSection(viewModel: TargetRatioViewModel) {
-    var brand by rememberSaveable { mutableStateOf(viewModel.brandColors) }
-    val options = listOf(false to R.string.colors_system, true to R.string.colors_brand)
-    ChoiceGroup(
-        options.map { it.first },
-        selected = brand,
-        onSelect = { brand = it; viewModel.brandColors = it },
-        label = { value -> stringResource(options.first { it.first == value }.second) },
-    )
 }
 
 @Composable
