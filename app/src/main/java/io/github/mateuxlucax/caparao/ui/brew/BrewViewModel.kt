@@ -8,12 +8,10 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.targetBand
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
-import io.github.mateuxlucax.caparao.brew.BrewDetector
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
-import io.github.mateuxlucax.caparao.brew.EspressoDetector
+import io.github.mateuxlucax.caparao.brew.BrewSession
 import io.github.mateuxlucax.caparao.brew.FilterConfig
-import io.github.mateuxlucax.caparao.brew.FilterDetector
 import io.github.mateuxlucax.caparao.brew.FrenchPressFinishTracker
 import io.github.mateuxlucax.caparao.brew.FrenchPressWater
 import io.github.mateuxlucax.caparao.brew.FrenchPressWaterTracker
@@ -57,7 +55,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * One brew in [mode]: the dose, then readings fed to the mode's [BrewDetector], which decides when it starts and ends
+ * One brew in [mode]: the dose, then readings fed to the mode's [BrewSession], which decides when it starts and ends
  * and asks for tares; the result is saved as soon as it ends (#90).
  */
 class BrewViewModel(
@@ -113,7 +111,7 @@ class BrewViewModel(
     private var job: Job? = null
     /** The timer rolling back to the saved time, before the summary opens (#197). */
     private var rollJob: Job? = null
-    private var detector: BrewDetector? = null
+    private var session: BrewSession? = null
     private val readings = ArrayList<TimedReading>()
     private val pauseIntervals = ArrayList<Pair<Long, Long>>()
     private var openPauseAtMs: Long? = null
@@ -352,12 +350,9 @@ class BrewViewModel(
     }
 
     private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
-        val new = when (mode) {
-            BrewMode.ESPRESSO -> EspressoDetector()
-            BrewMode.FILTER -> FilterDetector(filterConfig)
-            BrewMode.FRENCH_PRESS -> FilterDetector(FilterConfig(liftDetectionEnabled = false))
-        }
-        detector = new
+        val recipe = _uiState.value.recipe
+        val new = BrewSession(mode, grams, _uiState.value.targetRatio, recipe?.steps.orEmpty(), recipe?.targetMinMs, recipe?.targetMaxMs, filterConfig)
+        session = new
         alerted.clear()
         scaleWatchJob?.cancel()
         scaleWatchJob = null
@@ -365,7 +360,7 @@ class BrewViewModel(
         diagnostics.event(DiagnosticEvent.BrewArmed)
         recordDiagnosticPhase(new.phase)
         // Espresso without a reading (Ready after a disconnect) takes the first one as its baseline.
-        if (new is EspressoDetector) {
+        if (mode == BrewMode.ESPRESSO) {
             new.beginWaitingFromBaseline(espressoBaseline?.let { TimedReading(clock(), it) })
         } else {
             // The filter detector tares on its first reading; feed it the current one instead of waiting for a change.
@@ -375,16 +370,16 @@ class BrewViewModel(
 
     /** Espresso: the cup on the scale is already tared, skip waiting for it. */
     fun armNow() {
-        val espresso = detector as? EspressoDetector ?: return
-        val before = espresso.phase
-        espresso.armNow(clock()).also(::send)
-        espressoMoment(before, espresso.phase)
-        _uiState.update { it.copy(phase = espresso.phase) }
+        val current = session ?: return
+        val before = current.phase
+        current.armNow(clock())?.also(::send)
+        espressoMoment(before, current.phase)
+        _uiState.update { it.copy(phase = current.phase) }
     }
 
     /** Taring timed out: asks for the tare once more. Does nothing outside the tare or while the scale is disconnected. */
     fun retryTare() {
-        val current = detector ?: return
+        val current = session ?: return
         if (current.phase != BrewPhase.TARING || !_uiState.value.connected) return
         send(current.retryTare(clock()))
         _uiState.update { it.copy(tareTimedOut = false) }
@@ -395,7 +390,7 @@ class BrewViewModel(
 
     /** Ends the brew as Done does, recording [event] as why (a Done tap or a lift past the last pour). */
     private fun endBrew(event: DiagnosticEvent) {
-        val current = detector ?: return
+        val current = session ?: return
         if (current.phase == BrewPhase.DONE) return
         val before = current.phase
         diagnostics.event(event)
@@ -440,7 +435,7 @@ class BrewViewModel(
     }
 
     private fun onReading(reading: ScaleReading) {
-        val current = detector
+        val current = session
         // Only before the first water: a lift after it pauses a filter brew (the detector) and keeps a French press running.
         val shouldWatchLift = when (mode) {
             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> current?.phase == BrewPhase.READY
@@ -479,7 +474,7 @@ class BrewViewModel(
                 val pauseStart = openPauseAtMs
                 if (pauseStart != null) {
                     // A sustained pour resumes from when the dripper came back, which is earlier than this reading.
-                    val resumedAt = (current as? FilterDetector)?.lastResumedAtMs ?: timed.atMs
+                    val resumedAt = current.lastResumedAtMs ?: timed.atMs
                     pauseIntervals += pauseStart to resumedAt
                     brewingSinceMs = (brewingSinceMs ?: pauseStart) + (resumedAt - pauseStart)
                 }
@@ -497,7 +492,7 @@ class BrewViewModel(
         filterMoment(before, current.phase)
         recordDiagnosticPhase(current.phase)
         if (current.phase == BrewPhase.BREWING && brewingSinceMs == null) {
-            brewingSinceMs = (current as? FilterDetector)?.startedAtMs ?: timed.atMs
+            brewingSinceMs = current.startedAtMs ?: timed.atMs
             smoother.reset()
             val steps = _uiState.value.recipe?.steps.orEmpty()
             when (mode) {
@@ -628,7 +623,7 @@ class BrewViewModel(
 
     /** The filter or French press setup was lifted before the first water: let the user put it back without losing checklist marks. */
     private fun returnToPreparation(reading: ScaleReading) {
-        detector = null
+        session = null
         filterLiftBeganAtMs = null
         readings.clear()
         smoother.reset()
@@ -693,7 +688,7 @@ class BrewViewModel(
             // A flapping connection keeps the same ten seconds; only a fresh wait starts a new count.
             watchScale()
         }
-        val current = detector ?: return
+        val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         // A dropped connection ends a brew in progress as interrupted; before it started there is nothing to keep.
         // A French press keeps steeping instead, free or with a recipe (#221, #218).
@@ -831,7 +826,7 @@ class BrewViewModel(
         ScaleCommand.TARE -> scale.tare()
     }
 
-    private fun finish(done: BrewDetector) {
+    private fun finish(done: BrewSession) {
         steepClockJob?.cancel()
         val detected = done.result
         if (detected == null) {
@@ -948,7 +943,7 @@ class BrewViewModel(
         steepClockJob = null
         scaleWatchJob?.cancel()
         scaleWatchJob = null
-        detector = null
+        session = null
         alerted.clear()
         readings.clear()
         pauseIntervals.clear()
