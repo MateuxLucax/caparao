@@ -133,13 +133,19 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         container.diagnostics.event(DiagnosticEvent.AppForeground)
+        container.scale.start()
         container.watch.start()
     }
 
     override fun onStop() {
         container.diagnostics.event(DiagnosticEvent.AppBackground)
         container.watch.stop()
+        stopScaleIfBackgrounded(isChangingConfigurations)
         super.onStop()
+    }
+
+    private fun stopScaleIfBackgrounded(changingConfigurations: Boolean) {
+        if (!changingConfigurations) container.scale.stop()
     }
 
     /** The system's "turn on Bluetooth?" dialog. It needs BLUETOOTH_CONNECT; without it, the settings are the way. */
