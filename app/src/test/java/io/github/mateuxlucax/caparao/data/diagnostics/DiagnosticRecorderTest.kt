@@ -1,6 +1,8 @@
 package io.github.mateuxlucax.caparao.data.diagnostics
 
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
+import io.github.mateuxlucax.caparao.data.scale.FrameDecoder
+import io.github.mateuxlucax.caparao.data.scale.recordDecodedNotification
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -221,6 +223,89 @@ class DiagnosticRecorderTest {
             assertFalse(result.file.readText().contains(hex(reply)))
             assertTrue(result.file.readText().contains(hex(zeroWeight)))
         }
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun mixedModelAndWeightChunksKeepOnlyTheSupportedFrameBytes() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
+        val decoder = FrameDecoder()
+        val model = bytes("A5 5A 02 13 00 03 41 42 43 00 00")
+        val split = 7
+        assertTrue(recorder.start())
+
+        recordDecodedNotification(decoder, recorder, model + zeroWeight.copyOfRange(0, split))
+        recordDecodedNotification(decoder, recorder, zeroWeight.copyOfRange(split, zeroWeight.size))
+        recorder.event(DiagnosticEvent.BrewResultReady)
+
+        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val rows = result.file.readLines().drop(1).map(::JSONObject)
+        val rx = rows.filter { it.optString("dir") == "rx" }
+        assertEquals(listOf(zeroWeight.copyOfRange(0, split), zeroWeight.copyOfRange(split, zeroWeight.size)).map(::hex), rx.map { it.getString("hex") })
+        assertFalse(result.file.readText().contains(hex(model)))
+        assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("seq") < right.getLong("seq") })
+        assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("t_ms") <= right.getLong("t_ms") })
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun unsupportedSplitFrameDropDoesNotReorderHeldRecords() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
+        val decoder = FrameDecoder()
+        val model = bytes("A5 5A 02 13 00 03 41 42 43 00 00")
+        assertTrue(recorder.start())
+
+        recordDecodedNotification(decoder, recorder, model.copyOfRange(0, 2))
+        recorder.event(DiagnosticEvent.AppForeground)
+        recordDecodedNotification(decoder, recorder, model.copyOfRange(2, model.size))
+        recorder.command(bytes("A5 5A 03 0D 00 00 64 D1"))
+        recorder.event(DiagnosticEvent.BrewResultReady)
+
+        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val rows = result.file.readLines().drop(1).map(::JSONObject)
+        assertEquals(listOf("session_started", "app_foreground", "command", "brew_result_ready", "session_end"), rows.map { it.getString("note") })
+        assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("seq") < right.getLong("seq") })
+        assertFalse(result.file.readText().contains(hex(model)))
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun refreshTruncatesATornFinalLineBeforeSendingTheRecoveredFile() = runTest {
+        val directory = tempDir()
+        val file = File(directory, "diagnostic-interrupted.jsonl")
+        val header = JSONObject()
+            .put("format", DiagnosticRecorder.FORMAT_NAME)
+            .put("format_version", DiagnosticRecorder.FORMAT_VERSION)
+            .put("app_version", "test")
+            .put("phone_model", "synthetic")
+            .put("android_version", "test")
+            .put("started_at", "2026-01-01T00:00:00Z")
+        val row = JSONObject().put("t_ms", 0).put("seq", 0).put("dir", "event").put("hex", "").put("note", "session_started")
+        file.writeText("${header}\n${row}\n{\"t_ms\":1,\"seq\":1,\"dir\":\"rx\",\"hex\":\"A5")
+        var sent = false
+        var allLinesValid = false
+        val recovered = DiagnosticRecorder(
+            directory,
+            this,
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            send = { uploaded, _, _ ->
+                sent = uploaded == file
+                allLinesValid = uploaded.readLines().all { runCatching { JSONObject(it) }.isSuccess }
+                false
+            },
+        )
+
+        recovered.refresh()
+        advanceUntilIdle()
+
+        assertTrue(sent)
+        assertTrue(allLinesValid)
+        val footer = JSONObject(file.readLines().last())
+        assertEquals("session_incomplete", footer.getString("note"))
+        assertEquals("process_interrupted", footer.getString("reason"))
+        assertEquals(1L, footer.getLong("seq"))
         directory.deleteRecursively()
     }
 

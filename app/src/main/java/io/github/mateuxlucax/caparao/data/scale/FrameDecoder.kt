@@ -34,14 +34,26 @@ sealed class ScaleMessage {
 class FrameDecoder {
     private val buffer = ByteArray(MAX_BUFFER)
     private var size = 0
+    private var bufferStartOffset = 0L
+    private var nextOffset = 0L
+
+    var lastCompletedFrames: List<DecodedScaleFrame> = emptyList()
+        private set
+    var pendingFrameHeader: Pair<Int, Int>? = null
+        private set
+    var pendingFrameStartOffset: Int? = null
+        private set
 
     /** Whether the last chunk ended inside a frame that still needs classifying. */
     val hasPendingBytes: Boolean get() = size > 0
 
     /** Appends [chunk] and returns every frame it completed, in order. */
     fun feed(chunk: ByteArray): List<ScaleMessage> {
-        append(chunk)
+        val chunkStartOffset = nextOffset
+        nextOffset += chunk.size
+        append(chunk, chunkStartOffset)
         val messages = mutableListOf<ScaleMessage>()
+        val frames = mutableListOf<DecodedScaleFrame>()
         while (true) {
             val start = indexOfHeader()
             if (start < 0) {
@@ -60,22 +72,40 @@ class FrameDecoder {
             val total = DotProtocol.HEADER_SIZE + length + DotProtocol.CRC_SIZE
             if (size < total) break
             val payload = buffer.copyOfRange(DotProtocol.HEADER_SIZE, DotProtocol.HEADER_SIZE + length)
-            messages += decode(buffer[2].toInt() and 0xFF, buffer[3].toInt() and 0xFF, payload)
+            val message = decode(buffer[2].toInt() and 0xFF, buffer[3].toInt() and 0xFF, payload)
+            val startOffset = (bufferStartOffset - chunkStartOffset).toInt()
+            frames += DecodedScaleFrame(message, buffer.copyOfRange(0, total), startOffset, startOffset + total)
+            messages += message
             discard(total)
         }
+        lastCompletedFrames = frames
+        pendingFrameHeader = if (size >= DotProtocol.HEADER_SIZE && buffer[0] == DotProtocol.HEADER_1 && buffer[1] == DotProtocol.HEADER_2) {
+            (buffer[2].toInt() and 0xFF) to (buffer[3].toInt() and 0xFF)
+        } else null
+        pendingFrameStartOffset = if (size > 0) maxOf(0, (bufferStartOffset - chunkStartOffset).toInt()) else null
         return messages
     }
 
     /** Forgets buffered bytes, e.g. after a reconnect. */
     fun reset() {
         size = 0
+        bufferStartOffset = nextOffset
+        lastCompletedFrames = emptyList()
+        pendingFrameHeader = null
+        pendingFrameStartOffset = null
     }
 
     /** Keeps the buffer bounded: when it would overflow, the oldest bytes go. */
-    private fun append(chunk: ByteArray) {
+    private fun append(chunk: ByteArray, chunkStartOffset: Long) {
         val from = maxOf(0, chunk.size - MAX_BUFFER)
         val count = chunk.size - from
+        val appendStartOffset = chunkStartOffset + from
         if (size + count > MAX_BUFFER) discard(size + count - MAX_BUFFER)
+        if (size == 0) bufferStartOffset = appendStartOffset
+        else if (bufferStartOffset + size != appendStartOffset) {
+            discard(size)
+            bufferStartOffset = appendStartOffset
+        }
         chunk.copyInto(buffer, size, from)
         size += count
     }
@@ -83,6 +113,7 @@ class FrameDecoder {
     private fun discard(count: Int) {
         buffer.copyInto(buffer, 0, count, size)
         size -= count
+        bufferStartOffset += count
     }
 
     private fun indexOfHeader(): Int {
@@ -125,3 +156,10 @@ class FrameDecoder {
         val WEIGHT_SIZES = 8..9
     }
 }
+
+data class DecodedScaleFrame(
+    val message: ScaleMessage,
+    val bytes: ByteArray,
+    val startOffset: Int,
+    val endOffset: Int,
+)

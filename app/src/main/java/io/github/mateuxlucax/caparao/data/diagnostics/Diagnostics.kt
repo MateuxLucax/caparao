@@ -86,6 +86,8 @@ enum class DiagnosticFrameType { WEIGHT, BATTERY, ACK, MODEL, UNKNOWN }
 data class DiagnosticFrameClassification(
     val completedFrames: List<DiagnosticFrameType>,
     val hasPartialFrame: Boolean,
+    val pendingFrameType: DiagnosticFrameType? = null,
+    val discardPendingBytes: Boolean = false,
 )
 
 /** Sink for builds and tests that collect nothing; the default until the Settings capture is started. */

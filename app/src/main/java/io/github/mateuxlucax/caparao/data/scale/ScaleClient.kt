@@ -181,11 +181,7 @@ class ScaleClient(
                 when (event) {
                     is BleEvent.Notification -> {
                         val original = event.bytes.copyOf()
-                        val messages = decoder.feed(original)
-                        diagnostics.notification(
-                            original,
-                            DiagnosticFrameClassification(messages.map(ScaleMessage::diagnosticFrameType), decoder.hasPendingBytes),
-                        )
+                        val messages = recordDecodedNotification(decoder, diagnostics, original)
                         messages.forEach(::handle)
                     }
                     // The event and recorder share a fixed monotonic clock; no address or exception text is included.
@@ -251,6 +247,63 @@ class ScaleClient(
         const val LOG_LINES = 200
     }
 }
+
+internal fun recordDecodedNotification(
+    decoder: FrameDecoder,
+    diagnostics: Diagnostics,
+    original: ByteArray,
+): List<ScaleMessage> {
+    val previousPendingType = decoder.pendingFrameHeader?.diagnosticFrameType()
+    val previousPendingWasUnsupported = decoder.hasPendingBytes && (previousPendingType == null || !previousPendingType.isSupported())
+    val messages = decoder.feed(original)
+    val frames = decoder.lastCompletedFrames
+    val pendingType = decoder.pendingFrameHeader?.diagnosticFrameType()
+    val unsupportedInChunk = frames.any { !it.message.diagnosticFrameType().isSupported() } ||
+        pendingType != null && !pendingType.isSupported()
+
+    if (!unsupportedInChunk) {
+        diagnostics.notification(
+            original,
+            DiagnosticFrameClassification(messages.map(ScaleMessage::diagnosticFrameType), decoder.hasPendingBytes, pendingType),
+        )
+        return messages
+    }
+
+    if (previousPendingWasUnsupported) {
+        diagnostics.notification(ByteArray(0), DiagnosticFrameClassification(emptyList(), false, discardPendingBytes = true))
+    }
+    frames.forEach { frame ->
+        val type = frame.message.diagnosticFrameType()
+        if (!type.isSupported()) return@forEach
+        val start = frame.startOffset.coerceAtLeast(0)
+        val end = frame.endOffset.coerceAtMost(original.size)
+        if (start < end) diagnostics.notification(original.copyOfRange(start, end), DiagnosticFrameClassification(listOf(type), false))
+    }
+    if (pendingType?.isSupported() == true) {
+        val start = decoder.pendingFrameStartOffset ?: original.size
+        if (start < original.size) {
+            diagnostics.notification(
+                original.copyOfRange(start, original.size),
+                DiagnosticFrameClassification(emptyList(), true, pendingType),
+            )
+        }
+    }
+    if (frames.none { it.message.diagnosticFrameType().isSupported() } && pendingType?.isSupported() != true && !previousPendingWasUnsupported) {
+        diagnostics.notification(ByteArray(0), DiagnosticFrameClassification(emptyList(), false, discardPendingBytes = true))
+    }
+    return messages
+}
+
+private fun Pair<Int, Int>.diagnosticFrameType(): DiagnosticFrameType = when {
+    first == DotProtocol.TYPE_NOTIFY && second == DotProtocol.CMD_WEIGHT -> DiagnosticFrameType.WEIGHT
+    (first == DotProtocol.TYPE_READ || first == DotProtocol.TYPE_NOTIFY) && second == DotProtocol.CMD_BATTERY -> DiagnosticFrameType.BATTERY
+    first == DotProtocol.TYPE_WRITE -> DiagnosticFrameType.ACK
+    first == DotProtocol.TYPE_READ && second == DotProtocol.CMD_MODEL -> DiagnosticFrameType.MODEL
+    else -> DiagnosticFrameType.UNKNOWN
+}
+
+private fun DiagnosticFrameType.isSupported() = this == DiagnosticFrameType.WEIGHT ||
+    this == DiagnosticFrameType.BATTERY || this == DiagnosticFrameType.ACK
 
 private fun ScaleMessage.diagnosticFrameType() = when (this) {
     is ScaleMessage.Weight -> DiagnosticFrameType.WEIGHT

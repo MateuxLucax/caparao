@@ -18,6 +18,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -107,9 +108,14 @@ class DiagnosticRecorder(
         }
         finishingSession()?.let { it.finished.await() }
 
-        val pending = withContext(ioDispatcher) {
+        val (pending, validPendingFile) = withContext(ioDispatcher) {
             expireOldSessions()
-            listSessionFiles().maxByOrNull(File::lastModified)?.also(::repairInterruptedFile)
+            val latest = listSessionFiles().maxByOrNull(File::lastModified)
+            latest to (latest == null || repairInterruptedFile(latest))
+        }
+        if (!validPendingFile) {
+            synchronized(lock) { _state.value = DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE) }
+            return@withLock false
         }
         if (pending != null) {
             val status = readSessionStatus(pending)
@@ -177,6 +183,11 @@ class DiagnosticRecorder(
     override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) {
         synchronized(lock) {
             val session = active ?: return
+            if (classification.discardPendingBytes) {
+                discardPendingNotificationsLocked(session)
+                session.droppingPartialFrame = false
+            }
+            if (bytes.isEmpty()) return
             if (bytes.size > limits.maxNotificationBytes) {
                 markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_SIZE_LIMIT)
                 return
@@ -231,9 +242,7 @@ class DiagnosticRecorder(
             val mode = (event as? DiagnosticEvent.BrewPhaseChanged)?.mode?.note
             if (mode != null) session.mode = mode
             enqueueLocked(session, Payload.Event(event.note(), mode))
-            if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded ||
-                event is DiagnosticEvent.BrewPhaseChanged && event.phase == DiagnosticBrewPhase.DONE
-            ) finishLocked(session, null)
+            if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded) finishLocked(session, null)
         }
     }
 
@@ -263,14 +272,13 @@ class DiagnosticRecorder(
         }
         expireOldSessions()
         val latest = listSessionFiles().maxByOrNull(File::lastModified)
-        if (latest != null) repairInterruptedFile(latest)
-        val recovered = latest?.let(::readSessionStatus)
+        val recovered = latest?.takeIf(::repairInterruptedFile)?.let(::readSessionStatus)
         synchronized(lock) {
             // A settings screen can request refresh just as recording starts. Do not overwrite the newer state.
             val current = _state.value
             val settled = current == DiagnosticRecorderState.Idle || current is DiagnosticRecorderState.Ready || current is DiagnosticRecorderState.Failed
             if (active == null && finishing == null && settled) {
-                _state.value = recovered ?: DiagnosticRecorderState.Idle
+                _state.value = recovered ?: if (latest == null) DiagnosticRecorderState.Idle else DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE)
             }
         }
         if (recovered != null) upload(recovered.file, recovered.complete, readSessionMode(recovered.file))
@@ -290,7 +298,7 @@ class DiagnosticRecorder(
 
     private fun enqueueAtLocked(session: Session, atMs: Long, payload: Payload) {
         val line = PendingLine(session.nextSequence++, atMs, payload)
-        if (session.pendingNotifications.isNotEmpty()) {
+        if (session.pendingNotifications.isNotEmpty() || session.heldLines.isNotEmpty()) {
             session.heldLines += line
         } else {
             enqueueLineLocked(session, line)
@@ -491,21 +499,43 @@ class DiagnosticRecorder(
         file.useLines { lines -> lines.mapNotNull { line -> JSONObject(line).optString("mode").takeIf(String::isNotBlank) }.lastOrNull() }
     }.getOrNull() ?: "unknown"
 
-    private fun repairInterruptedFile(file: File) {
-        val lines = runCatching { file.readLines() }.getOrNull() ?: return
-        if (lines.isEmpty() || runCatching { JSONObject(lines.last()).optString("note") }.getOrNull() in setOf("session_end", "session_incomplete")) return
-        val last = runCatching { JSONObject(lines.last()) }.getOrNull() ?: return
-        runCatching {
-            val footer = JSONObject()
-                .put("t_ms", last.optLong("t_ms"))
-                .put("seq", last.optLong("seq") + 1)
-                .put("dir", "event")
-                .put("hex", "")
-                .put("note", "session_incomplete")
-                .put("complete", false)
-                .put("reason", DiagnosticIncompleteReason.PROCESS_INTERRUPTED.note)
-            FileOutputStream(file, true).buffered().use { it.write((footer.toString() + "\n").toByteArray(Charsets.UTF_8)) }
+    private fun repairInterruptedFile(file: File): Boolean {
+        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return false
+        var offset = 0
+        var validEnd = 0
+        var last: JSONObject? = null
+        while (offset < bytes.size) {
+            val newline = (offset until bytes.size).firstOrNull { bytes[it] == '\n'.code.toByte() } ?: -1
+            val end = if (newline == -1) bytes.size else newline
+            val record = runCatching {
+                JSONObject(String(bytes, offset, end - offset, Charsets.UTF_8).trimEnd('\r'))
+            }.getOrNull() ?: break
+            last = record
+            validEnd = if (newline == -1) end else newline + 1
+            if (newline == -1) break
+            offset = newline + 1
         }
+        val finalRecord = last ?: return false
+        if (validEnd < bytes.size && !runCatching {
+                RandomAccessFile(file, "rw").use { it.setLength(validEnd.toLong()) }
+            }.isSuccess
+        ) return false
+        if (finalRecord.optString("note") in setOf("session_end", "session_incomplete")) return true
+        return runCatching {
+            FileOutputStream(file, true).buffered().use { stream ->
+                if (validEnd == bytes.size && validEnd > 0 && bytes[validEnd - 1] != '\n'.code.toByte()) stream.write('\n'.code)
+                val footer = JSONObject()
+                    .put("t_ms", finalRecord.optLong("t_ms"))
+                    .put("seq", finalRecord.optLong("seq") + 1)
+                    .put("dir", "event")
+                    .put("hex", "")
+                    .put("note", "session_incomplete")
+                    .put("complete", false)
+                    .put("reason", DiagnosticIncompleteReason.PROCESS_INTERRUPTED.note)
+                stream.write((footer.toString() + "\n").toByteArray(Charsets.UTF_8))
+            }
+            true
+        }.getOrDefault(false)
     }
 
     private fun finishingSession(): Session? = synchronized(lock) { finishing }

@@ -11,7 +11,9 @@ import io.github.mateuxlucax.caparao.model.SyncError
 import io.sentry.Hint
 import io.sentry.SentryEvent
 import io.sentry.SentryLevel
+import io.sentry.hints.SubmissionResult
 import io.sentry.protocol.SentryId
+import io.sentry.util.HintUtils
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -50,7 +52,7 @@ class SentryDiagnosticsTest {
         dsn: String = this.dsn,
         quota: EventQuota = EventQuota(clock = { now }),
         captureEvent: (SentryEvent, Hint) -> SentryId = { _, _ -> SentryId.EMPTY_ID },
-        flush: (Long) -> Boolean = { false },
+        flush: (Long) -> Unit = {},
     ) = SentryDiagnostics(
         context = context,
         settings = settings,
@@ -189,25 +191,35 @@ class SentryDiagnosticsTest {
     }
 
     @Test
-    fun captureIsDeliveredWhenSentryReturnsAnIdAndFlushSucceeds() {
+    fun capturesUseTransportAcknowledgementAndBypassTheCrashQuota() {
         settings.remoteDiagnostics = true
         var sentEvent: SentryEvent? = null
         var flushTimeout = 0L
-        val sut = diagnostics(
-            captureEvent = { event, _ -> sentEvent = event; SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2") },
-            flush = { timeout -> flushTimeout = timeout; true },
+        lateinit var sut: SentryDiagnostics
+        sut = diagnostics(
+            quota = EventQuota(maxPerSession = 1, maxPerDay = 1, clock = { now }),
+            captureEvent = { event, hint ->
+                sentEvent = event
+                assertNotNull("capture reaches beforeSend outside the crash quota", sut.beforeSendForTest(event, hint))
+                assertTrue(HintUtils.getSentrySdkHint(hint) is SubmissionResult)
+                (HintUtils.getSentrySdkHint(hint) as SubmissionResult).setResult(true)
+                SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2")
+            },
+            flush = { timeout -> flushTimeout = timeout },
         )
         val file = File.createTempFile("capture", ".jsonl").apply { writeText("{}\n") }
         try {
-            assertTrue(sut.sendCapture(file, complete = true, appVersion = "1.0", mode = "filter"))
+            repeat(2) { assertTrue("each capture needs a transport acknowledgement", sut.sendCapture(file, true, "1.0", "filter")) }
             assertEquals(SentryLevel.INFO, sentEvent?.level)
             assertEquals(listOf("capture"), sentEvent?.fingerprints)
             assertNull("capture event must not carry a user/IP address", sentEvent?.user)
             assertTrue("flush uses the send timeout", flushTimeout > 0)
 
             val failedFlush = diagnostics(
-                captureEvent = { _, _ -> SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2") },
-                flush = { false },
+                captureEvent = { _, hint ->
+                    (HintUtils.getSentrySdkHint(hint) as SubmissionResult).setResult(false)
+                    SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2")
+                },
             )
             assertFalse(failedFlush.sendCapture(file, complete = true, appVersion = "1.0", mode = "filter"))
         } finally {
