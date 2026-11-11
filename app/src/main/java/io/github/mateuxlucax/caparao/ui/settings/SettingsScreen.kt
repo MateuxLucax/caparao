@@ -14,6 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -33,14 +38,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticIncompleteReason
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -60,6 +70,8 @@ import io.github.mateuxlucax.caparao.ui.server.ServerUiState
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.server.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.launch
 
 /** Server, permissions and scale, in the wireframe's order, then the guide's alerts. */
@@ -69,6 +81,7 @@ fun SettingsScreen(
     scale: ScaleStatusViewModel,
     targets: TargetRatioViewModel,
     export: ExportViewModel,
+    diagnostics: DiagnosticsViewModel,
     actions: AppActions, versionName: String,
     modifier: Modifier = Modifier,
 ) {
@@ -79,6 +92,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
         SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
         SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
+        if (diagnostics.available) SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
         SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
         SectionCard(stringResource(R.string.section_data)) { DataSection(export) }
         Text(
@@ -207,6 +221,109 @@ private fun DataSection(viewModel: ExportViewModel) {
         }
     }
     ShareFile(state.file?.uri, state.file?.mimeType, viewModel::shared)
+}
+
+/** Opt-in diagnostics upload and capture of the next brew. */
+@Composable
+private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val recorder = state.recorder
+    val still = animationsOff()
+    val optInLabel = stringResource(R.string.diagnostics_on)
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(optInLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+        Switch(
+            modifier = Modifier.testTag("diagnostics-opt-in").semantics { contentDescription = optInLabel },
+            checked = state.optedIn,
+            onCheckedChange = viewModel::setOptedIn,
+        )
+    }
+    Text(stringResource(R.string.diagnostics_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    AnimatedVisibility(
+        visible = state.optedIn,
+        enter = fadeIn(Motion.standardOrSnap(still)) + expandVertically(Motion.standardOrSnap(still)),
+        exit = fadeOut(Motion.standardOrSnap(still)) + shrinkVertically(Motion.standardOrSnap(still)),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.capture_title), style = MaterialTheme.typography.titleMedium)
+            val status = if (state.starting) R.string.diagnostics_starting else when (recorder) {
+                DiagnosticRecorderState.Idle -> null
+                DiagnosticRecorderState.Starting -> R.string.diagnostics_starting
+                is DiagnosticRecorderState.Recording -> R.string.capture_running
+                is DiagnosticRecorderState.Finalizing -> R.string.diagnostics_saving
+                is DiagnosticRecorderState.Ready -> when {
+                    !recorder.complete -> R.string.diagnostics_incomplete
+                    recorder.sent -> R.string.capture_sent
+                    recorder.pending -> R.string.capture_pending
+                    else -> R.string.diagnostics_saving
+                }
+                is DiagnosticRecorderState.Failed -> R.string.diagnostics_start_failed
+            }
+            if (status != null) {
+                Text(
+                    stringResource(status),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (recorder is DiagnosticRecorderState.Failed || recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            if (recorder is DiagnosticRecorderState.Ready && !recorder.complete) {
+                Text(
+                    stringResource(incompleteReasonString(recorder.reason)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (recorder is DiagnosticRecorderState.Ready && !recorder.complete && (recorder.pending || recorder.sent)) {
+                Text(
+                    stringResource(if (recorder.sent) R.string.capture_sent else R.string.capture_pending),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (state.startFailed && recorder !is DiagnosticRecorderState.Failed && !(recorder is DiagnosticRecorderState.Ready && recorder.pending)) {
+                Text(stringResource(R.string.diagnostics_start_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+            if (state.stopFailed) {
+                Text(stringResource(R.string.diagnostics_stop_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!state.starting) {
+                    when (recorder) {
+                        is DiagnosticRecorderState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
+                            Text(stringResource(R.string.capture_stop))
+                        }
+                        DiagnosticRecorderState.Starting, is DiagnosticRecorderState.Finalizing -> Unit
+                        else -> {
+                            Button(
+                                shapes = ButtonDefaults.shapes(),
+                                onClick = viewModel::start,
+                                enabled = recorder !is DiagnosticRecorderState.Ready || recorder.sent,
+                            ) {
+                                Text(stringResource(R.string.capture_start))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun incompleteReasonString(reason: DiagnosticIncompleteReason?): Int = when (reason) {
+    DiagnosticIncompleteReason.SCALE_DISCONNECTED -> R.string.diagnostics_reason_disconnected
+    DiagnosticIncompleteReason.SESSION_SIZE_LIMIT -> R.string.diagnostics_reason_size_limit
+    DiagnosticIncompleteReason.SESSION_DURATION_LIMIT -> R.string.diagnostics_reason_duration_limit
+    DiagnosticIncompleteReason.WRITER_OVERRUN -> R.string.diagnostics_reason_writer_overrun
+    DiagnosticIncompleteReason.STORAGE_ERROR -> R.string.diagnostics_reason_storage
+    DiagnosticIncompleteReason.PROCESS_INTERRUPTED, null -> R.string.diagnostics_reason_interrupted
 }
 
 
