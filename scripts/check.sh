@@ -6,16 +6,33 @@ cd "$(dirname "$0")/.."
 
 start=$(date +%s)
 # The benchmark modules are deliberately absent: they run on an emulator/device, never in the fast gate (#312).
-./gradlew --console=plain :app:testDebugUnitTest :wear:testDebugUnitTest :wearlink:test \
-  :app:lintDebug :wear:lintDebug \
-  :app:assembleDebug :wear:assembleDebug \
-  :app:compileDebugAndroidTestKotlin :wear:compileDebugAndroidTestKotlin
-python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+# CI runs the suites below as parallel jobs; no argument (the default, and what local runs use) runs all of them.
+suite="${1:-all}"
+run_gradle() { ./gradlew --console=plain "$@"; }
+run_scripts() { python3 -m unittest discover -s scripts/tests -p 'test_*.py'; }
 
-if command -v gitleaks >/dev/null; then
+case "$suite" in
+  all)
+    run_gradle :app:testDebugUnitTest :wear:testDebugUnitTest :wearlink:test \
+      :app:lintDebug :wear:lintDebug \
+      :app:assembleDebug :wear:assembleDebug \
+      :app:compileDebugAndroidTestKotlin :wear:compileDebugAndroidTestKotlin
+    run_scripts
+    ;;
+  tests) run_gradle :app:testDebugUnitTest :wear:testDebugUnitTest :wearlink:test ;;
+  lint) run_gradle :app:lintDebug :wear:lintDebug ;;
+  build)
+    run_gradle :app:assembleDebug :wear:assembleDebug \
+      :app:compileDebugAndroidTestKotlin :wear:compileDebugAndroidTestKotlin
+    run_scripts
+    ;;
+  *) echo "usage: scripts/check.sh [all|tests|lint|build]" >&2; exit 2 ;;
+esac
+
+if [ "$suite" = all ] && command -v gitleaks >/dev/null; then
   gitleaks git --no-banner --redact .
   gitleaks dir --no-banner --redact .
-else
+elif [ "$suite" = all ]; then
   echo "warning: gitleaks not installed (brew install gitleaks); secret scan skipped" >&2
 fi
 

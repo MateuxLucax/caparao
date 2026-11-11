@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
+  # Runs on main so the default branch writes the Gradle and AVD caches that pull requests read.
+  push:
+    branches: [main]
+    paths-ignore: ["assets/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
     inputs:
       force_failure:
@@ -26,9 +30,15 @@ permissions:
   contents: read
 
 jobs:
-  fast:
+  # The suites run in parallel on separate runners; `fast` below aggregates them into the required check.
+  checks:
+    name: checks (${{ matrix.suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [tests, lint, build]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,19 +51,37 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
-      - name: Shared local and CI checks
-        run: scripts/check.sh
+      - name: Shared local and CI checks (${{ matrix.suite }})
+        run: scripts/check.sh "${{ matrix.suite }}"
 
       - name: Upload test and lint reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports
-          path: app/build/reports
+          name: reports-${{ matrix.suite }}
+          path: |
+            app/build/reports
+            wear/build/reports
+            wearlink/build/reports
+          if-no-files-found: ignore
           retention-days: 7
 
+  # Required status check: passes only when every suite above passed.
+  fast:
+    needs: checks
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every check suite to pass
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: |
+          echo "checks: $RESULT"
+          [ "$RESULT" = success ]
+
+  # Runs beside the checks and builds its own APKs.
   e2e:
-    needs: fast
     uses: ./.github/workflows/e2e.yml
     with:
       force_failure: ${{ inputs.force_failure || false }}
