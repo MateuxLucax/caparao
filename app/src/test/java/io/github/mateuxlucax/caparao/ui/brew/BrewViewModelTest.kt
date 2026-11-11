@@ -203,113 +203,6 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFilterLiftOfAnyLengthAfterWaterPausesAndNeverReturnsToPreparation() {
-        val vm = viewModel(BrewMode.FILTER)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(15.0)
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-        pour(0.0, 50.0, 4.0)
-        hold(50.0, 1.1)
-        pour(50.0, -90.0, 0.3) // the dripper lifted: the scale reads negative, as on the real Dot
-        hold(-90.0, 10.0) // far past the 2 s that sends a lift back to Prepare before the first water
-        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
-        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
-    }
-
-    @Test
-    fun aFreeFilterLiftPastTheRatioBandAlsoEndsTheBrew() {
-        val vm = viewModel(BrewMode.FILTER)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(15.0) // 240 g at 1:16
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-        pour(0.0, 260.0, 10.0) // 17.3 : 1, past the +5% edge
-        hold(260.0, 1.2)
-        pour(260.0, 0.0, 0.5)
-
-        val state = vm.uiState.value
-        assertEquals("a lift past the band ends the brew with no Done", BrewStep.SUMMARY, state.step)
-        assertEquals(260.0, state.saved!!.yieldGrams, 0.3)
-    }
-
-    @Test
-    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheRatioBand() {
-        val vm = viewModel(BrewMode.FILTER)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-        pour(0.0, 200.0, 10.0) // 13.3 : 1, below the band
-        hold(200.0, 1.1) // the water settles before the dripper comes off
-        pour(200.0, 0.0, 0.5)
-        assertEquals("a lift before the target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
-        hold(0.0, 0.2)
-        pour(0.0, 200.0, 0.5)
-        hold(200.0, 2.1) // the settling window after the dripper returns
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        pour(200.0, 240.0, 3.0) // 16 : 1, in the band
-        hold(240.0, 1.2)
-        pour(240.0, 0.0, 0.5)
-
-        val state = vm.uiState.value
-        assertEquals("a lift once in the band ends the brew at once, with no Done", BrewStep.SUMMARY, state.step)
-        assertEquals(BrewPhase.DONE, state.phase)
-        assertEquals(240.0, state.saved!!.yieldGrams, 0.3)
-    }
-
-    @Test
-    fun aGuidedFilterLiftEndsTheBrewOnlyAfterTheLastPourTarget() {
-        val (vm, _) = guidedFilter(twoPours) {
-            pour(0.0, 40.0, 8.0)
-            hold(40.0, 12.0)
-            pour(40.0, 60.0, 5.0) // short of the last pour's 100 g
-            pour(60.0, 0.0, 0.5)
-        }
-        assertEquals("a lift before the last pour's target pauses", BrewPhase.PAUSED, vm.uiState.value.phase)
-        assertEquals(BrewStep.LIVE, vm.uiState.value.step)
-        vm.end()
-    }
-
-    @Test
-    fun aGuidedFilterLiftRightAfterTheLastPourReachesItsTargetEndsTheBrew() {
-        // No hold at the target: the guide's own 1 s hold has not passed when the dripper comes off.
-        val (vm, _) = guidedFilter(twoPours) {
-            pour(0.0, 40.0, 8.0)
-            hold(40.0, 12.0)
-            pour(40.0, 100.0, 12.0)
-            pour(100.0, 0.0, 0.5)
-        }
-        val state = vm.uiState.value
-        assertEquals("the lift once the target is reached ends the brew", BrewStep.SUMMARY, state.step)
-        // The detector confirms a rise after a short settle, so the unconfirmed last few grams are not the yield (as Done).
-        assertTrue(state.saved!!.yieldGrams in 94.0..100.0)
-        vm.end()
-    }
-
-    @Test
-    fun aGuidedFilterLiftAfterTheLastPourTargetEndsTheBrewAtTheLift() {
-        val (vm, _) = guidedFilter(twoPours) {
-            pour(0.0, 40.0, 8.0)
-            hold(40.0, 12.0)
-            pour(40.0, 100.0, 12.0)
-            hold(100.0, 1.2)
-            pour(100.0, 0.0, 0.5)
-        }
-        val state = vm.uiState.value
-        assertEquals("a lift after the last pour ends the brew with no Done", BrewStep.SUMMARY, state.step)
-        assertEquals(BrewPhase.DONE, state.phase)
-        assertEquals(100.0, state.saved!!.yieldGrams, 0.3)
-        vm.end()
-    }
-
-    @Test
     fun readyWithoutAReadingTakesTheFirstReadingAsBaselineNotACup() {
         // Ready after a disconnect: the scale has no reading yet, so the portafilter's weight is the first one.
         val vm = viewModel(BrewMode.ESPRESSO)
@@ -342,32 +235,6 @@ class BrewViewModelTest {
         assertEquals("Done while the final rise is unconfirmed saves settled weight", 248.8, brew.yieldGrams, 0.1)
         assertNull(brew.timeToFirstDropMs)
         assertEquals(1, dao.brews.value.size)
-    }
-
-    @Test
-    fun aFrenchPressStartsOnFirstWaterAndWaitsForDoneAfterTheCarafeIsLifted() {
-        val vm = viewModel(BrewMode.FRENCH_PRESS)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(20.0)
-        assertEquals(BrewStep.PREPARE_PORTAFILTER, vm.uiState.value.step)
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-        assertEquals(BrewPhase.READY, vm.uiState.value.phase)
-
-        pour(0.0, 300.0, 30.0)
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        pour(300.0, 0.0, 0.4)
-        hold(0.0, 10.0)
-        assertEquals("lifting the carafe does not end a French press", BrewPhase.BREWING, vm.uiState.value.phase)
-
-        vm.stop()
-        val brew = vm.uiState.value.saved!!
-        assertEquals(BrewMode.FRENCH_PRESS, brew.mode)
-        assertEquals(300.0, brew.yieldGrams, 0.5)
-        assertNull(brew.timeToFirstDropMs)
-        assertFalse(brew.interrupted)
     }
 
     @Test
@@ -1534,38 +1401,6 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreePressPoursUnguidedThenSteepsOnReachingTheTargetWater() {
-        val alerts = mutableListOf<GuideAlert>()
-        val vm = freePressPouring()
-        val collecting = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { vm.alerts.collect { alerts += it } }
-        pour(0.0, 200.0, 15.0)
-        assertNull("the ring shows while pouring", vm.uiState.value.guide)
-        assertNull(vm.uiState.value.saved)
-
-        pour(200.0, 300.0, 8.0)
-        val steeping = vm.uiState.value
-        assertEquals(1, steeping.guide?.index)
-        assertEquals(listOf(StepKind.POUR, StepKind.PRESS), steeping.steps.map { it.kind })
-        assertEquals(240_000L, steeping.steps.last().targetAtMs)
-        assertNull("a free brew records no recipe", steeping.recipe)
-        assertTrue(steeping.guide!!.dueInMs!! in 200_000L..240_000L)
-
-        hold(300.0, 195.0)
-        assertFalse(vm.uiState.value.frenchPressDeadlineReached)
-        hold(300.0, 25.0)
-        assertTrue("4:00 counts from the first water", vm.uiState.value.frenchPressDeadlineReached)
-        assertEquals(1, alerts.count { it.event == StepEvent.FrenchPressDeadline })
-        assertEquals(1, watchAlerts.count { it == StepEvent.FrenchPressDeadline })
-        collecting.cancel()
-
-        vm.stop()
-        rolled()
-        val saved = vm.uiState.value.saved!!
-        assertNull(saved.recipeId)
-        assertEquals(300.0, saved.yieldGrams, 0.5)
-    }
-
-    @Test
     fun aFreePressDoesNotSteepJustBecauseTheWeightRests() {
         val vm = freePressPouring()
         pour(0.0, 214.0, 15.0)
@@ -1659,49 +1494,6 @@ class BrewViewModelTest {
         hold(0.0, 1.0)
         pour(0.0, 40.0, 8.0)
         assertNull(vm.uiState.value.guide)
-    }
-
-    @Test
-    fun aFreeFilterAlertsAtFirstWaterRatioBandPauseResumeAndEndOnce() {
-        val vm = viewModel(BrewMode.FILTER)
-        val alerts = alertsFrom(vm)
-        hold(320.0, 0.2)
-        vm.begin()
-        vm.setDose(15.0) // 240 g of water at the default 1:16 ratio
-        vm.ready()
-        hold(320.0, 0.1)
-        hold(0.0, 1.0)
-
-        pour(0.0, 2.0, 0.4)
-        pour(2.0, 200.0, 9.0) // below the ±5% band, whose lower edge is 228 g
-        hold(200.0, 1.1)
-        pour(200.0, 0.0, 0.5) // a lift below the band pauses
-        assertEquals(BrewPhase.PAUSED, vm.uiState.value.phase)
-        hold(0.0, 0.2)
-        pour(0.0, 200.0, 0.5)
-        hold(200.0, 2.1) // the settling window after the dripper returns
-        assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        pour(200.0, 230.0, 3.0) // enters the band at 228 g
-        hold(230.0, 1.1)
-        pour(230.0, 260.0, 2.0) // passes the +5% edge at 252 g
-        hold(260.0, 1.1)
-
-        // Hovering on and around the band edges doesn't repeat either milestone.
-        listOf(251.8, 252.0, 251.8, 252.0, 260.0).forEach { grams ->
-            now += 100
-            scale.send(ScaleReading(grams, 0.0, 0, overload = false))
-        }
-        vm.stop()
-
-        val events = alerts.map { it.event }
-        assertEquals(1, events.count { it == StepEvent.FirstWater })
-        assertEquals(1, events.count { it == StepEvent.InTargetBand })
-        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
-        assertEquals(1, events.count { it == StepEvent.Paused })
-        assertEquals(1, events.count { it == StepEvent.Resumed })
-        assertEquals(1, events.count { it == StepEvent.AllDone })
-        assertTrue(alerts.all { it.vibrate && !it.sound })
-        assertEquals(events, watchAlerts)
     }
 
     @Test

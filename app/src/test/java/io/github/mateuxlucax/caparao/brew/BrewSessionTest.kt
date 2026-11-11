@@ -177,5 +177,129 @@ class BrewSessionTest {
         assertTrue(requireNotNull(espresso.result).interrupted)
     }
 
+    @Test
+    fun aFilterLiftOfAnyLengthAfterWaterPausesAndNeverReturnsToPreparation() {
+        val session = BrewSession(BrewMode.FILTER, 15.0, 16.0, emptyList(), null, null)
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val pour = SyntheticSession(tare.nowMs).ramp(0.0, 50.0, 4.0).hold(50.0, 1.1)
+        pour.readings.forEach(session::onReading)
+        val lift = SyntheticSession(pour.nowMs).ramp(50.0, -90.0, 0.3).hold(-90.0, 10.0)
+        val states = lift.readings.map(session::onReading)
+
+        assertEquals(BrewPhase.PAUSED, states.last().phase)
+        assertFalse(states.any { it.returnedToPreparation })
+    }
+
+    @Test
+    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheRatioBand() {
+        val session = BrewSession(BrewMode.FILTER, 15.0, 16.0, emptyList(), null, null)
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val belowBand = SyntheticSession(tare.nowMs).ramp(0.0, 200.0, 10.0).hold(200.0, 1.1)
+        belowBand.readings.forEach(session::onReading)
+        val firstLift = SyntheticSession(belowBand.nowMs).ramp(200.0, 0.0, 0.5)
+        val paused = firstLift.readings.map(session::onReading).last()
+        assertEquals(BrewPhase.PAUSED, paused.phase)
+        assertFalse(paused.filterLiftEndsBrew)
+
+        val returnAndSettle = SyntheticSession(firstLift.nowMs).ramp(0.0, 200.0, 0.5).hold(200.0, 2.1)
+        returnAndSettle.readings.forEach(session::onReading)
+        assertEquals(BrewPhase.BREWING, session.phase)
+        val target = SyntheticSession(returnAndSettle.nowMs).ramp(200.0, 240.0, 3.0).hold(240.0, 1.2)
+        target.readings.forEach(session::onReading)
+        val finalLift = SyntheticSession(target.nowMs).ramp(240.0, 0.0, 0.1)
+        val ended = finalLift.readings.map(session::onReading).last()
+
+        assertTrue(ended.filterLiftEndsBrew)
+        session.stop(finalLift.nowMs)
+        assertEquals(BrewPhase.DONE, session.phase)
+        assertEquals(240.0, requireNotNull(session.result).yieldGrams, 0.3)
+
+        val pastBand = BrewSession(BrewMode.FILTER, 15.0, 16.0, emptyList(), null, null)
+        val pastTare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        pastTare.readings.forEach(pastBand::onReading)
+        val pastPour = SyntheticSession(pastTare.nowMs).ramp(0.0, 260.0, 10.0).hold(260.0, 1.2)
+        pastPour.readings.forEach(pastBand::onReading)
+        val pastLift = SyntheticSession(pastPour.nowMs).ramp(260.0, 0.0, 0.1)
+        val pastEnd = pastLift.readings.map(pastBand::onReading).last()
+        assertTrue(pastEnd.filterLiftEndsBrew)
+        pastBand.stop(pastLift.nowMs)
+        assertEquals(BrewPhase.DONE, pastBand.phase)
+        assertEquals(260.0, requireNotNull(pastBand.result).yieldGrams, 0.3)
+    }
+
+    @Test
+    fun aGuidedFilterLiftEndsTheBrewOnlyAfterTheLastPourTarget() {
+        val steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0L), RecipeStep(StepKind.POUR, 100.0, 20_000L))
+        val session = BrewSession(BrewMode.FILTER, 15.0, 16.0, steps, null, null)
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val firstPour = SyntheticSession(tare.nowMs).ramp(0.0, 40.0, 8.0).hold(40.0, 12.0)
+        firstPour.readings.forEach(session::onReading)
+        val shortSecondPour = SyntheticSession(firstPour.nowMs).ramp(40.0, 60.0, 5.0)
+        shortSecondPour.readings.forEach(session::onReading)
+        val earlyLift = SyntheticSession(shortSecondPour.nowMs).ramp(60.0, 0.0, 0.5)
+        val paused = earlyLift.readings.map(session::onReading).last()
+
+        assertEquals(BrewPhase.PAUSED, paused.phase)
+        assertFalse(paused.filterLiftEndsBrew)
+        assertEquals(1, requireNotNull(paused.guide).index)
+
+        val sessionAtTarget = BrewSession(BrewMode.FILTER, 15.0, 16.0, steps, null, null)
+        tare.readings.forEach(sessionAtTarget::onReading)
+        firstPour.readings.forEach(sessionAtTarget::onReading)
+        val finalPour = SyntheticSession(firstPour.nowMs).ramp(40.0, 100.0, 12.0)
+        finalPour.readings.forEach(sessionAtTarget::onReading)
+        val targetLift = SyntheticSession(finalPour.nowMs).ramp(100.0, 0.0, 0.1)
+        val ended = targetLift.readings.map(sessionAtTarget::onReading).last()
+
+        assertTrue(ended.filterLiftEndsBrew)
+        sessionAtTarget.stop(targetLift.nowMs)
+        assertEquals(BrewPhase.DONE, sessionAtTarget.phase)
+    }
+
+    @Test
+    fun aFreePressPoursUnguidedThenSteepsOnReachingTheTargetWater() {
+        val freeSteps = listOf(
+            RecipeStep(StepKind.POUR, 300.0, 0L),
+            RecipeStep(StepKind.PRESS, null, 240_000L),
+        )
+        val session = BrewSession(BrewMode.FRENCH_PRESS, 20.0, 16.0, emptyList(), null, null, freeSteps)
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val partialPour = SyntheticSession(tare.nowMs).ramp(0.0, 200.0, 15.0)
+        partialPour.readings.forEach(session::onReading)
+        assertEquals(0, requireNotNull(session.onClock(partialPour.nowMs).guide).index)
+        val targetPour = SyntheticSession(partialPour.nowMs).ramp(200.0, 300.0, 8.0)
+        val targetStates = targetPour.readings.map(session::onReading)
+        val startedAt = requireNotNull(session.startedAtMs)
+        assertTrue(targetStates.flatMap { it.guideEvents }.contains(StepEvent.Reached(0)))
+        assertEquals(1, requireNotNull(session.onClock(targetPour.nowMs).guide).index)
+        assertTrue(session.onClock(startedAt + 239_000).guideEvents.none { it == StepEvent.FrenchPressDeadline })
+        assertEquals(listOf(StepEvent.FrenchPressDeadline), session.onClock(startedAt + 240_000).guideEvents)
+    }
+
+    @Test
+    fun aFrenchPressStartsOnFirstWaterAndWaitsForDoneAfterTheCarafeIsLifted() {
+        val session = BrewSession(
+            BrewMode.FRENCH_PRESS, 20.0, 16.0,
+            listOf(RecipeStep(StepKind.PRESS, null, 60_000L)), null, null,
+        )
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        tare.readings.forEach(session::onReading)
+        val water = SyntheticSession(tare.nowMs).ramp(0.0, 300.0, 30.0)
+        water.readings.forEach(session::onReading)
+        val lift = SyntheticSession(water.nowMs).ramp(300.0, 0.0, 0.4).hold(0.0, 10.0)
+        lift.readings.forEach(session::onReading)
+
+        assertEquals(BrewPhase.BREWING, session.phase)
+        assertNull(session.result)
+        session.stop(lift.nowMs)
+        val result = requireNotNull(session.finish())
+        assertEquals(300.0, result.result.yieldGrams, 0.5)
+        assertEquals(300.0, result.summary.yieldGrams, 0.5)
+    }
+
     private fun filterStartMs(session: BrewSession) = requireNotNull(session.startedAtMs)
 }
