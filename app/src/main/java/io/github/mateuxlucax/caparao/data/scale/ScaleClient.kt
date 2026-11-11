@@ -254,7 +254,8 @@ internal fun recordDecodedNotification(
     original: ByteArray,
 ): List<ScaleMessage> {
     val previousPendingType = decoder.pendingFrameHeader?.diagnosticFrameType()
-    val previousPendingWasUnsupported = decoder.hasPendingBytes && (previousPendingType == null || !previousPendingType.isSupported())
+    val previousPendingDefinitelyUnsupported =
+        decoder.hasPendingBytes && previousPendingType != null && !previousPendingType.isSupported()
     val messages = decoder.feed(original)
     val frames = decoder.lastCompletedFrames
     val pendingType = decoder.pendingFrameHeader?.diagnosticFrameType()
@@ -269,7 +270,12 @@ internal fun recordDecodedNotification(
         return messages
     }
 
-    if (previousPendingWasUnsupported) {
+    // A frame that began before this chunk owns the bytes buffered from earlier chunks. Drop them only when that frame
+    // is unsupported, so a supported frame split at the header keeps its first byte.
+    val leadingUnsupported = frames.firstOrNull()?.let { frame ->
+        frame.startOffset < 0 && !frame.message.diagnosticFrameType().isSupported()
+    } == true
+    if (previousPendingDefinitelyUnsupported || leadingUnsupported) {
         diagnostics.notification(ByteArray(0), DiagnosticFrameClassification(emptyList(), false, discardPendingBytes = true))
     }
     frames.forEach { frame ->
@@ -288,7 +294,8 @@ internal fun recordDecodedNotification(
             )
         }
     }
-    if (frames.none { it.message.diagnosticFrameType().isSupported() } && pendingType?.isSupported() != true && !previousPendingWasUnsupported) {
+    val keptSupported = frames.any { it.message.diagnosticFrameType().isSupported() } || pendingType?.isSupported() == true
+    if (!keptSupported && !previousPendingDefinitelyUnsupported && !leadingUnsupported) {
         diagnostics.notification(ByteArray(0), DiagnosticFrameClassification(emptyList(), false, discardPendingBytes = true))
     }
     return messages

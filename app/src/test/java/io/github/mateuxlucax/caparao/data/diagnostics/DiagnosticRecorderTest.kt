@@ -250,6 +250,31 @@ class DiagnosticRecorderTest {
     }
 
     @Test
+    fun aSupportedFrameSplitInsideItsHeaderKeepsTheBufferedPrefix() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
+        val decoder = FrameDecoder()
+        val model = bytes("A5 5A 02 13 00 03 41 42 43 00 00")
+        assertTrue(recorder.start())
+
+        recordDecodedNotification(decoder, recorder, zeroWeight.copyOfRange(0, 1))
+        recordDecodedNotification(decoder, recorder, zeroWeight.copyOfRange(1, zeroWeight.size) + model)
+        recorder.event(DiagnosticEvent.BrewResultReady)
+
+        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val rows = result.file.readLines().drop(1).map(::JSONObject)
+        val rx = rows.filter { it.optString("dir") == "rx" }
+        assertEquals(
+            listOf(zeroWeight.copyOfRange(0, 1), zeroWeight.copyOfRange(1, zeroWeight.size)).map(::hex),
+            rx.map { it.getString("hex") },
+        )
+        assertFalse(result.file.readText().contains(hex(model)))
+        assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("seq") < right.getLong("seq") })
+        assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("t_ms") <= right.getLong("t_ms") })
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun unsupportedSplitFrameDropDoesNotReorderHeldRecords() = runTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, this)
@@ -306,6 +331,31 @@ class DiagnosticRecorderTest {
         assertEquals("session_incomplete", footer.getString("note"))
         assertEquals("process_interrupted", footer.getString("reason"))
         assertEquals(1L, footer.getLong("seq"))
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun refreshDoesNotSendAFileItCannotRepair() = runTest {
+        val directory = tempDir()
+        val file = File(directory, "diagnostic-broken.jsonl")
+        file.writeText("{\"t_ms\":1,\"seq\":0,\"dir\":\"rx\"")
+        var sent = false
+        val recorder = DiagnosticRecorder(
+            directory,
+            this,
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            send = { _, _, _ ->
+                sent = true
+                true
+            },
+        )
+
+        recorder.refresh()
+        advanceUntilIdle()
+
+        assertFalse(sent)
+        assertEquals(DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE), recorder.state.value)
+        assertTrue(file.exists())
         directory.deleteRecursively()
     }
 
