@@ -83,7 +83,8 @@ class AppContainer(context: Context) {
     init {
         scope.launch(Dispatchers.IO) {
             val migrations = appContext.getSharedPreferences("caparao-migrations", Context.MODE_PRIVATE)
-            if (removeLegacyDiagnosticCaptures(appContext.filesDir, migrations)) captureWriter.refresh()
+            removeLegacyDiagnosticCaptures(appContext.filesDir, migrations)
+            captureWriter.refresh()
         }
         scope.launch { settings.remoteDiagnosticsChanges.collect { enabled -> if (!enabled) captureWriter.clear() } }
     }
