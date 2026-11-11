@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -15,6 +17,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.zip.GZIPOutputStream
 import java.io.IOException
 import java.io.OutputStream
 import java.nio.file.Files
@@ -32,14 +37,14 @@ class DiagnosticRecorderTest {
         assertTrue(recorder.start())
 
         val mutable = zeroWeight.copyOf()
-        recorder.notification(mutable)
+        notifyWeight(recorder, mutable)
         mutable.fill(0)
         clock += 100_000_000L
         recorder.event(DiagnosticEvent.BrewScreenOpened)
         clock += 100_000_000L
-        recorder.notification(thirtyGrams)
+        notifyWeight(recorder, thirtyGrams)
         clock += 100_000_000L
-        recorder.notification(thirtyGrams)
+        notifyWeight(recorder, thirtyGrams)
         recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.ESPRESSO, DiagnosticBrewPhase.READY))
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
@@ -47,9 +52,6 @@ class DiagnosticRecorderTest {
         val lines = result.file.readLines()
         val rows = lines.drop(1).map(::JSONObject)
         assertEquals(DiagnosticRecorder.FORMAT_NAME, JSONObject(lines.first()).getString("format"))
-        assertEquals("0.0-test", JSONObject(lines.first()).getString("app_version"))
-        assertEquals("synthetic", JSONObject(lines.first()).getString("phone_model"))
-        assertEquals("test", JSONObject(lines.first()).getString("android_version"))
         assertEquals("0.0-test", JSONObject(lines.first()).getString("app_version"))
         assertEquals("synthetic", JSONObject(lines.first()).getString("phone_model"))
         assertEquals("test", JSONObject(lines.first()).getString("android_version"))
@@ -81,7 +83,7 @@ class DiagnosticRecorderTest {
         clock += 5_000_000L
         recorder.event(DiagnosticEvent.ScanStarted)
         clock += 5_000_000L
-        recorder.notification(zeroWeight)
+        notifyWeight(recorder, zeroWeight)
         clock += 5_000_000L
         recorder.command(bytes("A5 5A 03 0D 00 00 64 D1"))
         clock += 5_000_000L
@@ -101,8 +103,8 @@ class DiagnosticRecorderTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope, limits = limits(queueCapacity = 2))
         assertTrue(recorder.start()) // session_started uses one queue slot before the writer is scheduled
-        recorder.notification(zeroWeight)
-        recorder.notification(zeroWeight) // fills the bounded queue and stops capture
+        notifyWeight(recorder, zeroWeight)
+        notifyWeight(recorder, zeroWeight) // fills the bounded queue and stops capture
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(result.complete)
@@ -114,24 +116,111 @@ class DiagnosticRecorderTest {
     }
 
     @Test
-    fun fragmentedFramesKeepOriginalChunksAndUnsupportedRepliesAreDropped() = runTest {
+    fun heldLineFlushOverrunKeepsTheOriginalIncompleteReason() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this, limits = limits(queueCapacity = 2))
+        assertTrue(recorder.start())
+        recorder.notification(zeroWeight.copyOfRange(0, 5), DiagnosticFrameClassification(emptyList(), true))
+        recorder.event(DiagnosticEvent.AppForeground)
+        recorder.event(DiagnosticEvent.ScaleLinkLost)
+        recorder.disconnect()
+        advanceUntilIdle()
+
+        val result = recorder.state.value as DiagnosticRecorderState.Ready
+        assertFalse(result.complete)
+        assertEquals(DiagnosticIncompleteReason.SCALE_DISCONNECTED, result.reason)
+        assertEquals("scale_disconnected", JSONObject(result.file.readLines().last()).getString("reason"))
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun sessionDurationLimitFinishesAnIncompleteCapture() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this, limits = DiagnosticRecorderLimits(maxDurationMillis = 100))
+        assertTrue(recorder.start())
+        advanceTimeBy(100)
+        runCurrent()
+
+        val ready = recorder.state.value as DiagnosticRecorderState.Ready
+        assertFalse(ready.complete)
+        assertEquals(DiagnosticIncompleteReason.SESSION_DURATION_LIMIT, ready.reason)
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun gzipFetchConverterOutputReplaysWithOriginalChunkBoundaries() = runTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
         assertTrue(recorder.start())
         val split = zeroWeight.size / 2
-        recorder.notification(zeroWeight.copyOfRange(0, split), allowed = null)
-        recorder.notification(zeroWeight.copyOfRange(split, zeroWeight.size), allowed = true)
+        val firstChunk = zeroWeight.copyOfRange(0, split)
+        val secondChunk = zeroWeight.copyOfRange(split, zeroWeight.size)
+        recorder.notification(firstChunk, DiagnosticFrameClassification(emptyList(), true))
+        recorder.notification(secondChunk, DiagnosticFrameClassification(listOf(DiagnosticFrameType.WEIGHT), false))
+        recorder.notification(thirtyGrams, DiagnosticFrameClassification(listOf(DiagnosticFrameType.WEIGHT), false))
+        recorder.notification(thirtyGrams, DiagnosticFrameClassification(listOf(DiagnosticFrameType.WEIGHT), false))
+        recorder.event(DiagnosticEvent.BrewResultReady)
+
+        val captured = (recorder.stop() as DiagnosticRecorderState.Ready).file
+        val compressed = File(directory, "capture.jsonl.gz")
+        GZIPOutputStream(FileOutputStream(compressed)).use { output -> FileInputStream(captured).use { it.copyTo(output) } }
+        val converted = File(directory, "converted.jsonl")
+        val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
+            .first { File(it, "scripts/capture/fetch-capture.py").isFile }
+        val converter = """
+            import importlib.util, pathlib, sys
+            spec = importlib.util.spec_from_file_location('fetch_capture', sys.argv[1])
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            pathlib.Path(sys.argv[3]).write_text(module.convert_capture(pathlib.Path(sys.argv[2]).read_bytes()))
+        """.trimIndent()
+        val process = ProcessBuilder("python3", "-c", converter, File(root, "scripts/capture/fetch-capture.py").path, compressed.path, converted.path)
+            .redirectErrorStream(true)
+            .start()
+        val processOutput = process.inputStream.bufferedReader().use { it.readText() }
+        assertEquals(processOutput, 0, process.waitFor())
+        val lines = converted.readLines()
+        val rx = lines.drop(1).map(::JSONObject).filter { it.optString("dir") == "rx" }
+        assertEquals(listOf(firstChunk, secondChunk, thirtyGrams, thirtyGrams).map(::hex), rx.map { it.getString("hex") })
+
+        val replay = ReplayScaleSource(backgroundScope, lines, playbackSpeed = 100.0, repeat = false)
+        val readings = async(UnconfinedTestDispatcher(testScheduler)) { replay.readings.take(3).toList() }
+        replay.start()
+        advanceUntilIdle()
+        assertEquals(
+            listOf(ScaleReading(0.0, 0.0, 0, false), ScaleReading(30.0, 0.0, 0, false), ScaleReading(30.0, 0.0, 0, false)),
+            readings.await(),
+        )
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun fragmentedFramesKeepOriginalChunksAndUnsupportedRepliesAreDroppedWithoutStoppingCapture() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        assertTrue(recorder.start())
+        val split = zeroWeight.size / 2
+        recorder.notification(zeroWeight.copyOfRange(0, split), DiagnosticFrameClassification(emptyList(), true))
+        recorder.notification(zeroWeight.copyOfRange(split, zeroWeight.size), DiagnosticFrameClassification(listOf(DiagnosticFrameType.WEIGHT), false))
         val ready = recorder.stop() as DiagnosticRecorderState.Ready
         val rx = ready.file.readLines().drop(1).map(::JSONObject).filter { it.optString("dir") == "rx" }
         assertEquals(listOf(hex(zeroWeight.copyOfRange(0, split)), hex(zeroWeight.copyOfRange(split, zeroWeight.size))), rx.map { it.getString("hex") })
 
-        val modelRecorder = recorder(File(directory, "model"), { 1_000_000_000L }, backgroundScope)
-        assertTrue(modelRecorder.start())
-        val modelReply = bytes("A5 5A 02 13 00 03 41 42 43 00 00")
-        modelRecorder.notification(modelReply, allowed = false)
-        val model = modelRecorder.stop() as DiagnosticRecorderState.Ready
-        assertEquals(DiagnosticIncompleteReason.UNSUPPORTED_FRAME, model.reason)
-        assertFalse(model.file.readText().contains("41 42 43"))
+        val unsupported = listOf(
+            DiagnosticFrameType.MODEL to bytes("A5 5A 02 13 00 03 41 42 43 00 00"),
+            DiagnosticFrameType.UNKNOWN to bytes("A5 5A 77 77 00 03 DE AD BE 00 00"),
+        )
+        unsupported.forEachIndexed { index, (type, reply) ->
+            val filtered = recorder(File(directory, "unsupported-$index"), { 1_000_000_000L }, backgroundScope)
+            assertTrue(filtered.start())
+            filtered.notification(reply, DiagnosticFrameClassification(listOf(type), false))
+            notifyWeight(filtered, zeroWeight)
+            filtered.event(DiagnosticEvent.BrewResultReady)
+            val result = filtered.stop() as DiagnosticRecorderState.Ready
+            assertTrue(result.complete)
+            assertFalse(result.file.readText().contains(hex(reply)))
+            assertTrue(result.file.readText().contains(hex(zeroWeight)))
+        }
         directory.deleteRecursively()
     }
 
@@ -142,10 +231,10 @@ class DiagnosticRecorderTest {
             directory,
             { 1_000_000_000L },
             backgroundScope,
-            limits = limits(maxSessionBytes = 1_024, maxStoredBytes = 2_048, footerReserveBytes = 384),
+            limits = limits(maxSessionBytes = 1_024, footerReserveBytes = 384),
         )
         assertTrue(recorder.start())
-        recorder.notification(ByteArray(220) { it.toByte() })
+        notifyWeight(recorder, ByteArray(220) { it.toByte() })
 
         val result = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(result.complete)
@@ -192,10 +281,10 @@ class DiagnosticRecorderTest {
         val recorder = DiagnosticRecorder(
             directory, backgroundScope, monotonicNanos = { monotonic }, wallClockMillis = { wall },
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
-            limits = limits(maxSessions = 1, maxSessionBytes = 4_096, maxStoredBytes = 4_096),
+            limits = limits(maxSessionBytes = 4_096),
         )
         assertTrue(recorder.start())
-        recorder.notification(zeroWeight)
+        notifyWeight(recorder, zeroWeight)
         val pending = (recorder.stop() as DiagnosticRecorderState.Ready).file
         wall += 1_000L
         monotonic += 1_000_000_000L
@@ -213,7 +302,7 @@ class DiagnosticRecorderTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
         assertTrue(recorder.start())
-        recorder.notification(zeroWeight)
+        notifyWeight(recorder, zeroWeight)
         val stops = List(8) { async { recorder.stop() } }
         advanceUntilIdle()
         val results = stops.map { it.await() as DiagnosticRecorderState.Ready }
@@ -280,12 +369,24 @@ class DiagnosticRecorderTest {
     }
 
     @Test
+    fun liftEndStopsCaptureAutomatically() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
+        assertTrue(recorder.start())
+        recorder.event(DiagnosticEvent.BrewLiftEnded)
+        val ready = recorder.stop() as DiagnosticRecorderState.Ready
+        assertTrue(ready.complete)
+        assertEquals("brew_lift_end", JSONObject(ready.file.readLines().dropLast(1).last()).getString("note"))
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun retainedInterruptedSessionIsRecoverableAndMetadataContainsNoIdentifiers() = runTest {
         val directory = tempDir()
         val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
         assertTrue(recorder.start())
         recorder.event(DiagnosticEvent.ScaleConnected)
-        recorder.notification(zeroWeight)
+        notifyWeight(recorder, zeroWeight)
         recorder.recordDisconnect()
         val incomplete = recorder.stop() as DiagnosticRecorderState.Ready
         assertFalse(incomplete.complete)
@@ -321,19 +422,22 @@ class DiagnosticRecorderTest {
     )
 
     private fun limits(
-        maxSessions: Int = 1,
-        maxStoredBytes: Long = 32L * 1024 * 1024,
         maxSessionBytes: Long = 8L * 1024 * 1024,
         queueCapacity: Int = 128,
         maxNotificationBytes: Int = 512,
         footerReserveBytes: Int = 512,
-    ) = DiagnosticRecorderLimits(maxSessions, maxStoredBytes, maxSessionBytes, queueCapacity, maxNotificationBytes, footerReserveBytes)
+    ) = DiagnosticRecorderLimits(maxSessionBytes, queueCapacity, maxNotificationBytes, footerReserveBytes)
 
     private fun tempDir(): File = Files.createTempDirectory("caparao-diagnostics-test-").toFile()
 
     private fun bytes(hex: String) = hex.split(' ').map { it.toInt(16).toByte() }.toByteArray()
 
     private fun hex(bytes: ByteArray) = bytes.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
+
+    private fun notifyWeight(recorder: DiagnosticRecorder, bytes: ByteArray) = recorder.notification(
+        bytes,
+        DiagnosticFrameClassification(listOf(DiagnosticFrameType.WEIGHT), false),
+    )
 
     /** All tests pass the active TestScope, whose scheduler is shared with the recorder's writer dispatcher. */
     private fun testSchedulerFor(scope: kotlinx.coroutines.CoroutineScope) =

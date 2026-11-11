@@ -26,7 +26,6 @@ enum class DiagnosticIncompleteReason(val note: String) {
     SCALE_DISCONNECTED("scale_disconnected"),
     SESSION_SIZE_LIMIT("session_size_limit"),
     SESSION_DURATION_LIMIT("session_duration_limit"),
-    UNSUPPORTED_FRAME("unsupported_frame"),
     WRITER_OVERRUN("writer_overrun"),
     STORAGE_ERROR("storage_error"),
     PROCESS_INTERRUPTED("process_interrupted"),
@@ -51,8 +50,6 @@ sealed interface DiagnosticRecorderState {
 
 /** Limits apply per installation. Starting a session reserves room for its full size cap. */
 data class DiagnosticRecorderLimits(
-    val maxSessions: Int = MAX_SESSIONS,
-    val maxStoredBytes: Long = MAX_STORED_BYTES,
     val maxSessionBytes: Long = MAX_SESSION_BYTES,
     val queueCapacity: Int = WRITER_QUEUE_CAPACITY,
     val maxNotificationBytes: Int = MAX_NOTIFICATION_BYTES,
@@ -60,16 +57,13 @@ data class DiagnosticRecorderLimits(
     val maxDurationMillis: Long = MAX_DURATION_MILLIS,
 ) {
     init {
-        require(maxSessions > 0)
-        require(maxSessionBytes > 0 && maxStoredBytes >= maxSessionBytes)
+        require(maxSessionBytes > 0)
         require(queueCapacity > 0 && maxNotificationBytes > 0)
         require(footerReserveBytes > 0 && footerReserveBytes < maxSessionBytes)
         require(maxDurationMillis > 0)
     }
 
     companion object {
-        const val MAX_SESSIONS = 1
-        const val MAX_STORED_BYTES = 8L * 1024 * 1024
         const val MAX_SESSION_BYTES = 8L * 1024 * 1024
         const val WRITER_QUEUE_CAPACITY = 128
         const val MAX_NOTIFICATION_BYTES = 512
@@ -168,7 +162,6 @@ class DiagnosticRecorder(
             if (current != null) {
                 if (current.pendingNotifications.isNotEmpty()) {
                     discardPendingNotificationsLocked(current)
-                    current.incompleteReason = DiagnosticIncompleteReason.UNSUPPORTED_FRAME
                 }
                 finishLocked(current, current.incompleteReason)
                 current
@@ -181,37 +174,42 @@ class DiagnosticRecorder(
     }
 
     /** Store one original GATT notification chunk, before the scale decoder can consume or transform it. */
-    override fun notification(bytes: ByteArray, allowed: Boolean?) {
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) {
         synchronized(lock) {
             val session = active ?: return
             if (bytes.size > limits.maxNotificationBytes) {
                 markIncompleteLocked(session, DiagnosticIncompleteReason.SESSION_SIZE_LIMIT)
                 return
             }
-            if (allowed == false) {
-                discardPendingNotificationsLocked(session)
-                flushHeldLocked(session)
-                markIncompleteLocked(session, DiagnosticIncompleteReason.UNSUPPORTED_FRAME)
-            } else if (allowed == true) {
-                val line = PendingLine(session.nextSequence++, elapsedMsLocked(session), Payload.Raw("rx", bytes.copyOf(), "notification"))
-                if (session.pendingNotifications.isEmpty()) {
-                    enqueueLineLocked(session, line)
-                } else {
+            if (session.droppingPartialFrame) {
+                if (classification.completedFrames.isNotEmpty()) session.droppingPartialFrame = false
+                if (classification.hasPartialFrame) session.droppingPartialFrame = true
+                return
+            }
+            val line = PendingLine(session.nextSequence++, elapsedMsLocked(session), Payload.Raw("rx", bytes.copyOf(), "notification"))
+            if (classification.completedFrames.isEmpty()) {
+                if (classification.hasPartialFrame) {
                     session.pendingNotifications += line
                     session.heldLines += line
-                    session.pendingNotifications.clear()
-                    flushHeldLocked(session)
+                    if (session.pendingNotifications.sumOf { (it.payload as Payload.Raw).bytes.size } > limits.maxNotificationBytes) {
+                        discardPendingNotificationsLocked(session)
+                        if (!flushHeldLocked(session)) finishLocked(session, session.incompleteReason)
+                        session.droppingPartialFrame = true
+                    }
                 }
-            } else {
-                val line = PendingLine(session.nextSequence++, elapsedMsLocked(session), Payload.Raw("rx", bytes.copyOf(), "notification"))
-                session.pendingNotifications += line
-                session.heldLines += line
+                return
             }
+            session.pendingNotifications += line
+            session.heldLines += line
+            val allowed = classification.completedFrames.all { it == DiagnosticFrameType.WEIGHT || it == DiagnosticFrameType.BATTERY || it == DiagnosticFrameType.ACK }
+            if (allowed && !classification.hasPartialFrame) session.pendingNotifications.clear()
+            else if (!allowed) discardPendingNotificationsLocked(session)
+            if (classification.hasPartialFrame) session.droppingPartialFrame = !allowed
             if (session.pendingNotifications.sumOf { (it.payload as Payload.Raw).bytes.size } > limits.maxNotificationBytes) {
                 discardPendingNotificationsLocked(session)
-                flushHeldLocked(session)
-                markIncompleteLocked(session, DiagnosticIncompleteReason.UNSUPPORTED_FRAME)
+                session.droppingPartialFrame = classification.hasPartialFrame
             }
+            if (!classification.hasPartialFrame && !flushHeldLocked(session)) finishLocked(session, session.incompleteReason)
         }
     }
 
@@ -279,7 +277,7 @@ class DiagnosticRecorder(
     }
 
     /** Remove unsent files immediately when consent is withdrawn. */
-    suspend fun clear() = withContext(ioDispatcher) {
+    override suspend fun clear() = withContext(ioDispatcher) {
         synchronized(lock) { active?.let { markIncompleteLocked(it, DiagnosticIncompleteReason.PROCESS_INTERRUPTED) } }
         finishingSession()?.finished?.await()
         listSessionFiles().forEach(File::delete)
@@ -311,16 +309,16 @@ class DiagnosticRecorder(
         session.pendingNotifications.clear()
     }
 
-    private fun flushHeldLocked(session: Session) {
+    private fun flushHeldLocked(session: Session): Boolean {
         val held = session.heldLines.sortedBy(PendingLine::sequence)
         session.heldLines.clear()
         held.forEach { line ->
             if (session.channel.trySend(line).isFailure) {
                 if (session.incompleteReason == null) session.incompleteReason = DiagnosticIncompleteReason.WRITER_OVERRUN
-                finishLocked(session, session.incompleteReason)
-                return
+                return false
             }
         }
+        return true
     }
 
     /** Caller holds [lock]. */
@@ -333,15 +331,14 @@ class DiagnosticRecorder(
         if (active !== session) return
         if (session.pendingNotifications.isNotEmpty()) {
             discardPendingNotificationsLocked(session)
-            if (session.incompleteReason == null) session.incompleteReason = DiagnosticIncompleteReason.UNSUPPORTED_FRAME
         }
         flushHeldLocked(session)
         active = null
         finishing = session
-        session.incompleteReason = reason
+        if (session.incompleteReason == null && reason != null) session.incompleteReason = reason
         session.endingAtMs = elapsedMsLocked(session)
         session.channel.close()
-        _state.value = DiagnosticRecorderState.Finalizing(reason)
+        _state.value = DiagnosticRecorderState.Finalizing(session.incompleteReason)
     }
 
     private suspend fun writeSession(session: Session) {
@@ -527,6 +524,7 @@ class DiagnosticRecorder(
         var mode = "unknown"
         val pendingNotifications = mutableListOf<PendingLine>()
         val heldLines = mutableListOf<PendingLine>()
+        var droppingPartialFrame = false
     }
 
     private sealed interface Payload {
@@ -550,7 +548,7 @@ class DiagnosticRecorder(
 
     companion object {
         const val FORMAT_NAME = "caparao-diagnostic-jsonl"
-        const val FORMAT_VERSION = 1
+        const val FORMAT_VERSION = 2
         private const val FILE_PREFIX = "diagnostic-"
         private const val FILE_SUFFIX = ".jsonl"
         private const val FLUSH_EVERY_LINES = 8

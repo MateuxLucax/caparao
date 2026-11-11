@@ -16,4 +16,7 @@ interface DiagnosticCapture {
 
     /** Re-read the retained sessions, including recovery after process death. */
     suspend fun refresh()
+
+    /** Remove retained captures after consent is withdrawn. */
+    suspend fun clear()
 }

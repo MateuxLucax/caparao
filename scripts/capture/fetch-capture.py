@@ -64,7 +64,7 @@ def convert_capture(data):
     if (
         header.get("format") != "caparao-diagnostic-jsonl"
         or type(header.get("format_version")) is not int
-        or header.get("format_version") != 1
+        or header.get("format_version") != 2
         or any(not isinstance(header.get(key), str) or not header[key] for key in ("app_version", "phone_model", "android_version", "started_at"))
         or set(header) != {"format", "format_version", "app_version", "phone_model", "android_version", "started_at"}
     ):

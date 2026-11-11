@@ -2,19 +2,28 @@ import gzip
 import importlib.util
 import json
 from pathlib import Path
+import sys
+import tempfile
 import unittest
+from datetime import datetime, timezone
 from urllib.request import Request
 
 path = Path(__file__).resolve().parents[1] / "capture" / "fetch-capture.py"
 spec = importlib.util.spec_from_file_location("fetch_capture", path)
 fetch = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fetch)
+capture_spec = importlib.util.spec_from_file_location(
+    "capture_session", Path(__file__).resolve().parents[1] / "capture" / "capture-session.py",
+)
+capture = importlib.util.module_from_spec(capture_spec)
+sys.modules[capture_spec.name] = capture
+capture_spec.loader.exec_module(capture)
 
 
 class CaptureConversionTest(unittest.TestCase):
     def records(self):
         return [
-            {"format": "caparao-diagnostic-jsonl", "format_version": 1, "app_version": "test", "phone_model": "synthetic", "android_version": "test", "started_at": "2026-11-01T00:00:00Z"},
+            {"format": "caparao-diagnostic-jsonl", "format_version": 2, "app_version": "test", "phone_model": "synthetic", "android_version": "test", "started_at": "2026-11-01T00:00:00Z"},
             {"seq": 0, "t_ms": 0, "dir": "rx", "hex": "A5 5A", "note": "notification"},
             {"seq": 1, "t_ms": 1, "dir": "rx", "hex": "01 01", "note": "notification"},
             {"seq": 2, "t_ms": 1, "dir": "rx", "hex": "01 01", "note": "notification"},
@@ -33,6 +42,18 @@ class CaptureConversionTest(unittest.TestCase):
         rows = [json.loads(line) for line in fetch.convert_capture(fixture.read_bytes()).splitlines()]
         self.assertEqual(["session_started", "notification", "command", "notification", "notification", "session_end"], [row["note"] for row in rows[1:]])
         self.assertEqual(rows[-2]["hex"], rows[-3]["hex"])
+
+    def test_developer_capture_script_writes_the_fetchable_format(self):
+        with tempfile.TemporaryDirectory() as temp:
+            log = capture.SessionLog(
+                "synthetic", Path(temp), started_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
+                start_ns=0, monotonic_ns=lambda: 1_000_000,
+            )
+            log.rx(bytes.fromhex("A5 5A"))
+            log.close()
+            rows = [json.loads(line) for line in fetch.convert_capture(gzip.compress(log.path.read_bytes())).splitlines()]
+            self.assertEqual(2, rows[0]["format_version"])
+            self.assertEqual(["notification", "session_end"], [row["note"] for row in rows[1:]])
 
     def test_rejects_bad_sequence_and_missing_footer(self):
         records = self.records()
@@ -57,7 +78,7 @@ class CaptureConversionTest(unittest.TestCase):
 
     def test_rejects_unknown_header_and_bad_hex(self):
         records = self.records()
-        records[0]["format_version"] = 2
+        records[0]["format_version"] = 1
         with self.assertRaises(ValueError):
             fetch.convert_capture(self.encode(records))
         records = self.records()

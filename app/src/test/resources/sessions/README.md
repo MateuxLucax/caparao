@@ -2,10 +2,10 @@
 
 Real Timemore Dot sessions captured with the removed stage 0 probe or with
 [`scripts/capture/capture-session.py`](../../../../scripts/capture/capture-session.py), used as test fixtures
-([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). One JSON object per line: a header, then
-`{"t_ms", "dir": "rx"|"tx"|"event", "hex", "note"}`. `rx` lines are notifications exactly as received, so one line may
-hold several frames. No MAC address or device name is recorded. Raw captures stay in the ignored `spike-captures/`
-until reviewed.
+([ADR 0010](https://github.com/MateuxLucax/caparao/issues/94)). The version 2 format has a metadata header, then
+`{"t_ms", "seq", "dir": "rx"|"tx"|"event", "hex", "note"}` rows and a completion footer. `rx` lines are notifications
+exactly as received, so one line may hold several frames. No MAC address or device name is recorded. Raw captures stay
+in the ignored `spike-captures/` until reviewed.
 
 | File | Phone | What happened |
 |------|-------|---------------|

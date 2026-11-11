@@ -5,6 +5,8 @@ import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticErrorContext
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticFrameClassification
+import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticFrameType
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
 import io.github.mateuxlucax.caparao.data.diagnostics.NoDiagnostics
 import kotlinx.coroutines.CompletableDeferred
@@ -180,13 +182,10 @@ class ScaleClient(
                     is BleEvent.Notification -> {
                         val original = event.bytes.copyOf()
                         val messages = decoder.feed(original)
-                        val allowed = when {
-                            messages.any { it !is ScaleMessage.Weight && it !is ScaleMessage.Battery && it !is ScaleMessage.Ack } -> false
-                            decoder.hasPendingBytes -> null
-                            messages.isNotEmpty() -> true
-                            else -> null
-                        }
-                        diagnostics.notification(original, allowed)
+                        diagnostics.notification(
+                            original,
+                            DiagnosticFrameClassification(messages.map(ScaleMessage::diagnosticFrameType), decoder.hasPendingBytes),
+                        )
                         messages.forEach(::handle)
                     }
                     // The event and recorder share a fixed monotonic clock; no address or exception text is included.
@@ -251,4 +250,12 @@ class ScaleClient(
         const val MAX_BACKOFF_MS = 10_000L
         const val LOG_LINES = 200
     }
+}
+
+private fun ScaleMessage.diagnosticFrameType() = when (this) {
+    is ScaleMessage.Weight -> DiagnosticFrameType.WEIGHT
+    is ScaleMessage.Battery -> DiagnosticFrameType.BATTERY
+    is ScaleMessage.Ack -> DiagnosticFrameType.ACK
+    is ScaleMessage.Model -> DiagnosticFrameType.MODEL
+    is ScaleMessage.Unknown -> DiagnosticFrameType.UNKNOWN
 }

@@ -99,7 +99,7 @@ def _hex(data: bytes) -> str:
 
 
 class SessionLog:
-    """One JSONL file with a header followed by `t_ms`, `dir`, `hex` and `note` rows."""
+    """One versioned JSONL file with the original notification chunks intact."""
 
     def __init__(
         self,
@@ -118,6 +118,7 @@ class SessionLog:
         self._monotonic_ns = monotonic_ns or time.monotonic_ns
         self._start_ns = start_ns if start_ns is not None else self._monotonic_ns()
         self._last_t_ms = 0
+        self._sequence = 0
         self._file: Optional[Any] = None
 
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -132,9 +133,12 @@ class SessionLog:
         self._file = self.path.open("x", encoding="utf-8", newline="\n")
         self._write(
             {
-                "label": safe_label,
+                "format": "caparao-diagnostic-jsonl",
+                "format_version": 2,
+                "app_version": APP_NAME,
+                "phone_model": "not-applicable",
+                "android_version": "not-applicable",
                 "started_at": now.isoformat().replace("+00:00", "Z"),
-                "app": APP_NAME,
             }
         )
         for at_ms, note in prelude_events:
@@ -162,11 +166,13 @@ class SessionLog:
         self._write(
             {
                 "t_ms": self._last_t_ms,
+                "seq": self._sequence,
                 "dir": direction,
                 "hex": _hex(data),
                 "note": self.redactor.redact(note),
             }
         )
+        self._sequence += 1
 
     def event(self, note: str, at_ms: Optional[int] = None) -> None:
         self._record("event", b"", note, at_ms)
@@ -177,8 +183,15 @@ class SessionLog:
     def rx(self, data: bytes, note: str = "notification") -> None:
         self._record("rx", data, note)
 
-    def close(self) -> None:
+    def close(self, *, complete: bool = True, reason: Optional[str] = None) -> None:
         if self._file is not None:
+            footer = {"t_ms": self._last_t_ms, "seq": self._sequence, "dir": "event", "hex": "",
+                      "note": "session_end" if complete else "session_incomplete", "complete": complete}
+            if reason:
+                footer["reason"] = reason
+            self._file.seek(0, 2)
+            self._file.write(json.dumps(footer, separators=(",", ":")) + "\n")
+            self._file.flush()
             self._file.close()
             self._file = None
 
@@ -483,8 +496,9 @@ async def capture_session(
                         disconnected.set()
                 except Exception as error:  # noqa: BLE001
                     log.event(f"disconnect_failed {type(error).__name__}")
-            log.event("session_end")
-            log.close()
+            complete = status == 0 and connected and received > 0
+            reason = None if complete else ("scale_disconnected" if disconnected.is_set() else "capture_incomplete")
+            log.close(complete=complete, reason=reason)
     assert log is not None
     return CaptureResult(log.path, status)
 

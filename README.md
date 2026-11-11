@@ -132,10 +132,11 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
 
-With anonymous usage data enabled, start a brew capture before brewing. Captures include only scale weight, battery and
-acknowledgement frames, successful app commands, and fixed app events; they omit scale identifiers and user-entered data.
-They stay in app-private storage while offline and are removed after Sentry confirms delivery, when consent is turned off,
-or after 7 days. The release Sentry DSN is supplied by CI; public documentation uses `https://public@o0.ingest.sentry.io/0`.
+With diagnostics enabled, start a brew capture before brewing. Captures include only scale weight, battery and
+acknowledgement frames, successful app commands, and fixed app events; the uploaded recording includes the phone model,
+Android version and app version, but omits scale identifiers and user-entered data. They stay in app-private storage
+while offline and are removed after Sentry confirms delivery, when consent is turned off, or after 7 days. The release
+Sentry DSN is supplied by CI; public documentation uses `https://public@o0.ingest.sentry.io/0`.
 To rebuild a fixture from an event, set `SENTRY_AUTH_TOKEN` in the shell and run
 `python3 scripts/capture/fetch-capture.py <event-id> --org <org> --project <project>`. The script validates the capture
 and writes replay JSONL under the ignored `spike-captures/` directory by default.

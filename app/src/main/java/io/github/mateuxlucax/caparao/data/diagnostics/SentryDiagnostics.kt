@@ -92,7 +92,7 @@ internal class SentryDiagnostics(
     }
 
     /** Raw frames are for the local capture only; they never become breadcrumbs or logs (#330). */
-    override fun notification(bytes: ByteArray, allowed: Boolean?) = Unit
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) = Unit
 
     override fun command(bytes: ByteArray) = Unit
 

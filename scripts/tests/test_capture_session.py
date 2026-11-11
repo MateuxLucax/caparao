@@ -152,12 +152,13 @@ class SessionLogTest(unittest.TestCase):
 
         header, records = read_records(log.path)
 
-        self.assertEqual({"label", "started_at", "app"}, set(header))
-        self.assertEqual("espresso", header["label"])
+        self.assertEqual({"format", "format_version", "app_version", "phone_model", "android_version", "started_at"}, set(header))
+        self.assertEqual("caparao-diagnostic-jsonl", header["format"])
+        self.assertEqual(2, header["format_version"])
         self.assertEqual("2026-11-02T12:34:56Z", header["started_at"])
-        self.assertEqual("capture-session.py", header["app"])
+        self.assertEqual("capture-session.py", header["app_version"])
         self.assertEqual(["event", "tx", "rx"], [row["dir"] for row in records])
-        self.assertEqual({"t_ms", "dir", "hex", "note"}, set(records[0]))
+        self.assertEqual({"t_ms", "seq", "dir", "hex", "note"}, set(records[0]))
         self.assertEqual("", records[0]["hex"])
         self.assertEqual(capture.READ_BATTERY.hex(" ").upper(), records[1]["hex"])
         self.assertEqual(capture._hex(COMBINED_RX), records[2]["hex"])
@@ -282,7 +283,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(client.disconnected)
 
         header, records = read_records(result.path)
-        self.assertEqual("espresso 18g", header["label"])
+        self.assertEqual(2, header["format_version"])
         events = [row["note"] for row in records if row["dir"] == "event"]
         self.assertEqual(
             [
@@ -359,7 +360,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, result.exit_code)
         self.assertEqual([], clients)
         _, records = read_records(result.path)
-        self.assertEqual(["session_start", "scan_start", "scan_timeout", "session_end"],
+        self.assertEqual(["session_start", "scan_start", "scan_timeout", "session_incomplete"],
                          [row["note"] for row in records])
 
     async def test_connection_is_retried_three_times(self):
@@ -411,7 +412,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
                 "connect_attempt 3",
                 "connect_failed TimeoutError",
                 "connect_failed_all",
-                "session_end",
+                "session_incomplete",
             ],
             [row["note"] for row in records],
         )
@@ -441,7 +442,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         events = [row["note"] for row in records if row["dir"] == "event"]
         self.assertIn("disconnected", events)
         self.assertNotIn("disconnect_requested", events)
-        self.assertEqual("session_end", events[-1])
+        self.assertEqual("session_incomplete", events[-1])
         self.assertTrue(clients[0].disconnected)
 
     async def test_write_failure_still_subscribes_cleans_up_and_logs_safely(self):
@@ -469,7 +470,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         _, records = read_records(result.path)
         self.assertIn("capture_failed RuntimeError",
                       [row["note"] for row in records if row["dir"] == "event"])
-        self.assertEqual("session_end", records[-1]["note"])
+        self.assertEqual("session_incomplete", records[-1]["note"])
 
     async def test_cancellation_releases_the_connection(self):
         handshake_done = asyncio.Event()
@@ -501,7 +502,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         client = clients[0]
         self.assertTrue(client.stopped_notify)
         self.assertTrue(client.disconnected)
-        self.assertEqual("session_end", self.last_event(self.dir))
+        self.assertEqual("session_incomplete", self.last_event(self.dir))
 
     async def test_callback_from_a_failed_attempt_cannot_stop_the_current_capture(self):
         stop = asyncio.Event()
@@ -577,7 +578,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([], clients)
         events = [row["note"] for row in read_records(result.path)[1]]
         self.assertEqual(
-            ["session_start", "scan_start", "disconnect_requested", "session_end"],
+            ["session_start", "scan_start", "disconnect_requested", "session_incomplete"],
             events,
         )
 
@@ -624,7 +625,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
                 "scan_match",
                 "connect_attempt 1",
                 "disconnect_requested",
-                "session_end",
+                "session_incomplete",
             ],
             events,
         )
@@ -678,7 +679,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
                 "disconnect_requested",
                 "capture_incomplete no_notifications",
                 "disconnected",
-                "session_end",
+                "session_incomplete",
             ],
             events[-4:],
         )
@@ -703,7 +704,7 @@ class CaptureSessionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([], clients)
         events = [row["note"] for row in read_records(result.path)[1]]
         self.assertEqual(
-            ["session_start", "scan_start", "disconnect_requested", "session_end"],
+            ["session_start", "scan_start", "disconnect_requested", "session_incomplete"],
             events,
         )
 
