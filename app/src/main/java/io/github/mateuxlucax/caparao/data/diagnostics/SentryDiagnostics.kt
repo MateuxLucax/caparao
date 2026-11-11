@@ -16,21 +16,18 @@ import io.sentry.SentryLogEvent
 import io.sentry.SentryLogEventAttributeValue
 import io.sentry.SentryLogLevel
 import io.sentry.SentryOptions
+import io.sentry.protocol.SentryId
 import io.sentry.android.core.SentryAndroid
 import io.sentry.android.core.SentryAndroidOptions
 import io.sentry.logger.SentryLogParameters
 import io.sentry.protocol.Mechanism
 import io.sentry.protocol.Message
 import io.sentry.protocol.SentryException
-import io.sentry.protocol.SentryId
 import io.sentry.protocol.SentryStackFrame
 import io.sentry.protocol.SentryStackTrace
-import io.sentry.hints.SubmissionResult
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.StringWriter
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPOutputStream
 import java.util.Date
 import java.util.Locale
@@ -52,6 +49,8 @@ internal class SentryDiagnostics(
     scope: CoroutineScope? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val quota: EventQuota = EventQuota(clock = clock),
+    private val captureEvent: (SentryEvent, Hint) -> SentryId = { event, hint -> Sentry.captureEvent(event, hint) },
+    private val flush: (Long) -> Boolean = { timeout -> runCatching { Sentry.flush(timeout) }.isSuccess },
 ) : Diagnostics {
     private val appContext = context.applicationContext
     private val cacheDir = File(appContext.cacheDir, CACHE_DIR_NAME)
@@ -115,24 +114,18 @@ internal class SentryDiagnostics(
             }.toByteArray()
         }.getOrNull() ?: return false
         if (compressed.size > MAX_CAPTURE_ATTACHMENT_BYTES) return false
-        val result = object : SubmissionResult {
-            private val sent = CountDownLatch(1)
-            @Volatile private var success = false
-            override fun setResult(value: Boolean) { success = value; sent.countDown() }
-            override fun isSuccess() = success
-            fun await() = sent.await(SEND_TIMEOUT_MS, TimeUnit.MILLISECONDS) && success
-        }
         val event = SentryEvent().apply {
             message = Message().apply { message = "capture" }
+            level = SentryLevel.INFO
+            fingerprints = listOf("capture")
+            user = null
             setTag("mode", mode)
             setTag("complete", complete.toString())
             setTag("app_version", appVersion)
         }
         val hint = Hint.withAttachment(Attachment(compressed, "capture.jsonl.gz", "application/gzip"))
-        hint.set(SubmissionResult::class.java.name, result)
-        Sentry.captureEvent(event, hint)
-        Sentry.flush(SEND_TIMEOUT_MS)
-        return result.await()
+        val sentryId = runCatching { captureEvent(event, hint) }.getOrNull() ?: return false
+        return sentryId != SentryId.EMPTY_ID && runCatching { flush(SEND_TIMEOUT_MS) }.getOrDefault(false)
     }
 
     private fun start(consent: Long): Boolean {

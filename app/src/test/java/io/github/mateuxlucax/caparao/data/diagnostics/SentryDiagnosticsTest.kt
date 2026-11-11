@@ -8,8 +8,13 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.SyncError
+import io.sentry.Hint
+import io.sentry.SentryEvent
+import io.sentry.SentryLevel
+import io.sentry.protocol.SentryId
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -44,6 +49,8 @@ class SentryDiagnosticsTest {
     private fun diagnostics(
         dsn: String = this.dsn,
         quota: EventQuota = EventQuota(clock = { now }),
+        captureEvent: (SentryEvent, Hint) -> SentryId = { _, _ -> SentryId.EMPTY_ID },
+        flush: (Long) -> Boolean = { false },
     ) = SentryDiagnostics(
         context = context,
         settings = settings,
@@ -53,6 +60,8 @@ class SentryDiagnosticsTest {
         scope = null,
         clock = { now },
         quota = quota,
+        captureEvent = captureEvent,
+        flush = flush,
     )
 
     @Test
@@ -177,6 +186,33 @@ class SentryDiagnosticsTest {
             "the session cap stops the crash loop",
             sut.serializeErrorForTest(IllegalStateException("third"), DiagnosticErrorContext.SCALE),
         )
+    }
+
+    @Test
+    fun captureIsDeliveredWhenSentryReturnsAnIdAndFlushSucceeds() {
+        settings.remoteDiagnostics = true
+        var sentEvent: SentryEvent? = null
+        var flushTimeout = 0L
+        val sut = diagnostics(
+            captureEvent = { event, _ -> sentEvent = event; SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2") },
+            flush = { timeout -> flushTimeout = timeout; true },
+        )
+        val file = File.createTempFile("capture", ".jsonl").apply { writeText("{}\n") }
+        try {
+            assertTrue(sut.sendCapture(file, complete = true, appVersion = "1.0", mode = "filter"))
+            assertEquals(SentryLevel.INFO, sentEvent?.level)
+            assertEquals(listOf("capture"), sentEvent?.fingerprints)
+            assertNull("capture event must not carry a user/IP address", sentEvent?.user)
+            assertTrue("flush uses the send timeout", flushTimeout > 0)
+
+            val failedFlush = diagnostics(
+                captureEvent = { _, _ -> SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2") },
+                flush = { false },
+            )
+            assertFalse(failedFlush.sendCapture(file, complete = true, appVersion = "1.0", mode = "filter"))
+        } finally {
+            file.delete()
+        }
     }
 
     private fun brew() = Brew(
