@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.test.core.app.ApplicationProvider
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.contrast
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
@@ -19,9 +19,9 @@ class DrainTimeRingColorTest {
     @Test
     fun drainBarUsesRingColorsAndReadableTextInBothThemes() {
         val cases = listOf(
-            BrewUiState.Window.BEFORE to TargetBand.BELOW,
-            BrewUiState.Window.INSIDE to TargetBand.AT,
-            BrewUiState.Window.PAST to TargetBand.ABOVE,
+            BrewUiState.Window.BEFORE to RatioBand.BELOW,
+            BrewUiState.Window.INSIDE to RatioBand.AT,
+            BrewUiState.Window.PAST to RatioBand.ABOVE,
         )
         val context = ApplicationProvider.getApplicationContext<Context>()
         for ((scheme, dark) in listOf(dynamicLightColorScheme(context) to false, dynamicDarkColorScheme(context) to true)) {

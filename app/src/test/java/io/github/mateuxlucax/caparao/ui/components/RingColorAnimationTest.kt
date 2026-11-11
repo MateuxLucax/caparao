@@ -32,11 +32,11 @@ class RingColorAnimationTest {
         assertEquals(light.primaryContainer, shown.value!!.stroke)
         assertEquals(light.primaryContainer.readableOn(light.surface), shown.value!!.text)
         compose.mainClock.autoAdvance = false
-        band.value = TargetBand.ABOVE
+        band.value = RatioBand.ABOVE
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(64)
-        assertEquals(light.ringStroke(TargetBand.ABOVE, dark = false), shown.value!!.stroke)
-        assertEquals(light.ringStroke(TargetBand.ABOVE, dark = false).readableOn(light.surface), shown.value!!.text)
+        assertEquals(light.ringStroke(RatioBand.ABOVE, dark = false), shown.value!!.stroke)
+        assertEquals(light.ringStroke(RatioBand.ABOVE, dark = false).readableOn(light.surface), shown.value!!.text)
     }
 
     @Test
@@ -44,20 +44,20 @@ class RingColorAnimationTest {
         animations(1f)
         val (band, shown) = render()
         compose.mainClock.autoAdvance = false
-        band.value = TargetBand.ABOVE
+        band.value = RatioBand.ABOVE
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(64)
-        assertNotEquals(light.ringStroke(TargetBand.ABOVE, dark = false), shown.value!!.stroke)
+        assertNotEquals(light.ringStroke(RatioBand.ABOVE, dark = false), shown.value!!.stroke)
         compose.mainClock.advanceTimeBy(1_000)
-        assertEquals(light.ringStroke(TargetBand.ABOVE, dark = false), shown.value!!.stroke)
+        assertEquals(light.ringStroke(RatioBand.ABOVE, dark = false), shown.value!!.stroke)
     }
 
     private fun animations(scale: Float) {
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, scale)
     }
 
-    private fun render(): Pair<MutableState<TargetBand>, MutableState<RingColors?>> {
-        val band = mutableStateOf(TargetBand.BELOW)
+    private fun render(): Pair<MutableState<RatioBand>, MutableState<RingColors?>> {
+        val band = mutableStateOf(RatioBand.BELOW)
         val shown = mutableStateOf<RingColors?>(null)
         compose.setContent {
             AppTheme {

@@ -121,8 +121,8 @@ import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -472,11 +472,11 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         }
 
         // Fill: the carafe takes the band color of the weight against the target, with no target line.
-        for ((weight, band) in listOf(60.0 to TargetBand.BELOW, 100.0 to TargetBand.AT, 120.0 to TargetBand.ABOVE)) {
+        for ((weight, band) in listOf(60.0 to RatioBand.BELOW, 100.0 to RatioBand.AT, 120.0 to RatioBand.ABOVE)) {
             current = state(0, weight = weight)
             compose.waitForIdle()
             compose.onNodeWithTag("guided-server").assertIsDisplayed()
-            assertEquals(band, targetBand(weight, 100.0))
+            assertEquals(band, ratioBand(weight, 100.0))
             assertTrue("the fill follows the band", hasColor("guided-cup", scheme.ringStroke(band, dark)))
             // The lid is not on yet: the spot where it sits in the steep is empty.
             assertTrue("no lid before the steep", pixelAt("guided-cup", 24f, 19.5f, lift = 0f, scaleRoom = 0.12f) != scheme.outline.toArgb())

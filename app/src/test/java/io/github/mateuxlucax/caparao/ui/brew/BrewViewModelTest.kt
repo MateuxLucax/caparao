@@ -217,7 +217,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterLiftPastTheTargetBandAlsoEndsTheBrew() {
+    fun aFreeFilterLiftPastTheRatioBandAlsoEndsTheBrew() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
@@ -235,7 +235,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheTargetBand() {
+    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheRatioBand() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
@@ -1637,7 +1637,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterAlertsAtFirstWaterTargetBandPauseResumeAndEndOnce() {
+    fun aFreeFilterAlertsAtFirstWaterRatioBandPauseResumeAndEndOnce() {
         val vm = viewModel(BrewMode.FILTER)
         val alerts = alertsFrom(vm)
         hold(320.0, 0.2)
@@ -1670,8 +1670,8 @@ class BrewViewModelTest {
 
         val events = alerts.map { it.event }
         assertEquals(1, events.count { it == StepEvent.FirstWater })
-        assertEquals(1, events.count { it == StepEvent.InTargetBand })
-        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
+        assertEquals(1, events.count { it == StepEvent.InRatioBand })
+        assertEquals(1, events.count { it == StepEvent.PastRatioBand })
         assertEquals(1, events.count { it == StepEvent.Paused })
         assertEquals(1, events.count { it == StepEvent.Resumed })
         assertEquals(1, events.count { it == StepEvent.AllDone })
@@ -1768,7 +1768,7 @@ class BrewViewModelTest {
         val alerts = alertsFrom(vm)
         espressoPastFirstDrop(vm, yieldTo = 36.0)
 
-        val events = listOf(StepEvent.CupDetected, StepEvent.TareConfirmed, StepEvent.FirstDrop, StepEvent.InTargetBand)
+        val events = listOf(StepEvent.CupDetected, StepEvent.TareConfirmed, StepEvent.FirstDrop, StepEvent.InRatioBand)
         assertEquals(events, alerts.map { it.event })
         assertEquals(events, watchAlerts)
         assertTrue(alerts.all { it.vibrate })
@@ -1782,7 +1782,7 @@ class BrewViewModelTest {
         espressoPastFirstDrop(vm, yieldTo = 43.2) // 1:2.4, the recipe's target
 
         assertEquals("esp", vm.uiState.value.recipe?.id)
-        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+        assertEquals(1, alerts.count { it.event == StepEvent.InRatioBand })
         assertEquals(1, alerts.count { it.event == StepEvent.FirstDrop })
     }
 
@@ -1797,7 +1797,7 @@ class BrewViewModelTest {
         }
 
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
-        assertEquals(1, alerts.count { it.event == StepEvent.InTargetBand })
+        assertEquals(1, alerts.count { it.event == StepEvent.InRatioBand })
     }
 
     @Test

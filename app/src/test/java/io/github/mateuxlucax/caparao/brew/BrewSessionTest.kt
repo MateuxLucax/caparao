@@ -12,6 +12,17 @@ import io.github.mateuxlucax.caparao.model.StepKind
 
 class BrewSessionTest {
     @Test
+    fun freeFilterSessionReturnsItsMomentsWithTheReading() {
+        val session = BrewSession(BrewMode.FILTER, 20.0, 2.0, emptyList(), null, null)
+        val script = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0).ramp(0.0, 40.0, 5.0).hold(40.0, 1.0)
+
+        val events = script.readings.map { session.onReading(it).guideEvents }.flatten()
+
+        assertEquals(1, events.count { it == StepEvent.FirstWater })
+        assertEquals(1, events.count { it == StepEvent.InRatioBand })
+    }
+
+    @Test
     fun espressoSessionOwnsItsDetectorAndReportsItsResult() {
         val session = BrewSession(BrewMode.ESPRESSO, 18.0, 2.0, emptyList(), null, null)
         assertEquals(ScaleCommand.TARE, session.armNow(0))
@@ -35,17 +46,17 @@ class BrewSessionTest {
             null,
         )
         val tare = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
-        tare.readings.forEach(session::onFilterReading)
+        tare.readings.forEach(session::onReading)
         val pour = SyntheticSession(tare.nowMs).ramp(0.0, 250.0, 30.0)
-        val guideEvents = pour.readings.flatMap { session.onFilterReading(it).guideEvents }
+        val guideEvents = pour.readings.flatMap { session.onReading(it).guideEvents }
         assertTrue(guideEvents.any { it is StepEvent.Reached })
         val liftAt = pour.nowMs
         val lift = SyntheticSession(pour.nowMs).ramp(250.0, 190.0, 0.3)
-        val paused = lift.readings.map(session::onFilterReading).last()
+        val paused = lift.readings.map(session::onReading).last()
         assertEquals(BrewPhase.PAUSED, paused.phase)
         assertEquals(0, session.pauseIntervals().size)
         val returnAndHold = SyntheticSession(lift.nowMs).ramp(190.0, 250.0, 0.3).hold(250.0, 2.0)
-        val resumed = returnAndHold.readings.map(session::onFilterReading).last()
+        val resumed = returnAndHold.readings.map(session::onReading).last()
         assertEquals(BrewPhase.BREWING, resumed.phase)
         assertEquals(liftAt, session.pauseIntervals().single().first)
         assertTrue(session.pauseIntervals().single().second > liftAt)

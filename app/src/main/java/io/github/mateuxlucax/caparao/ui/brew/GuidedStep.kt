@@ -63,11 +63,11 @@ import io.github.mateuxlucax.caparao.ui.components.CupArt.drawServer
 import io.github.mateuxlucax.caparao.ui.components.PressArt
 import io.github.mateuxlucax.caparao.ui.components.PressOnScale
 import io.github.mateuxlucax.caparao.ui.components.RingColors
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.rememberRingColors
-import io.github.mateuxlucax.caparao.ui.components.targetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -202,7 +202,7 @@ private fun Step(step: RecipeStep, index: Int, guide: StepState, state: BrewUiSt
             Motion.standardOrSnap(still, 100),
             label = "fill",
         )
-        val targetColors = rememberRingColors(targetBand(state.weightGrams, target))
+        val targetColors = rememberRingColors(ratioBand(state.weightGrams, target))
         // Both fill their server with the step's color against the target: no target line, the color says it (#208).
         if (state.mode == BrewMode.FILTER) {
             ServerToTarget(fill, targetColors.stroke)
@@ -414,9 +414,9 @@ fun DrainTimeBar(state: BrewUiState, modifier: Modifier = Modifier) {
 
 internal fun drainTimeRingColors(colors: ColorScheme, window: BrewUiState.Window, dark: Boolean): RingColors {
     val band = when (window) {
-        BrewUiState.Window.BEFORE -> TargetBand.BELOW
-        BrewUiState.Window.INSIDE -> TargetBand.AT
-        BrewUiState.Window.PAST -> TargetBand.ABOVE
+        BrewUiState.Window.BEFORE -> RatioBand.BELOW
+        BrewUiState.Window.INSIDE -> RatioBand.AT
+        BrewUiState.Window.PAST -> RatioBand.ABOVE
     }
     val stroke = colors.ringStroke(band, dark)
     return RingColors(stroke, stroke.readableOn(colors.surface))

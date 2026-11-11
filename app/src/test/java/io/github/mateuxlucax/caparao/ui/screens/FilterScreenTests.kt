@@ -122,8 +122,8 @@ import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -343,13 +343,13 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
 
     /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
     @Test
-    fun guidedCupAndWeightFollowStepTargetBandsInBothModes() {
+    fun guidedCupAndWeightFollowStepRatioBandsInBothModes() {
         val target = 100.0
         val cases = listOf(
-            94.9 to TargetBand.BELOW,
-            95.0 to TargetBand.AT,
-            105.0 to TargetBand.AT,
-            105.1 to TargetBand.ABOVE,
+            94.9 to RatioBand.BELOW,
+            95.0 to RatioBand.AT,
+            105.0 to RatioBand.AT,
+            105.1 to RatioBand.ABOVE,
         )
         fun state(mode: BrewMode, weight: Double) = BrewUiState(
             mode = mode,
@@ -373,7 +373,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.setContent {
             AppTheme {
                 val scheme = MaterialTheme.colorScheme
-                expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
+                expectedCup = scheme.ringStroke(ratioBand(current.weightGrams, target), isSystemInDarkTheme())
                 expectedWeight = expectedCup.readableOn(scheme.surface)
                 expectedPace = scheme.onSurfaceVariant
                 expectedServerBody = scheme.surfaceContainerHighest
@@ -400,7 +400,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
             cases.forEach { (weight, band) ->
                 current = state(mode, weight)
                 compose.waitForIdle()
-                assertEquals(band, targetBand(weight, target))
+                assertEquals(band, ratioBand(weight, target))
                 compose.onNodeWithTag("guided-server").assertIsDisplayed()
                 compose.onNodeWithTag("guided-cup").assertIsDisplayed()
                 assertContainsColor("guided-cup", expectedCup)

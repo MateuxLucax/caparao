@@ -206,7 +206,7 @@ fun ScaleReadout(
         if (still) snap() else spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow),
         label = "flowCue",
     )
-    val ring = rememberRingColors(targetBand(ratio.ratio, ratio.target))
+    val ring = rememberRingColors(ratioBand(ratio.ratio, ratio.target))
     // Rolls like the weight instead of jumping a tenth at a time.
     val shownRatio by animateFloatAsState((ratio.ratio ?: 0.0).toFloat(), tween(100, easing = LinearEasing), label = "ratioValue")
     // One glow out of the outer ring the moment the target is reached.

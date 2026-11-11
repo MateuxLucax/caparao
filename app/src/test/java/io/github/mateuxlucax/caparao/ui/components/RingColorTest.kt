@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.caparao.ui.components
 
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import android.content.Context
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -24,34 +25,34 @@ class RingColorTest {
 
     @Test
     fun bothEdgesOfTheBandStayPrimary() {
-        assertEquals(TargetBand.AT, targetBand(1.9, 2.0)) // −5%
-        assertEquals(TargetBand.AT, targetBand(2.1, 2.0)) // +5%
-        assertEquals(TargetBand.BELOW, targetBand(1.89, 2.0))
-        assertEquals(TargetBand.ABOVE, targetBand(2.11, 2.0))
+        assertEquals(RatioBand.AT, ratioBand(1.9, 2.0)) // −5%
+        assertEquals(RatioBand.AT, ratioBand(2.1, 2.0)) // +5%
+        assertEquals(RatioBand.BELOW, ratioBand(1.89, 2.0))
+        assertEquals(RatioBand.ABOVE, ratioBand(2.11, 2.0))
         // The band follows the recipe's target, not a fixed ratio.
-        assertEquals(TargetBand.AT, targetBand(2.09, 2.2))
-        assertEquals(TargetBand.AT, targetBand(2.31, 2.2))
-        assertEquals(TargetBand.BELOW, targetBand(2.08, 2.2))
-        assertEquals(TargetBand.ABOVE, targetBand(2.32, 2.2))
+        assertEquals(RatioBand.AT, ratioBand(2.09, 2.2))
+        assertEquals(RatioBand.AT, ratioBand(2.31, 2.2))
+        assertEquals(RatioBand.BELOW, ratioBand(2.08, 2.2))
+        assertEquals(RatioBand.ABOVE, ratioBand(2.32, 2.2))
     }
 
     @Test
     fun withoutARatioTheRingKeepsTheTargetsColour() {
-        assertEquals(TargetBand.AT, targetBand(null, 2.0))
+        assertEquals(RatioBand.AT, ratioBand(null, 2.0))
     }
 
     @Test
     fun shortOfTheBandWearsTheMutedContainerOfEachTheme() {
-        assertEquals(light.primaryContainer, light.ringStroke(TargetBand.BELOW, dark = false))
-        assertEquals(dark.primaryContainer, dark.ringStroke(TargetBand.BELOW, dark = true))
-        assertEquals(light.primary, light.ringStroke(TargetBand.AT, dark = false))
-        assertEquals(dark.primary, dark.ringStroke(TargetBand.AT, dark = true))
+        assertEquals(light.primaryContainer, light.ringStroke(RatioBand.BELOW, dark = false))
+        assertEquals(dark.primaryContainer, dark.ringStroke(RatioBand.BELOW, dark = true))
+        assertEquals(light.primary, light.ringStroke(RatioBand.AT, dark = false))
+        assertEquals(dark.primary, dark.ringStroke(RatioBand.AT, dark = true))
     }
 
     @Test
     fun pastTheBandTheLightThemeDarkensThePrimaryAndTheDarkThemeLightensIt() {
-        val aboveLight = light.ringStroke(TargetBand.ABOVE, dark = false)
-        val aboveDark = dark.ringStroke(TargetBand.ABOVE, dark = true)
+        val aboveLight = light.ringStroke(RatioBand.ABOVE, dark = false)
+        val aboveDark = dark.ringStroke(RatioBand.ABOVE, dark = true)
         assertTrue(aboveLight.luminance() < light.primary.luminance())
         assertTrue(aboveDark.luminance() > dark.primary.luminance())
         // About four just-noticeable steps from primary, so the band reads without the numbers.
@@ -63,8 +64,8 @@ class RingColorTest {
     fun shortOfTheBandStaysVisibleAgainstTheTrackInBothThemes() {
         // primaryContainer and surfaceContainerHighest share a tone in a dynamic scheme, so the mint and the track
         // differ in chroma rather than brightness: a perceptual distance says it better than a contrast ratio.
-        val onLight = deltaE(light.ringStroke(TargetBand.BELOW, dark = false), light.surfaceContainerHighest)
-        val onDark = deltaE(dark.ringStroke(TargetBand.BELOW, dark = true), dark.surfaceContainerHighest)
+        val onLight = deltaE(light.ringStroke(RatioBand.BELOW, dark = false), light.surfaceContainerHighest)
+        val onDark = deltaE(dark.ringStroke(RatioBand.BELOW, dark = true), dark.surfaceContainerHighest)
         assertTrue("light $onLight", onLight > 15.0)
         assertTrue("dark $onDark", onDark > 15.0)
     }
@@ -72,7 +73,7 @@ class RingColorTest {
     @Test
     fun theRatioNumberReadsOnTheSurfaceInEveryBandAndTheme() {
         for ((scheme, isDark) in listOf(light to false, dark to true)) {
-            for (band in TargetBand.entries) {
+            for (band in RatioBand.entries) {
                 val text = scheme.ringStroke(band, isDark).readableOn(scheme.surface)
                 assertTrue("$band ${contrast(text, scheme.surface)}", contrast(text, scheme.surface) >= 4.5f)
             }

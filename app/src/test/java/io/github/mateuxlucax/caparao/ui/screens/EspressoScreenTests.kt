@@ -122,8 +122,8 @@ import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
