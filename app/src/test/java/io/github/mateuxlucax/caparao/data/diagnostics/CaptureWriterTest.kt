@@ -239,7 +239,7 @@ class CaptureWriterTest {
         recordDecodedNotification(decoder, recorder, zeroWeight.copyOfRange(split, zeroWeight.size))
         recorder.event(DiagnosticEvent.BrewResultReady)
 
-        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val result = recorder.stop() as CaptureWriterState.Ready
         val rows = result.file.readLines().drop(1).map(::JSONObject)
         val rx = rows.filter { it.optString("dir") == "rx" }
         assertEquals(listOf(zeroWeight.copyOfRange(0, split), zeroWeight.copyOfRange(split, zeroWeight.size)).map(::hex), rx.map { it.getString("hex") })
@@ -261,7 +261,7 @@ class CaptureWriterTest {
         recordDecodedNotification(decoder, recorder, zeroWeight.copyOfRange(1, zeroWeight.size) + model)
         recorder.event(DiagnosticEvent.BrewResultReady)
 
-        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val result = recorder.stop() as CaptureWriterState.Ready
         val rows = result.file.readLines().drop(1).map(::JSONObject)
         val rx = rows.filter { it.optString("dir") == "rx" }
         assertEquals(
@@ -288,7 +288,7 @@ class CaptureWriterTest {
         recorder.command(bytes("A5 5A 03 0D 00 00 64 D1"))
         recorder.event(DiagnosticEvent.BrewResultReady)
 
-        val result = recorder.stop() as DiagnosticRecorderState.Ready
+        val result = recorder.stop() as CaptureWriterState.Ready
         val rows = result.file.readLines().drop(1).map(::JSONObject)
         assertEquals(listOf("session_started", "app_foreground", "command", "brew_result_ready", "session_end"), rows.map { it.getString("note") })
         assertTrue(rows.zipWithNext().all { (left, right) -> left.getLong("seq") < right.getLong("seq") })
@@ -299,10 +299,10 @@ class CaptureWriterTest {
     @Test
     fun refreshTruncatesATornFinalLineBeforeSendingTheRecoveredFile() = runTest {
         val directory = tempDir()
-        val file = File(directory, "diagnostic-interrupted.jsonl")
+        val file = File(directory, "capture-interrupted.jsonl")
         val header = JSONObject()
-            .put("format", DiagnosticRecorder.FORMAT_NAME)
-            .put("format_version", DiagnosticRecorder.FORMAT_VERSION)
+            .put("format", CaptureWriter.FORMAT_NAME)
+            .put("format_version", CaptureWriter.FORMAT_VERSION)
             .put("app_version", "test")
             .put("phone_model", "synthetic")
             .put("android_version", "test")
@@ -311,7 +311,7 @@ class CaptureWriterTest {
         file.writeText("${header}\n${row}\n{\"t_ms\":1,\"seq\":1,\"dir\":\"rx\",\"hex\":\"A5")
         var sent = false
         var allLinesValid = false
-        val recovered = DiagnosticRecorder(
+        val recovered = CaptureWriter(
             directory,
             this,
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
@@ -337,10 +337,10 @@ class CaptureWriterTest {
     @Test
     fun refreshDoesNotSendAFileItCannotRepair() = runTest {
         val directory = tempDir()
-        val file = File(directory, "diagnostic-broken.jsonl")
+        val file = File(directory, "capture-broken.jsonl")
         file.writeText("{\"t_ms\":1,\"seq\":0,\"dir\":\"rx\"")
         var sent = false
-        val recorder = DiagnosticRecorder(
+        val recorder = CaptureWriter(
             directory,
             this,
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
@@ -354,7 +354,7 @@ class CaptureWriterTest {
         advanceUntilIdle()
 
         assertFalse(sent)
-        assertEquals(DiagnosticRecorderState.Failed(DiagnosticRecorderError.STORAGE), recorder.state.value)
+        assertEquals(CaptureWriterState.Failed(CaptureWriterError.STORAGE), recorder.state.value)
         assertTrue(file.exists())
         directory.deleteRecursively()
     }
