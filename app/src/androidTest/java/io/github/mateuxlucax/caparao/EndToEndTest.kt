@@ -18,6 +18,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
@@ -64,7 +66,9 @@ class EndToEndTest {
     /** Read the active brew ViewModel through its Navigation 3 entry owner. */
     private fun MainActivity.brewViewModel(mode: BrewMode): BrewViewModel? {
         val owner = navEntryStoreProvider.getOrCreateOwner(Destination.Brew(mode))
-        return androidx.lifecycle.ViewModelProvider(owner).get("brew-${mode.name}", BrewViewModel::class.java)
+        val extras = MutableCreationExtras(defaultViewModelCreationExtras).apply { set(BrewViewModel.MODE, mode) }
+        return ViewModelProvider.create(owner, (application as CaparaoApplication).container.viewModelFactory, extras)
+            .get("brew-${mode.name}", BrewViewModel::class.java)
     }
 
     @Test
