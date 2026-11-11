@@ -42,11 +42,6 @@ import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailScreen
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsScreen
-import io.github.mateuxlucax.caparao.ui.brews.CompareScreen
-import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
-import io.github.mateuxlucax.caparao.ui.brews.TrendKey
-import io.github.mateuxlucax.caparao.ui.brews.TrendsScreen
-import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailScreen
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
@@ -113,12 +108,9 @@ private fun Main(
     var coffee by rememberSaveable { mutableStateOf<String?>(null) }
     // "edit:<id>" or "new:<mode>", saveable as a string.
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
-    // Comma-joined ids and TrendKey.encode(), so both survive a rotation; they open over a saved brew or the tabs.
-    var comparing by rememberSaveable { mutableStateOf<String?>(null) }
-    var trends by rememberSaveable { mutableStateOf<String?>(null) }
     // Here and not in Tabs, which leaves the composition while a brew is open: closing it goes back to the same tab.
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    // The brew screen on top of the tabs, registered by it: a shortcut compares against it before closing anything.
+    // The brew screen on top of the tabs, registered by it: a shortcut checks it before closing anything.
     // Dropped when that screen goes away, by close() or by leaving the composition, but never over a newer
     // registration: AnimatedContent still keeps the outgoing brew composed during the transition.
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
@@ -134,8 +126,6 @@ private fun Main(
                 coffee?.let { add(Destination.Coffee(it)) }
                 brewing?.let { add(Destination.Brew(it)) }
                 opened?.let { add(Destination.Detail(it)) }
-                comparing?.let { add(Destination.Compare(it.split(','))) }
-                trends?.let { add(Destination.Trends(TrendKey.decode(it))) }
                 editing?.let { add(Destination.Recipe(it)) }
             }
         }
@@ -155,8 +145,6 @@ private fun Main(
         }
         opened = null
         editing = null
-        comparing = null
-        trends = null
         if (open != null) open.close() else brewing = null
         when (requested) {
             is ShortcutDestination.Brew -> brewing = requested.mode
@@ -166,8 +154,6 @@ private fun Main(
         onShortcutConsumed()
     }
     val destination = editing?.let { Destination.Recipe(it) }
-        ?: trends?.let { Destination.Trends(TrendKey.decode(it)) }
-        ?: comparing?.let { Destination.Compare(it.split(',')) }
         ?: opened?.let { Destination.Detail(it) } ?: brewing?.let { Destination.Brew(it) }
         ?: coffee?.let { Destination.Coffee(it) } ?: Destination.Tabs
     val density = LocalDensity.current
@@ -186,17 +172,7 @@ private fun Main(
                     BrewDetailScreen(
                         viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
                         onClose = { opened = null },
-                        onCompare = { comparing = it.joinToString(",") },
-                        onTrends = { trends = it.encode() },
                     )
-                }
-                is Destination.Compare -> {
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CompareViewModel.BREW_IDS, shown.ids) }
-                    CompareScreen(viewModel(key = "compare-${shown.ids.joinToString(",")}", factory = viewModelFactory, extras = extras)) { comparing = null }
-                }
-                is Destination.Trends -> {
-                    val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(TrendsViewModel.KEY, shown.key) }
-                    TrendsScreen(viewModel(key = "trends-${shown.key.encode()}", factory = viewModelFactory, extras = extras)) { trends = null }
                 }
                 is Destination.Brew -> {
                     val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewViewModel.MODE, shown.mode) }
@@ -244,7 +220,6 @@ private fun Main(
                     onOpen = { opened = it },
                     onRecipe = { editing = it },
                     onCoffee = { coffee = it },
-                    onCompare = { comparing = it.joinToString(",") },
                 )
             }
         }
@@ -262,8 +237,6 @@ internal sealed interface Destination {
     data object Tabs : Destination
     data class Brew(val mode: BrewMode) : Destination
     data class Detail(val id: String) : Destination
-    data class Compare(val ids: List<String>) : Destination
-    data class Trends(val key: TrendKey) : Destination
     data class Recipe(val key: String) : Destination
     data class Coffee(val id: String) : Destination
 }
@@ -277,20 +250,16 @@ internal val Destination.storeKey: String
         Destination.Tabs -> "tabs"
         is Destination.Brew -> "brew-${mode.name}"
         is Destination.Detail -> "detail-$id"
-        is Destination.Compare -> "compare-${ids.joinToString(",")}"
-        is Destination.Trends -> "trends-${key.encode()}"
         is Destination.Recipe -> "recipe-$key"
         is Destination.Coffee -> "coffee-$id"
     }
 
 /**
- * How far a destination is from the tabs: Compare and Trends open over a saved brew, so going from them back to the brew
- * is a step back (R2), not a step forward.
+ * How far a destination is from the tabs, so closing it moves back through the same path it opened from.
  */
 internal val Destination.depth: Int
     get() = when (this) {
         Destination.Tabs -> 0
-        is Destination.Compare, is Destination.Trends -> 2
         else -> 1
     }
 
@@ -306,7 +275,6 @@ private fun Tabs(
     onOpen: (String) -> Unit,
     onRecipe: (String) -> Unit,
     onCoffee: (String) -> Unit,
-    onCompare: (List<String>) -> Unit,
 ) {
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -341,7 +309,7 @@ private fun Tabs(
                     modifier,
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, onCompare = onCompare, modifier = modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { onTab(Tab.SETTINGS) }, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     viewModel(key = "server-settings", factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),

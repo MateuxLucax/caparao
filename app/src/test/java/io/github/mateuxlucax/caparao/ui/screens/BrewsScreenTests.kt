@@ -15,12 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -112,8 +110,6 @@ import io.github.mateuxlucax.caparao.ui.brew.FlowPoint
 import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
-import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
-import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -155,17 +151,14 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenBrewsTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
-    /**
-     * Compare and trends (#106) on three saved V60 brews: two picked with a long press, their curves overlaid with
-     * the rating row, then the recipe's trends from the newest one's detail.
-     */
+    /** Long presses do not enter a selection mode; tapping a brew still opens its detail. */
     @Test
-    fun compareAndTrends() {
+    fun longPressDoesNotSelectAndTapOpensDetail() {
         val saved = listOf(Triple(238.0, 185_000L, 4), Triple(245.0, 200_000L, 3), Triple(250.0, 178_000L, 5))
         runBlocking {
             saved.forEachIndexed { i, (water, duration, rating) ->
                 val brew = Brew(
-                    "compare-$i", BrewMode.FILTER, BREWED_AT - (2 - i) * 86_400_000L, duration, 15.0, water, null, water / (duration / 1000.0), 6.0,
+                    "saved-$i", BrewMode.FILTER, BREWED_AT - (2 - i) * 86_400_000L, duration, 15.0, water, null, water / (duration / 1000.0), 6.0,
                     interrupted = false, recipeId = "screen-test-v60", recipeName = "V60", rating = rating,
                 )
                 brews.save(brew, curve(water, duration))
@@ -184,19 +177,15 @@ abstract class ScreenBrewsTests(lang: String, theme: String, compactOnly: Boolea
             )
         }
         compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
+        // A long press no longer starts a selection mode; it opens the detail like a tap.
         row(250.0).performTouchInput { longClick() }
-        row(245.0).performClick()
-        compose.waitForIdle()
-        click(R.string.compare)
-        waitFor(R.string.brew_rating)
-        compose.waitForIdle()
+        waitFor(R.string.delete)
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        // The picks may come back with the list; tapping a row then picks instead of opening.
-        if (compose.onAllNodes(hasText(text(R.string.cancel))).fetchSemanticsNodes().isNotEmpty()) click(R.string.cancel)
+        compose.waitUntilAtLeastOneExists(hasText(rowText(250.0), substring = true), 5_000)
+        // A tap still opens the detail.
         row(250.0).performClick()
         waitFor(R.string.delete)
-        compose.onNodeWithText(text(R.string.trends)).performScrollTo().performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.label_ratio)), 5_000)
+        compose.onNodeWithText(text(R.string.brew_notes)).assertExists()
         compose.waitForIdle()
     }
 

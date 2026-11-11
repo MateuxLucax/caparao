@@ -20489,7 +20489,6 @@ SPLio/github/mateuxlucax/caparao/ui/Destination$Brew;->equals(Ljava/lang/Object;
 SPLio/github/mateuxlucax/caparao/ui/Destination$Brew;->getMode()Lio/github/mateuxlucax/caparao/model/BrewMode;
 SPLio/github/mateuxlucax/caparao/ui/Destination$Brew;->hashCode()I
 Lio/github/mateuxlucax/caparao/ui/Destination$Coffee;
-Lio/github/mateuxlucax/caparao/ui/Destination$Compare;
 Lio/github/mateuxlucax/caparao/ui/Destination$Detail;
 PLio/github/mateuxlucax/caparao/ui/Destination$Detail;-><clinit>()V
 PLio/github/mateuxlucax/caparao/ui/Destination$Detail;-><init>(Ljava/lang/String;)V
@@ -20502,7 +20501,6 @@ SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;-><clinit>()V
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;-><init>()V
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;->equals(Ljava/lang/Object;)Z
 SPLio/github/mateuxlucax/caparao/ui/Destination$Tabs;->hashCode()I
-Lio/github/mateuxlucax/caparao/ui/Destination$Trends;
 Lio/github/mateuxlucax/caparao/ui/OpenBrew;
 SPLio/github/mateuxlucax/caparao/ui/OpenBrew;-><init>(Lio/github/mateuxlucax/caparao/model/BrewMode;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
 Lio/github/mateuxlucax/caparao/ui/Tab;
@@ -21369,10 +21367,6 @@ PLio/github/mateuxlucax/caparao/ui/brews/ChartScale;-><clinit>()V
 PLio/github/mateuxlucax/caparao/ui/brews/ChartScale;-><init>()V
 PLio/github/mateuxlucax/caparao/ui/brews/ChartScale;->axis(DD)Lio/github/mateuxlucax/caparao/ui/brews/Axis;
 PLio/github/mateuxlucax/caparao/ui/brews/ChartScale;->timeAxis(J)Lio/github/mateuxlucax/caparao/ui/brews/Axis;
-Lio/github/mateuxlucax/caparao/ui/brews/CompareViewModel;
-PLio/github/mateuxlucax/caparao/ui/brews/Comparison;-><clinit>()V
-PLio/github/mateuxlucax/caparao/ui/brews/Comparison;-><init>()V
-PLio/github/mateuxlucax/caparao/ui/brews/Comparison;->previous(Lio/github/mateuxlucax/caparao/model/Brew;Ljava/util/List;)Lio/github/mateuxlucax/caparao/model/Brew;
 PLio/github/mateuxlucax/caparao/ui/brews/ComposableSingletons$BrewDetailScreenKt;-><clinit>()V
 PLio/github/mateuxlucax/caparao/ui/brews/ComposableSingletons$BrewDetailScreenKt;-><init>()V
 PLio/github/mateuxlucax/caparao/ui/brews/ComposableSingletons$BrewDetailScreenKt;->getLambda$-1217413976$app()Lkotlin/jvm/functions/Function3;
@@ -21410,13 +21404,6 @@ PLio/github/mateuxlucax/caparao/ui/brews/NotesForm;-><clinit>()V
 Lio/github/mateuxlucax/caparao/ui/brews/NotesForm$Companion;
 PLio/github/mateuxlucax/caparao/ui/brews/NotesForm$Companion;-><init>()V
 PLio/github/mateuxlucax/caparao/ui/brews/NotesForm$Companion;-><init>(Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey;-><clinit>()V
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey;-><init>(Lio/github/mateuxlucax/caparao/model/BrewMode;Ljava/lang/String;)V
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey;->matches(Lio/github/mateuxlucax/caparao/model/Brew;)Z
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey$Companion;-><init>()V
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey$Companion;-><init>(Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-PLio/github/mateuxlucax/caparao/ui/brews/TrendKey$Companion;->of(Lio/github/mateuxlucax/caparao/model/Brew;)Lio/github/mateuxlucax/caparao/ui/brews/TrendKey;
-Lio/github/mateuxlucax/caparao/ui/brews/TrendsViewModel;
 Lio/github/mateuxlucax/caparao/ui/coffees/CoffeeBagDetailViewModel;
 Lio/github/mateuxlucax/caparao/ui/coffees/CoffeeBagsViewModel;
 Lio/github/mateuxlucax/caparao/ui/components/ComponentsKt;

@@ -15,7 +15,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,8 +45,6 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 fun BrewDetailScreen(
     viewModel: BrewDetailViewModel,
     onClose: () -> Unit,
-    onCompare: (List<String>) -> Unit,
-    onTrends: (TrendKey) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
@@ -98,12 +95,6 @@ fun BrewDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.previousId?.let { previous ->
-                    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onCompare(listOf(brew.id, previous)) }) { Text(stringResource(R.string.compare_with_last)) }
-                }
-                OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { onTrends(TrendKey.of(brew)) }) { Text(stringResource(R.string.trends)) }
             }
             if (state.shareFailed) {
                 Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

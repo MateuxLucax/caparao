@@ -9,7 +9,6 @@ import android.view.View
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.key
@@ -112,8 +111,6 @@ import io.github.mateuxlucax.caparao.ui.brew.FlowPoint
 import io.github.mateuxlucax.caparao.ui.brew.GuidedStep
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewsViewModel
-import io.github.mateuxlucax.caparao.ui.brews.CompareViewModel
-import io.github.mateuxlucax.caparao.ui.brews.TrendsViewModel
 import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
@@ -269,8 +266,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
-            initializer { CompareViewModel(requireNotNull(this[CompareViewModel.BREW_IDS]), brews) }
-            initializer { TrendsViewModel(requireNotNull(this[TrendsViewModel.KEY]), brews) }
         }
         scale.start()
         compose.setContent { AppTheme(brand()) { App(factory, onboardingDone, actions, BuildConfig.VERSION_NAME) } }

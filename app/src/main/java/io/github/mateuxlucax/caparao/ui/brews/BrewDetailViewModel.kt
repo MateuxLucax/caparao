@@ -26,8 +26,6 @@ data class BrewDetailUiState(
     val notes: NotesForm? = null,
     /** The open coffee bags to pick the coffee from while the notes are edited (#291). */
     val bags: List<CoffeeBag> = emptyList(),
-    /** The brew of the same recipe right before this one, for "Compare with last" (#106). */
-    val previousId: String? = null,
     /** The file handed to the share sheet, once. */
     val share: ExportedFile? = null,
     val shareFailed: Boolean = false,
@@ -50,8 +48,7 @@ class BrewDetailViewModel(
     init {
         viewModelScope.launch {
             val brew = repository.get(id)
-            val previous = brew?.let { Comparison.previous(it, repository.brews.first()) }
-            _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false, previousId = previous?.id)
+            _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false)
         }
     }
 
