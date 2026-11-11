@@ -458,14 +458,16 @@ class BrewViewModel(
             return
         }
         val timed = TimedReading(clock(), reading)
-        val recorded = current.record(timed)
+        val phaseBefore = current.phase
         val filterReading = if (mode == BrewMode.FILTER) current.onFilterReading(timed) else null
         if (filterReading?.returnedToPreparation == true) {
             returnToPreparation(reading)
             return
         }
-        val before = filterReading?.phaseBefore ?: current.phase
-        (filterReading?.command ?: if (filterReading == null) current.onReading(timed) else null)?.let(::send)
+        val sessionReading = if (filterReading == null) current.onReading(timed) else null
+        val recorded = filterReading?.recorded ?: requireNotNull(sessionReading).recorded
+        val before = filterReading?.phaseBefore ?: phaseBefore
+        (filterReading?.command ?: sessionReading?.command)?.let(::send)
         val pauseState = current.pauseState
         // A lift once the water is past the last pour ends the brew at the lift, as Done would; before it, the brew
         // pauses. It comes after the pause bookkeeping above, so the saved curve is cut at the yield (#277).

@@ -36,10 +36,14 @@ class BrewSession(
     val startedAtMs: Long? get() = filterDetector?.startedAtMs
     val lastResumedAtMs: Long? get() = filterDetector?.lastResumedAtMs
 
-    fun onReading(reading: TimedReading): ScaleCommand? = detector.onReading(reading)
+    fun onReading(reading: TimedReading): SessionReading {
+        val recorded = record(reading)
+        return SessionReading(detector.onReading(reading), recorded)
+    }
     /** Advances the filter clock and flow from each reading; reports a pre-pour setup lift. */
     fun onFilterReading(reading: TimedReading): FilterReadingState {
         require(mode == BrewMode.FILTER) { "Filter readings require a filter session" }
+        val recorded = record(reading)
         val before = detector.phase
         val command = detector.onReading(reading)
         val pause = detector.pauseState
@@ -106,13 +110,14 @@ class BrewSession(
             guide = guideTracker?.state,
             guideEvents = guideEvents,
             returnedToPreparation = returnedToPreparation,
+            recorded = recorded,
         )
     }
 
     fun pauseIntervals(): List<Pair<Long, Long>> = pauseIntervals.toList()
-    fun readings(): List<TimedReading> = readings
+    fun readings(): List<TimedReading> = readings.toList()
 
-    fun record(reading: TimedReading): Boolean {
+    private fun record(reading: TimedReading): Boolean {
         if (readings.size >= MAX_READINGS) return false
         readings += reading
         return true
@@ -166,10 +171,12 @@ class BrewSession(
             ?: detected.endedAtMs
         val bounded = detected.copy(endedAtMs = endedAtMs)
         val result = if (mode == BrewMode.FRENCH_PRESS) {
+            // Settled water, not the running maximum, is the saved yield (#214).
             FrenchPressWater.of(readings, bounded.startedAtMs, bounded.endedAtMs)
                 ?.let { bounded.copy(yieldGrams = it) } ?: bounded
         } else bounded
         val summaryReadings = when {
+            // Cut at confirmed removal; later readings are not brewed water (#223).
             mode == BrewMode.FRENCH_PRESS -> readings.asSequence()
                 .filter { it.atMs in result.startedAtMs..result.endedAtMs && (frenchPressRemovalAtMs == null || it.atMs < frenchPressRemovalAtMs) }
                 .mapNotNull { reading ->
@@ -177,6 +184,7 @@ class BrewSession(
                 }
                 .toList()
             mode == BrewMode.FILTER && (pauseIntervals.isNotEmpty() || openPauseAtMs != null) -> {
+                // A lift is judged on the water before it; the detector's pause reading may already be lower (#277).
                 val rebased = readings.asSequence()
                     .filter { reading ->
                         val paused = pauseIntervals.any { (start, end) -> reading.atMs in start until end } ||
@@ -220,7 +228,10 @@ data class FilterReadingState(
     val guide: StepState?,
     val guideEvents: List<StepEvent>,
     val returnedToPreparation: Boolean,
+    val recorded: Boolean,
 )
+
+data class SessionReading(val command: ScaleCommand?, val recorded: Boolean)
 
 private const val FILTER_PREPARE_LIFT_MS = 2_000L
 private const val MAX_READINGS = 12_000
