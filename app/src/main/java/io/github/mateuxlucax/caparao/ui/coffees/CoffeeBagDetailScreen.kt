@@ -1,4 +1,5 @@
 package io.github.mateuxlucax.caparao.ui.coffees
+import io.github.mateuxlucax.caparao.ui.components.wholeGrams
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -5,7 +5,7 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.BrewMode
-import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

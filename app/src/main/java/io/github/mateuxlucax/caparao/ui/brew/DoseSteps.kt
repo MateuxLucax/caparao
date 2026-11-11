@@ -97,8 +97,8 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.components.DripperArt
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
-import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
-import io.github.mateuxlucax.caparao.ui.recipes.label
+import io.github.mateuxlucax.caparao.ui.components.RecipeForm
+import io.github.mateuxlucax.caparao.ui.components.label
 
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.TabularFlex

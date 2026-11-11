@@ -28,7 +28,7 @@ import io.github.mateuxlucax.caparao.ui.FakePreferences
 import io.github.mateuxlucax.caparao.ui.FakeRecipeDao
 import io.github.mateuxlucax.caparao.ui.FakeScaleSource
 import io.github.mateuxlucax.caparao.ui.MainDispatcherRule
-import io.github.mateuxlucax.caparao.ui.brews.NotesForm
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

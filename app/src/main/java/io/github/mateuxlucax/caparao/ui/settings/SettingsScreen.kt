@@ -46,18 +46,21 @@ import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorderState
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.components.BodyText
 import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
 import io.github.mateuxlucax.caparao.ui.components.SectionCard
-import io.github.mateuxlucax.caparao.ui.components.ServerForm
+import io.github.mateuxlucax.caparao.ui.server.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.StatusLine
 import io.github.mateuxlucax.caparao.ui.components.label
-import io.github.mateuxlucax.caparao.ui.components.rememberLocalNetworkAccess
+import io.github.mateuxlucax.caparao.ui.server.ServerCheck
+import io.github.mateuxlucax.caparao.ui.server.ServerUiState
+import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.server.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
 import kotlinx.coroutines.launch
 
@@ -207,7 +210,7 @@ private fun DataSection(viewModel: ExportViewModel) {
             Text(stringResource(if (state.working) R.string.export_working else R.string.export))
         }
     }
-    ShareFile(state.file, viewModel::shared)
+    ShareFile(state.file?.uri, state.file?.mimeType, viewModel::shared)
 }
 
 /** Opt-in capture of the live BLE link, kept locally until the user shares the file. */
@@ -270,7 +273,7 @@ private fun DiagnosticsSection(viewModel: DiagnosticsViewModel) {
             }
         }
     }
-    ShareFile(state.shareFile, viewModel::shared, title = R.string.diagnostics_share_title)
+    ShareFile(state.shareFile?.uri, state.shareFile?.mimeType, viewModel::shared, title = R.string.diagnostics_share_title)
 }
 
 private fun incompleteReasonString(reason: DiagnosticIncompleteReason?): Int = when (reason) {

@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.brews
 
+import io.github.mateuxlucax.caparao.ui.components.Axis
+import io.github.mateuxlucax.caparao.ui.components.ChartScale
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

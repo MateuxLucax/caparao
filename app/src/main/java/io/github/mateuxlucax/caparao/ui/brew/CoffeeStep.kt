@@ -29,7 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.ui.coffees.wholeGrams
+import io.github.mateuxlucax.caparao.ui.components.wholeGrams
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 

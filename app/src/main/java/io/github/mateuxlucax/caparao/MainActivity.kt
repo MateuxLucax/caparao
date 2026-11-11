@@ -20,8 +20,8 @@ import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.App
-import io.github.mateuxlucax.caparao.ui.AppActions
-import io.github.mateuxlucax.caparao.ui.launcher.LauncherShortcut
+import io.github.mateuxlucax.caparao.ui.components.AppActions
+import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle

@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import io.github.mateuxlucax.caparao.ui.components.TargetBand
 import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.recipes.RecipeForm
+import io.github.mateuxlucax.caparao.ui.components.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
@@ -40,7 +40,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
-import io.github.mateuxlucax.caparao.ui.brews.NotesForm
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

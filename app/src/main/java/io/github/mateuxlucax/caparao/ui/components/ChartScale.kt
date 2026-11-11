@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.brews
+package io.github.mateuxlucax.caparao.ui.components
 
 import kotlin.math.ceil
 import kotlin.math.log10

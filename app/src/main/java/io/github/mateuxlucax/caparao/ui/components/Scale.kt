@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.format.hint
 import io.github.mateuxlucax.caparao.ui.format.label
 import io.github.mateuxlucax.caparao.ui.format.title

@@ -10,7 +10,7 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.brew.StepState
-import io.github.mateuxlucax.caparao.ui.brews.NotesForm
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, COFFEE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }

@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.brews
+package io.github.mateuxlucax.caparao.ui.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring

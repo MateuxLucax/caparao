@@ -98,12 +98,12 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
 import io.github.mateuxlucax.caparao.ui.Tab
 import io.github.mateuxlucax.caparao.brew.StepState
 import io.github.mateuxlucax.caparao.brew.Pace
 import io.github.mateuxlucax.caparao.brew.BrewPhase
-import io.github.mateuxlucax.caparao.ui.brew.BrewNumbers
+import io.github.mateuxlucax.caparao.ui.components.BrewNumbers
 import io.github.mateuxlucax.caparao.ui.brew.BrewStep
 import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
@@ -116,7 +116,7 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel

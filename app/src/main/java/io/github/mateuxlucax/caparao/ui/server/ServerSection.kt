@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.components
+package io.github.mateuxlucax.caparao.ui.server
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,10 +37,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.network.ServerUrl
 import io.github.mateuxlucax.caparao.model.SyncError
-import io.github.mateuxlucax.caparao.ui.AppActions
+import io.github.mateuxlucax.caparao.ui.components.AppActions
+import io.github.mateuxlucax.caparao.ui.components.StatusLine
+import io.github.mateuxlucax.caparao.ui.components.SyncErrorLine
 import io.github.mateuxlucax.caparao.ui.format.message
-import io.github.mateuxlucax.caparao.ui.settings.ServerCheck
-import io.github.mateuxlucax.caparao.ui.settings.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.server.ServerCheck
+import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -123,28 +125,6 @@ private fun ServerFields(
         shape = MaterialTheme.shapes.medium,
     )
 }
-
-/** A check or error icon (a spinner while [ok] is null and [busy]) next to [text], with an optional detail below. */
-@Composable
-fun StatusLine(ok: Boolean?, text: String, detail: String? = null, busy: Boolean = false) {
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        when {
-            busy -> LoadingIndicator(Modifier.size(20.dp))
-            ok == true -> Icon(painterResource(R.drawable.ic_check_circle), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            else -> Icon(painterResource(R.drawable.ic_error), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(text, style = MaterialTheme.typography.bodyMedium)
-            if (!detail.isNullOrBlank()) {
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-/** [error] as a status line: its message and the technical detail. */
-@Composable
-fun SyncErrorLine(error: SyncError) = StatusLine(false, stringResource(error.kind.message), error.detail)
 
 @Composable
 private fun TestResultLine(result: TestResult?, onOpenSettings: () -> Unit) {

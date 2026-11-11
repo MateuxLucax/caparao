@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.watch
+package io.github.mateuxlucax.caparao
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
