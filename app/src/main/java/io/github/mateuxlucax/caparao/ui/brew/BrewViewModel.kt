@@ -9,12 +9,10 @@ import io.github.mateuxlucax.caparao.ui.components.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
-import io.github.mateuxlucax.caparao.brew.DrainWindow as BrewDrainWindow
 import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
-import io.github.mateuxlucax.caparao.brew.StepState
-import io.github.mateuxlucax.caparao.brew.withDefaultFrenchPressSteep
+import io.github.mateuxlucax.caparao.brew.withDefaultSteep
 import io.github.mateuxlucax.caparao.brew.scaleRecipeToWater
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
@@ -30,8 +28,6 @@ import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
-import io.github.mateuxlucax.caparao.model.RecipeStep
-import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.components.NotesForm
@@ -305,9 +301,8 @@ class BrewViewModel(
                 pauseRemainingMs = null,
                 guide = null,
                 freeSteps = emptyList(),
-                frenchPressRemoved = false,
-                frenchPressRemovalPending = false,
             )
+                .clearSessionMarkers()
         }
         watchScale()
     }
@@ -323,13 +318,17 @@ class BrewViewModel(
     private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
         val state = _uiState.value
         val recipe = state.recipe
-        val freeSteps = if (mode == BrewMode.FRENCH_PRESS && recipe?.steps.isNullOrEmpty()) {
-            listOf(
-                RecipeStep(StepKind.POUR, state.plannedWater ?: 0.0, 0L),
-                RecipeStep(StepKind.PRESS, null, state.steepMs),
-            )
-        } else emptyList()
-        val new = BrewSession(mode, grams, state.targetRatio, recipe?.steps.orEmpty(), recipe?.targetMinMs, recipe?.targetMaxMs, freeSteps, filterConfig)
+        val new = BrewSession(
+            mode,
+            grams,
+            state.targetRatio,
+            recipe?.steps.orEmpty(),
+            recipe?.targetMinMs,
+            recipe?.targetMaxMs,
+            freeWaterGrams = state.plannedWater,
+            freeSteepMs = state.steepMs,
+            filterConfig = filterConfig,
+        )
         session = new
         scaleWatchJob?.cancel()
         scaleWatchJob = null
@@ -426,21 +425,7 @@ class BrewViewModel(
         }
         recordDiagnosticPhase(state.phase)
         state.guideEvents.forEach(::alert)
-        _uiState.update {
-            it.copy(
-                phase = state.phase,
-                tareTimedOut = state.tareTimedOut,
-                weightGrams = state.weightGrams,
-                flowGramsPerSecond = state.flowGramsPerSecond,
-                elapsedMs = state.elapsedMs,
-                pauseRemainingMs = state.pauseRemainingMs,
-                drainWindow = state.drainWindow?.let(::drainWindow),
-                guide = visible(state.guide) ?: it.guide,
-                freeSteps = if (mode == BrewMode.FRENCH_PRESS && it.recipe == null && state.guide != null) current.guideSteps else it.freeSteps,
-                frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
-                frenchPressRemovalPending = state.frenchPressRemovalPending,
-            )
-        }
+        _uiState.update { it.withSessionState(state, current.guideSteps) }
         if (state.phase == BrewPhase.DONE) {
             finish()
         }
@@ -466,7 +451,7 @@ class BrewViewModel(
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
         // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
-        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }?.withDefaultFrenchPressSteep()
+        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }?.withDefaultSteep()
         val current = savedRecipe?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: state.recipe
         if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { waterIsControl && it.mode == mode }
         val refreshPlan = savedRecipe?.takeIf { waterIsControl && state.step == BrewStep.DOSE && !filterRecipeEdited }
@@ -486,7 +471,7 @@ class BrewViewModel(
     }
 
     private fun apply(recipe: Recipe?) {
-        val forBrew = recipe?.withDefaultFrenchPressSteep()
+        val forBrew = recipe?.withDefaultSteep()
         filterRecipeBase = forBrew?.takeIf { waterIsControl && it.mode == mode }
         _uiState.update {
             it.copy(
@@ -512,9 +497,8 @@ class BrewViewModel(
         val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         if (state is ScaleState.Failed) {
-            val keepSteeping = mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING && current.guideSteps.isNotEmpty()
             current.onScaleLost(clock())
-            if (keepSteeping) {
+            if (current.phase == BrewPhase.BREWING) {
                 keepSteepRunning()
             } else if (current.phase == BrewPhase.DONE && current.result?.interrupted == true) {
                 diagnostics.event(DiagnosticEvent.BrewInterrupted)
@@ -547,9 +531,6 @@ class BrewViewModel(
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
 
-    /** A free French press shows the ring while pouring; its guide opens with the steep (#218). */
-    private fun visible(guide: StepState?): StepState? = guide?.takeIf { _uiState.value.recipe != null || it.index >= 1 }
-
     /**
      * The French press steep needs no scale: when the connection drops after the first water, the guide goes on
      * counting on the phone's clock until Done (#221). Reading-driven code resumes when the scale returns.
@@ -563,27 +544,13 @@ class BrewViewModel(
                 delay(STEEP_CLOCK_MS)
                 val state = current.onClock(clock())
                 state.guideEvents.forEach(::alert)
-                _uiState.update {
-                    it.copy(
-                        elapsedMs = state.elapsedMs,
-                        drainWindow = state.drainWindow?.let(::drainWindow),
-                        guide = visible(state.guide) ?: it.guide,
-                        frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
-                        frenchPressRemovalPending = state.frenchPressRemovalPending,
-                    )
-                }
+                _uiState.update { it.withSessionClock(state) }
             }
         }
     }
 
     private fun send(command: ScaleCommand) = when (command) {
         ScaleCommand.TARE -> scale.tare()
-    }
-
-    private fun drainWindow(window: BrewDrainWindow) = when (window) {
-        BrewDrainWindow.BEFORE -> BrewUiState.Window.BEFORE
-        BrewDrainWindow.INSIDE -> BrewUiState.Window.INSIDE
-        BrewDrainWindow.PAST -> BrewUiState.Window.PAST
     }
 
     private fun finish() {

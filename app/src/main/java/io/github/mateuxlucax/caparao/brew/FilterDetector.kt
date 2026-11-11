@@ -35,16 +35,17 @@ data class FilterConfig(
     val pauseSustainedAboveMs: Long = 3_000,
     /** Provisional handling settle window after a dripper return; tuned in #200. */
     val resumeSettleWindowMs: Long = 2_000,
-    /** French press keeps running when the carafe is lifted to serve. */
-    val liftDetectionEnabled: Boolean = true,
 )
 
 /**
  * Free-pour filter detection. The screen opens with dripper and server on the scale, so it tares straight away; the
- * first water starts the brew, and the user tapping done ends it. A filter dripper lift pauses at once and ends at the
- * lift after the timeout; French press reuses this detector with lift detection disabled.
+ * first water starts the brew, and the user tapping done ends it. A detected lift pauses at once and ends at the lift
+ * after the timeout; sessions that ignore lifts keep the running water maximum.
  */
-class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDetector {
+class FilterDetector(
+    private val config: FilterConfig = FilterConfig(),
+    private val detectLifts: Boolean = true,
+) : BrewDetector {
     override var phase: BrewPhase = BrewPhase.TARING
         private set
     override var result: BrewResult? = null
@@ -161,12 +162,12 @@ class FilterDetector(private val config: FilterConfig = FilterConfig()) : BrewDe
     }
 
     private fun followBrew(reading: TimedReading, prev: TimedReading?) {
-        if (config.liftDetectionEnabled) {
+        if (detectLifts) {
             followFilterBrew(reading, prev)
             return
         }
 
-        // The live French press weight is the running maximum; the saved water is settled by FrenchPressWater (#214).
+        // Without lift detection, the live weight follows the running maximum.
         val grams = reading.reading.weightGrams
         maxGrams = maxOf(maxGrams, grams)
     }

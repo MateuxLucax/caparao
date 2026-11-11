@@ -402,7 +402,7 @@ class FilterDetectorTest {
 
     @Test
     fun disabledLiftDetectionKeepsBrewingAndDoneUsesTheHighestWaterWeight() {
-        val detector = FilterDetector(FilterConfig(liftDetectionEnabled = false))
+        val detector = FilterDetector(detectLifts = false)
         val session = SyntheticSession().hold(400.0, 0.3).hold(0.0, 1.0)
         detector.feed(session)
         session.ramp(0.0, 300.0, 30.0)

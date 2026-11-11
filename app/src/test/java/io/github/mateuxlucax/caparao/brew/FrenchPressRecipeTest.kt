@@ -11,7 +11,7 @@ class FrenchPressRecipeTest {
     fun anOlderFrenchPressRecipeGetsAFourMinuteSteepForBrewing() {
         val oldRecipe = BuiltInRecipes.frenchPress(0).copy(steps = BuiltInRecipes.frenchPress(0).steps.dropLast(1))
 
-        val brewed = oldRecipe.withDefaultFrenchPressSteep()
+        val brewed = oldRecipe.withDefaultSteep()
 
         assertEquals(RecipeStep(StepKind.PRESS, null, 240_000), brewed.steps.last())
         assertEquals(3, oldRecipe.steps.size)
@@ -21,6 +21,6 @@ class FrenchPressRecipeTest {
     fun anExplicitFrenchPressSteepIsKept() {
         val recipe = BuiltInRecipes.frenchPress(0)
 
-        assertEquals(recipe, recipe.withDefaultFrenchPressSteep())
+        assertEquals(recipe, recipe.withDefaultSteep())
     }
 }

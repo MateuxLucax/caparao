@@ -6,7 +6,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 
 /** Older French press recipes may not have a steep deadline; use the original four-minute default while brewing. */
-fun Recipe.withDefaultFrenchPressSteep(): Recipe =
+fun Recipe.withDefaultSteep(): Recipe =
     if (mode == BrewMode.FRENCH_PRESS && steps.lastOrNull()?.kind != StepKind.PRESS) {
         copy(steps = steps + RecipeStep(StepKind.PRESS, targetWeightGrams = null, targetAtMs = DEFAULT_STEEP_MS))
     } else {
