@@ -351,7 +351,7 @@ class BrewViewModel(
 
     private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
         val recipe = _uiState.value.recipe
-        val new = BrewSession(mode, grams, _uiState.value.targetRatio, recipe?.steps.orEmpty(), recipe?.targetMinMs, recipe?.targetMaxMs)
+        val new = BrewSession(mode, grams, _uiState.value.targetRatio, recipe?.steps.orEmpty(), recipe?.targetMinMs, recipe?.targetMaxMs, filterConfig)
         session = new
         alerted.clear()
         scaleWatchJob?.cancel()
