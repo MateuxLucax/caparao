@@ -817,7 +817,8 @@ class E2EDiagnosticsTest(unittest.TestCase):
             self.assertEqual(0, completed.returncode, completed.stderr)
 
         e2e = (REPO_ROOT / "scripts" / "e2e.sh").read_text(encoding="utf-8")
-        self.assertIn('grep -q "OK (2 tests)"', e2e)
+        self.assertIn('grep -q "OK (1 test)"', e2e)
+        self.assertIn("for test in anEspressoReachesTheServer aFrenchPressShortcutStaysOpenThroughTheSteepAndSavesAfterDone", e2e)
         self.assertIn("assert len(brews) == 2", e2e)
         self.assertIn('set(by_mode) == {"espresso", "french_press"}', e2e)
         self.assertIn("scripts/exporter.sh", e2e)

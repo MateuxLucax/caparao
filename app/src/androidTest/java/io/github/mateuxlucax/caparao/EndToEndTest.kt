@@ -21,6 +21,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.printToLog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ReplayScaleSource
 import io.github.mateuxlucax.caparao.brew.BrewPhase
@@ -75,13 +76,12 @@ class EndToEndTest {
         val token = arguments.getString("token")
         assumeTrue("run by scripts/e2e.sh", serverUrl != null && token != null)
 
-        prepareServer(serverUrl!!, token!!)
-
         val intent = Intent(context, MainActivity::class.java)
             .putExtra(DebugScaleHooks.EXTRA_REPLAY, "synthetic-espresso")
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_PAUSED, true)
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_SPEED, 8.0)
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_REPEAT, false)
+        prepareServer(serverUrl!!, token!!)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             val replay = (context.applicationContext as CaparaoApplication).container.scale as ReplayScaleSource
             fun brewState(): BrewUiState? {
@@ -189,8 +189,6 @@ class EndToEndTest {
         val serverUrl = arguments.getString("server_url")
         val token = arguments.getString("token")
         assumeTrue("run by scripts/e2e.sh", serverUrl != null && token != null)
-        prepareServer(serverUrl!!, token!!)
-
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             .setAction(LauncherShortcut.FRENCH_PRESS.action)
@@ -198,6 +196,7 @@ class EndToEndTest {
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_PAUSED, true)
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_SPEED, 8.0)
             .putExtra(DebugScaleHooks.EXTRA_REPLAY_REPEAT, false)
+        prepareServer(serverUrl!!, token!!)
         val activity = InstrumentationRegistry.getInstrumentation().startActivitySync(intent) as MainActivity
         val container = (context.applicationContext as CaparaoApplication).container
         val replay = container.scale as ReplayScaleSource
@@ -278,15 +277,18 @@ class EndToEndTest {
         }
     }
 
-    /** Reuse the process-owned Room database between tests and clear only brew rows. */
+    /** Reset the persistent Room rows and server settings before each replay journey. */
     private fun prepareServer(serverUrl: String, token: String) {
-        SettingsStore.open(context).edit().clear().commit()
-        val container = (context.applicationContext as CaparaoApplication).container
+        val preferences = SettingsStore.open(context)
+        preferences.edit().clear().commit()
+        val settings = SettingsStore(preferences)
+        settings.onboardingDone = true
+        settings.saveServer(serverUrl, token)
+        val database = BrewDatabase.open(context)
         runBlocking(Dispatchers.IO) {
-            container.database.brews().all().forEach { container.database.brews().delete(it.id) }
+            database.brews().all().forEach { database.brews().delete(it.id) }
         }
-        container.settings.onboardingDone = true
-        container.settings.saveServer(serverUrl, token)
+        database.close()
     }
 
     private fun describe(state: BrewUiState?): String = state?.let {
