@@ -220,7 +220,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterLiftPastTheTargetBandAlsoEndsTheBrew() {
+    fun aFreeFilterLiftPastTheRatioBandAlsoEndsTheBrew() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
@@ -238,7 +238,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheTargetBand() {
+    fun aFreeFilterLiftEndsTheBrewOnlyOnceTheWaterIsInTheRatioBand() {
         val vm = viewModel(BrewMode.FILTER)
         hold(320.0, 0.2)
         vm.begin()
@@ -1662,7 +1662,7 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun aFreeFilterAlertsAtFirstWaterTargetBandPauseResumeAndEndOnce() {
+    fun aFreeFilterAlertsAtFirstWaterRatioBandPauseResumeAndEndOnce() {
         val vm = viewModel(BrewMode.FILTER)
         val alerts = alertsFrom(vm)
         hold(320.0, 0.2)

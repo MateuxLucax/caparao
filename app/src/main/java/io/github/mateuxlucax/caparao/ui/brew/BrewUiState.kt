@@ -33,6 +33,8 @@ data class BrewUiState(
     val flowGramsPerSecond: Double = 0.0,
     /** Since the first drop or first water; 0 before. */
     val elapsedMs: Long = 0,
+    /** Filter drain time, provided by the session so the alert and guide share one calculation. */
+    val drainWindow: Window? = null,
     /** Time until an unattended filter pause ends at the lift; null outside a pause. */
     val pauseRemainingMs: Long? = null,
     /** The saved brew, on the summary; null there when nothing was recorded. */
@@ -95,22 +97,6 @@ data class BrewUiState(
                     }
                 }
                 BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
-            }
-        }
-
-    /** Filter drain-time state, once the last guided step is done; time runs from the first pour. */
-    val drainWindow: Window?
-        get() {
-            if (mode != BrewMode.FILTER || phase !in setOf(BrewPhase.BREWING, BrewPhase.PAUSED)) return null
-            val guidedSteps = steps
-            if (guidedSteps.isEmpty() || guide?.allDone(guidedSteps.size) != true) return null
-            val min = recipe?.targetMinMs ?: return null
-            val max = recipe.targetMaxMs ?: return null
-            if (min > max) return null
-            return when {
-                elapsedMs < min -> Window.BEFORE
-                elapsedMs <= max -> Window.INSIDE
-                else -> Window.PAST
             }
         }
 

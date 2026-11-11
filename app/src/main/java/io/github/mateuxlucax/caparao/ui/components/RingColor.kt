@@ -13,32 +13,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import io.github.mateuxlucax.caparao.brew.RatioBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlin.math.max
 import kotlin.math.min
 
-/** The band around the target where the ring reads as primary: ±5% of the ratio (#192). */
-private const val TARGET_BAND = 0.05
-
-/** Absorbs the rounding of the division in [targetBand], so a ratio exactly on the edge stays in the band. */
-private const val BAND_EPSILON = 1e-9
-
 /** The ratio number keeps the ring's hue, so it has to stay readable on the surface. */
 private const val MIN_TEXT_CONTRAST = 4.5f
-
-/** Where the live ratio sits against the target: short of the ±5% band, on it, or past it (#192). */
-internal enum class TargetBand { BELOW, AT, ABOVE }
-
-/** The band a live [ratio] falls in; without a ratio there is nothing to read, so the ring keeps the target's colour. */
-internal fun targetBand(ratio: Double?, target: Double): TargetBand {
-    if (ratio == null) return TargetBand.AT
-    val deviation = (ratio - target) / target
-    return when {
-        deviation < -TARGET_BAND - BAND_EPSILON -> TargetBand.BELOW
-        deviation > TARGET_BAND + BAND_EPSILON -> TargetBand.ABOVE
-        else -> TargetBand.AT
-    }
-}
 
 /** What the ring and the ratio number wear for a [band]: [stroke] is the arc, [text] reads on the surface. */
 internal data class RingColors(val stroke: Color, val text: Color)
@@ -47,11 +29,11 @@ internal data class RingColors(val stroke: Color, val text: Color)
  * Light green short of the band, primary on it, a darker green past it; the dark theme already has a light primary,
  * so it reads muted → primary → lighter (#188, #192).
  */
-internal fun ColorScheme.ringStroke(band: TargetBand, dark: Boolean): Color = when (band) {
-    TargetBand.BELOW -> primaryContainer
-    TargetBand.AT -> primary
+internal fun ColorScheme.ringStroke(band: RatioBand, dark: Boolean): Color = when (band) {
+    RatioBand.BELOW -> primaryContainer
+    RatioBand.AT -> primary
     // The light theme has no token darker than onPrimaryContainer, and that one sits next to primary (#192).
-    TargetBand.ABOVE -> lerp(primary, if (dark) Color.White else Color.Black, 0.35f)
+    RatioBand.ABOVE -> lerp(primary, if (dark) Color.White else Color.Black, 0.35f)
 }
 
 /**
@@ -81,7 +63,7 @@ internal fun contrast(first: Color, second: Color): Float {
  * rest of the app (#192).
  */
 @Composable
-internal fun rememberRingColors(band: TargetBand): RingColors {
+internal fun rememberRingColors(band: RatioBand): RingColors {
     val dark = isSystemInDarkTheme()
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
