@@ -23,7 +23,9 @@ internal const val LIVE_MEASURE_MS = 3_000L
 /** The dose, weigh and prepare steps of a free filter brew, ending on the live screen while it tares. */
 internal fun MacrobenchmarkScope.openFilterBrewToLive() {
     // Filter always opens on the free brew, whose planned dose enables Next; a recipe chip may sit off-screen.
-    device.awaitEnabled("Filter")
+    // The mode shortcuts only start a brew once the scale connects (#182); the scripted source reports it shortly
+    // after launch, and a disabled mode button still shows its label as enabled for accessibility.
+    device.awaitDesc("Scale connected")
     device.clickText("Filter")
     device.awaitEnabled("Next")
     device.clickText("Next")
@@ -52,6 +54,10 @@ internal fun UiDevice.awaitEnabled(text: String) {
     check(wait(Until.hasObject(By.text(text).enabled(true)), TIMEOUT_MS)) { "\"$text\" was not enabled within ${TIMEOUT_MS}ms" }
 }
 
+internal fun UiDevice.awaitDesc(desc: String) {
+    check(wait(Until.hasObject(By.desc(desc)), TIMEOUT_MS)) { "\"$desc\" did not appear within ${TIMEOUT_MS}ms" }
+}
+
 /** The first of [texts] to appear, so an optional step (the coffee) doesn't make the journey order-dependent. */
 internal fun UiDevice.awaitAnyText(vararg texts: String): String {
     val deadline = System.currentTimeMillis() + TIMEOUT_MS
@@ -68,7 +74,9 @@ internal fun UiDevice.awaitTextContains(text: String) {
 
 internal fun UiDevice.clickText(text: String) {
     val node = checkNotNull(wait(Until.findObject(By.text(text)), TIMEOUT_MS)) { "\"$text\" was not found" }
-    node.click()
+    // Compose puts the click on the label's parent, so tap the node's bounds instead of the accessibility click.
+    val bounds = node.visibleBounds
+    click(bounds.centerX(), bounds.centerY())
 }
 
 internal fun UiDevice.clickTextContains(text: String) {
