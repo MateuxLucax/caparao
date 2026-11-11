@@ -14,7 +14,7 @@ spec.loader.exec_module(fetch)
 class CaptureConversionTest(unittest.TestCase):
     def records(self):
         return [
-            {"format": "caparao-diagnostic-jsonl", "format_version": 1},
+            {"format": "caparao-diagnostic-jsonl", "format_version": 1, "app_version": "test", "phone_model": "synthetic", "android_version": "test", "started_at": "2026-11-01T00:00:00Z"},
             {"seq": 0, "t_ms": 0, "dir": "rx", "hex": "A5 5A", "note": "notification"},
             {"seq": 1, "t_ms": 1, "dir": "rx", "hex": "01 01", "note": "notification"},
             {"seq": 2, "t_ms": 1, "dir": "rx", "hex": "01 01", "note": "notification"},
@@ -28,6 +28,12 @@ class CaptureConversionTest(unittest.TestCase):
         records = self.records()
         self.assertEqual([json.loads(line) for line in fetch.convert_capture(self.encode(records)).splitlines()], records)
 
+    def test_committed_synthetic_capture_converts_for_replay(self):
+        fixture = Path(__file__).parent / "fixtures" / "synthetic-capture.jsonl.gz"
+        rows = [json.loads(line) for line in fetch.convert_capture(fixture.read_bytes()).splitlines()]
+        self.assertEqual(["session_started", "notification", "command", "notification", "notification", "session_end"], [row["note"] for row in rows[1:]])
+        self.assertEqual(rows[-2]["hex"], rows[-3]["hex"])
+
     def test_rejects_bad_sequence_and_missing_footer(self):
         records = self.records()
         records[2]["seq"] = 0
@@ -36,18 +42,33 @@ class CaptureConversionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             fetch.convert_capture(self.encode(self.records()[:-1]))
 
-    def test_redirect_does_not_send_token_to_another_host(self):
-        request = Request("https://sentry.io/api/0/attachment", headers={"Authorization": "Bearer secret"})
-        redirected = fetch.SafeRedirect().redirect_request(request, None, 302, "Found", {}, "https://storage.example.com/file")
+    def test_redirect_strips_auth_and_cookies_and_limits_hops(self):
+        request = Request("https://sentry.io/api/0/attachment", headers={"authorization": "Bearer secret", "cookie": "session=secret"})
+        redirect = fetch.SafeRedirect()
+        redirected = redirect.redirect_request(request, None, 302, "Found", {}, "https://storage.example.com/file")
         self.assertIsNone(redirected.get_header("Authorization"))
+        self.assertIsNone(redirected.get_header("Cookie"))
         with self.assertRaises(ValueError):
-            fetch.SafeRedirect().redirect_request(request, None, 302, "Found", {}, "http://storage.example.com/file")
+            redirect.redirect_request(redirected, None, 302, "Found", {}, "http://storage.example.com/file")
+        for _ in range(2):
+            redirected = redirect.redirect_request(redirected, None, 302, "Found", {}, "https://storage.example.com/file")
+        with self.assertRaises(ValueError):
+            redirect.redirect_request(redirected, None, 302, "Found", {}, "https://storage.example.com/file")
 
     def test_rejects_unknown_header_and_bad_hex(self):
         records = self.records()
         records[0]["format_version"] = 2
         with self.assertRaises(ValueError):
             fetch.convert_capture(self.encode(records))
+        records = self.records()
+        records[0]["phone_model"] = ""
+        with self.assertRaises(ValueError):
+            fetch.convert_capture(self.encode(records))
+
+    def test_validates_time_ranges(self):
+        self.assertEqual(("2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z"), fetch.parse_time_range("2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z"))
+        with self.assertRaises(ValueError):
+            fetch.parse_time_range("2026-11-02T00:00:00Z", "2026-11-01T00:00:00Z")
         records = self.records()
         records[1]["hex"] = "zz"
         with self.assertRaises(ValueError):

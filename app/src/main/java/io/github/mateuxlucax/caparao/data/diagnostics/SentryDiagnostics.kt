@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.data.diagnostics
 import android.content.Context
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.sentry.Breadcrumb
+import io.sentry.Attachment
 import io.sentry.Hint
 import io.sentry.JsonSerializable
 import io.sentry.JsonSerializer
@@ -19,12 +20,18 @@ import io.sentry.android.core.SentryAndroid
 import io.sentry.android.core.SentryAndroidOptions
 import io.sentry.logger.SentryLogParameters
 import io.sentry.protocol.Mechanism
+import io.sentry.protocol.Message
 import io.sentry.protocol.SentryException
 import io.sentry.protocol.SentryId
 import io.sentry.protocol.SentryStackFrame
 import io.sentry.protocol.SentryStackTrace
+import io.sentry.hints.SubmissionResult
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.StringWriter
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPOutputStream
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -85,7 +92,7 @@ internal class SentryDiagnostics(
     }
 
     /** Raw frames are for the local capture only; they never become breadcrumbs or logs (#330). */
-    override fun notification(bytes: ByteArray) = Unit
+    override fun notification(bytes: ByteArray, allowed: Boolean?) = Unit
 
     override fun command(bytes: ByteArray) = Unit
 
@@ -97,6 +104,35 @@ internal class SentryDiagnostics(
         val hint = Hint()
         hint.set(HINT_CONTEXT, context)
         Sentry.captureEvent(eventFor(throwable, context), hint)
+    }
+
+    /** Upload one opted-in capture as an event-local attachment and retain it unless Sentry confirms delivery. */
+    fun sendCapture(file: File, complete: Boolean, appVersion: String, mode: String): Boolean {
+        if (!active || !settings.remoteDiagnostics || !file.isFile) return false
+        val compressed = runCatching {
+            ByteArrayOutputStream().also { bytes ->
+                GZIPOutputStream(bytes).use { output -> file.inputStream().use { it.copyTo(output) } }
+            }.toByteArray()
+        }.getOrNull() ?: return false
+        if (compressed.size > MAX_CAPTURE_ATTACHMENT_BYTES) return false
+        val result = object : SubmissionResult {
+            private val sent = CountDownLatch(1)
+            @Volatile private var success = false
+            override fun setResult(value: Boolean) { success = value; sent.countDown() }
+            override fun isSuccess() = success
+            fun await() = sent.await(SEND_TIMEOUT_MS, TimeUnit.MILLISECONDS) && success
+        }
+        val event = SentryEvent().apply {
+            message = Message().apply { message = "capture" }
+            setTag("mode", mode)
+            setTag("complete", complete.toString())
+            setTag("app_version", appVersion)
+        }
+        val hint = Hint.withAttachment(Attachment(compressed, "capture.jsonl.gz", "application/gzip"))
+        hint.set(SubmissionResult::class.java.name, result)
+        Sentry.captureEvent(event, hint)
+        Sentry.flush(SEND_TIMEOUT_MS)
+        return result.await()
     }
 
     private fun start(consent: Long): Boolean {
@@ -140,6 +176,7 @@ internal class SentryDiagnostics(
         // ANR v2 through ApplicationExitInfo; debug builds report them too, so a debug trigger is observable.
         options.setAnrEnabled(true)
         options.setAnrReportInDebug(true)
+        options.maxAttachmentSize = MAX_CAPTURE_ATTACHMENT_BYTES
         options.logs.isEnabled = true
         options.beforeSend = SentryOptions.BeforeSendCallback { event, hint -> beforeSend(event, hint, consent) }
         options.beforeBreadcrumb = SentryOptions.BeforeBreadcrumbCallback { breadcrumb, _ -> scrubBreadcrumb(breadcrumb) }
@@ -147,6 +184,7 @@ internal class SentryDiagnostics(
     }
 
     private fun beforeSend(event: SentryEvent, hint: Hint, consent: Long): SentryEvent? {
+        if (!settings.remoteDiagnostics) return null
         // The ANR the SDK reads on the next launch can be older than the consent that turned reporting on.
         if (isCrashOrExitInfo(event) && event.timestamp.time < consent) return null
         if (hint.getAs(HINT_CONTEXT, DiagnosticErrorContext::class.java) == DiagnosticErrorContext.UPLOAD) {
@@ -326,6 +364,8 @@ internal class SentryDiagnostics(
         private const val CACHE_DIR_NAME = "sentry"
         private const val APP_PACKAGE = "io.github.mateuxlucax.caparao"
         private const val UPLOAD_FAILED = "upload failed"
+        private const val MAX_CAPTURE_ATTACHMENT_BYTES = 16L * 1024 * 1024
+        private const val SEND_TIMEOUT_MS = 30_000L
         private const val SERVER_PLACEHOLDER = "<server>"
         private val EXIT_INFO_MECHANISMS = setOf("AppExitInfo", "HistoricalAppExitInfo", "ANR")
 

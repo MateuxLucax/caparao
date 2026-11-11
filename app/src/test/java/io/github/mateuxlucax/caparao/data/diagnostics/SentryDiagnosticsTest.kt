@@ -108,6 +108,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun uploadFailuresCarryNeitherTokenHostNorResponseDetail() {
+        settings.remoteDiagnostics = true
         val token = "server-token"
         val note = "lemon candy"
         val coffee = "Fazenda Boa Vista"
@@ -134,6 +135,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun urlsAndHostsAreScrubbedFromOtherErrors() {
+        settings.remoteDiagnostics = true
         val json = diagnostics().serializeErrorForTest(
             IOException("cannot reach http://coffee.example.com:8099/api and 192.168.1.10:8099 and cafe.example.org."),
             DiagnosticErrorContext.SCALE,
@@ -163,6 +165,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun quotaDeduplicatesByFingerprintAndCapsTheSession() {
+        settings.remoteDiagnostics = true
         val quota = EventQuota(maxPerSession = 2, maxPerDay = 10, clock = { now })
         val sut = diagnostics(dsn = "", quota = quota)
 

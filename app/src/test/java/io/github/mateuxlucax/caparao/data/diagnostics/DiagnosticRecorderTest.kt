@@ -47,6 +47,12 @@ class DiagnosticRecorderTest {
         val lines = result.file.readLines()
         val rows = lines.drop(1).map(::JSONObject)
         assertEquals(DiagnosticRecorder.FORMAT_NAME, JSONObject(lines.first()).getString("format"))
+        assertEquals("0.0-test", JSONObject(lines.first()).getString("app_version"))
+        assertEquals("synthetic", JSONObject(lines.first()).getString("phone_model"))
+        assertEquals("test", JSONObject(lines.first()).getString("android_version"))
+        assertEquals("0.0-test", JSONObject(lines.first()).getString("app_version"))
+        assertEquals("synthetic", JSONObject(lines.first()).getString("phone_model"))
+        assertEquals("test", JSONObject(lines.first()).getString("android_version"))
         assertEquals(listOf("event", "rx", "event", "rx", "rx", "event", "event"), rows.map { it.getString("dir") })
         assertEquals("session_started", rows[0].getString("note"))
         assertEquals("A5 5A 01 01 00 09 00 00 00 00 00 00 00 00 00 00 00", rows[1].getString("hex"))
@@ -108,6 +114,28 @@ class DiagnosticRecorderTest {
     }
 
     @Test
+    fun fragmentedFramesKeepOriginalChunksAndUnsupportedRepliesAreDropped() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        assertTrue(recorder.start())
+        val split = zeroWeight.size / 2
+        recorder.notification(zeroWeight.copyOfRange(0, split), allowed = null)
+        recorder.notification(zeroWeight.copyOfRange(split, zeroWeight.size), allowed = true)
+        val ready = recorder.stop() as DiagnosticRecorderState.Ready
+        val rx = ready.file.readLines().drop(1).map(::JSONObject).filter { it.optString("dir") == "rx" }
+        assertEquals(listOf(hex(zeroWeight.copyOfRange(0, split)), hex(zeroWeight.copyOfRange(split, zeroWeight.size))), rx.map { it.getString("hex") })
+
+        val modelRecorder = recorder(File(directory, "model"), { 1_000_000_000L }, backgroundScope)
+        assertTrue(modelRecorder.start())
+        val modelReply = bytes("A5 5A 02 13 00 03 41 42 43 00 00")
+        modelRecorder.notification(modelReply, allowed = false)
+        val model = modelRecorder.stop() as DiagnosticRecorderState.Ready
+        assertEquals(DiagnosticIncompleteReason.UNSUPPORTED_FRAME, model.reason)
+        assertFalse(model.file.readText().contains("41 42 43"))
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun sessionSizeLimitKeepsTheFileBoundedAndMarksItIncomplete() = runTest {
         val directory = tempDir()
         val recorder = recorder(
@@ -157,24 +185,24 @@ class DiagnosticRecorderTest {
     }
 
     @Test
-    fun retentionBoundsSessionCountAndTotalStorage() = runTest {
+    fun anUnsentCaptureIsKeptAndBlocksAnotherCapture() = runTest {
         val directory = tempDir()
         var wall = 1_700_000_000_000L
         var monotonic = 1_000_000_000L
         val recorder = DiagnosticRecorder(
             directory, backgroundScope, monotonicNanos = { monotonic }, wallClockMillis = { wall },
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
-            limits = limits(maxSessions = 2, maxSessionBytes = 4_096, maxStoredBytes = 8_192),
+            limits = limits(maxSessions = 1, maxSessionBytes = 4_096, maxStoredBytes = 4_096),
         )
-        repeat(3) {
-            assertTrue(recorder.start())
-            recorder.notification(zeroWeight)
-            assertTrue((recorder.stop() as DiagnosticRecorderState.Ready).complete)
-            wall += 1_000L
-            monotonic += 1_000_000_000L
-        }
+        assertTrue(recorder.start())
+        recorder.notification(zeroWeight)
+        val pending = (recorder.stop() as DiagnosticRecorderState.Ready).file
+        wall += 1_000L
+        monotonic += 1_000_000_000L
+        assertFalse(recorder.start())
         val files = directory.listFiles().orEmpty().filter { it.extension == "jsonl" }
-        assertEquals(2, files.size)
+        assertEquals(1, files.size)
+        assertTrue(pending.exists())
         assertTrue(files.all { it.length() <= 4_096L })
         assertTrue(files.sumOf(File::length) <= 8_192L)
         directory.deleteRecursively()
@@ -192,6 +220,62 @@ class DiagnosticRecorderTest {
         assertTrue(results.all { it.complete })
         val lines = results.first().file.readLines()
         assertEquals(1, lines.drop(1).count { JSONObject(it).optString("note") == "session_end" })
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun confirmedSendDeletesCaptureAndOptOutDeletesPendingCapture() = runTest {
+        val directory = tempDir()
+        var enabled = true
+        val sent = mutableListOf<Triple<Boolean, String, Long>>()
+        val recorder = DiagnosticRecorder(
+            directory, this, monotonicNanos = { 0L },
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            optedIn = { enabled },
+            send = { file, complete, mode -> sent += Triple(complete, mode, file.length()); true },
+        )
+        assertTrue(recorder.start())
+        recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.ESPRESSO, DiagnosticBrewPhase.READY))
+        val ready = recorder.stop() as DiagnosticRecorderState.Ready
+        val bytes = ready.file.length()
+        advanceUntilIdle()
+        assertEquals(listOf(Triple(true, "espresso", bytes)), sent)
+        assertFalse(ready.file.exists())
+        assertTrue((recorder.state.value as DiagnosticRecorderState.Ready).sent)
+
+        val offline = DiagnosticRecorder(
+            File(directory, "offline"), this, monotonicNanos = { 0L },
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            optedIn = { enabled }, send = { _, _, _ -> false },
+        )
+        assertTrue(offline.start())
+        val pending = (offline.stop() as DiagnosticRecorderState.Ready).file
+        advanceUntilIdle()
+        assertTrue((offline.state.value as DiagnosticRecorderState.Ready).pending)
+        enabled = false
+        offline.clear()
+        assertFalse(pending.exists())
+
+        var calls = 0
+        val disabled = DiagnosticRecorder(
+            File(directory, "disabled"), this, optedIn = { false },
+            send = { _, _, _ -> calls++; true },
+        )
+        assertFalse(disabled.start())
+        assertEquals(0, calls)
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun brewCompletionStopsCaptureAutomatically() = runTest {
+        val directory = tempDir()
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
+        assertTrue(recorder.start())
+        recorder.event(DiagnosticEvent.BrewResultReady)
+        advanceUntilIdle()
+        val ready = recorder.state.value as DiagnosticRecorderState.Ready
+        assertTrue(ready.complete)
+        assertEquals("brew_result_ready", JSONObject(ready.file.readLines().dropLast(1).last()).getString("note"))
         directory.deleteRecursively()
     }
 
@@ -237,7 +321,7 @@ class DiagnosticRecorderTest {
     )
 
     private fun limits(
-        maxSessions: Int = 10,
+        maxSessions: Int = 1,
         maxStoredBytes: Long = 32L * 1024 * 1024,
         maxSessionBytes: Long = 8L * 1024 * 1024,
         queueCapacity: Int = 128,

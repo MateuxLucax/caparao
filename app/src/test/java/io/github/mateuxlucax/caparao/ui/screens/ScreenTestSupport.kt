@@ -59,8 +59,6 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -91,8 +89,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.ui.App
 import io.github.mateuxlucax.caparao.ui.components.AppActions
@@ -115,7 +111,6 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -170,12 +165,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected var localServer = false
     protected var localServerGate: CompletableDeferred<Unit>? = null
     protected val serverChecks = mutableListOf<Pair<String, String>>()
-    protected val diagnosticScope = MainScope()
-    protected val diagnostics = DiagnosticRecorder(
-        context.cacheDir.resolve("diagnostic-screen-tests/$lang-$theme-${System.nanoTime()}"),
-        diagnosticScope,
-    )
-    protected val diagnosticShare = DiagnosticShare(context, diagnostics)
     protected val locale get() = context.resources.configuration.locales[0]
 
     @Before
@@ -189,8 +178,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     @After
     fun tearDown() {
-        runBlocking { diagnostics.stop() }
-        diagnosticScope.cancel()
         db.close()
     }
 
@@ -241,7 +228,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
@@ -279,17 +265,6 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             play(scale, scale.nowMs + 100)
             compose.waitForIdle()
         }
-    }
-
-    protected fun openDiagnosticsCard() {
-        open("idle-5min", 0)
-        click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
-        compose.waitForIdle()
-    }
-
-    protected fun diagnosticsAction(id: Int) {
-        compose.onNodeWithText(text(id)).performScrollTo().performClick()
     }
 
     protected fun openV60Editor() {

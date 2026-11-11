@@ -179,8 +179,15 @@ class ScaleClient(
                 when (event) {
                     is BleEvent.Notification -> {
                         val original = event.bytes.copyOf()
-                        diagnostics.notification(original)
-                        decoder.feed(original).forEach(::handle)
+                        val messages = decoder.feed(original)
+                        val allowed = when {
+                            messages.any { it !is ScaleMessage.Weight && it !is ScaleMessage.Battery && it !is ScaleMessage.Ack } -> false
+                            decoder.hasPendingBytes -> null
+                            messages.isNotEmpty() -> true
+                            else -> null
+                        }
+                        diagnostics.notification(original, allowed)
+                        messages.forEach(::handle)
                     }
                     // The event and recorder share a fixed monotonic clock; no address or exception text is included.
                     BleEvent.LinkLost -> {

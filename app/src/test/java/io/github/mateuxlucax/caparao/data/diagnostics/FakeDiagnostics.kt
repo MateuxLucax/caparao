@@ -15,7 +15,7 @@ class FakeDiagnostics : Diagnostics {
         events += event
     }
 
-    override fun notification(bytes: ByteArray) {
+    override fun notification(bytes: ByteArray, allowed: Boolean?) {
         notifications += bytes.copyOf()
     }
 

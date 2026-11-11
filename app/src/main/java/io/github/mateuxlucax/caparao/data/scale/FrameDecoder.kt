@@ -35,6 +35,9 @@ class FrameDecoder {
     private val buffer = ByteArray(MAX_BUFFER)
     private var size = 0
 
+    /** Whether the last chunk ended inside a frame that still needs classifying. */
+    val hasPendingBytes: Boolean get() = size > 0
+
     /** Appends [chunk] and returns every frame it completed, in order. */
     fun feed(chunk: ByteArray): List<ScaleMessage> {
         append(chunk)
