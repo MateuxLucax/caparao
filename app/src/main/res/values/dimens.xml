@@ -2,8 +2,4 @@
 <resources>
     <dimen name="widget_min_height">176dp</dimen>
     <dimen name="widget_min_width">180dp</dimen>
-    <dimen name="widget_weekly_min_height">210dp</dimen>
-    <dimen name="widget_weekly_min_width">260dp</dimen>
-    <dimen name="widget_weekly_padding">12dp</dimen>
-    <dimen name="widget_weekly_chart_height">60dp</dimen>
 </resources>

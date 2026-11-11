@@ -78,8 +78,6 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
-import io.github.mateuxlucax.caparao.ui.widget.brewWidgetWeekWindow
-import io.github.mateuxlucax.caparao.ui.widget.summarizeBrewWidgetWeek
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagsViewModel
