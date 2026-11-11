@@ -7,8 +7,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import io.github.mateuxlucax.caparao.ui.components.RecipeForm
 import io.github.mateuxlucax.caparao.brew.BrewPhase
-import io.github.mateuxlucax.caparao.brew.BrewConnection
-import io.github.mateuxlucax.caparao.brew.BrewConnectionAction
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
 import io.github.mateuxlucax.caparao.brew.DrainWindow as BrewDrainWindow
@@ -374,7 +372,7 @@ class BrewViewModel(
         diagnostics.event(event)
         current.stop(clock()).forEach(::alert)
         recordDiagnosticPhase(current.phase)
-        finish(current)
+        finish()
     }
 
     /** The notes on the summary changed. */
@@ -444,7 +442,7 @@ class BrewViewModel(
             )
         }
         if (state.phase == BrewPhase.DONE) {
-            finish(current)
+            finish()
         }
     }
 
@@ -513,20 +511,15 @@ class BrewViewModel(
         }
         val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
-        when (current.onScaleConnection(
-            connection = when (state) {
-                is ScaleState.Connected -> BrewConnection.CONNECTED
-                is ScaleState.Failed -> BrewConnection.FAILED
-                else -> BrewConnection.OTHER
-            },
-            atMs = clock(),
-        )) {
-            BrewConnectionAction.NONE -> Unit
-            BrewConnectionAction.KEEP_STEEPING -> keepSteepRunning()
-            BrewConnectionAction.INTERRUPTED -> {
+        if (state is ScaleState.Failed) {
+            val keepSteeping = mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING && current.guideSteps.isNotEmpty()
+            current.onScaleLost(clock())
+            if (keepSteeping) {
+                keepSteepRunning()
+            } else if (current.phase == BrewPhase.DONE && current.result?.interrupted == true) {
                 diagnostics.event(DiagnosticEvent.BrewInterrupted)
                 recordDiagnosticPhase(current.phase)
-                finish(current)
+                finish()
             }
         }
     }
@@ -593,7 +586,8 @@ class BrewViewModel(
         BrewDrainWindow.PAST -> BrewUiState.Window.PAST
     }
 
-    private fun finish(done: BrewSession) {
+    private fun finish() {
+        val done = session ?: return
         steepClockJob?.cancel()
         val result = done.finish()
         if (result == null) {
