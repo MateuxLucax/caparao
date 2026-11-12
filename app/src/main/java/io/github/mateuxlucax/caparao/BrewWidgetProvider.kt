@@ -7,17 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import android.view.View
 import android.widget.RemoteViews
 import io.github.mateuxlucax.caparao.model.Brew
-import io.github.mateuxlucax.caparao.model.BrewMode
-import io.github.mateuxlucax.caparao.ui.components.icon
-import io.github.mateuxlucax.caparao.ui.components.label
-import io.github.mateuxlucax.caparao.ui.components.LauncherShortcut
 import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetRefresh
-import io.github.mateuxlucax.caparao.ui.widget.actionIconForWidget
-import io.github.mateuxlucax.caparao.ui.widget.shortcutForWidget
-import io.github.mateuxlucax.caparao.ui.widget.suggestedModeAfter
+import io.github.mateuxlucax.caparao.ui.widget.brewWidgetViews
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -90,54 +83,17 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    internal fun views(context: Context, appWidgetId: Int, latest: Brew?): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_brew)
-        val mode = latest?.mode
-        val suggestedMode = mode?.let(::suggestedModeAfter)
-        val icon = mode?.icon ?: R.drawable.ic_coffee
-        views.setImageViewResource(R.id.widget_method_icon, icon)
-        val shortcut = shortcutForWidget(mode)
-        if (latest == null) {
-            views.setViewVisibility(R.id.widget_title, View.GONE)
-            views.setViewVisibility(R.id.widget_last_brew, View.GONE)
-            views.setViewVisibility(R.id.widget_empty_content, View.VISIBLE)
-            views.setTextViewText(R.id.widget_empty_title, context.getString(R.string.widget_empty_title))
-        } else {
-            views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_last_brew_title))
-            views.setViewVisibility(R.id.widget_title, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_last_brew, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_empty_content, View.GONE)
-            views.setTextViewText(R.id.widget_method, context.getString(latest.mode.label))
+    internal fun views(context: Context, appWidgetId: Int, latest: Brew?): RemoteViews =
+        brewWidgetViews(context, latest) { action ->
+            PendingIntent.getActivity(
+                context,
+                appWidgetId,
+                Intent(context, MainActivity::class.java)
+                    .setAction(action)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         }
-        val actionLabel = context.getString(actionLabel(suggestedMode))
-        views.setTextViewText(R.id.widget_action_label, actionLabel)
-        views.setContentDescription(R.id.widget_action, actionLabel)
-        val actionIcon = actionIconForWidget(mode)
-        if (actionIcon == null) {
-            views.setViewVisibility(R.id.widget_action_icon, View.GONE)
-        } else {
-            views.setImageViewResource(R.id.widget_action_icon, actionIcon)
-            views.setViewVisibility(R.id.widget_action_icon, View.VISIBLE)
-        }
-        val intent = Intent(context, MainActivity::class.java)
-            .setAction(shortcut.action)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            appWidgetId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        views.setOnClickPendingIntent(R.id.widget_action, pendingIntent)
-        return views
-    }
-
-    private fun actionLabel(mode: BrewMode?): Int = when (mode) {
-        null -> R.string.widget_brew_coffee
-        BrewMode.ESPRESSO -> R.string.widget_brew_espresso
-        BrewMode.FILTER -> R.string.widget_brew_filter
-        BrewMode.FRENCH_PRESS -> R.string.widget_brew_french_press
-    }
 
     companion object {
         private const val TAG = "BrewWidget"
