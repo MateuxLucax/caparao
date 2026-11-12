@@ -5,7 +5,8 @@ plugins {
 }
 
 val appVersionName = (findProperty("versionName") as String?) ?: "0.0.0-dev"
-val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+// Play takes the phone and watch bundles in one app, so the watch's versionCode must differ from the phone's (#442).
+val appVersionCode = ((findProperty("versionCode") as String?)?.toInt() ?: 1) + 1_000_000
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
 android {
