@@ -321,8 +321,17 @@ private fun Tabs(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLargeEmphasized) },
-                actions = { ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp)) },
+                title = {
+                    Text(
+                        stringResource(if (tab == Tab.SETTINGS) tab.label else R.string.app_name),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                    )
+                },
+                actions = {
+                    if (tab != Tab.SETTINGS) {
+                        ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp))
+                    }
+                },
             )
         },
         bottomBar = {
@@ -353,7 +362,6 @@ private fun Tabs(
                 Tab.SETTINGS -> SettingsScreen(
                     settingsServer,
                     settingsScale,
-                    viewModel(factory = viewModelFactory),
                     viewModel(factory = viewModelFactory),
                     settingsDiagnostics,
                     actions,

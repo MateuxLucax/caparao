@@ -46,6 +46,7 @@
     <string name="settings_on">On</string>
     <string name="settings_off">Off</string>
     <string name="settings_about">Caparaó %1$s</string>
+    <string name="section_about">About</string>
     <string name="section_server">Server</string>
     <string name="section_scale">Scale</string>
 
@@ -273,9 +274,9 @@
     <string name="share">Share</string>
     <string name="share_export">Share export</string>
     <string name="section_diagnostics">Diagnostics</string>
-    <string name="diagnostics_on">Send diagnostics to Sentry</string>
-    <string name="diagnostics_text">Crashes and app events are sent to Sentry. A brew recording with your phone model, Android version and app version is uploaded when you capture a brew.</string>
-    <string name="diagnostics_off_text">Diagnostics are off. Nothing more is sent to Sentry.</string>
+    <string name="diagnostics_on">Send diagnostics</string>
+    <string name="diagnostics_text">Crashes and app events are sent. A brew recording with your phone model, Android version and app version is uploaded when you capture a brew.</string>
+    <string name="diagnostics_off_text">Diagnostics are off. Nothing is sent.</string>
     <string name="capture_title">Brew capture</string>
     <string name="capture_start">Capture next brew</string>
     <string name="capture_running">Capturing…</string>

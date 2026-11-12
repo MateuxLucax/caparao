@@ -42,6 +42,7 @@
     <string name="settings_on">Ativado</string>
     <string name="settings_off">Desativado</string>
     <string name="settings_about">Caparaó %1$s</string>
+    <string name="section_about">Sobre</string>
     <string name="section_server">Servidor</string>
     <string name="section_scale">Balança</string>
 
@@ -267,9 +268,9 @@
     <string name="share">Compartilhar</string>
     <string name="share_export">Compartilhar exportação</string>
     <string name="section_diagnostics">Diagnóstico</string>
-    <string name="diagnostics_on">Enviar diagnósticos ao Sentry</string>
-    <string name="diagnostics_text">Falhas e eventos do app são enviados ao Sentry. Ao capturar um preparo, uma gravação com o modelo do celular, a versão do Android e a versão do app também é enviada.</string>
-    <string name="diagnostics_off_text">Os diagnósticos estão desativados. Nada mais é enviado ao Sentry.</string>
+    <string name="diagnostics_on">Enviar diagnósticos</string>
+    <string name="diagnostics_text">Falhas e eventos do app são enviados. Ao capturar um preparo, uma gravação com o modelo do celular, a versão do Android e a versão do app também é enviada.</string>
+    <string name="diagnostics_off_text">Os diagnósticos estão desativados. Nada é enviado.</string>
     <string name="capture_title">Captura de preparo</string>
     <string name="capture_start">Capturar próximo preparo</string>
     <string name="capture_running">Capturando…</string>

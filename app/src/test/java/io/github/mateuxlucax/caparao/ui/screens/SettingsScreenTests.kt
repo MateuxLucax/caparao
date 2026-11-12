@@ -116,7 +116,6 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -157,10 +156,16 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         click(R.string.tab_settings)
         compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.guide_sound)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.export_include_samples)).performScrollTo().assertIsDisplayed()
+        assertTrue(compose.onNodeWithText(text(R.string.guide_sound)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.vibrate_on_both)).fetchSemanticsNode().boundsInRoot.top)
+        compose.onNodeWithText(text(R.string.export_include_samples)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.server_url)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.settings_only_phone)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.settings_about, BuildConfig.VERSION_NAME)).assertExists()
+        compose.onAllNodesWithText(text(R.string.tab_settings)).assertCountEquals(2)
     }
 
     @Test
@@ -273,7 +278,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     }
 
     @Test
-    fun diagnosticsSectionIsHiddenWithoutSentry() {
+    fun diagnosticsSectionIsHiddenWhenUnavailable() {
         openDiagnosticsCard(optedIn = true, available = false)
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertDoesNotExist()
     }
@@ -415,7 +420,6 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     fun settingsHasNoColorsOption() {
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.export_include_samples)).performScrollTo().assertIsDisplayed()
         val removedColorLabels = if (lang == "pt-BR") listOf("Cores", "Sistema") else listOf("Colors", "System")
         removedColorLabels.forEach { compose.onNodeWithText(it).assertDoesNotExist() }
     }
