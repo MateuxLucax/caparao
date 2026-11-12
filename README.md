@@ -242,7 +242,9 @@ publication are disabled. Gitleaks runs locally when installed and is not part o
 
 Each release also carries signed `caparao-<version>.aab` and `caparao-wear-<version>.aab` bundles for Play Console.
 Upload both to the same app: the phone bundle to its track and the watch bundle to the matching Wear OS track. The
-watch build's versionCode is the phone's plus 1,000,000, so Play accepts both.
+watch build's versionCode is the phone's plus 1,000,000, so Play accepts both. After the GitHub Release, the workflow uploads both
+bundles to Play's internal tracks with the `PLAY_SERVICE_ACCOUNT_JSON` secret; promote to production in Play Console.
+Google's API cannot make an app's first upload, so the first one is manual.
 
 ### Dependency updates
 
