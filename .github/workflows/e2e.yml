@@ -96,11 +96,10 @@ jobs:
           printf 'Emulator startup diagnostics; see the emulator-runner step in the Actions log.\n' \
             >> "$raw_log_dir/emulator.log"
 
-      # AVD snapshot cache, following android-emulator-runner's documented pattern. Pull requests read the copy
-      # that Build writes on main.
-      - name: AVD cache
+      # Pull requests restore the snapshot written on main without uploading their own copy.
+      - name: Restore AVD cache
         id: avd-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.android/avd/*
@@ -121,6 +120,15 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
+
+      - name: Save AVD cache
+        if: github.ref == 'refs/heads/main' && steps.avd-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ runner.os }}-api-36-google-apis-x86_64-v1
 
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
