@@ -59,12 +59,14 @@ class UploadScheduler(
     /**
      * The worker moved out of the root package in the compatibility reset (#396), so jobs enqueued by the old build
      * name a class that no longer exists. Cancels every upload job and gives each unsynced brew a fresh one with the new
-     * name; [migrated] guards it so it runs once per install. Returns whether it ran.
+     * name; [migrated] guards it so it runs once per install and [markMigrated] records it only once the jobs are
+     * scheduled. Returns whether it ran.
      */
-    suspend fun rescheduleJobsFromTheOldWorker(migrated: Boolean): Boolean {
+    suspend fun rescheduleJobsFromTheOldWorker(migrated: Boolean, markMigrated: () -> Unit): Boolean {
         if (migrated) return false
         queue.cancelAll()
         resendUnsynced()
+        markMigrated()
         return true
     }
 }

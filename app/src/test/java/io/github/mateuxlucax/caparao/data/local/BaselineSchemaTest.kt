@@ -9,6 +9,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,6 +71,19 @@ class BaselineSchemaTest {
             assertNotNull(db.recipes().get("recipe"))
             assertEquals(1, db.recipes().steps("recipe").size)
             assertNotNull(db.coffeeBags().get("bag"))
+
+            // Independent of the exported JSON: Room's open database has every model table and column.
+            val sqlite = db.openHelper.readableDatabase
+            val tables = mutableSetOf<String>()
+            sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
+                while (cursor.moveToNext()) tables += cursor.getString(0)
+            }
+            assertTrue(tables.containsAll(setOf("brews", "brew_samples", "recipes", "recipe_steps", "coffee_bags")))
+            val columns = mutableSetOf<String>()
+            sqlite.query("PRAGMA table_info(brews)").use { cursor ->
+                while (cursor.moveToNext()) columns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
+            }
+            assertTrue(columns.containsAll(setOf("bag_id", "revision", "recipe_id", "notes", "water_temp_celsius")))
         } finally {
             db.close()
         }

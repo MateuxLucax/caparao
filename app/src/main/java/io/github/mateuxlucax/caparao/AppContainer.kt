@@ -46,6 +46,7 @@ import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.watch.ScaleTimer
 import io.github.mateuxlucax.caparao.watch.WatchLink
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -124,10 +125,13 @@ class AppContainer(context: Context) {
             // the flag unset on failure retries on the next launch.
             val migrations = appContext.getSharedPreferences("caparao-migrations", Context.MODE_PRIVATE)
             runCatching {
-                if (uploads.rescheduleJobsFromTheOldWorker(migrations.getBoolean(KEY_UPLOAD_WORKER_MOVED, false))) {
+                uploads.rescheduleJobsFromTheOldWorker(migrations.getBoolean(KEY_UPLOAD_WORKER_MOVED, false)) {
                     migrations.edit().putBoolean(KEY_UPLOAD_WORKER_MOVED, true).commit()
                 }
-            }.onFailure { error -> Log.w("Caparao", "could not reschedule upload jobs", error) }
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                Log.w(TAG, "could not reschedule upload jobs", error)
+            }
         }
     }
 
@@ -172,6 +176,8 @@ class AppContainer(context: Context) {
         }
     }
 }
+
+private const val TAG = "Caparao"
 
 /** Set once after the upload worker moved out of the root package (#396). */
 private const val KEY_UPLOAD_WORKER_MOVED = "upload_worker_moved"

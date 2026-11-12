@@ -38,10 +38,10 @@ decisions and work tracking.
 
 ## Frozen from the first Play upload
 
-The compatibility reset before the first external user (#396) is the last chance to move or rename these. From the
-first Play upload on, they are frozen:
+The compatibility reset before the first external user (#396) is the last chance to move or rename these. #432 decides
+the final application id and Kotlin package; the freezes bind from the first Play upload under that id and package:
 
-- The application id and the Kotlin package (#432 decides them once).
+- The application id and the Kotlin package chosen in #432.
 - `MainActivity`'s fully qualified name: launcher shortcuts and the widget point at it.
 - The `settings` SharedPreferences file and its keys; `SettingsStore`'s KDoc is the final list.
 - WorkManager names: the `upload-<brew id>` unique work names, the `upload` tag, the input key and `UploadWorker`'s

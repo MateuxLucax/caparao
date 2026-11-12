@@ -20,7 +20,10 @@ enum class WatchState {
     DONE,
 }
 
-/** A filter or French press recipe step's kind, as the watch names it (the phone's `StepKind`). */
+/**
+ * A filter or French press recipe step's kind, as the watch names it (the phone's `StepKind`). The wire maps kinds by
+ * name, not by ordinal: the ordinals below are wire values only and are frozen from the first Play upload.
+ */
 enum class WatchStepKind { BLOOM, POUR, WAIT, SWIRL, PRESS, STIR }
 
 /**

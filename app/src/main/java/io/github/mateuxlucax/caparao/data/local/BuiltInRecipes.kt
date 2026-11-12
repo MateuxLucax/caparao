@@ -10,7 +10,7 @@ import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
 
 /**
- * The recipes a new or upgraded install starts with, as ordinary editable rows (#102). They come
+ * The recipes a new install starts with, as ordinary editable rows (#102). They come
  * from the user's recipe guide: Lance Hedrick's V60 "One and Done" and "Big Brew", Tetsu Kasuya's 4:6 in ten pours, Não Sou Barista's Melitta 102 and
  * 103, and Pirados por Café's espresso on the Oster Xpert Perfect Brew. The names are the same in every language.
  */
@@ -22,9 +22,6 @@ object BuiltInRecipes {
     const val MELITTA_LITER_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0005"
     const val V60_FOUR_SIX_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0006"
     const val FRENCH_PRESS_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0007"
-
-    /** The ids the first set of built-ins used; earlier migrations replaced those the user never edited. */
-    val FIRST_IDS = listOf(ESPRESSO_ID, V60_ID, MELITTA_ID)
 
     /** Built-ins already present before the French press mode was introduced in database version 5. */
     fun beforeFrenchPress(now: Long) = listOf(
