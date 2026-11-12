@@ -240,6 +240,10 @@ tree; after merge, the Release workflow compares that tree with the final merge 
 existing key and creates the matching `v0.3.N` GitHub Release. It does not rerun Build/E2E. Manual and tag-triggered
 publication are disabled. Gitleaks runs locally when installed and is not part of CI.
 
+Each release also carries signed `caparao-<version>.aab` and `caparao-wear-<version>.aab` bundles for Play Console.
+Upload both to the same app: the phone bundle to its track and the watch bundle to the matching Wear OS track. The
+watch build's versionCode is the phone's plus 1,000,000, so Play accepts both.
+
 ### Dependency updates
 
 [Dependabot](https://docs.github.com/en/code-security/dependabot) opens update PRs every week from

@@ -115,9 +115,12 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         run: |
           # Signing and Sentry inputs are read during configuration; keep them out of the project cache.
-          ./gradlew --console=plain --no-configuration-cache :app:assembleRelease :wear:assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER" -PsentryDsn="$SENTRY_DSN"
+          ./gradlew --console=plain --no-configuration-cache :app:assembleRelease :wear:assembleRelease :app:bundleRelease :wear:bundleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER" -PsentryDsn="$SENTRY_DSN"
           cp app/build/outputs/apk/release/app-release.apk "caparao-$VERSION_NAME.apk"
           cp wear/build/outputs/apk/release/wear-release.apk "caparao-wear-$VERSION_NAME.apk"
+          # Play Console takes bundles; both carry the release key's signature (#442).
+          cp app/build/outputs/bundle/release/app-release.aab "caparao-$VERSION_NAME.aab"
+          cp wear/build/outputs/bundle/release/wear-release.aab "caparao-wear-$VERSION_NAME.aab"
           rm -f "$RUNNER_TEMP/release.jks"
 
       - name: Signer certificate
@@ -135,6 +138,8 @@ jobs:
           path: |
             caparao-${{ env.VERSION_NAME }}.apk
             caparao-wear-${{ env.VERSION_NAME }}.apk
+            caparao-${{ env.VERSION_NAME }}.aab
+            caparao-wear-${{ env.VERSION_NAME }}.aab
 
   publish:
     needs: sign
@@ -148,6 +153,8 @@ jobs:
       TAG: v${{ needs.sign.outputs.version }}
       APK: caparao-${{ needs.sign.outputs.version }}.apk
       WEAR_APK: caparao-wear-${{ needs.sign.outputs.version }}.apk
+      AAB: caparao-${{ needs.sign.outputs.version }}.aab
+      WEAR_AAB: caparao-wear-${{ needs.sign.outputs.version }}.aab
       TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha }}
       SIGNER_NOTE: "APK signer certificate SHA-256: `${{ needs.sign.outputs.signer }}`"
     steps:
