@@ -65,7 +65,7 @@ class BrewBenchmarks {
         // The list can still carry momentum after a quick swipe; click only once it is still.
         Thread.sleep(1_000)
         device.clickTextContains("→")
-        device.awaitText("Share")
+        device.awaitText("Edit notes")
     }
 
     /**

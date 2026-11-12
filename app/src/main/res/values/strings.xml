@@ -268,12 +268,6 @@
     <string name="guide_press_serve">Press and serve</string>
     <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
-    <string name="export">Export</string>
-    <string name="export_include_samples">Include the samples CSV</string>
-    <string name="export_working">Preparing…</string>
-    <string name="export_failed">Could not export. Try again.</string>
-    <string name="share">Share</string>
-    <string name="share_export">Share export</string>
     <string name="section_diagnostics">Diagnostics</string>
     <string name="diagnostics_on">Send diagnostics</string>
     <string name="diagnostics_text">When on, crashes and app events are sent. A brew capture also sends the recording with your phone model, Android version and app version. Brew notes, your server token and the scale address are never sent.</string>

@@ -25,9 +25,6 @@ class BrewRepository(
 
     suspend fun latest(): Brew? = dao.latest()?.toModel()
 
-    /** Every brew without its curve, oldest first, for the export (#76); [samples] reads one curve at a time (#319). */
-    suspend fun all(): List<Brew> = dao.all().map { it.toModel() }
-
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
     suspend fun delete(id: String) {

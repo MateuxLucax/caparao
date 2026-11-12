@@ -59,7 +59,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
@@ -160,7 +159,6 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
             compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top)
         assertTrue(compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top <
             compose.onNodeWithText(text(R.string.vibrate_on_both)).fetchSemanticsNode().boundsInRoot.top)
-        compose.onNodeWithText(text(R.string.export_include_samples)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.server_url)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.settings_only_phone)).assertExists()

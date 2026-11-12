@@ -156,7 +156,7 @@ dependencies {
     implementation(libs.navigation3.ui)
     implementation(libs.lifecycle.viewmodel.navigation3)
     implementation(libs.kotlinx.serialization.core)
-    // FileProvider for the export files shared through the share sheet (#76).
+    // androidx.core: URI helpers for the watch transport.
     implementation(libs.core.ktx)
     implementation(platform(libs.compose.bom))
     // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (#109).

@@ -262,12 +262,6 @@
     <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
-    <string name="export">Exportar</string>
-    <string name="export_include_samples">Incluir o CSV das amostras</string>
-    <string name="export_working">Preparando…</string>
-    <string name="export_failed">Não foi possível exportar. Tente novamente.</string>
-    <string name="share">Compartilhar</string>
-    <string name="share_export">Compartilhar exportação</string>
     <string name="section_diagnostics">Diagnóstico</string>
     <string name="diagnostics_on">Enviar diagnósticos</string>
     <string name="diagnostics_text">Quando ativados, falhas e eventos do app são enviados. Uma captura de preparo também envia a gravação com o modelo do celular, a versão do Android e a versão do app. Notas do preparo, o token do seu servidor e o endereço da balança nunca são enviados.</string>
