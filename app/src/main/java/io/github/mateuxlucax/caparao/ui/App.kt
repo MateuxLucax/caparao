@@ -70,6 +70,11 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
+import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
+import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
+import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
+import io.github.mateuxlucax.caparao.ui.settings.SettingsDetail
+import io.github.mateuxlucax.caparao.ui.settings.SettingsDetailScreen
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.serialization.Serializable
 
@@ -129,6 +134,10 @@ private fun Main(
     entryStoreProvider: ViewModelStoreProvider?,
 ) {
     val backStack = rememberNavBackStack(Destination.Tabs)
+    // Settings and its detail entries must observe the same capture instance: each instance refreshes pending uploads.
+    val settingsServer: ServerViewModel = viewModel(key = "server-settings", factory = viewModelFactory)
+    val settingsScale: ScaleStatusViewModel = viewModel(factory = viewModelFactory)
+    val settingsDiagnostics: CaptureViewModel = viewModel(factory = viewModelFactory)
     val openBrew = remember { mutableStateOf<OpenBrew?>(null) }
     var shortcutTab by remember { mutableStateOf<Tab?>(null) }
     // Each entry's own system-back policy: a screen registers one when back does more than pop it (#352).
@@ -186,12 +195,13 @@ private fun Main(
         entryProvider = entryProvider {
             entry<Destination.Tabs> {
                 Tabs(
-                    viewModelFactory, actions, versionName, shortcutTab,
+                    viewModelFactory, actions, versionName, shortcutTab, settingsServer, settingsScale, settingsDiagnostics,
                     onShortcutTabConsumed = { shortcutTab = null; onShortcutConsumed() },
                     onBrew = { backStack.add(Destination.Brew(it)) },
                     onOpen = { backStack.add(Destination.Detail(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
+                    onSettings = { backStack.add(Destination.Settings(it)) },
                 )
             }
             entry<Destination.Brew> { shown ->
@@ -242,6 +252,16 @@ private fun Main(
                     RecipeEditorScreen(viewModel(key = "recipe-${shown.target}", factory = viewModelFactory, extras = extras), onClose = { backStack.popEntry(shown) })
                 }
             }
+            entry<Destination.Settings> { shown ->
+                SettingsDetailScreen(
+                    shown.detail,
+                    settingsServer,
+                    settingsScale,
+                    settingsDiagnostics,
+                    actions,
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
         },
         transitionSpec = { Motion.sharedAxisX(forward = true, density) },
         popTransitionSpec = { Motion.sharedAxisX(forward = false, density) },
@@ -272,6 +292,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data class Detail(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
+    @Serializable data class Settings(val detail: SettingsDetail) : Destination
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -281,11 +302,15 @@ private fun Tabs(
     actions: AppActions,
     versionName: String,
     shortcutTab: Tab?,
+    settingsServer: ServerViewModel,
+    settingsScale: ScaleStatusViewModel,
+    settingsDiagnostics: CaptureViewModel,
     onShortcutTabConsumed: () -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
+    onSettings: (SettingsDetail) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     LaunchedEffect(shortcutTab) {
@@ -296,8 +321,17 @@ private fun Tabs(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLargeEmphasized) },
-                actions = { ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp)) },
+                title = {
+                    Text(
+                        stringResource(if (tab == Tab.SETTINGS) tab.label else R.string.app_name),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                    )
+                },
+                actions = {
+                    if (tab != Tab.SETTINGS) {
+                        ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp))
+                    }
+                },
             )
         },
         bottomBar = {
@@ -326,13 +360,13 @@ private fun Tabs(
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
                 Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
-                    viewModel(key = "server-settings", factory = viewModelFactory),
+                    settingsServer,
+                    settingsScale,
                     viewModel(factory = viewModelFactory),
-                    viewModel(factory = viewModelFactory),
-                    viewModel(factory = viewModelFactory),
-                    viewModel(factory = viewModelFactory),
+                    settingsDiagnostics,
                     actions,
                     versionName,
+                    onSettings,
                     modifier,
                 )
             }

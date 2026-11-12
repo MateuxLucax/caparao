@@ -143,6 +143,7 @@ import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicInteger
 /**
  * The app's screens on the JVM (Robolectric) instead of an emulator: onboarding, every tab, espresso and filter
  * brews, the guided flows and both home-screen widget sizes. The recorded sessions are played frame by frame
@@ -159,13 +160,15 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     val testName = TestName()
 
     protected val context = ApplicationProvider.getApplicationContext<Context>()
-    protected val actions = AppActions(requestBluetoothPermissions = { true }, bluetoothPermissionGranted = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
+    protected var bluetoothGranted = true
+    protected val actions = AppActions(requestBluetoothPermissions = { bluetoothGranted = true; true }, bluetoothPermissionGranted = { bluetoothGranted }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
     protected val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
     protected val settings = SettingsStore(context.getSharedPreferences("screen-tests", Context.MODE_PRIVATE))
     protected var diagnosticsAvailable = true
     protected var diagnosticsSendSucceeds = false
+    protected val diagnosticsSendAttempts = AtomicInteger()
 
     /** The server form's fake host check: whether the host is local, gated to inspect the checking state. */
     protected var localServer = false
@@ -175,7 +178,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected val diagnostics = CaptureWriter(
         context.cacheDir.resolve("diagnostic-screen-tests/$lang-$theme-${System.nanoTime()}"),
         diagnosticScope,
-        send = { _, _, _ -> diagnosticsSendSucceeds },
+        send = { _, _, _ -> diagnosticsSendAttempts.incrementAndGet(); diagnosticsSendSucceeds },
     )
     protected val locale get() = context.resources.configuration.locales[0]
 
@@ -287,7 +290,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         diagnosticsAvailable = available
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        if (available) compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        if (available) compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().performClick()
         compose.waitForIdle()
     }
 

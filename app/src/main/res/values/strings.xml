@@ -37,13 +37,19 @@
     <string name="brews_empty_title">You haven\'t brewed yet.</string>
 
     <!-- Settings -->
+    <string name="settings_no_browser">No browser available.</string>
+    <string name="settings_allow_nearby">Allow Nearby devices</string>
+    <string name="settings_brewing">Brewing</string>
+    <string name="settings_your_data">Your data</string>
+    <string name="settings_app">App</string>
+    <string name="settings_only_phone">Only on this phone</string>
+    <string name="settings_on">On</string>
+    <string name="settings_off">Off</string>
+    <string name="settings_about">Caparaó %1$s</string>
+    <string name="section_about">About</string>
     <string name="section_server">Server</string>
-    <string name="section_server_text">Optional. Sync your brew data automatically.</string>
-    <string name="section_permissions">Permissions</string>
-    <string name="section_permissions_text">Bluetooth lets the app communicate with the scale.</string>
+    <string name="server_detail_text">Optional. Your brews stay on this phone unless you set a server. With one, each saved brew is also sent there.</string>
     <string name="section_scale">Scale</string>
-    <string name="section_scale_text">Pair your Timemore Dot. If it is paired with another device, hold its button until the light blinks quickly.</string>
-    <string name="version">Version %1$s</string>
 
     <!-- Scale connection -->
     <string name="scale_searching">Looking for the scale…</string>
@@ -262,8 +268,6 @@
     <string name="guide_press_serve">Press and serve</string>
     <string name="guide_press_serve_text">Pour into cups, then tap Done to finish the brew.</string>
     <string name="guide_window">Target %1$s–%2$s s</string>
-    <string name="section_data">Data</string>
-    <string name="section_data_text">Export brews and recipes as CSV, or brews as JSON.</string>
     <string name="export">Export</string>
     <string name="export_include_samples">Include the samples CSV</string>
     <string name="export_working">Preparing…</string>
@@ -271,9 +275,10 @@
     <string name="share">Share</string>
     <string name="share_export">Share export</string>
     <string name="section_diagnostics">Diagnostics</string>
-    <string name="diagnostics_on">Send diagnostics to Sentry</string>
-    <string name="diagnostics_text">Crashes and app events are sent to Sentry. A brew recording with your phone model, Android version and app version is uploaded when you capture a brew.</string>
-    <string name="diagnostics_off_text">Diagnostics are off. Nothing more is sent to Sentry.</string>
+    <string name="diagnostics_on">Send diagnostics</string>
+    <string name="diagnostics_text">When on, crashes and app events are sent. A brew capture also sends the recording with your phone model, Android version and app version. Brew notes, your server token and the scale address are never sent.</string>
+    <string name="diagnostics_on_text">Diagnostics are on.</string>
+    <string name="diagnostics_off_text">Diagnostics are off. Nothing is sent.</string>
     <string name="capture_title">Brew capture</string>
     <string name="capture_start">Capture next brew</string>
     <string name="capture_running">Capturing…</string>
@@ -292,8 +297,6 @@
     <string name="diagnostics_reason_writer_overrun">Storage could not keep up. Start a new recording.</string>
     <string name="diagnostics_reason_storage">Storage error. Free up space and start a new recording.</string>
     <string name="diagnostics_reason_interrupted">App closed before recording finished. Start a new recording.</string>
-    <string name="section_guide_alerts">Brew alerts</string>
-    <string name="guide_alerts_text">The guide alerts you when a step starts, near its target, and in the last 5 seconds before the next step. Espresso alerts at the cup, the tare, the first drop and the target.</string>
     <string name="guide_vibration">Vibrate</string>
     <string name="guide_sound">Sound</string>
     <string name="vibrate_on_phone">Phone</string>

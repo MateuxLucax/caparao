@@ -76,6 +76,8 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.SyncError
+import io.github.mateuxlucax.caparao.ui.format.message
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
@@ -114,7 +116,6 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
@@ -150,6 +151,119 @@ import java.time.ZoneId
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
     @Test
+    fun settingsKeepsSimpleControlsOnTheList() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guide_sound)).assertIsDisplayed()
+        assertTrue(compose.onNodeWithText(text(R.string.guide_sound)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(compose.onNodeWithText(text(R.string.guide_vibration)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.vibrate_on_both)).fetchSemanticsNode().boundsInRoot.top)
+        compose.onNodeWithText(text(R.string.export_include_samples)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.server_url)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.settings_only_phone)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.settings_about, BuildConfig.VERSION_NAME)).assertExists()
+        compose.onAllNodesWithText(text(R.string.tab_settings)).assertCountEquals(2)
+    }
+
+    @Test
+    fun connectedScaleOpensWithReconnect() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        click(R.string.section_scale)
+        compose.onNodeWithText(text(R.string.scale_connected)).assertExists()
+        compose.onNodeWithText(text(R.string.reconnect)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.allow_bluetooth)).assertDoesNotExist()
+    }
+
+    @Test
+    fun vibrationChoiceHidesWhenVibrationIsOff() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.vibrate_on_both)).assertExists()
+        click(R.string.guide_vibration)
+        compose.onNodeWithText(text(R.string.vibrate_on_both)).assertDoesNotExist()
+        assertFalse(settings.guideVibration)
+    }
+
+    @Test
+    fun serverOpensAsADetailAndBackReturnsToSettings() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        click(R.string.section_server)
+        compose.onNodeWithText(text(R.string.server_detail_text)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.server_url)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+        compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
+    }
+
+    @Test
+    fun serverRowShowsLastUploadError() {
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        settings.setLastSyncError(SyncError(SyncError.Kind.UNAUTHORIZED, null), null)
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(SyncError.Kind.UNAUTHORIZED.message)).assertExists()
+    }
+
+    @Test
+    fun oldSyncStatusIncludesItsDateWithoutShowingCredentials() {
+        val oldSync = 1_700_000_000_000L
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        settings.lastSyncMs = oldSync
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(context.getString(R.string.last_sync, Format.dateTime(oldSync, locale))).assertIsDisplayed()
+        compose.onNodeWithText("https://coffee.example.com").assertDoesNotExist()
+        compose.onNodeWithText("dev-token").assertDoesNotExist()
+    }
+
+    @Test
+    fun revokedBluetoothPermissionAppearsInScaleDetail() {
+        bluetoothGranted = false
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.settings_allow_nearby)).assertExists()
+        click(R.string.section_scale)
+        compose.onNodeWithText(text(R.string.allow_bluetooth)).assertIsDisplayed()
+    }
+
+    @Test
+    fun scaleFailureShowsItsTitleAndPairingHintInDetail() {
+        val scale = open("idle-5min", 0)
+        click(R.string.tab_settings)
+        scale.state.value = ScaleState.Failed(ScaleError.PAIRED_ELSEWHERE, retrying = false)
+        compose.onNodeWithText(text(R.string.error_paired_elsewhere)).assertExists()
+        click(R.string.section_scale)
+        compose.onNodeWithText(text(R.string.hint_paired_elsewhere)).assertIsDisplayed()
+    }
+
+    @Test
+    fun diagnosticsRowShowsCaptureStatusAfterReturning() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+        compose.onNodeWithText(text(R.string.capture_running)).assertExists()
+    }
+
+    @Test
+    fun openingDiagnosticsAgainDoesNotResendPendingCapture() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        diagnosticsAction(R.string.capture_stop)
+        waitFor(R.string.capture_pending)
+        assertEquals(1, diagnosticsSendAttempts.get())
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+        click(R.string.section_diagnostics)
+        compose.waitForIdle()
+        assertEquals(1, diagnosticsSendAttempts.get())
+    }
+
+    @Test
     fun diagnosticsOptInControlsCaptureSection() {
         openDiagnosticsCard(optedIn = false)
         compose.onNodeWithTag("diagnostics-opt-in").performScrollTo().assert(isOn().not())
@@ -165,7 +279,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     }
 
     @Test
-    fun diagnosticsSectionIsHiddenWithoutSentry() {
+    fun diagnosticsSectionIsHiddenWhenUnavailable() {
         openDiagnosticsCard(optedIn = true, available = false)
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertDoesNotExist()
     }
@@ -173,12 +287,14 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     @Test
     fun diagnosticsCopyNamesUploadedData() {
         openDiagnosticsCard(optedIn = false)
-        compose.onNodeWithText(text(R.string.diagnostics_off_text)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.diagnostics_text)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_on_text)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertIsDisplayed()
         compose.onNodeWithTag("diagnostics-opt-in").performClick()
         waitFor(R.string.capture_start)
-        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_on_text)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
     }
 
@@ -232,6 +348,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         localServer = false
         open("idle-5min", 0)
         click(R.string.tab_settings)
+        click(R.string.section_server)
         serverField(R.string.server_url, "http://coffee.example.com")
         serverField(R.string.server_token, "dev-token")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
@@ -276,6 +393,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         localServerGate = CompletableDeferred()
         open("idle-5min", 0)
         click(R.string.tab_settings)
+        click(R.string.section_server)
         serverField(R.string.server_url, "http://nas:8080")
         serverField(R.string.server_token, "dev-token")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
@@ -292,6 +410,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         localServer = true
         open("idle-5min", 0)
         click(R.string.tab_settings)
+        click(R.string.section_server)
         serverField(R.string.server_url, "http://nas.local:8080")
         serverField(R.string.server_token, "dev-token")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
@@ -304,7 +423,6 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     fun settingsHasNoColorsOption() {
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.section_data)).performScrollTo().assertIsDisplayed()
         val removedColorLabels = if (lang == "pt-BR") listOf("Cores", "Sistema") else listOf("Colors", "System")
         removedColorLabels.forEach { compose.onNodeWithText(it).assertDoesNotExist() }
     }

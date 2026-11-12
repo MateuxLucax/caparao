@@ -219,7 +219,7 @@ class AppScreensTest {
 
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_scale)).assertExists()
-        compose.onNodeWithText(text(R.string.test_connection)).assertExists()
+        compose.onNodeWithText(text(R.string.section_server)).assertExists()
         compose.onNodeWithText("1.0-test", substring = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
@@ -234,7 +234,7 @@ class AppScreensTest {
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
-        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().performClick()
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertExists().assertIsEnabled().performClick()
@@ -484,6 +484,7 @@ class AppScreensTest {
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithText(text(R.string.section_server)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_token))).performScrollTo().performTextReplacement("dev-token")
