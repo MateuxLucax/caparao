@@ -1,5 +1,4 @@
 package io.github.mateuxlucax.caparao.ui.brews
-import io.github.mateuxlucax.caparao.ui.components.NotesForm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +9,7 @@ import io.github.mateuxlucax.caparao.data.local.BrewRepository
 import io.github.mateuxlucax.caparao.data.local.CoffeeBagRepository
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.CoffeeBag
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.model.BrewSample
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.watch.ScaleTimer
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine

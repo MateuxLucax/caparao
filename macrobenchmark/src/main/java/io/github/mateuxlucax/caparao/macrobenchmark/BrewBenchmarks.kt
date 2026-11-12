@@ -68,12 +68,15 @@ class BrewBenchmarks {
         device.awaitText("Share")
     }
 
-    /** A filter free brew to the live screen, then a scripted pour. */
+    /**
+     * A filter free brew to the live screen, then a scripted pour. Cold starts keep each iteration on a fresh
+     * process: a warm launch reuses the scripted scale, which does not replay its connect event.
+     */
     private fun filterBrewLive(compilationMode: CompilationMode) = rule.measureRepeated(
         packageName = TARGET_PACKAGE,
         metrics = listOf(FrameTimingMetric()),
         compilationMode = compilationMode,
-        startupMode = StartupMode.WARM,
+        startupMode = StartupMode.COLD,
         iterations = ITERATIONS,
     ) {
         startActivityAndWait { intent ->

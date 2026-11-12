@@ -1,6 +1,9 @@
 package io.github.mateuxlucax.caparao.ui.brew
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.BrewReadingState
+import io.github.mateuxlucax.caparao.brew.BrewClockState
+import io.github.mateuxlucax.caparao.brew.DrainWindow
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
@@ -66,6 +69,30 @@ data class BrewUiState(
     /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
     val bagId: String? = null,
 ) {
+    fun withSessionState(state: BrewReadingState, steps: List<RecipeStep>): BrewUiState = copy(
+        phase = state.phase,
+        tareTimedOut = state.tareTimedOut,
+        weightGrams = state.weightGrams,
+        flowGramsPerSecond = state.flowGramsPerSecond,
+        elapsedMs = state.elapsedMs,
+        drainWindow = state.drainWindow?.toWindow(),
+        pauseRemainingMs = state.pauseRemainingMs,
+        guide = state.guide?.takeIf { recipe != null || it.index >= 1 } ?: guide,
+        freeSteps = if (recipe == null && state.guide != null) steps else freeSteps,
+        frenchPressRemoved = state.frenchPressRemoved || frenchPressRemoved,
+        frenchPressRemovalPending = state.frenchPressRemovalPending,
+    )
+
+    fun withSessionClock(state: BrewClockState): BrewUiState = copy(
+        elapsedMs = state.elapsedMs,
+        drainWindow = state.drainWindow?.toWindow(),
+        guide = state.guide?.takeIf { recipe != null || it.index >= 1 } ?: guide,
+        frenchPressRemoved = state.frenchPressRemoved || frenchPressRemoved,
+        frenchPressRemovalPending = state.frenchPressRemovalPending,
+    )
+
+    fun clearSessionMarkers(): BrewUiState = copy(frenchPressRemoved = false, frenchPressRemovalPending = false)
+
     /** The steps being followed, when the guide is on. */
     val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps ?: freeSteps else emptyList()
 
@@ -101,6 +128,12 @@ data class BrewUiState(
         }
 
     enum class Window { BEFORE, INSIDE, PAST }
+
+    private fun DrainWindow.toWindow() = when (this) {
+        DrainWindow.BEFORE -> Window.BEFORE
+        DrainWindow.INSIDE -> Window.INSIDE
+        DrainWindow.PAST -> Window.PAST
+    }
 
     /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
     val ratio: Double?

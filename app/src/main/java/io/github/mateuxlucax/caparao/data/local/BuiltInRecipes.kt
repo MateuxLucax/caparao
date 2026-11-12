@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.BrewLimits
 import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.StepKind
@@ -103,7 +104,7 @@ object BuiltInRecipes {
             RecipeStep(StepKind.BLOOM, 100.0, 0),
             RecipeStep(StepKind.WAIT, null, 0),
             RecipeStep(StepKind.POUR, 300.0, 60_000),
-            RecipeStep(StepKind.PRESS, null, 240_000),
+            RecipeStep(StepKind.PRESS, null, BrewLimits.DEFAULT_STEEP_MS),
         ),
         createdAt = now,
         updatedAt = now,

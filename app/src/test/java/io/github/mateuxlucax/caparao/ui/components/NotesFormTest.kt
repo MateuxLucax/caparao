@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.ui.components
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.CoffeeBag
+import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

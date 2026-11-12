@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao.ui.home
+package io.github.mateuxlucax.caparao.watch
 
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.data.scale.TimerAction

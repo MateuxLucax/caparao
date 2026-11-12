@@ -6,7 +6,7 @@ import android.media.ToneGenerator
 import android.os.VibrationEffect
 import android.os.VibratorManager
 import io.github.mateuxlucax.caparao.brew.StepEvent
-import io.github.mateuxlucax.caparao.WatchMirror
+import io.github.mateuxlucax.caparao.watch.WatchMirror
 
 /** A guide moment and how Settings lets it be felt and heard (#103). */
 data class GuideAlert(val event: StepEvent, val vibrate: Boolean, val sound: Boolean)

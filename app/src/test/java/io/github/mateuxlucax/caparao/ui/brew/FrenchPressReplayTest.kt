@@ -64,7 +64,7 @@ class FrenchPressReplayTest {
         val vm = BrewViewModel(
             BrewMode.FRENCH_PRESS, scale, BrewRepository(FakeBrewDao()), SettingsStore(FakePreferences()), RecipeRepository(FakeRecipeDao()),
             clock = { now }, wallClock = { 1_000_000 + now }, newId = { "brew-1" },
-            onSaved = {}, onDiscarded = {}, onWatchAlert = {},
+            onSaved = {}, onDiscarded = {},
         )
         val decoder = FrameDecoder()
         var armed = false

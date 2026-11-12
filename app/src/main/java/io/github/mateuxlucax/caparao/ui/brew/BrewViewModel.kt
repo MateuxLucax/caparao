@@ -5,17 +5,14 @@ import androidx.compose.animation.core.Easing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
-import io.github.mateuxlucax.caparao.ui.components.RecipeForm
+
 import io.github.mateuxlucax.caparao.brew.BrewPhase
+import io.github.mateuxlucax.caparao.brew.BrewPlan
 import io.github.mateuxlucax.caparao.brew.BrewSummary
 import io.github.mateuxlucax.caparao.brew.BrewSession
-import io.github.mateuxlucax.caparao.brew.DrainWindow as BrewDrainWindow
 import io.github.mateuxlucax.caparao.brew.FilterConfig
 import io.github.mateuxlucax.caparao.brew.ScaleCommand
 import io.github.mateuxlucax.caparao.brew.StepEvent
-import io.github.mateuxlucax.caparao.brew.StepState
-import io.github.mateuxlucax.caparao.brew.withDefaultFrenchPressSteep
-import io.github.mateuxlucax.caparao.brew.scaleRecipeToWater
 import io.github.mateuxlucax.caparao.brew.TimedReading
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticBrewPhase
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
@@ -28,22 +25,25 @@ import io.github.mateuxlucax.caparao.data.local.RecipeRepository
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.model.BrewMode
+import io.github.mateuxlucax.caparao.model.BrewLimits
 import io.github.mateuxlucax.caparao.model.CoffeeBag
 import io.github.mateuxlucax.caparao.model.Recipe
-import io.github.mateuxlucax.caparao.model.RecipeStep
-import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.components.NotesForm
 import io.github.mateuxlucax.caparao.ui.theme.Motion
+import io.github.mateuxlucax.caparao.watch.WatchBrewState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -67,10 +67,6 @@ class BrewViewModel(
     private val onSaved: (String) -> Unit = {},
     /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
     private val onDiscarded: (String) -> Unit = {},
-    /** Called for a guide moment the watch should vibrate for (WatchLink.alert). */
-    private val onWatchAlert: (StepEvent) -> Unit = {},
-    /** Every state while the screen is open, then null when it closes (WatchLink.brew). */
-    private val onLive: (BrewUiState?) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
     private val diagnostics: Diagnostics = NoDiagnostics,
     /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
@@ -86,6 +82,15 @@ class BrewViewModel(
     /** The guide's moments worth a vibration or a tone, with what Settings allows; the screen plays them. */
     val alerts: SharedFlow<GuideAlert> = _alerts.asSharedFlow()
 
+    private val _watchAlerts = MutableSharedFlow<StepEvent>(extraBufferCapacity = 16)
+
+    /** The guide moments the watch should vibrate for; AppContainer connects them to the watch link. */
+    val watchAlerts: SharedFlow<StepEvent> = _watchAlerts.asSharedFlow()
+
+    /** What the watch mirrors: the session's live run or the pre-brew flag, never the screen's state (#389). */
+    val watchBrew: StateFlow<WatchBrewState?> =
+        _uiState.map { it.toWatchBrew() }.stateIn(viewModelScope, SharingStarted.Eagerly, _uiState.value.toWatchBrew())
+
     /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
     val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
 
@@ -99,15 +104,12 @@ class BrewViewModel(
     private var rollJob: Job? = null
     private var session: BrewSession? = null
     private val filterConfig = FilterConfig()
+    private var brewPlan = BrewPlan.create(mode, null, settings.lastDose(mode), settings.targetRatio(mode), settings.lastSteepMs())
 
     /** Whether the recipe was chosen for this brew, by the user or by preselecting the last one. */
     private var recipeChosen = false
     /** The user picked a coffee on the coffee step, so going back to Dose and on keeps that pick (#291). */
     private var coffeeBagChosen = false
-    /** This brew's filter scaling is local to the dose step and never written back to the recipe store. */
-    private var filterRecipeEdited = false
-    /** The selected filter recipe is the stable basis for repeated water changes; rounding never compounds. */
-    private var filterRecipeBase: Recipe? = null
     private var lastDiagnosticPhase: BrewPhase? = null
 
     /** The brew screen opened: start from the dose, listening to the scale. Does nothing while a brew is open. */
@@ -118,7 +120,6 @@ class BrewViewModel(
         watchScale()
         job = viewModelScope.launch {
             launch { scale.readings.collect(::onReading) }
-            launch { _uiState.collect(onLive) }
             launch { recipes.recipes.collect { all -> onRecipes(all.filter { it.mode == mode }) } }
             coffeeBags?.let { bags -> launch { bags.bags.collect { all -> _uiState.update { it.copy(bags = all.filterNot(CoffeeBag::finished)) } } } }
             scale.state.collect(::onScaleState)
@@ -131,62 +132,55 @@ class BrewViewModel(
         job?.cancel()
         job = null
         reset()
-        onLive(null)
     }
 
     /** On the dose step: follow [recipe], or none for a free brew. Its dose fills the dose field. */
     fun selectRecipe(recipe: Recipe?) {
         val state = _uiState.value
         if (state.step != BrewStep.DOSE) return
-        if (waterIsControl && filterRecipeEdited && state.recipe?.id == recipe?.id) {
+        if (brewPlan.editedForThisBrew && state.recipe?.id == recipe?.id) {
             settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
             return
         }
         recipeChosen = true
-        filterRecipeEdited = false
         settings.setLastRecipeId(mode, recipe?.id ?: SettingsStore.FREE_BREW)
         apply(recipe)
     }
 
-    /** Filter and French press recipes make water the control (#204, #215). */
-    private val waterIsControl get() = mode == BrewMode.FILTER || mode == BrewMode.FRENCH_PRESS
-
     /** Change this brew's water target in ml/g; recipe pours scale while their times and ratio stay fixed. */
     fun setFilterRecipeWater(grams: Double) {
         val state = _uiState.value
-        val recipe = filterRecipeBase?.takeIf { state.recipe?.id == it.id && waterIsControl } ?: return
-        if (state.step != BrewStep.DOSE || grams !in 1.0..2000.0 || grams / recipe.targetRatio !in RecipeForm.DOSE) return
-        val scaled = scaleRecipeToWater(recipe, grams)
-        filterRecipeEdited = true
-        _uiState.update { it.copy(recipe = scaled, dose = scaled.doseGrams) }
+        if (state.step != BrewStep.DOSE || state.recipe == null) return
+        val next = brewPlan.withWater(grams) ?: return
+        usePlan(next)
     }
 
     /** Change this brew's dose while keeping its recipe ratio. */
     fun setFilterRecipeDose(grams: Double) {
-        if (grams !in RecipeForm.DOSE) return
+        if (grams !in BrewLimits.DOSE_GRAMS) return
         setFilterRecipeWater(grams * _uiState.value.targetRatio)
     }
 
     /** On the dose step: brew at 1:[ratio]. A free brew remembers it for next time. */
     fun setRatio(ratio: Double) {
         if (_uiState.value.step != BrewStep.DOSE) return
-        val clamped = ratio.coerceIn(RecipeForm.RATIO.start, RecipeForm.RATIO.endInclusive)
+        val clamped = ratio.coerceIn(BrewLimits.RATIO.start, BrewLimits.RATIO.endInclusive)
         if (_uiState.value.recipe == null) settings.setTargetRatio(mode, clamped)
-        _uiState.update { it.copy(targetRatio = clamped) }
+        usePlan(brewPlan.withRatio(clamped))
     }
 
     /** On the dose step of a free French press: how long to steep; the next free one starts from it (#218). */
     fun setSteep(ms: Long) {
         val state = _uiState.value
-        if (state.step != BrewStep.DOSE || mode != BrewMode.FRENCH_PRESS || state.recipe != null || ms !in STEEP_RANGE_MS) return
+        if (state.step != BrewStep.DOSE || mode != BrewMode.FRENCH_PRESS || state.recipe != null || ms !in BrewLimits.STEEP_MS) return
         settings.setLastSteepMs(ms)
-        _uiState.update { it.copy(steepMs = ms) }
+        usePlan(brewPlan.withSteep(ms))
     }
 
     /** On the dose step: the dose to weigh, typed or from the water. */
     fun planDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE || grams <= 0) return
-        _uiState.update { it.copy(dose = grams) }
+        usePlan(brewPlan.withDose(grams))
     }
 
     /**
@@ -250,6 +244,7 @@ class BrewViewModel(
     fun setDose(grams: Double) {
         if (_uiState.value.step != BrewStep.DOSE && _uiState.value.step != BrewStep.WEIGH) return
         if (_uiState.value.recipe == null) settings.setLastDose(mode, grams)
+        brewPlan = brewPlan.withDose(grams)
         if (mode == BrewMode.ESPRESSO || mode == BrewMode.FILTER || mode == BrewMode.FRENCH_PRESS) {
             _uiState.update { it.copy(step = BrewStep.PREPARE_PORTAFILTER, dose = grams) }
             return
@@ -305,9 +300,8 @@ class BrewViewModel(
                 pauseRemainingMs = null,
                 guide = null,
                 freeSteps = emptyList(),
-                frenchPressRemoved = false,
-                frenchPressRemovalPending = false,
             )
+                .clearSessionMarkers()
         }
         watchScale()
     }
@@ -322,14 +316,7 @@ class BrewViewModel(
 
     private fun armDetector(grams: Double, espressoBaseline: ScaleReading? = null) {
         val state = _uiState.value
-        val recipe = state.recipe
-        val freeSteps = if (mode == BrewMode.FRENCH_PRESS && recipe?.steps.isNullOrEmpty()) {
-            listOf(
-                RecipeStep(StepKind.POUR, state.plannedWater ?: 0.0, 0L),
-                RecipeStep(StepKind.PRESS, null, state.steepMs),
-            )
-        } else emptyList()
-        val new = BrewSession(mode, grams, state.targetRatio, recipe?.steps.orEmpty(), recipe?.targetMinMs, recipe?.targetMaxMs, freeSteps, filterConfig)
+        val new = BrewSession(brewPlan.withDose(grams), filterConfig)
         session = new
         scaleWatchJob?.cancel()
         scaleWatchJob = null
@@ -426,21 +413,7 @@ class BrewViewModel(
         }
         recordDiagnosticPhase(state.phase)
         state.guideEvents.forEach(::alert)
-        _uiState.update {
-            it.copy(
-                phase = state.phase,
-                tareTimedOut = state.tareTimedOut,
-                weightGrams = state.weightGrams,
-                flowGramsPerSecond = state.flowGramsPerSecond,
-                elapsedMs = state.elapsedMs,
-                pauseRemainingMs = state.pauseRemainingMs,
-                drainWindow = state.drainWindow?.let(::drainWindow),
-                guide = visible(state.guide) ?: it.guide,
-                freeSteps = if (mode == BrewMode.FRENCH_PRESS && it.recipe == null && state.guide != null) current.guideSteps else it.freeSteps,
-                frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
-                frenchPressRemovalPending = state.frenchPressRemovalPending,
-            )
-        }
+        _uiState.update { it.withSessionState(state, current.guideSteps) }
         if (state.phase == BrewPhase.DONE) {
             finish()
         }
@@ -466,33 +439,34 @@ class BrewViewModel(
     private fun onRecipes(list: List<Recipe>) {
         val state = _uiState.value
         // Before the brew, an edit elsewhere updates the chosen one; once it runs, the brew keeps what it started with.
-        val savedRecipe = state.recipe?.let { chosen -> list.find { it.id == chosen.id } }?.withDefaultFrenchPressSteep()
-        val current = savedRecipe?.takeIf { state.step == BrewStep.DOSE && !filterRecipeEdited } ?: state.recipe
-        if (state.step == BrewStep.DOSE && !filterRecipeEdited) filterRecipeBase = current?.takeIf { waterIsControl && it.mode == mode }
-        val refreshPlan = savedRecipe?.takeIf { waterIsControl && state.step == BrewStep.DOSE && !filterRecipeEdited }
+        val savedRecipe = brewPlan.recipe?.let { chosen -> list.find { it.id == chosen.id } }
+        if (savedRecipe != null) brewPlan = brewPlan.withSavedRecipe(savedRecipe, beforeBrew = state.step == BrewStep.DOSE)
         _uiState.update {
             it.copy(
                 recipes = list,
-                recipe = current,
-                dose = refreshPlan?.doseGrams ?: it.dose,
-                targetRatio = refreshPlan?.targetRatio ?: it.targetRatio,
+                recipe = brewPlan.brewRecipe,
+                dose = brewPlan.doseGrams,
+                targetRatio = brewPlan.targetRatio,
+                steepMs = brewPlan.steepMs,
             )
         }
         if (recipeChosen || state.step != BrewStep.DOSE) return
         recipeChosen = true
-        // Filter always opens free; other modes keep their last choice or first recipe.
-        val last = settings.lastRecipeId(mode)
-        apply(if (mode == BrewMode.FILTER) null else if (last == null) list.firstOrNull() else list.find { it.id == last })
+        usePlan(BrewPlan.preselected(mode, list, settings.lastRecipeId(mode), settings.lastDose(mode), settings.targetRatio(mode), settings.lastSteepMs()))
     }
 
     private fun apply(recipe: Recipe?) {
-        val forBrew = recipe?.withDefaultFrenchPressSteep()
-        filterRecipeBase = forBrew?.takeIf { waterIsControl && it.mode == mode }
+        usePlan(brewPlan.withRecipe(recipe, settings.lastDose(mode), settings.targetRatio(mode), settings.lastSteepMs()))
+    }
+
+    private fun usePlan(plan: BrewPlan) {
+        brewPlan = plan
         _uiState.update {
             it.copy(
-                recipe = forBrew,
-                dose = forBrew?.doseGrams ?: settings.lastDose(mode),
-                targetRatio = forBrew?.targetRatio ?: settings.targetRatio(mode),
+                recipe = plan.brewRecipe,
+                dose = plan.doseGrams,
+                targetRatio = plan.targetRatio,
+                steepMs = plan.steepMs,
             )
         }
     }
@@ -512,9 +486,8 @@ class BrewViewModel(
         val current = session ?: return
         if (state is ScaleState.Connected) steepClockJob?.cancel()
         if (state is ScaleState.Failed) {
-            val keepSteeping = mode == BrewMode.FRENCH_PRESS && current.phase == BrewPhase.BREWING && current.guideSteps.isNotEmpty()
             current.onScaleLost(clock())
-            if (keepSteeping) {
+            if (current.phase == BrewPhase.BREWING) {
                 keepSteepRunning()
             } else if (current.phase == BrewPhase.DONE && current.result?.interrupted == true) {
                 diagnostics.event(DiagnosticEvent.BrewInterrupted)
@@ -543,12 +516,9 @@ class BrewViewModel(
         val target = settings.guideVibrationOn
         val vibrate = phoneVibrates
         val sound = settings.guideSound
-        if (settings.guideVibration && target.watch) onWatchAlert(event)
+        if (settings.guideVibration && target.watch) _watchAlerts.tryEmit(event)
         if (vibrate || sound) _alerts.tryEmit(GuideAlert(event, vibrate, sound))
     }
-
-    /** A free French press shows the ring while pouring; its guide opens with the steep (#218). */
-    private fun visible(guide: StepState?): StepState? = guide?.takeIf { _uiState.value.recipe != null || it.index >= 1 }
 
     /**
      * The French press steep needs no scale: when the connection drops after the first water, the guide goes on
@@ -563,27 +533,13 @@ class BrewViewModel(
                 delay(STEEP_CLOCK_MS)
                 val state = current.onClock(clock())
                 state.guideEvents.forEach(::alert)
-                _uiState.update {
-                    it.copy(
-                        elapsedMs = state.elapsedMs,
-                        drainWindow = state.drainWindow?.let(::drainWindow),
-                        guide = visible(state.guide) ?: it.guide,
-                        frenchPressRemoved = state.frenchPressRemoved || it.frenchPressRemoved,
-                        frenchPressRemovalPending = state.frenchPressRemovalPending,
-                    )
-                }
+                _uiState.update { it.withSessionClock(state) }
             }
         }
     }
 
     private fun send(command: ScaleCommand) = when (command) {
         ScaleCommand.TARE -> scale.tare()
-    }
-
-    private fun drainWindow(window: BrewDrainWindow) = when (window) {
-        BrewDrainWindow.BEFORE -> BrewUiState.Window.BEFORE
-        BrewDrainWindow.INSIDE -> BrewUiState.Window.INSIDE
-        BrewDrainWindow.PAST -> BrewUiState.Window.PAST
     }
 
     private fun finish() {
@@ -661,8 +617,7 @@ class BrewViewModel(
         clearRun()
         recipeChosen = false
         coffeeBagChosen = false
-        filterRecipeEdited = false
-        filterRecipeBase = null
+        brewPlan = BrewPlan.create(mode, null, settings.lastDose(mode), settings.targetRatio(mode), settings.lastSteepMs())
         _uiState.value = BrewUiState(
             mode,
             dose = settings.lastDose(mode),
@@ -672,6 +627,18 @@ class BrewViewModel(
             weightGrams = scale.reading.value?.weightGrams ?: 0.0,
         )
     }
+
+    private fun BrewUiState.toWatchBrew() = WatchBrewState(
+        beforeBrew = step == BrewStep.DOSE || step == BrewStep.COFFEE,
+        mode = mode,
+        phase = if (step == BrewStep.SUMMARY || phase == BrewPhase.DONE) BrewPhase.DONE else phase,
+        weightGrams = weightGrams,
+        flowGramsPerSecond = flowGramsPerSecond,
+        elapsedMs = elapsedMs,
+        guide = guide,
+        steps = steps,
+        frenchPressRemoved = frenchPressRemoved,
+    )
 
     /** The open bag a brew used most recently, or null when none has been used. */
     private fun lastUsedBag(bags: List<CoffeeBag>): CoffeeBag? =
@@ -699,8 +666,6 @@ class BrewViewModel(
         /** How long a pre-brew step waits for the scale before offering the not-found card (#182). */
         internal const val SCALE_WAIT_TIMEOUT_MS = 10_000L
 
-        /** The steep a free French press accepts: 10 s to an hour. */
-        val STEEP_RANGE_MS = 10_000L..3_600_000L
         private const val STEEP_CLOCK_MS = 250L
 
         /** The timer rolls back to the saved time over this long, in frames of [ROLL_MS] / [ROLL_FRAMES]. */

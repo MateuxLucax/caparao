@@ -124,6 +124,35 @@ class BrewSessionTest {
     }
 
     @Test
+    fun aFreeFilterEmitsWaterBandPauseResumeAndEndEventsOnce() {
+        val session = BrewSession(BrewMode.FILTER, 15.0, 16.0, emptyList(), null, null)
+        val events = mutableListOf<StepEvent>()
+        fun feed(script: SyntheticSession) { events += script.readings.flatMap { session.onReading(it).guideEvents } }
+
+        val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
+        feed(tare)
+        val low = SyntheticSession(tare.nowMs).ramp(0.0, 2.0, 0.4).ramp(2.0, 200.0, 9.0).hold(200.0, 1.1)
+        feed(low)
+        val lift = SyntheticSession(low.nowMs).ramp(200.0, 0.0, 0.5)
+        feed(lift)
+        val returned = SyntheticSession(lift.nowMs).hold(0.0, 0.2).ramp(0.0, 200.0, 0.5).hold(200.0, 2.1)
+        feed(returned)
+        val atBand = SyntheticSession(returned.nowMs).ramp(200.0, 230.0, 3.0).hold(230.0, 1.1)
+        feed(atBand)
+        val pastBand = SyntheticSession(atBand.nowMs).ramp(230.0, 260.0, 2.0).hold(260.0, 1.1)
+        feed(pastBand)
+        events += session.stop(pastBand.nowMs)
+
+        assertEquals(BrewPhase.DONE, session.phase)
+        assertEquals(1, events.count { it == StepEvent.FirstWater })
+        assertEquals(1, events.count { it == StepEvent.InTargetBand })
+        assertEquals(1, events.count { it == StepEvent.PastTargetBand })
+        assertEquals(1, events.count { it == StepEvent.Paused })
+        assertEquals(1, events.count { it == StepEvent.Resumed })
+        assertEquals(1, events.count { it == StepEvent.AllDone })
+    }
+
+    @Test
     fun scaleLossLeavesPreBrewSessionsWaiting() {
         val espresso = BrewSession(BrewMode.ESPRESSO, 18.0, 2.0, emptyList(), null, null)
         espresso.onScaleLost(1_000)
@@ -261,11 +290,11 @@ class BrewSessionTest {
 
     @Test
     fun aFreePressPoursUnguidedThenSteepsOnReachingTheTargetWater() {
-        val freeSteps = listOf(
-            RecipeStep(StepKind.POUR, 300.0, 0L),
-            RecipeStep(StepKind.PRESS, null, 240_000L),
+        val session = BrewSession(
+            BrewMode.FRENCH_PRESS, 20.0, 16.0, emptyList(), null, null,
+            freeWaterGrams = 300.0,
+            freeSteepMs = 240_000L,
         )
-        val session = BrewSession(BrewMode.FRENCH_PRESS, 20.0, 16.0, emptyList(), null, null, freeSteps)
         val tare = SyntheticSession().hold(320.0, 0.2).hold(0.0, 1.0)
         tare.readings.forEach(session::onReading)
         val partialPour = SyntheticSession(tare.nowMs).ramp(0.0, 200.0, 15.0)

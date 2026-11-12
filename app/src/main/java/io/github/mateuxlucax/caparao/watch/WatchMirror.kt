@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.watch
 
 import io.github.mateuxlucax.caparao.brew.BrewPhase
 import io.github.mateuxlucax.caparao.brew.StepEvent
@@ -6,13 +6,6 @@ import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.model.StepKind
-import io.github.mateuxlucax.caparao.ui.brew.BrewStep
-import io.github.mateuxlucax.caparao.ui.brew.BrewUiState
-import io.github.mateuxlucax.caparao.watch.WatchAlert
-import io.github.mateuxlucax.caparao.watch.WatchGuide
-import io.github.mateuxlucax.caparao.watch.WatchSnapshot
-import io.github.mateuxlucax.caparao.watch.WatchState
-import io.github.mateuxlucax.caparao.watch.WatchStepKind
 
 /** What the phone knows, mirrored to the watch (#107). Pure, so the JVM tests cover it. */
 object WatchMirror {
@@ -20,10 +13,10 @@ object WatchMirror {
      * The snapshot for the scale's [state] and latest [reading], and the open [brew] if any. With a brew going the
      * weight, flow and time are the brew screen's; otherwise the scale's own, timer included.
      */
-    fun snapshot(state: ScaleState, reading: ScaleReading?, brew: BrewUiState?, timerRunning: Boolean): WatchSnapshot {
+    fun snapshot(state: ScaleState, reading: ScaleReading?, brew: WatchBrewState?, timerRunning: Boolean): WatchSnapshot {
         if (state !is ScaleState.Connected) return WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false)
         // Before the beans are weighed the watch shows the scale, as the phone's dose and coffee steps do.
-        val live = brew?.takeIf { it.step != BrewStep.DOSE && it.step != BrewStep.COFFEE }
+        val live = brew?.takeIf { !it.beforeBrew }
         if (live == null) {
             return WatchSnapshot(
                 WatchState.SCALE,
@@ -34,7 +27,7 @@ object WatchMirror {
             )
         }
         val watchState = when {
-            live.step == BrewStep.SUMMARY || live.phase == BrewPhase.DONE -> WatchState.DONE
+            live.phase == BrewPhase.DONE -> WatchState.DONE
             live.phase == BrewPhase.BREWING || live.phase == BrewPhase.PAUSED -> WatchState.BREWING
             else -> WatchState.READY
         }
@@ -66,7 +59,7 @@ object WatchMirror {
     }
 
     /** The guide's current step, for filter or French press brews following a recipe; null otherwise. */
-    fun guide(brew: BrewUiState): WatchGuide? {
+    fun guide(brew: WatchBrewState): WatchGuide? {
         val state = brew.guide ?: return null
         val steps = brew.steps
         if (steps.isEmpty()) return null

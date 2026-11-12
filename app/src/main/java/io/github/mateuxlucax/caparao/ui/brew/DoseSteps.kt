@@ -97,7 +97,9 @@ import io.github.mateuxlucax.caparao.ui.format.Format
 import io.github.mateuxlucax.caparao.ui.components.DripperArt
 import io.github.mateuxlucax.caparao.ui.components.MorphingShape
 import io.github.mateuxlucax.caparao.ui.components.PortafilterArt.drawPortafilter
-import io.github.mateuxlucax.caparao.ui.components.RecipeForm
+import io.github.mateuxlucax.caparao.model.BrewLimits
+import io.github.mateuxlucax.caparao.ui.components.formatClockText
+import io.github.mateuxlucax.caparao.ui.components.parseClockText
 import io.github.mateuxlucax.caparao.ui.components.label
 
 import io.github.mateuxlucax.caparao.ui.theme.Motion
@@ -199,7 +201,7 @@ fun DoseStep(
     }
     if (editingSteep) {
         SteepDialog(
-            initial = RecipeForm.clockText(state.steepMs),
+            initial = formatClockText(state.steepMs),
             onDone = { ms -> onSteep(ms); editingSteep = false },
             onDismiss = { editingSteep = false },
         )
@@ -457,7 +459,7 @@ private fun SteepField(steepMs: Long, onClick: () -> Unit) {
     ) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.guide_steep), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(RecipeForm.clockText(steepMs), style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)))
+            Text(formatClockText(steepMs), style = MaterialTheme.typography.titleLarge.merge(TabularFlex).merge(flex(700)))
         }
     }
 }
@@ -465,7 +467,7 @@ private fun SteepField(steepMs: Long, onClick: () -> Unit) {
 @Composable
 private fun SteepDialog(initial: String, onDone: (Long) -> Unit, onDismiss: () -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
-    val typed = RecipeForm.clock(text)?.takeIf { it in BrewViewModel.STEEP_RANGE_MS }
+    val typed = parseClockText(text)?.takeIf { it in BrewLimits.STEEP_MS }
     AlertDialog(
         onDismissRequest = onDismiss,
         text = {
@@ -508,7 +510,7 @@ private fun GramsDialog(label: Int, initial: String, onDone: (Double) -> Unit, o
  * a cup (150 g) don't become the dose (#195).
  */
 fun weighedDose(connected: Boolean, readingGrams: Double, plannedDose: Double): Double =
-    if (connected && readingGrams in RecipeForm.DOSE) readingGrams else plannedDose
+    if (connected && readingGrams in BrewLimits.DOSE_GRAMS) readingGrams else plannedDose
 
 /**
  * The scale before the brew starts (#182): a quiet line while it connects, and after ten seconds the not-found card
