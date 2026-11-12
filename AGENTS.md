@@ -50,7 +50,6 @@ first Play upload on, they are frozen:
 - The Room schema: version 9 is the baseline; there are no migrations below it. The next schema change adds a
   migration and its test again.
 
-
 ## BLE
 
 - Match `TIMEMORE_Dot` or `TES017`, never a bare "dot". Keep the confirmed connection order: MTU 247, bond, notify,
