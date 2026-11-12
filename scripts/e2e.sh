@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
-app=io.github.mateuxlucax.caparao.debug
+app=dev.mateux.caparao.debug
 port="${E2E_PORT:-8099}"
 export ANDROID_SERIAL="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
 [ -n "$ANDROID_SERIAL" ] || { echo "no emulator running (or set ANDROID_SERIAL)" >&2; exit 1; }
@@ -77,7 +77,7 @@ for test in anEspressoReachesTheServer aFrenchPressShortcutStaysOpenThroughTheSt
   # Each journey configures a different startup replay, so build a fresh process-owned AppContainer for each.
   "$adb" shell am force-stop "$app" || true
   if result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
-    -e class "io.github.mateuxlucax.caparao.EndToEndTest#$test" "$app.test/androidx.test.runner.AndroidJUnitRunner"); then
+    -e class "dev.mateux.caparao.EndToEndTest#$test" "$app.test/androidx.test.runner.AndroidJUnitRunner"); then
     printf '%s\n' "$result" >> "$tmp/instrumentation.log"
     if echo "$result" | grep -q "OK (1 test)"; then
       continue

@@ -73,7 +73,7 @@ lives.
 Download `caparao-<version>.apk` from [Releases](../../releases) and open it on the phone (allow installs from your
 browser or file manager when Android asks). Each release lists the APK signer's SHA-256; to check it before
 installing: `apksigner verify --print-certs caparao-<version>.apk`. Newer versions install over older ones and keep
-your brews.
+your brews. The app id is `dev.mateux.caparao`.
 
 ### Install on a Wear OS watch over Wi-Fi
 
@@ -164,7 +164,7 @@ Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroid
 (the emulator has no Bluetooth):
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.ui.MainActivity --es replay press-ramp --el replay_at_ms 38300
+adb shell am start -n dev.mateux.caparao.debug/dev.mateux.caparao.ui.MainActivity --es replay press-ramp --el replay_at_ms 38300
 ```
 
 The pinned real exporter is the development server. To run it directly, build it and start it with a disposable data
@@ -180,7 +180,7 @@ The debug-only scripted scale is controlled by a loopback HTTP API. It starts on
 forward a host port to its `127.0.0.1` socket to use it:
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.ui.MainActivity --ez scripted_api true --ez script_paused true
+adb shell am start -n dev.mateux.caparao.debug/dev.mateux.caparao.ui.MainActivity --ez scripted_api true --ez script_paused true
 adb forward tcp:18765 tcp:8765
 curl -sS http://127.0.0.1:18765/state
 curl -sS -X POST -H 'Content-Type: application/json' --data-binary @app/src/test/resources/scenarios/filter.json http://127.0.0.1:18765/scenario
@@ -219,9 +219,9 @@ on the same device (each journey runs with `CompilationMode.None` and with the p
 
 ```bash
 ./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.StartupBenchmark
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.mateux.caparao.macrobenchmark.StartupBenchmark
 ./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.BrewBenchmarks
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.mateux.caparao.macrobenchmark.BrewBenchmarks
 ```
 
 Both benchmark variants use the debug signing key and stay off release builds; they carry the scripted scale and a

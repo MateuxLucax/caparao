@@ -16,7 +16,7 @@ LOADER.exec_module(capture_scenarios)
 class CaptureScenarioTests(unittest.TestCase):
     def test_capture_targets_the_current_launcher_activity(self):
         self.assertEqual(
-            f"{capture_scenarios.PACKAGE}/io.github.mateuxlucax.caparao.ui.MainActivity",
+            f"{capture_scenarios.PACKAGE}/dev.mateux.caparao.ui.MainActivity",
             capture_scenarios.ACTIVITY,
         )
         manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text()

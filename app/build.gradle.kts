@@ -23,11 +23,11 @@ val sentryProjectId = sentryDsn.trimEnd('/').substringAfterLast('/', "").takeIf 
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
 android {
-    namespace = "io.github.mateuxlucax.caparao"
+    namespace = "dev.mateux.caparao"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.mateuxlucax.caparao"
+        applicationId = "dev.mateux.caparao"
         // Android 12+: BLUETOOTH_SCAN with neverForLocation, no location permission (#93).
         minSdk = 31
         targetSdk = 37

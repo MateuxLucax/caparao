@@ -1,0 +1,238 @@
+package dev.mateux.caparao.brew
+
+import dev.mateux.caparao.model.RecipeStep
+import dev.mateux.caparao.model.StepKind
+import kotlin.math.abs
+import kotlin.math.ceil
+
+/** How the start of a pour compares with the recipe's time for it. */
+enum class Pace { AHEAD, ON_TIME, BEHIND }
+
+/**
+ * A moment worth an alert (#103), reported once by [StepTracker.update]; espresso reports its own moments (#193) once
+ * per brew from the ViewModel.
+ */
+sealed interface StepEvent {
+    /** Step [index] is now the current one. */
+    data class Started(val index: Int) : StepEvent
+
+    /** The pour of step [index] is within [StepTracker.NEAR_GRAMS] of its target. */
+    data class NearTarget(val index: Int) : StepEvent
+
+    /** Step [index] reached its target weight. */
+    data class Reached(val index: Int) : StepEvent
+
+    /** [secondsLeft] (5 to 1) until step [index] is due: a pour not begun yet, or the end of a wait. */
+    data class Countdown(val index: Int, val secondsLeft: Int) : StepEvent
+
+    /** The last guided step is due; a filter drains or a French press is removed, pressed and served before Done. */
+    data object AllDone : StepEvent
+
+    /** Espresso: the cup is on the scale and the tare starts (#193). */
+    data object CupDetected : StepEvent
+
+    /** Espresso: the scale reads zero after the tare (#193). */
+    data object TareConfirmed : StepEvent
+
+    /** Espresso: the first drop starts the brew (#193). */
+    data object FirstDrop : StepEvent
+
+    /** Free filter: the first water starts the brew (#209). */
+    data object FirstWater : StepEvent
+
+    /** The live ratio enters the ±5% band around the target (#193, #209). */
+    data object InTargetBand : StepEvent
+
+    /** Filter water passes the upper edge of the ±5% band around its target (#209). */
+    data object PastTargetBand : StepEvent
+
+    /** The filter dripper is lifted from the scale (#209). */
+    data object Paused : StepEvent
+
+    /** The filter dripper has returned to the scale (#209). */
+    data object Resumed : StepEvent
+
+    /** Filter: the drawdown timer enters the recipe's ideal total-time range (#206). */
+    data object DrainTimeEntered : StepEvent
+
+    /** Filter: the drawdown timer passes the recipe's ideal total-time range (#206). */
+    data object DrainTimePassed : StepEvent
+
+    /** French press: repeat the deadline alert while the press is still on the scale (#217). */
+    data object FrenchPressReminder : StepEvent
+
+    /** French press: the steep's deadline, the first alert of the press step (#217). The watch names the press from it (#184). */
+    data object FrenchPressDeadline : StepEvent
+}
+
+/** Where the guide stands after a reading. */
+data class StepState(
+    /** The current step; equals the number of steps once all are done. */
+    val index: Int,
+    /** How far the current step is, 0 to 1: weight since the last target for a pour, time for a wait, swirl or stir. */
+    val progress: Float,
+    /** Milliseconds until the current step is due: a pour or PRESS start, or the end of a wait, swirl or stir. */
+    val dueInMs: Long?,
+    /** Set once the current pour began: ahead or behind by [paceMs] (negative is ahead). */
+    val pace: Pace?,
+    val paceMs: Long?,
+    /** Grams poured past the last reached target, when over [StepTracker.TOLERANCE_GRAMS], before the next pour. */
+    val overshootGrams: Double?,
+) {
+    fun allDone(stepCount: Int) = index >= stepCount
+}
+
+/**
+ * Follows a filter or French press recipe's [steps] through the readings of a brew (#103, #125). Pure and in order
+ * like the detectors: feed it the time since the first water, the weight and the smoothed flow.
+ *
+ * A pour is done within [TOLERANCE_GRAMS] of its cumulative target, a wait, swirl or stir when the next step is due,
+ * and a terminal PRESS step at its own start time; the guide then moves on, and pouring past a target never blocks it. The
+ * pace is measured in time, once, when a pour begins (flow over [POUR_FLOW] after resting, or [CONTINUE_GRAMS] past the
+ * last target), against the step's start.
+ */
+class StepTracker(
+    private val steps: List<RecipeStep>,
+    private val targetHoldMs: Long = 0L,
+) {
+    init {
+        require(steps.dropLast(1).none { it.kind == StepKind.PRESS }) { "PRESS must be the last recipe step" }
+    }
+
+    private var index = 0
+    private var lastTarget = 0.0
+    private var stepSinceMs = 0L
+    private var pourBeganAtMs: Long? = null
+    private var rested = true
+    private var nearSent = false
+    private var targetReachedSinceMs: Long? = null
+    private val countdownSent = HashSet<Int>()
+
+    /** How many steps it follows. */
+    val stepCount: Int get() = steps.size
+
+    var state = StepState(0, 0f, null, null, null, null)
+        private set
+
+    /** Feeds the next reading; returns what happened, in order. */
+    fun update(elapsedMs: Long, weightGrams: Double, flowGramsPerSecond: Double): List<StepEvent> {
+        val events = mutableListOf<StepEvent>()
+        val terminalPress = steps.lastOrNull()?.takeIf { it.kind == StepKind.PRESS }
+        if (terminalPress != null && index < steps.size && elapsedMs >= terminalPress.targetAtMs) {
+            // The terminal deadline is measured from first water, so an unfinished pour cannot delay the alert.
+            index = steps.lastIndex
+            advance(elapsedMs, events)
+        }
+        while (index < steps.size) {
+            val step = steps[index]
+            val target = step.targetWeightGrams
+            if (step.kind == StepKind.PRESS) {
+                if (elapsedMs < step.targetAtMs) break
+                advance(elapsedMs, events)
+                continue
+            } else if (step.kind.pours && target != null) {
+                markPourBegan(step, elapsedMs, weightGrams, flowGramsPerSecond)
+                if (!nearSent && weightGrams >= target - NEAR_GRAMS && weightGrams < target - TOLERANCE_GRAMS) {
+                    nearSent = true
+                    events += StepEvent.NearTarget(index)
+                }
+                if (weightGrams < target - TOLERANCE_GRAMS) {
+                    targetReachedSinceMs = null
+                    if (weightGrams < target - NEAR_GRAMS) nearSent = false
+                    break
+                }
+                if (targetHoldMs > 0) {
+                    val reachedSince = targetReachedSinceMs
+                    if (reachedSince == null) {
+                        targetReachedSinceMs = elapsedMs
+                        break
+                    }
+                    if (elapsedMs - reachedSince < targetHoldMs) break
+                }
+                events += StepEvent.Reached(index)
+                lastTarget = target
+            } else {
+                val end = steps.getOrNull(index + 1)?.targetAtMs ?: break
+                if (elapsedMs < end) break
+            }
+            advance(elapsedMs, events)
+        }
+        if (flowGramsPerSecond < POUR_FLOW) rested = true
+        state = stateAt(elapsedMs, weightGrams)
+        state.dueInMs?.let { due ->
+            val seconds = ceil(due / 1000.0).toInt()
+            if (seconds in 1..COUNTDOWN_SECONDS && countdownSent.add(seconds)) events += StepEvent.Countdown(index, seconds)
+        }
+        return events
+    }
+
+    private fun markPourBegan(step: RecipeStep, elapsedMs: Long, weightGrams: Double, flow: Double) {
+        if (pourBeganAtMs != null) return
+        val pouring = flow > POUR_FLOW && (rested || weightGrams > lastTarget + CONTINUE_GRAMS)
+        // The first water is the start of the brew: the first step began then.
+        if (pouring || (index == 0 && step.targetAtMs == 0L)) pourBeganAtMs = elapsedMs
+    }
+
+    private fun advance(elapsedMs: Long, events: MutableList<StepEvent>) {
+        index++
+        stepSinceMs = elapsedMs
+        pourBeganAtMs = null
+        targetReachedSinceMs = null
+        // Still pouring into the next step: the pour began only once the flow rests or clearly goes on.
+        rested = false
+        nearSent = false
+        countdownSent.clear()
+        when {
+            index >= steps.size -> events += StepEvent.AllDone
+            steps[index].kind == StepKind.PRESS -> Unit
+            else -> events += StepEvent.Started(index)
+        }
+    }
+
+    private fun stateAt(elapsedMs: Long, weightGrams: Double): StepState {
+        val step = steps.getOrNull(index) ?: return StepState(index, 1f, null, null, null, null)
+        if (step.kind == StepKind.PRESS) {
+            val dueInMs = (step.targetAtMs - elapsedMs).takeIf { it > 0 }
+            val duration = step.targetAtMs - stepSinceMs
+            val progress = if (duration <= 0) 1f else ((elapsedMs - stepSinceMs).toFloat() / duration).coerceIn(0f, 1f)
+            return StepState(index, progress, dueInMs, null, null, null)
+        }
+        val began = pourBeganAtMs
+        val overshoot = (weightGrams - lastTarget).takeIf { lastTarget > 0 && it > TOLERANCE_GRAMS && (!step.kind.pours || began == null) }
+        val target = step.targetWeightGrams
+        if (step.kind.pours && target != null) {
+            val progress = ((weightGrams - lastTarget) / (target - lastTarget)).coerceIn(0.0, 1.0).toFloat()
+            val paceMs = began?.let { it - step.targetAtMs }
+            return StepState(
+                index = index,
+                progress = progress,
+                dueInMs = if (began == null) (step.targetAtMs - elapsedMs).takeIf { it > 0 } else null,
+                pace = paceMs?.let(::pace),
+                paceMs = paceMs,
+                overshootGrams = overshoot,
+            )
+        }
+        val end = steps.getOrNull(index + 1)?.targetAtMs
+        val start = maxOf(step.targetAtMs, stepSinceMs)
+        val progress = if (end == null || end <= start) 0f else ((elapsedMs - start).toFloat() / (end - start)).coerceIn(0f, 1f)
+        return StepState(index, progress, end?.let { (it - elapsedMs).takeIf { d -> d > 0 } }, null, null, overshoot)
+    }
+
+    private fun pace(deltaMs: Long) = when {
+        abs(deltaMs) <= ON_TIME_MS -> Pace.ON_TIME
+        deltaMs < 0 -> Pace.AHEAD
+        else -> Pace.BEHIND
+    }
+
+    companion object {
+        /** Recorded pours land 1–4 g past round targets (#103). */
+        const val TOLERANCE_GRAMS = 3.0
+        const val NEAR_GRAMS = 5.0
+        /** Pours run at 3–7 g/s; between them the weight rests. */
+        const val POUR_FLOW = 1.0
+        const val ON_TIME_MS = 5_000L
+        /** Pouring on without a rest: past an overshoot, this is the next pour. */
+        const val CONTINUE_GRAMS = 10.0
+        const val COUNTDOWN_SECONDS = 5
+    }
+}

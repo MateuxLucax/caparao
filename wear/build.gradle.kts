@@ -9,12 +9,12 @@ val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
 android {
-    namespace = "io.github.mateuxlucax.caparao.wear"
+    namespace = "dev.mateux.caparao.wear"
     compileSdk = 37
 
     defaultConfig {
         // The phone app's id and signing key: the Data Layer only pairs apps that share both.
-        applicationId = "io.github.mateuxlucax.caparao"
+        applicationId = "dev.mateux.caparao"
         // Wear OS 3+.
         minSdk = 30
         targetSdk = 37
