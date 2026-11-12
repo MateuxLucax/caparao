@@ -33,12 +33,18 @@
     <string name="brews_empty_title">Você ainda não fez café.</string>
 
     <!-- Config -->
+    <string name="settings_brewing">No preparo</string>
+    <string name="settings_your_data">Seus dados</string>
+    <string name="settings_app">App</string>
+    <string name="settings_scale_battery">Conectada · %1$d%%</string>
+    <string name="settings_only_phone">Só neste celular</string>
+    <string name="settings_on">Ativado</string>
+    <string name="settings_off">Desativado</string>
+    <string name="settings_about">Caparaó %1$s</string>
+    <string name="about_status">Código-fonte e licenças</string>
     <string name="section_server">Servidor</string>
-    <string name="section_server_text">Opcional* Caso queira sincronizar automaticamente os dados dos seus preparos.</string>
     <string name="section_permissions">Permissões</string>
-    <string name="section_permissions_text">Bluetooth, utilizado para comunicar com a balança.</string>
     <string name="section_scale">Balança</string>
-    <string name="section_scale_text">Pareie a sua Timemore Dot. Se ela estiver pareada em outro dispositivo, segure o botão até a luz piscar rápido.</string>
     <string name="version">Versão %1$s</string>
 
     <!-- Conexão com a balança -->
@@ -257,7 +263,6 @@
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
     <string name="section_data">Dados</string>
-    <string name="section_data_text">Exporte suas receitas e preparos em CSV e JSON.</string>
     <string name="export">Exportar</string>
     <string name="export_include_samples">Incluir o CSV das amostras</string>
     <string name="export_working">Preparando…</string>
@@ -265,7 +270,7 @@
     <string name="share">Compartilhar</string>
     <string name="share_export">Compartilhar exportação</string>
     <string name="section_diagnostics">Diagnóstico</string>
-    <string name="diagnostics_on">Enviar diagnósticos ao Sentry</string>
+    <string name="diagnostics_on">Compartilhar dados de uso anônimos</string>
     <string name="diagnostics_text">Falhas e eventos do app são enviados ao Sentry. Ao capturar um preparo, uma gravação com o modelo do celular, a versão do Android e a versão do app também é enviada.</string>
     <string name="diagnostics_off_text">Os diagnósticos estão desativados. Nada mais é enviado ao Sentry.</string>
     <string name="capture_title">Captura de preparo</string>
@@ -287,7 +292,6 @@
     <string name="diagnostics_reason_storage">Erro de armazenamento. Libere espaço e inicie outra gravação.</string>
     <string name="diagnostics_reason_interrupted">O app foi fechado antes do fim. Inicie outra gravação.</string>
     <string name="section_guide_alerts">Alertas do preparo</string>
-    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. No espresso, ao detectar a xícara, ao tarar, na primeira gota e ao chegar no alvo.</string>
     <string name="guide_vibration">Vibrar</string>
     <string name="guide_sound">Som</string>
     <string name="vibrate_on_phone">Celular</string>

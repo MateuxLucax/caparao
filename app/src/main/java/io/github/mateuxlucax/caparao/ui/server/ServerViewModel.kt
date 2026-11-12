@@ -3,6 +3,7 @@ package io.github.mateuxlucax.caparao.ui.server
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.caparao.data.local.SettingsStore
+import io.github.mateuxlucax.caparao.data.local.SyncStatus
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.network.ServerUrl
 import io.github.mateuxlucax.caparao.ui.server.ConnectionTest
@@ -49,6 +50,10 @@ class ServerViewModel(
     /** LocalNetwork.isLocal: resolves the host, so it runs on IO. */
     private val localNetwork: suspend (String) -> Boolean = { withContext(Dispatchers.IO) { LocalNetwork.isLocal(it) } },
 ) : ViewModel() {
+    val syncStatus: StateFlow<SyncStatus> = settings.syncStatus.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        settings.currentSyncStatus(),
+    )
     private val connectionTest = ConnectionTest(viewModelScope, check)
     private val justSaved = MutableStateFlow(false)
     private val checking = MutableStateFlow<ServerCheck?>(null)

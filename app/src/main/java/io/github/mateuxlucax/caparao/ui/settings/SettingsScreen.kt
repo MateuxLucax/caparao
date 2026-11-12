@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.caparao.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -72,11 +75,16 @@ import io.github.mateuxlucax.caparao.ui.server.ServerUiState
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.server.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
+import io.github.mateuxlucax.caparao.ui.format.label
+import io.github.mateuxlucax.caparao.ui.format.title
+import io.github.mateuxlucax.caparao.ui.format.message
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import io.github.mateuxlucax.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.launch
 
-/** Server, permissions and scale, in the wireframe's order, then the guide's alerts. */
+enum class SettingsDetail { Scale, Server, Diagnostics }
+
+/** Everyday controls stay on the list; longer controls open a Navigation 3 entry. */
 @Composable
 fun SettingsScreen(
     server: ServerViewModel,
@@ -85,24 +93,78 @@ fun SettingsScreen(
     export: ExportViewModel,
     diagnostics: CaptureViewModel,
     actions: AppActions, versionName: String,
+    onOpen: (SettingsDetail) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scaleState by scale.uiState.collectAsStateWithLifecycle()
+    val sync by server.syncStatus.collectAsStateWithLifecycle()
+    val capture by diagnostics.uiState.collectAsStateWithLifecycle()
+    val locale = LocalConfiguration.current.locales[0]
+    val uriHandler = LocalUriHandler.current
+    var permissionGranted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
+    LifecycleResumeEffect(Unit) {
+        permissionGranted = actions.bluetoothPermissionGranted()
+        onPauseOrDispose {}
+    }
     Column(
-        modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
-        SectionCard(stringResource(R.string.section_permissions)) { PermissionsSection(actions) }
-        SectionCard(stringResource(R.string.section_scale)) { ScaleSection(scale, actions) }
-        if (diagnostics.available) SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
-        SectionCard(stringResource(R.string.section_guide_alerts)) { GuideAlertsSection(targets) }
-        SectionCard(stringResource(R.string.section_data)) { DataSection(export) }
-        Text(
-            stringResource(R.string.version, versionName),
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(stringResource(R.string.settings_brewing), style = MaterialTheme.typography.titleSmall)
+        SettingsLink(stringResource(R.string.section_scale), when {
+            !permissionGranted -> stringResource(R.string.error_permission_missing)
+            scaleState.scale is ScaleState.Failed -> stringResource((scaleState.scale as ScaleState.Failed).error.title)
+            scaleState.scale is ScaleState.Connected -> (scaleState.scale as ScaleState.Connected).battery?.let {
+                stringResource(R.string.settings_scale_battery, it.percent)
+            } ?: stringResource(R.string.scale_connected)
+            else -> stringResource(scaleState.scale.label)
+        }) { onOpen(SettingsDetail.Scale) }
+        GuideAlertsSection(targets)
+        Text(stringResource(R.string.settings_your_data), style = MaterialTheme.typography.titleSmall)
+        SettingsLink(stringResource(R.string.section_server), when {
+            !sync.serverConfigured -> stringResource(R.string.settings_only_phone)
+            sync.lastError != null -> stringResource(sync.lastError!!.kind.message)
+            sync.lastSyncMs > 0 -> stringResource(R.string.last_sync, Format.time(sync.lastSyncMs, locale))
+            else -> stringResource(R.string.nothing_synced_yet)
+        }) { onOpen(SettingsDetail.Server) }
+        if (diagnostics.available) SettingsLink(stringResource(R.string.section_diagnostics), stringResource(when {
+            capture.capture is CaptureWriterState.Recording -> R.string.capture_running
+            capture.optedIn -> R.string.settings_on
+            else -> R.string.settings_off
+        })) { onOpen(SettingsDetail.Diagnostics) }
+        DataSection(export)
+        Text(stringResource(R.string.settings_app), style = MaterialTheme.typography.titleSmall)
+        SettingsLink(stringResource(R.string.settings_about, versionName), stringResource(R.string.about_status), external = true) {
+            uriHandler.openUri("https://github.com/MateuxLucax/caparao")
+        }
+    }
+}
+
+@Composable
+private fun SettingsLink(title: String, status: String, external: Boolean = false, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(status) },
+        trailingContent = { Text(if (external) "↗" else "›") },
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    )
+}
+
+@Composable
+fun SettingsDetailScreen(
+    detail: SettingsDetail, server: ServerViewModel, scale: ScaleStatusViewModel,
+    diagnostics: CaptureViewModel, actions: AppActions, onClose: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        TextButton(onClick = onClose) { Text(stringResource(R.string.back)) }
+        when (detail) {
+            SettingsDetail.Scale -> SectionCard(stringResource(R.string.section_scale)) {
+                ScaleSection(scale, actions)
+                PermissionsSection(actions)
+            }
+            SettingsDetail.Server -> SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
+            SettingsDetail.Diagnostics -> if (diagnostics.available) SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
+        }
     }
 }
 
@@ -115,7 +177,6 @@ private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
     val scope = rememberCoroutineScope()
     val localNetworkAccess = rememberLocalNetworkAccess(viewModel::isLocalNetworkBlocked, actions)
     val changed = url.trim() != viewModel.savedUrl || token.trim() != viewModel.savedToken
-    BodyText(stringResource(R.string.section_server_text))
     ServerForm(viewModel, url, { url = it }, token, { token = it }, actions)
     if (state.justSaved) StatusLine(true, stringResource(R.string.server_saved))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -152,8 +213,6 @@ private fun PermissionsSection(actions: AppActions) {
         onPauseOrDispose {}
     }
     val scope = rememberCoroutineScope()
-    BodyText(stringResource(R.string.section_permissions_text))
-    StatusLine(granted, stringResource(if (granted) R.string.permission_granted else R.string.error_permission_missing))
     if (!granted) {
         Button(shapes = ButtonDefaults.shapes(), onClick = {
             scope.launch {
@@ -169,7 +228,6 @@ private fun PermissionsSection(actions: AppActions) {
 @Composable
 private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    BodyText(stringResource(R.string.section_scale_text))
     ScaleStatusRow(state.scale)
     (state.scale as? ScaleState.Failed)?.let { ScaleErrorCard(it.error, it.retrying, actions, viewModel::reconnect) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -181,11 +239,10 @@ private fun ScaleSection(viewModel: ScaleStatusViewModel, actions: AppActions) {
 /** Vibration and sound for the guided brew; the visual cue is always on. */
 @Composable
 private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
-    BodyText(stringResource(R.string.guide_alerts_text))
     var vibrate by rememberSaveable { mutableStateOf(viewModel.guideVibration) }
     var sound by rememberSaveable { mutableStateOf(viewModel.guideSound) }
     SwitchRow(stringResource(R.string.guide_vibration), vibrate) { vibrate = it; viewModel.guideVibration = it }
-    if (vibrate) {
+    AnimatedVisibility(vibrate, enter = fadeIn(Motion.standardOrSnap(animationsOff())) + expandVertically(Motion.standardOrSnap(animationsOff())), exit = fadeOut(Motion.standardOrSnap(animationsOff())) + shrinkVertically(Motion.standardOrSnap(animationsOff()))) {
         var on by rememberSaveable { mutableStateOf(viewModel.guideVibrationOn) }
         ChoiceGroup(
             VibrationTarget.entries,
@@ -210,17 +267,10 @@ private fun GuideAlertsSection(viewModel: TargetRatioViewModel) {
 private fun DataSection(viewModel: ExportViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var includeSamples by rememberSaveable { mutableStateOf(true) }
-    BodyText(stringResource(R.string.section_data_text))
     SwitchRow(stringResource(R.string.export_include_samples), includeSamples) { includeSamples = it }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        if (state.failed) {
-            Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-        } else {
-            Spacer(Modifier.width(1.dp))
-        }
-        Button(shapes = ButtonDefaults.shapes(), onClick = { viewModel.export(includeSamples) }, enabled = !state.working) {
-            Text(stringResource(if (state.working) R.string.export_working else R.string.export))
-        }
+    if (state.failed) Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+    TextButton(onClick = { viewModel.export(includeSamples) }, enabled = !state.working) {
+        Text(stringResource(if (state.working) R.string.export_working else R.string.export))
     }
     ShareFile(state.file?.uri, state.file?.mimeType, viewModel::shared)
 }

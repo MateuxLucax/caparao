@@ -31,6 +31,7 @@ class TranslationsTest {
             "recipe_dose", "step_bloom", "mode_manual", "recipe_summary_espresso", "recipe_summary_espresso_no_window", "espresso_window", "unit_ml",
             "prepare_rdt", "prepare_wdt", "prepare_dose",
             "milestone_and_step",
+            "settings_app", "settings_about",
         )
         assertEquals(allowed, same)
     }

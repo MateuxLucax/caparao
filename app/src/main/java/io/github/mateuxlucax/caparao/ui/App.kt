@@ -70,6 +70,8 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorScreen
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.recipes.RecipesScreen
 import io.github.mateuxlucax.caparao.ui.settings.SettingsScreen
+import io.github.mateuxlucax.caparao.ui.settings.SettingsDetail
+import io.github.mateuxlucax.caparao.ui.settings.SettingsDetailScreen
 import io.github.mateuxlucax.caparao.ui.theme.Motion
 import kotlinx.serialization.Serializable
 
@@ -192,6 +194,7 @@ private fun Main(
                     onOpen = { backStack.add(Destination.Detail(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
+                    onSettings = { backStack.add(Destination.Settings(it)) },
                 )
             }
             entry<Destination.Brew> { shown ->
@@ -242,6 +245,16 @@ private fun Main(
                     RecipeEditorScreen(viewModel(key = "recipe-${shown.target}", factory = viewModelFactory, extras = extras), onClose = { backStack.popEntry(shown) })
                 }
             }
+            entry<Destination.Settings> { shown ->
+                SettingsDetailScreen(
+                    shown.detail,
+                    viewModel(key = "server-settings", factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
+                    viewModel(factory = viewModelFactory),
+                    actions,
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
         },
         transitionSpec = { Motion.sharedAxisX(forward = true, density) },
         popTransitionSpec = { Motion.sharedAxisX(forward = false, density) },
@@ -272,6 +285,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data class Detail(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
+    @Serializable data class Settings(val detail: SettingsDetail) : Destination
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -286,6 +300,7 @@ private fun Tabs(
     onOpen: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
+    onSettings: (SettingsDetail) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     LaunchedEffect(shortcutTab) {
@@ -333,6 +348,7 @@ private fun Tabs(
                     viewModel(factory = viewModelFactory),
                     actions,
                     versionName,
+                    onSettings,
                     modifier,
                 )
             }

@@ -159,7 +159,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     val testName = TestName()
 
     protected val context = ApplicationProvider.getApplicationContext<Context>()
-    protected val actions = AppActions(requestBluetoothPermissions = { true }, bluetoothPermissionGranted = { true }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
+    protected var bluetoothGranted = true
+    protected val actions = AppActions(requestBluetoothPermissions = { bluetoothGranted = true; true }, bluetoothPermissionGranted = { bluetoothGranted }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
     protected val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
@@ -287,7 +288,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         diagnosticsAvailable = available
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        if (available) compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        if (available) compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().performClick()
         compose.waitForIdle()
     }
 
