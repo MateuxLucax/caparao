@@ -11,7 +11,7 @@ It shows weight, flow and timer live, guides espresso, filter and French press b
 with its curves and keeps everything on the phone. Optionally, each brew goes to your own server, and from there to
 Prometheus and Grafana.
 
-Personal, sideloaded app: no Play Store listing. English and Brazilian Portuguese. Android 12+, Wear OS 3+.
+On Google Play and as signed APKs in [Releases](../../releases); [privacy policy](PRIVACY.md). English and Brazilian Portuguese. Android 12+, Wear OS 3+.
 
 ## Features
 
