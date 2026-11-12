@@ -76,6 +76,8 @@ import io.github.mateuxlucax.caparao.model.Recipe
 import io.github.mateuxlucax.caparao.model.RecipeStep
 import io.github.mateuxlucax.caparao.model.ScaleError
 import io.github.mateuxlucax.caparao.model.ScaleState
+import io.github.mateuxlucax.caparao.model.SyncError
+import io.github.mateuxlucax.caparao.ui.format.message
 import io.github.mateuxlucax.caparao.model.StepKind
 import io.github.mateuxlucax.caparao.ui.recipes.RecipeEditorViewModel
 import io.github.mateuxlucax.caparao.ui.coffees.CoffeeBagDetailViewModel
@@ -158,6 +160,27 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         compose.onNodeWithText(text(R.string.export_include_samples)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.server_url)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.settings_only_phone)).assertExists()
+    }
+
+    @Test
+    fun connectedScaleOpensWithReconnect() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        click(R.string.section_scale)
+        compose.onNodeWithText(text(R.string.scale_connected)).assertExists()
+        compose.onNodeWithText(text(R.string.reconnect)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.allow_bluetooth)).assertDoesNotExist()
+    }
+
+    @Test
+    fun vibrationChoiceHidesWhenVibrationIsOff() {
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.vibrate_on_both)).assertExists()
+        click(R.string.guide_vibration)
+        compose.onNodeWithText(text(R.string.vibrate_on_both)).assertDoesNotExist()
+        assertFalse(settings.guideVibration)
     }
 
     @Test
@@ -168,6 +191,15 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         compose.onNodeWithText(text(R.string.server_url)).assertIsDisplayed()
         click(R.string.back)
         compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
+    }
+
+    @Test
+    fun serverRowShowsLastUploadError() {
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        settings.setLastSyncError(SyncError(SyncError.Kind.UNAUTHORIZED, null), null)
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(SyncError.Kind.UNAUTHORIZED.message)).assertExists()
     }
 
     @Test
