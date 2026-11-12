@@ -59,14 +59,14 @@ enum class DiagnosticErrorContext {
 }
 
 /**
- * The seam every diagnostic call site uses (#332), so a remote implementation can replace the local recorder behind it.
+ * The seam every diagnostic call site uses (#332), keeping capture and remote reporting behind one interface.
  * Implementations must return quickly: the BLE collector and the brew detector call them without a blocking I/O step.
  */
 interface Diagnostics {
     fun event(event: DiagnosticEvent)
 
     /** One original GATT notification chunk, before the scale decoder consumes or transforms it. */
-    fun notification(bytes: ByteArray)
+    fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification)
 
     /** One successful outgoing write, snapshotted before the bytes went to Android BLE. */
     fun command(bytes: ByteArray)
@@ -81,24 +81,33 @@ interface Diagnostics {
     fun error(throwable: Throwable, context: DiagnosticErrorContext)
 }
 
+enum class DiagnosticFrameType { WEIGHT, BATTERY, ACK, MODEL, UNKNOWN }
+
+data class DiagnosticFrameClassification(
+    val completedFrames: List<DiagnosticFrameType>,
+    val hasPartialFrame: Boolean,
+    val pendingFrameType: DiagnosticFrameType? = null,
+    val discardPendingBytes: Boolean = false,
+)
+
 /** Sink for builds and tests that collect nothing; the default until the Settings capture is started. */
 object NoDiagnostics : Diagnostics {
     override fun event(event: DiagnosticEvent) = Unit
-    override fun notification(bytes: ByteArray) = Unit
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) = Unit
     override fun command(bytes: ByteArray) = Unit
     override fun disconnect() = Unit
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = Unit
 }
 
 /**
- * Forwards every call to all [sinks]. #333 runs the remote reporter beside the local capture; the recorder is removed
- * once captures are uploaded (#336), and this goes with it.
+ * Forwards every call to all [sinks], including the remote reporter and the replay capture writer.
  */
 class FanOutDiagnostics(private val sinks: List<Diagnostics>) : Diagnostics {
     constructor(vararg sinks: Diagnostics) : this(sinks.toList())
 
     override fun event(event: DiagnosticEvent) = sinks.forEach { it.event(event) }
-    override fun notification(bytes: ByteArray) = sinks.forEach { it.notification(bytes) }
+    override fun notification(bytes: ByteArray, classification: DiagnosticFrameClassification) =
+        sinks.forEach { it.notification(bytes, classification) }
     override fun command(bytes: ByteArray) = sinks.forEach { it.command(bytes) }
     override fun disconnect() = sinks.forEach { it.disconnect() }
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = sinks.forEach { it.error(throwable, context) }

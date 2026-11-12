@@ -8,8 +8,15 @@ import io.github.mateuxlucax.caparao.data.local.SettingsStore
 import io.github.mateuxlucax.caparao.model.Brew
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.SyncError
+import io.sentry.Hint
+import io.sentry.SentryEvent
+import io.sentry.SentryLevel
+import io.sentry.hints.SubmissionResult
+import io.sentry.protocol.SentryId
+import io.sentry.util.HintUtils
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -44,6 +51,8 @@ class SentryDiagnosticsTest {
     private fun diagnostics(
         dsn: String = this.dsn,
         quota: EventQuota = EventQuota(clock = { now }),
+        captureEvent: (SentryEvent, Hint) -> SentryId = { _, _ -> SentryId.EMPTY_ID },
+        flush: (Long) -> Unit = {},
     ) = SentryDiagnostics(
         context = context,
         settings = settings,
@@ -53,6 +62,8 @@ class SentryDiagnosticsTest {
         scope = null,
         clock = { now },
         quota = quota,
+        captureEvent = captureEvent,
+        flush = flush,
     )
 
     @Test
@@ -108,6 +119,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun uploadFailuresCarryNeitherTokenHostNorResponseDetail() {
+        settings.remoteDiagnostics = true
         val token = "server-token"
         val note = "lemon candy"
         val coffee = "Fazenda Boa Vista"
@@ -134,6 +146,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun urlsAndHostsAreScrubbedFromOtherErrors() {
+        settings.remoteDiagnostics = true
         val json = diagnostics().serializeErrorForTest(
             IOException("cannot reach http://coffee.example.com:8099/api and 192.168.1.10:8099 and cafe.example.org."),
             DiagnosticErrorContext.SCALE,
@@ -163,6 +176,7 @@ class SentryDiagnosticsTest {
 
     @Test
     fun quotaDeduplicatesByFingerprintAndCapsTheSession() {
+        settings.remoteDiagnostics = true
         val quota = EventQuota(maxPerSession = 2, maxPerDay = 10, clock = { now })
         val sut = diagnostics(dsn = "", quota = quota)
 
@@ -174,6 +188,43 @@ class SentryDiagnosticsTest {
             "the session cap stops the crash loop",
             sut.serializeErrorForTest(IllegalStateException("third"), DiagnosticErrorContext.SCALE),
         )
+    }
+
+    @Test
+    fun capturesUseTransportAcknowledgementAndBypassTheCrashQuota() {
+        settings.remoteDiagnostics = true
+        var sentEvent: SentryEvent? = null
+        var flushTimeout = 0L
+        lateinit var sut: SentryDiagnostics
+        sut = diagnostics(
+            quota = EventQuota(maxPerSession = 1, maxPerDay = 1, clock = { now }),
+            captureEvent = { event, hint ->
+                sentEvent = event
+                assertNotNull("capture reaches beforeSend outside the crash quota", sut.beforeSendForTest(event, hint))
+                assertTrue(HintUtils.getSentrySdkHint(hint) is SubmissionResult)
+                (HintUtils.getSentrySdkHint(hint) as SubmissionResult).setResult(true)
+                SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2")
+            },
+            flush = { timeout -> flushTimeout = timeout },
+        )
+        val file = File.createTempFile("capture", ".jsonl").apply { writeText("{}\n") }
+        try {
+            repeat(2) { assertTrue("each capture needs a transport acknowledgement", sut.sendCapture(file, true, "1.0", "filter")) }
+            assertEquals(SentryLevel.INFO, sentEvent?.level)
+            assertEquals(listOf("capture"), sentEvent?.fingerprints)
+            assertNull("capture event must not carry a user/IP address", sentEvent?.user)
+            assertTrue("flush uses the send timeout", flushTimeout > 0)
+
+            val failedFlush = diagnostics(
+                captureEvent = { _, hint ->
+                    (HintUtils.getSentrySdkHint(hint) as SubmissionResult).setResult(false)
+                    SentryId("1d0f15a9-b3a1-4bb7-9884-334d48e760e2")
+                },
+            )
+            assertFalse(failedFlush.sendCapture(file, complete = true, appVersion = "1.0", mode = "filter"))
+        } finally {
+            file.delete()
+        }
     }
 
     private fun brew() = Brew(

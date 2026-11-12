@@ -59,8 +59,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -115,14 +114,14 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
+import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -165,17 +164,19 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
     protected val settings = SettingsStore(context.getSharedPreferences("screen-tests", Context.MODE_PRIVATE))
+    protected var diagnosticsAvailable = true
+    protected var diagnosticsSendSucceeds = false
 
     /** The server form's fake host check: whether the host is local, gated to inspect the checking state. */
     protected var localServer = false
     protected var localServerGate: CompletableDeferred<Unit>? = null
     protected val serverChecks = mutableListOf<Pair<String, String>>()
     protected val diagnosticScope = MainScope()
-    protected val diagnostics = DiagnosticRecorder(
+    protected val diagnostics = CaptureWriter(
         context.cacheDir.resolve("diagnostic-screen-tests/$lang-$theme-${System.nanoTime()}"),
         diagnosticScope,
+        send = { _, _, _ -> diagnosticsSendSucceeds },
     )
-    protected val diagnosticShare = DiagnosticShare(context, diagnostics)
     protected val locale get() = context.resources.configuration.locales[0]
 
     @Before
@@ -241,7 +242,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { ScaleStatusViewModel(scale) }
             initializer { TargetRatioViewModel(settings) }
             initializer { ExportViewModel(BrewExportFiles(context, brews, recipes)) }
-            initializer { DiagnosticsViewModel(diagnostics, diagnosticShare) }
+            initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
@@ -281,10 +282,12 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         }
     }
 
-    protected fun openDiagnosticsCard() {
+    protected fun openDiagnosticsCard(optedIn: Boolean = true, available: Boolean = true) {
+        settings.remoteDiagnostics = optedIn
+        diagnosticsAvailable = available
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
+        if (available) compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo()
         compose.waitForIdle()
     }
 
@@ -472,11 +475,11 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         }
 
         // Fill: the carafe takes the band color of the weight against the target, with no target line.
-        for ((weight, band) in listOf(60.0 to TargetBand.BELOW, 100.0 to TargetBand.AT, 120.0 to TargetBand.ABOVE)) {
+        for ((weight, band) in listOf(60.0 to RatioBand.BELOW, 100.0 to RatioBand.AT, 120.0 to RatioBand.ABOVE)) {
             current = state(0, weight = weight)
             compose.waitForIdle()
             compose.onNodeWithTag("guided-server").assertIsDisplayed()
-            assertEquals(band, targetBand(weight, 100.0))
+            assertEquals(band, ratioBand(weight, 100.0))
             assertTrue("the fill follows the band", hasColor("guided-cup", scheme.ringStroke(band, dark)))
             // The lid is not on yet: the spot where it sits in the steep is empty.
             assertTrue("no lid before the steep", pixelAt("guided-cup", 24f, 19.5f, lift = 0f, scaleRoom = 0.12f) != scheme.outline.toArgb())

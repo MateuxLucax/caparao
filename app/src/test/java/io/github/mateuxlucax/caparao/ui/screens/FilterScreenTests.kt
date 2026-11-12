@@ -60,8 +60,7 @@ import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticRecorder
-import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticShare
+import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
 import io.github.mateuxlucax.caparao.data.local.BrewRepository
@@ -116,14 +115,13 @@ import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
-import io.github.mateuxlucax.caparao.ui.settings.DiagnosticsViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
 import io.github.mateuxlucax.caparao.ui.components.readableOn
 import io.github.mateuxlucax.caparao.ui.components.ringStroke
-import io.github.mateuxlucax.caparao.ui.components.targetBand
-import io.github.mateuxlucax.caparao.ui.components.TargetBand
+import io.github.mateuxlucax.caparao.brew.ratioBand
+import io.github.mateuxlucax.caparao.brew.RatioBand
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -343,13 +341,13 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
 
     /** The guided cup and weight use the shared target bands in filter and French press; lateness stays muted text. */
     @Test
-    fun guidedCupAndWeightFollowStepTargetBandsInBothModes() {
+    fun guidedCupAndWeightFollowStepRatioBandsInBothModes() {
         val target = 100.0
         val cases = listOf(
-            94.9 to TargetBand.BELOW,
-            95.0 to TargetBand.AT,
-            105.0 to TargetBand.AT,
-            105.1 to TargetBand.ABOVE,
+            94.9 to RatioBand.BELOW,
+            95.0 to RatioBand.AT,
+            105.0 to RatioBand.AT,
+            105.1 to RatioBand.ABOVE,
         )
         fun state(mode: BrewMode, weight: Double) = BrewUiState(
             mode = mode,
@@ -373,7 +371,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.setContent {
             AppTheme {
                 val scheme = MaterialTheme.colorScheme
-                expectedCup = scheme.ringStroke(targetBand(current.weightGrams, target), isSystemInDarkTheme())
+                expectedCup = scheme.ringStroke(ratioBand(current.weightGrams, target), isSystemInDarkTheme())
                 expectedWeight = expectedCup.readableOn(scheme.surface)
                 expectedPace = scheme.onSurfaceVariant
                 expectedServerBody = scheme.surfaceContainerHighest
@@ -400,7 +398,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
             cases.forEach { (weight, band) ->
                 current = state(mode, weight)
                 compose.waitForIdle()
-                assertEquals(band, targetBand(weight, target))
+                assertEquals(band, ratioBand(weight, target))
                 compose.onNodeWithTag("guided-server").assertIsDisplayed()
                 compose.onNodeWithTag("guided-cup").assertIsDisplayed()
                 assertContainsColor("guided-cup", expectedCup)
@@ -424,14 +422,25 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         val pouringRecipe = recipe.copy(
             steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 240.0, 30_000)),
         )
-        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING) = BrewUiState(
-            mode = shownRecipe.mode,
-            step = BrewStep.LIVE,
-            phase = phase,
-            elapsedMs = elapsedMs,
-            recipe = shownRecipe,
-            guide = StepState(1, 1f, null, null, null, null),
-        )
+        fun state(elapsedMs: Long, shownRecipe: Recipe = recipe, phase: BrewPhase = BrewPhase.BREWING): BrewUiState {
+            val guidedSteps = if (shownRecipe == pouringRecipe) 2 else 1
+            val drainWindow = when {
+                shownRecipe.mode != BrewMode.FILTER || shownRecipe.targetMinMs == null || shownRecipe.targetMaxMs == null ||
+                    shownRecipe.steps.size != guidedSteps -> null
+                elapsedMs < shownRecipe.targetMinMs -> BrewUiState.Window.BEFORE
+                elapsedMs <= shownRecipe.targetMaxMs -> BrewUiState.Window.INSIDE
+                else -> BrewUiState.Window.PAST
+            }
+            return BrewUiState(
+                mode = shownRecipe.mode,
+                step = BrewStep.LIVE,
+                phase = phase,
+                elapsedMs = elapsedMs,
+                drainWindow = drainWindow,
+                recipe = shownRecipe,
+                guide = StepState(1, 1f, null, null, null, null),
+            )
+        }
 
         var current by mutableStateOf(state(100_000, pouringRecipe))
         compose.setContent { AppTheme { GuidedStep(current) {} } }

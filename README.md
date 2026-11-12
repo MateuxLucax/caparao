@@ -127,9 +127,19 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Create the release key, or build a signed release APK | `scripts/release-key.sh`, `scripts/release-apk.sh` |
 | CI internals: emulator E2E wrapper, bounded, sanitized diagnostics and the PR description check | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`, `pr-template-check.py`) |
 | Record a scale session and its Python dependencies | `scripts/capture/` (`capture-session.py`, `requirements-capture.txt`) |
+| Fetch a Sentry capture and convert it to replay JSONL | `scripts/capture/fetch-capture.py` |
 | Capture scripted scale scenarios on an emulator | `scripts/capture/capture-scenarios.py` |
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
+
+With diagnostics enabled, start a brew capture before brewing. Captures include only scale weight, battery and
+acknowledgement frames, successful app commands, and fixed app events; the uploaded recording includes the phone model,
+Android version and app version, but omits scale identifiers and user-entered data. They stay in app-private storage
+while offline and are removed after Sentry confirms delivery, when consent is turned off, or after 7 days. The release
+Sentry DSN is supplied by CI; public documentation uses `https://public@o0.ingest.sentry.io/0`.
+To rebuild a fixture from an event, set `SENTRY_AUTH_TOKEN` in the shell and run
+`python3 scripts/capture/fetch-capture.py <event-id> --org <org> --project <project>`. The script validates the capture
+and writes replay JSONL under the ignored `spike-captures/` directory by default.
 
 ### Dependency verification
 
