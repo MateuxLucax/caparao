@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.mateuxlucax.caparao.baselineprofile"
+    namespace = "dev.mateux.caparao.baselineprofile"
     compileSdk = 37
 
     defaultConfig {

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.mateuxlucax.caparao.macrobenchmark"
+    namespace = "dev.mateux.caparao.macrobenchmark"
     compileSdk = 37
 
     defaultConfig {
