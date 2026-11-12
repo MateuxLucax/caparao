@@ -50,6 +50,8 @@ class PublishReleaseTest(unittest.TestCase):
                 "TARGET_SHA": "target-sha",
                 "APK": "caparao-0.3.42.apk",
                 "WEAR_APK": "caparao-wear-0.3.42.apk",
+                "AAB": "caparao-0.3.42.aab",
+                "WEAR_AAB": "caparao-wear-0.3.42.aab",
                 "SIGNER_NOTE": "APK signer certificate SHA-256: `abc123`",
             }
             result = subprocess.run([str(SCRIPT)], env=env, text=True, capture_output=True, check=False)
@@ -59,14 +61,14 @@ class PublishReleaseTest(unittest.TestCase):
     def test_partial_release_rerun_replaces_assets_and_restores_signer_note(self) -> None:
         result, calls = self.publish({"tag_sha": "target-sha", "release": True, "draft": False, "notes": "Release notes"})
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "--clobber"], calls)
+        self.assertIn(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "caparao-0.3.42.aab", "caparao-wear-0.3.42.aab", "--clobber"], calls)
         self.assertTrue(any(call[:3] == ["release", "edit", "v0.3.42"] for call in calls))
         self.assertFalse(any(call[:2] == ["release", "create"] for call in calls))
 
     def test_partial_draft_release_is_published_after_assets_and_notes(self) -> None:
         result, calls = self.publish({"tag_sha": "target-sha", "release": True, "draft": True, "notes": "Release notes"})
         self.assertEqual(0, result.returncode, result.stderr)
-        upload = calls.index(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "--clobber"])
+        upload = calls.index(["release", "upload", "v0.3.42", "caparao-0.3.42.apk", "caparao-wear-0.3.42.apk", "caparao-0.3.42.aab", "caparao-wear-0.3.42.aab", "--clobber"])
         note = next(i for i, call in enumerate(calls) if call[:3] == ["release", "edit", "v0.3.42"] and "--notes" in call)
         publish = calls.index(["release", "edit", "v0.3.42", "--draft=false"])
         self.assertLess(upload, note)
