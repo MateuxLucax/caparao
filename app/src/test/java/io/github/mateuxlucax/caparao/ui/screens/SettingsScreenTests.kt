@@ -193,6 +193,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         open("idle-5min", 0)
         click(R.string.tab_settings)
         click(R.string.section_server)
+        compose.onNodeWithText(text(R.string.server_detail_text)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.server_url)).assertIsDisplayed()
         compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
@@ -286,12 +287,14 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     @Test
     fun diagnosticsCopyNamesUploadedData() {
         openDiagnosticsCard(optedIn = false)
-        compose.onNodeWithText(text(R.string.diagnostics_off_text)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.diagnostics_text)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_on_text)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertIsDisplayed()
         compose.onNodeWithTag("diagnostics-opt-in").performClick()
         waitFor(R.string.capture_start)
-        compose.onNodeWithText(text(R.string.diagnostics_text)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_on_text)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.diagnostics_off_text)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
     }
 

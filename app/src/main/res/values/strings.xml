@@ -48,6 +48,7 @@
     <string name="settings_about">Caparaó %1$s</string>
     <string name="section_about">About</string>
     <string name="section_server">Server</string>
+    <string name="server_detail_text">Optional. Your brews stay on this phone unless you set a server. With one, each saved brew is also sent there.</string>
     <string name="section_scale">Scale</string>
 
     <!-- Scale connection -->
@@ -275,7 +276,8 @@
     <string name="share_export">Share export</string>
     <string name="section_diagnostics">Diagnostics</string>
     <string name="diagnostics_on">Send diagnostics</string>
-    <string name="diagnostics_text">Crashes and app events are sent. A brew recording with your phone model, Android version and app version is uploaded when you capture a brew.</string>
+    <string name="diagnostics_text">When on, crashes and app events are sent. A brew capture also sends the recording with your phone model, Android version and app version. Brew notes, your server token and the scale address are never sent.</string>
+    <string name="diagnostics_on_text">Diagnostics are on.</string>
     <string name="diagnostics_off_text">Diagnostics are off. Nothing is sent.</string>
     <string name="capture_title">Brew capture</string>
     <string name="capture_start">Capture next brew</string>

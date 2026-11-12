@@ -218,10 +218,18 @@ fun SettingsDetailScreen(
             }
         })
     }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             when (detail) {
-                SettingsDetail.Scale -> { ScaleSection(scale, actions); PermissionsSection(actions) }
-                SettingsDetail.Server -> ServerSection(server, actions)
+                SettingsDetail.Scale -> Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ScaleSection(scale, actions)
+                    PermissionsSection(actions)
+                }
+                SettingsDetail.Server -> Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ServerSection(server, actions)
+                }
                 SettingsDetail.Diagnostics -> if (diagnostics.available) DiagnosticsSection(diagnostics)
             }
         }
@@ -232,6 +240,11 @@ fun SettingsDetailScreen(
 @Composable
 private fun ServerSection(viewModel: ServerViewModel, actions: AppActions) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    Text(
+        stringResource(R.string.server_detail_text),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     var url by rememberSaveable { mutableStateOf(viewModel.savedUrl) }
     var token by rememberSaveable { mutableStateOf(viewModel.savedToken) }
     val scope = rememberCoroutineScope()
@@ -335,13 +348,24 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
         onCheckedChange = viewModel::setOptedIn,
         testTag = "diagnostics-opt-in",
     )
-    Text(stringResource(if (state.optedIn) R.string.diagnostics_text else R.string.diagnostics_off_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            stringResource(R.string.diagnostics_text),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(if (state.optedIn) R.string.diagnostics_on_text else R.string.diagnostics_off_text),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     AnimatedVisibility(
         visible = state.optedIn,
         enter = fadeIn(Motion.standardOrSnap(still)) + expandVertically(Motion.standardOrSnap(still)),
         exit = fadeOut(Motion.standardOrSnap(still)) + shrinkVertically(Motion.standardOrSnap(still)),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.capture_title), style = MaterialTheme.typography.titleMedium)
             val status = if (state.starting) R.string.diagnostics_starting else when (capture) {
                 CaptureWriterState.Idle -> null

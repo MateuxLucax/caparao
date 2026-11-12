@@ -44,6 +44,7 @@
     <string name="settings_about">Caparaó %1$s</string>
     <string name="section_about">Sobre</string>
     <string name="section_server">Servidor</string>
+    <string name="server_detail_text">Opcional. Seus preparos ficam neste celular até você configurar um servidor. Com um servidor, cada preparo salvo também é enviado para lá.</string>
     <string name="section_scale">Balança</string>
 
     <!-- Conexão com a balança -->
@@ -269,7 +270,8 @@
     <string name="share_export">Compartilhar exportação</string>
     <string name="section_diagnostics">Diagnóstico</string>
     <string name="diagnostics_on">Enviar diagnósticos</string>
-    <string name="diagnostics_text">Falhas e eventos do app são enviados. Ao capturar um preparo, uma gravação com o modelo do celular, a versão do Android e a versão do app também é enviada.</string>
+    <string name="diagnostics_text">Quando ativados, falhas e eventos do app são enviados. Uma captura de preparo também envia a gravação com o modelo do celular, a versão do Android e a versão do app. Notas do preparo, o token do seu servidor e o endereço da balança nunca são enviados.</string>
+    <string name="diagnostics_on_text">Os diagnósticos estão ativados.</string>
     <string name="diagnostics_off_text">Os diagnósticos estão desativados. Nada é enviado.</string>
     <string name="capture_title">Captura de preparo</string>
     <string name="capture_start">Capturar próximo preparo</string>
