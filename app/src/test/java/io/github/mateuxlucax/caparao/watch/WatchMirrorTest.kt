@@ -75,7 +75,7 @@ class WatchMirrorTest {
     }
 
     @Test
-    fun aFrenchPressDeadlineUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
+    fun aFrenchPressDeadlineSendsThePressKind() {
         val steps = listOf(RecipeStep(StepKind.PRESS, null, 240_000))
         val brew = live(
             BrewMode.FRENCH_PRESS, BrewPhase.BREWING, 300.0, elapsedMs = 180_000,
@@ -84,9 +84,9 @@ class WatchMirrorTest {
 
         val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
 
-        assertEquals(WatchGuide(0, 1, WatchStepKind.WAIT, null, 60_000, null), snapshot.guide)
-        assertEquals(WatchStepKind.WAIT.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
-        assertEquals(2, WatchStepKind.WAIT.ordinal)
+        assertEquals(WatchGuide(0, 1, WatchStepKind.PRESS, null, 60_000, null), snapshot.guide)
+        assertEquals(WatchStepKind.PRESS.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
+        assertEquals(4, WatchStepKind.PRESS.ordinal)
 
         val afterTimer = brew.copy(guide = StepState(1, 1f, null, null, null, null))
         assertEquals(
@@ -101,7 +101,7 @@ class WatchMirrorTest {
     }
 
     @Test
-    fun aFrenchPressStirUsesTheExistingWaitOrdinalOnTheV2WatchWire() {
+    fun aFrenchPressStirSendsTheStirKind() {
         val steps = listOf(
             RecipeStep(StepKind.BLOOM, 62.0, 0),
             RecipeStep(StepKind.STIR, null, 5_000),
@@ -115,8 +115,9 @@ class WatchMirrorTest {
 
         val snapshot = WatchMirror.snapshot(connected, reading, brew, timerRunning = false)
 
-        assertEquals(WatchGuide(1, 4, WatchStepKind.WAIT, null, 55_000, null), snapshot.guide)
-        assertEquals(WatchStepKind.WAIT.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
+        assertEquals(WatchGuide(1, 4, WatchStepKind.STIR, null, 55_000, null), snapshot.guide)
+        assertEquals(WatchStepKind.STIR.ordinal, WatchSnapshot.decode(snapshot.encode())?.guide?.kind?.ordinal)
+        assertEquals(5, WatchStepKind.STIR.ordinal)
     }
 
     @Test

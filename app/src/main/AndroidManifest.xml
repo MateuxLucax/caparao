@@ -41,7 +41,7 @@
         <!-- singleTop: a launcher shortcut tapped with the task alive is delivered to onNewIntent, not as a second
              MainActivity (#116). -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">

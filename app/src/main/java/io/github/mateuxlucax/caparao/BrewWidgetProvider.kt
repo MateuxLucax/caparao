@@ -9,6 +9,7 @@ import android.content.Intent
 import android.util.Log
 import android.widget.RemoteViews
 import io.github.mateuxlucax.caparao.model.Brew
+import io.github.mateuxlucax.caparao.ui.MainActivity
 import io.github.mateuxlucax.caparao.ui.widget.BrewWidgetRefresh
 import io.github.mateuxlucax.caparao.ui.widget.brewWidgetViews
 import java.util.concurrent.atomic.AtomicBoolean

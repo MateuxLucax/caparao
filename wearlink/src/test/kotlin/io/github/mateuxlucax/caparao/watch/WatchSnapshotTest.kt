@@ -22,6 +22,10 @@ class WatchSnapshotTest {
         assertEquals(pouring, WatchSnapshot.decode(pouring.encode()))
         val waiting = snapshot.copy(guide = WatchGuide(3, 5, WatchStepKind.WAIT, null, 4_200, null))
         assertEquals(waiting, WatchSnapshot.decode(waiting.encode()))
+        val pressing = snapshot.copy(guide = WatchGuide(4, 5, WatchStepKind.PRESS, null, null, null))
+        assertEquals(pressing, WatchSnapshot.decode(pressing.encode()))
+        val stirring = snapshot.copy(guide = WatchGuide(1, 5, WatchStepKind.STIR, null, 5_000, null))
+        assertEquals(stirring, WatchSnapshot.decode(stirring.encode()))
         val allDone = snapshot.copy(guide = WatchGuide(5, 5, null, null, null, null))
         assertEquals(allDone, WatchSnapshot.decode(allDone.encode()))
     }

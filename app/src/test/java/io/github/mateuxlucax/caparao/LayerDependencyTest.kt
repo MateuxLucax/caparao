@@ -7,8 +7,9 @@ import java.io.File
 
 /**
  * The package rules of #95: model <- data <- brew <- sync <- ui, only ui uses resources
- * (`R`, `BuildConfig`), and no layer refers to the root package (entry points and wiring). Also keeps a `Context` out
- * of every ViewModel constructor (#328). Checks imports and fully qualified names written in the code.
+ * (`R`, `BuildConfig`), and no layer refers to the root package except the two entry-point files below, which may reach
+ * `CaparaoApplication` for their wiring. Also keeps a `Context` out of every ViewModel constructor (#328). Checks
+ * imports and fully qualified names written in the code.
  */
 class LayerDependencyTest {
     private val base = "io.github.mateuxlucax.caparao"
@@ -25,9 +26,17 @@ class LayerDependencyTest {
 
     /**
      * Root package names each layer may still use: the generated resource classes, and the app-level wiring that
-     * mirrors UI state to the watch (`WatchMirror`), in `ui` only.
+     * mirrors UI state to the watch (`WatchMirror`) in `ui` only.
      */
-    private val allowedRoot = mapOf("ui" to setOf("R", "BuildConfig", "WatchMirror"))
+    private val allowedRoot = mapOf(
+        "ui" to setOf("R", "BuildConfig", "WatchMirror"),
+    )
+
+    /** The two entry points that reach the app object for their wiring; every other file in their layers may not. */
+    private val allowedRootByFile = mapOf(
+        "sync/UploadWorker.kt" to setOf("CaparaoApplication"),
+        "ui/MainActivity.kt" to setOf("CaparaoApplication"),
+    )
 
     /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */
     private val uiFeaturePackages = setOf(
@@ -57,7 +66,7 @@ class LayerDependencyTest {
     @Test
     fun layersOnlyUseLayersBelowThem() {
         val violations = sources().flatMap { (layer, path, lines) ->
-            references(lines).filter { violates(layer, it) }.map { "$path uses $base.$it" }
+            references(lines).filter { violates(layer, path, it) }.map { "$path uses $base.$it" }
         }
         assertEquals(emptyList<String>(), violations)
     }
@@ -80,16 +89,16 @@ class LayerDependencyTest {
     fun ruleCatchesUpwardImportsRootImportsAndFullyQualifiedNames() {
         val lines = listOf(
             "package $base.data.scale",
-            "import $base.MainActivity",
+            "import $base.AppContainer",
             "import $base.model.BrewMode",
             "import $base.brew.EspressoDetector",
             "val x = $base.ui.App::class.java",
             "import $base.*",
         )
-        val found = references(lines).filter { violates("data", it) }
-        assertEquals(listOf("MainActivity", "brew.EspressoDetector", "ui.App", "*"), found)
-        assertEquals(listOf("R"), references(listOf("import $base.R")).filter { !violates("ui", it) })
-        assertEquals(listOf("R"), references(listOf("import $base.R")).filter { violates("brew", it) })
+        val found = references(lines).filter { violates("data", "data/example/Example.kt", it) }
+        assertEquals(listOf("AppContainer", "brew.EspressoDetector", "ui.App", "*"), found)
+        assertEquals(listOf("R"), references(listOf("import $base.R")).filter { !violates("ui", "ui/App.kt", it) })
+        assertEquals(listOf("R"), references(listOf("import $base.R")).filter { violates("brew", "brew/Example.kt", it) })
     }
 
     @Test
@@ -202,11 +211,11 @@ class LayerDependencyTest {
         .filterNot { it.startsWith("package ") }
         .flatMap { line -> reference.findAll(line).map { it.groupValues[1] }.toList() }
 
-    private fun violates(layer: String, referenced: String): Boolean {
+    private fun violates(layer: String, path: String, referenced: String): Boolean {
         val first = referenced.substringBefore('.')
         // Packages are lowercase; anything else directly below base (a class, `*`) is in the root package.
         val inRoot = first == "*" || first.first().isUpperCase()
-        if (inRoot) return first !in allowedRoot[layer].orEmpty()
+        if (inRoot) return first !in allowedRoot[layer].orEmpty() && first !in allowedRootByFile[path].orEmpty()
         val forbidden = forbiddenLayers[layer] ?: error("unknown layer package '$layer'; add it to the rules")
         return first in forbidden
     }

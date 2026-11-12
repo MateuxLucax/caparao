@@ -17,6 +17,8 @@
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
     <string name="step_swirl">Swirl</string>
+    <string name="step_press">Press</string>
+    <string name="step_stir">Stir</string>
     <string name="guide_remove_press">Remove the press</string>
     <string name="guide_press_serve">Press and serve</string>
     <string name="step_of">%1$d/%2$d · %3$s</string>

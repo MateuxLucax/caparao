@@ -70,7 +70,7 @@ class LauncherShortcutTest {
             for ((variant, declared) in listOf("release" to release, "debug" to debug)) {
                 val entry = declared.getValue(shortcut.id)
                 assertEquals("$variant ${shortcut.id} action", shortcut.action, entry.action)
-                assertEquals("$variant ${shortcut.id} activity", "$appId.MainActivity", entry.targetClass)
+                assertEquals("$variant ${shortcut.id} activity", "$appId.ui.MainActivity", entry.targetClass)
             }
             assertEquals("release target package", appId, release.getValue(shortcut.id).targetPackage)
             assertEquals("debug target package", "$appId.debug", debug.getValue(shortcut.id).targetPackage)

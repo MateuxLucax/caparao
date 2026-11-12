@@ -11,7 +11,7 @@
         <intent
             android:action="io.github.mateuxlucax.caparao.shortcut.ESPRESSO"
             android:targetPackage="io.github.mateuxlucax.caparao.debug"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:targetClass="io.github.mateuxlucax.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="filter"
@@ -22,7 +22,7 @@
         <intent
             android:action="io.github.mateuxlucax.caparao.shortcut.FILTER"
             android:targetPackage="io.github.mateuxlucax.caparao.debug"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:targetClass="io.github.mateuxlucax.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="french-press"
@@ -33,7 +33,7 @@
         <intent
             android:action="io.github.mateuxlucax.caparao.shortcut.FRENCH_PRESS"
             android:targetPackage="io.github.mateuxlucax.caparao.debug"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:targetClass="io.github.mateuxlucax.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="brews"
@@ -44,6 +44,6 @@
         <intent
             android:action="io.github.mateuxlucax.caparao.shortcut.BREWS"
             android:targetPackage="io.github.mateuxlucax.caparao.debug"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:targetClass="io.github.mateuxlucax.caparao.ui.MainActivity" />
     </shortcut>
 </shortcuts>
