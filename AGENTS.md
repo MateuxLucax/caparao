@@ -36,6 +36,21 @@ decisions and work tracking.
 - Keep user data and the server token out of cloud backups and device transfers. Room schema changes require a
   migration and migration coverage.
 
+## Frozen from the first Play upload
+
+The compatibility reset before the first external user (#396) is the last chance to move or rename these. From the
+first Play upload on, they are frozen:
+
+- The application id and the Kotlin package (#432 decides them once).
+- `MainActivity`'s fully qualified name: launcher shortcuts and the widget point at it.
+- The `settings` SharedPreferences file and its keys; `SettingsStore`'s KDoc is the final list.
+- WorkManager names: the `upload-<brew id>` unique work names, the `upload` tag, the input key and `UploadWorker`'s
+  fully qualified name.
+- The watch wire format: `WatchSnapshot`'s version, size and field layout, and `WatchStepKind`'s ordinals.
+- The Room schema: version 9 is the baseline; there are no migrations below it. The next schema change adds a
+  migration and its test again.
+
+
 ## BLE
 
 - Match `TIMEMORE_Dot` or `TES017`, never a bare "dot". Keep the confirmed connection order: MTU 247, bond, notify,

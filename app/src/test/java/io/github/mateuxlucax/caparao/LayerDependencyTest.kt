@@ -25,9 +25,13 @@ class LayerDependencyTest {
 
     /**
      * Root package names each layer may still use: the generated resource classes, and the app-level wiring that
-     * mirrors UI state to the watch (`WatchMirror`), in `ui` only.
+     * mirrors UI state to the watch (`WatchMirror`) in `ui` only. The UI activity and the WorkManager worker are
+     * entry points and reach the app object for their wiring (#396).
      */
-    private val allowedRoot = mapOf("ui" to setOf("R", "BuildConfig", "WatchMirror"))
+    private val allowedRoot = mapOf(
+        "sync" to setOf("CaparaoApplication"),
+        "ui" to setOf("R", "BuildConfig", "WatchMirror", "CaparaoApplication"),
+    )
 
     /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */
     private val uiFeaturePackages = setOf(
@@ -80,14 +84,14 @@ class LayerDependencyTest {
     fun ruleCatchesUpwardImportsRootImportsAndFullyQualifiedNames() {
         val lines = listOf(
             "package $base.data.scale",
-            "import $base.MainActivity",
+            "import $base.AppContainer",
             "import $base.model.BrewMode",
             "import $base.brew.EspressoDetector",
             "val x = $base.ui.App::class.java",
             "import $base.*",
         )
         val found = references(lines).filter { violates("data", it) }
-        assertEquals(listOf("MainActivity", "brew.EspressoDetector", "ui.App", "*"), found)
+        assertEquals(listOf("AppContainer", "brew.EspressoDetector", "ui.App", "*"), found)
         assertEquals(listOf("R"), references(listOf("import $base.R")).filter { !violates("ui", it) })
         assertEquals(listOf("R"), references(listOf("import $base.R")).filter { violates("brew", it) })
     }

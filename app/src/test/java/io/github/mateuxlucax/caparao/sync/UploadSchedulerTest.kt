@@ -55,4 +55,13 @@ class UploadSchedulerTest {
         scheduler.serverRemoved()
         assertEquals(listOf("cancel b1", "cancel all"), queue.calls)
     }
+
+    @Test
+    fun theMovedWorkerCancelsOldJobsAndReschedulesUnsyncedBrewsOnce() = runBlocking {
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        assertEquals(true, scheduler.rescheduleJobsFromTheOldWorker(migrated = false))
+        assertEquals(listOf("cancel all", "replace b1", "replace b2"), queue.calls)
+        assertEquals(false, scheduler.rescheduleJobsFromTheOldWorker(migrated = true))
+        assertEquals(listOf("cancel all", "replace b1", "replace b2"), queue.calls)
+    }
 }

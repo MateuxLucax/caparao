@@ -5,7 +5,6 @@ import io.github.mateuxlucax.caparao.brew.StepEvent
 import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleReading
 import io.github.mateuxlucax.caparao.model.ScaleState
-import io.github.mateuxlucax.caparao.model.StepKind
 
 /** What the phone knows, mirrored to the watch (#107). Pure, so the JVM tests cover it. */
 object WatchMirror {
@@ -77,13 +76,7 @@ object WatchMirror {
         return WatchGuide(
             index = state.index,
             count = steps.size,
-            // WatchSnapshot v2 already ships to older watches. Keep PRESS and STIR on the existing WAIT wire ordinal.
-            kind = step?.kind?.let { kind ->
-                when (kind) {
-                    StepKind.PRESS, StepKind.STIR -> WatchStepKind.WAIT
-                    else -> WatchStepKind.valueOf(kind.name)
-                }
-            },
+            kind = step?.kind?.let { WatchStepKind.valueOf(it.name) },
             targetGrams = step?.targetWeightGrams?.toFloat(),
             dueInMs = state.dueInMs,
             paceMs = state.paceMs,

@@ -1,0 +1,94 @@
+package io.github.mateuxlucax.caparao.data.local
+
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.io.File
+
+/**
+ * Version 9 is the compatibility baseline (#396): it is the only exported schema and a phone already on it opens
+ * without any migration, keeping its brews, curves, recipes and coffee bags.
+ */
+@RunWith(RobolectricTestRunner::class)
+class BaselineSchemaTest {
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    // Kept in step with BrewDatabase's @Database version; the schema file name must match it.
+    private val version = 9
+    private val schemaDir = File("schemas/io.github.mateuxlucax.caparao.data.local.BrewDatabase")
+
+    @Before
+    fun setUp() {
+        context.deleteDatabase(BrewDatabase.NAME)
+    }
+
+    @After
+    fun tearDown() {
+        context.deleteDatabase(BrewDatabase.NAME)
+    }
+
+    @Test
+    fun theBaselineIsTheOnlyExportedSchema() {
+        assertEquals(9, version)
+        assertEquals(setOf("$version.json"), schemaDir.list()!!.toSet())
+        val exported = JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database")
+        assertEquals(version, exported.getInt("version"))
+    }
+
+    @Test
+    fun aPhoneAlreadyOnTheBaselineKeepsEverythingWithoutAMigration() = runBlocking {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
+            createBaseline(db)
+            db.execSQL(
+                "INSERT INTO brews (id, mode, started_at, duration_ms, dose_grams, yield_grams, flow_avg, flow_peak, " +
+                    "interrupted, bag_id) VALUES ('brew', 'FILTER', 1000, 60000, 15.0, 250.0, 1.3, 4.8, 0, 'bag')",
+            )
+            db.execSQL("INSERT INTO brew_samples VALUES ('brew', 0, 0.0, 0.0)")
+            db.execSQL(
+                "INSERT INTO recipes (id, name, mode, method, dose_grams, target_ratio, created_at, updated_at) " +
+                    "VALUES ('recipe', 'V60', 'FILTER', 'V60', 15.0, 16.0, 1, 1)",
+            )
+            db.execSQL("INSERT INTO recipe_steps VALUES ('recipe', 0, 'POUR', 90.0, 0, NULL)")
+            db.execSQL("INSERT INTO coffee_bags VALUES ('bag', 'Caparaó', NULL, NULL, NULL, 250.0, NULL, 0, 1)")
+            db.version = version
+        }
+
+        val db = BrewDatabase.open(context)
+        try {
+            assertEquals(250.0, db.brews().get("brew")!!.yieldGrams, 0.0)
+            assertEquals("bag", db.brews().get("brew")!!.bagId)
+            assertEquals(1, db.brews().samples("brew").size)
+            assertNotNull(db.recipes().get("recipe"))
+            assertEquals(1, db.recipes().steps("recipe").size)
+            assertNotNull(db.coffeeBags().get("bag"))
+        } finally {
+            db.close()
+        }
+    }
+
+    /** Room's own v9 tables, indices and bookkeeping rows, exactly as app/schemas/…/9.json describes them. */
+    private fun createBaseline(db: SQLiteDatabase) {
+        val schema = JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database")
+        val entities = schema.getJSONArray("entities")
+        for (i in 0 until entities.length()) {
+            val entity = entities.getJSONObject(i)
+            val table = entity.getString("tableName")
+            db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
+            val indices = entity.optJSONArray("indices") ?: JSONArray()
+            for (j in 0 until indices.length()) {
+                db.execSQL(indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table))
+            }
+        }
+        val setup = schema.getJSONArray("setupQueries")
+        for (i in 0 until setup.length()) db.execSQL(setup.getString(i))
+    }
+}

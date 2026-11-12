@@ -2,8 +2,9 @@ package io.github.mateuxlucax.caparao
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.os.SystemClock
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -27,6 +28,7 @@ import io.github.mateuxlucax.caparao.data.scale.ScaleSource
 import io.github.mateuxlucax.caparao.data.watch.AndroidWatchTransport
 import io.github.mateuxlucax.caparao.sync.UploadRunner
 import io.github.mateuxlucax.caparao.sync.UploadScheduler
+import io.github.mateuxlucax.caparao.sync.UploadWorker
 import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
 import io.github.mateuxlucax.caparao.ui.brew.BrewViewModel
 import io.github.mateuxlucax.caparao.ui.brews.BrewDetailViewModel
@@ -116,6 +118,19 @@ class AppContainer(context: Context) {
     /** Upload jobs, one per brew, only with a server (#100). */
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
 
+    init {
+        scope.launch(Dispatchers.IO) {
+            // #396: the worker left the root package, so jobs enqueued by the old build are dead. Run once; leaving
+            // the flag unset on failure retries on the next launch.
+            val migrations = appContext.getSharedPreferences("caparao-migrations", Context.MODE_PRIVATE)
+            runCatching {
+                if (uploads.rescheduleJobsFromTheOldWorker(migrations.getBoolean(KEY_UPLOAD_WORKER_MOVED, false))) {
+                    migrations.edit().putBoolean(KEY_UPLOAD_WORKER_MOVED, true).commit()
+                }
+            }.onFailure { error -> Log.w("Caparao", "could not reschedule upload jobs", error) }
+        }
+    }
+
     /** Used by [UploadWorker]. */
     val uploadRunner = UploadRunner(brews, settings, exporter, localNetworkBlocked, diagnostics = diagnostics)
 
@@ -157,3 +172,6 @@ class AppContainer(context: Context) {
         }
     }
 }
+
+/** Set once after the upload worker moved out of the root package (#396). */
+private const val KEY_UPLOAD_WORKER_MOVED = "upload_worker_moved"

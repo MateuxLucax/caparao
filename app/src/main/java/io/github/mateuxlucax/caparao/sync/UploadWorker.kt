@@ -1,16 +1,16 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.sync
 
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import io.github.mateuxlucax.caparao.sync.UploadOutcome
-import io.github.mateuxlucax.caparao.sync.WorkManagerUploadQueue
+import io.github.mateuxlucax.caparao.CaparaoApplication
 
 /**
  * Uploads one brew (see [WorkManagerUploadQueue]); the logic is in sync/UploadRunner.
  *
- * Do not move or rename this class: WorkManager stores its fully qualified name with every enqueued job and creates it
- * by reflection, so jobs already waiting on users' phones would fail.
+ * Its name is public: WorkManager stores the fully qualified name with every enqueued job and creates it by
+ * reflection. It moved here in the compatibility reset (#396); the old jobs are cancelled once and rescheduled.
+ * From the first Play upload on, do not move or rename it.
  */
 class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {

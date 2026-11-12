@@ -55,12 +55,23 @@ class UploadScheduler(
     }
 
     fun serverRemoved() = queue.cancelAll()
+
+    /**
+     * The worker moved out of the root package in the compatibility reset (#396), so jobs enqueued by the old build
+     * name a class that no longer exists. Cancels every upload job and gives each unsynced brew a fresh one with the new
+     * name; [migrated] guards it so it runs once per install. Returns whether it ran.
+     */
+    suspend fun rescheduleJobsFromTheOldWorker(migrated: Boolean): Boolean {
+        if (migrated) return false
+        queue.cancelAll()
+        resendUnsynced()
+        return true
+    }
 }
 
 /**
  * [UploadQueue] on WorkManager: unique work `upload-<brew id>`, tagged [TAG], network constraint, exponential backoff.
- * [worker] is the app's UploadWorker, passed in because its class name is persisted by WorkManager and stays in the
- * root package.
+ * [worker] is the app's UploadWorker, passed in so a test can substitute it.
  */
 class WorkManagerUploadQueue(context: Context, private val worker: Class<out ListenableWorker>) : UploadQueue {
     private val context = context.applicationContext

@@ -23,7 +23,7 @@ object BuiltInRecipes {
     const val V60_FOUR_SIX_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0006"
     const val FRENCH_PRESS_ID = "6c0b6f5e-2f6a-4c55-9a39-0d1f6f5a0007"
 
-    /** The ids the first set of built-ins used; [MIGRATION_2_3] replaces those the user never edited. */
+    /** The ids the first set of built-ins used; earlier migrations replaced those the user never edited. */
     val FIRST_IDS = listOf(ESPRESSO_ID, V60_ID, MELITTA_ID)
 
     /** Built-ins already present before the French press mode was introduced in database version 5. */

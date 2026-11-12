@@ -21,13 +21,13 @@ enum class WatchState {
 }
 
 /** A filter or French press recipe step's kind, as the watch names it (the phone's `StepKind`). */
-enum class WatchStepKind { BLOOM, POUR, WAIT, SWIRL }
+enum class WatchStepKind { BLOOM, POUR, WAIT, SWIRL, PRESS, STIR }
 
 /**
  * Where the guided brew stands (#103): step [index] of [count] (equal to [count] once timed steps are done), its
  * cumulative [targetGrams] for a pour, [dueInMs] until it is due while it hasn't begun, and once a pour began its
- * [paceMs] against the recipe (negative is ahead). French press uses the existing WAIT wire kind for its post-timer
- * prompts and zero pace as a serve-phase marker, preserving the v2 layout and ordinals for older watches.
+ * [paceMs] against the recipe (negative is ahead). French press uses WAIT with an index at [count] and zero pace as a
+ * serve-phase marker; its real PRESS and STIR steps travel as themselves.
  */
 data class WatchGuide(
     val index: Int,
@@ -71,7 +71,7 @@ data class WatchSnapshot(
         .array()
 
     companion object {
-        private const val VERSION: Byte = 2
+        private const val VERSION: Byte = 3
         private const val SIZE = 43
 
         /** Null for anything this version did not write. */

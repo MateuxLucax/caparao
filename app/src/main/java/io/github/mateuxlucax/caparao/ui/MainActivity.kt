@@ -1,4 +1,4 @@
-package io.github.mateuxlucax.caparao
+package io.github.mateuxlucax.caparao.ui
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
@@ -16,6 +16,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import io.github.mateuxlucax.caparao.BuildConfig
+import io.github.mateuxlucax.caparao.CaparaoApplication
 import io.github.mateuxlucax.caparao.data.network.LocalNetwork
 import io.github.mateuxlucax.caparao.data.diagnostics.DiagnosticEvent
 import io.github.mateuxlucax.caparao.model.ScaleState
@@ -29,7 +31,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-/** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
+/**
+ * The app's launcher activity, moved into the UI layer by the compatibility reset (#396). Its name is public (launcher
+ * shortcuts and the widget); from the first Play upload on, do not move or rename it.
+ */
 class MainActivity : ComponentActivity() {
     internal val navEntryStoreProvider by lazy { ViewModelStoreProvider(this, "navigation-entries") }
     private val container get() = (application as CaparaoApplication).container

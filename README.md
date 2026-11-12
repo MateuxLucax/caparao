@@ -165,7 +165,7 @@ Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroid
 (the emulator has no Bluetooth):
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --es replay press-ramp --el replay_at_ms 38300
+adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.ui.MainActivity --es replay press-ramp --el replay_at_ms 38300
 ```
 
 The pinned real exporter is the development server. To run it directly, build it and start it with a disposable data
@@ -181,7 +181,7 @@ The debug-only scripted scale is controlled by a loopback HTTP API. It starts on
 forward a host port to its `127.0.0.1` socket to use it:
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --ez scripted_api true --ez script_paused true
+adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.ui.MainActivity --ez scripted_api true --ez script_paused true
 adb forward tcp:18765 tcp:8765
 curl -sS http://127.0.0.1:18765/state
 curl -sS -X POST -H 'Content-Type: application/json' --data-binary @app/src/test/resources/scenarios/filter.json http://127.0.0.1:18765/scenario

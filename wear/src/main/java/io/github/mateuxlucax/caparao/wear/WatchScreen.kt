@@ -209,6 +209,8 @@ private fun stepLabel(guide: WatchGuide): String {
         WatchStepKind.POUR -> stringResource(R.string.step_pour)
         WatchStepKind.WAIT -> stringResource(R.string.step_wait)
         WatchStepKind.SWIRL -> stringResource(R.string.step_swirl)
+        WatchStepKind.PRESS -> stringResource(R.string.step_press)
+        WatchStepKind.STIR -> stringResource(R.string.step_stir)
         null -> ""
     }
     val step = guide.targetGrams?.let { WatchFormat.wholeGrams(it) } ?: name
