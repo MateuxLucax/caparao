@@ -59,7 +59,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
@@ -90,6 +89,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -114,7 +114,6 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -161,7 +160,7 @@ abstract class ScreenHomeTests(lang: String, theme: String, compactOnly: Boolean
     @Test
     fun emptyStatesAreOneLine() {
         // Every mode seeds a built-in recipe, so the espresso list starts empty only once its seed is gone.
-        runBlocking { recipes.all().filter { it.mode == BrewMode.ESPRESSO }.forEach { recipes.delete(it.id) } }
+        runBlocking { recipes.recipes.first().filter { it.mode == BrewMode.ESPRESSO }.forEach { recipes.delete(it.id) } }
         open("press-ramp", 38_300)
         click(R.string.tab_brews)
         waitFor(R.string.brews_empty_title)

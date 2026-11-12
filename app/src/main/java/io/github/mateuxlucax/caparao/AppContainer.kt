@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.caparao.data.exporter.ExporterClient
-import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.diagnostics.removeLegacyDiagnosticCaptures
 import io.github.mateuxlucax.caparao.data.diagnostics.Diagnostics
@@ -42,7 +41,6 @@ import io.github.mateuxlucax.caparao.ui.recipes.RecipesViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.CaptureViewModel
 import io.github.mateuxlucax.caparao.watch.ScaleTimer
 import io.github.mateuxlucax.caparao.watch.WatchLink
@@ -105,9 +103,6 @@ class AppContainer(context: Context) {
 
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
 
-    /** Writes the exports to the cache and shares them through the FileProvider (#76). */
-    val export = BrewExportFiles(appContext, brews, recipes)
-
     private val exporter = ExporterClient()
 
     /**
@@ -155,7 +150,6 @@ class AppContainer(context: Context) {
         initializer { OnboardingViewModel(scale) { settings.onboardingDone = true } }
         initializer { ScaleStatusViewModel(scale) }
         initializer { TargetRatioViewModel(settings) }
-        initializer { ExportViewModel(export) }
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
@@ -163,7 +157,7 @@ class AppContainer(context: Context) {
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, export, uploads::brewSaved, coffeeBags) }
+        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,

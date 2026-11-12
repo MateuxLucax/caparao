@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.ui.components.BrewNumbers
-import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.format.Format
 
@@ -51,7 +50,6 @@ fun BrewDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
-    ShareFile(state.share?.uri, state.share?.mimeType, viewModel::shared)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,7 +59,6 @@ fun BrewDetailScreen(
                 },
                 actions = {
                     if (state.brew != null) {
-                        TextButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::share) { Text(stringResource(R.string.share)) }
                         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                     }
                 },
@@ -96,9 +93,6 @@ fun BrewDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (state.shareFailed) {
-                Text(stringResource(R.string.export_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
     }

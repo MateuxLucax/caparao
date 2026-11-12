@@ -59,7 +59,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.mateuxlucax.caparao.BrewWidgetProvider
 import io.github.mateuxlucax.caparao.BuildConfig
 import io.github.mateuxlucax.caparao.R
-import io.github.mateuxlucax.caparao.data.export.BrewExportFiles
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriter
 import io.github.mateuxlucax.caparao.data.local.BrewDatabase
 import io.github.mateuxlucax.caparao.data.local.BrewEntity
@@ -114,7 +113,6 @@ import io.github.mateuxlucax.caparao.ui.home.HomeViewModel
 import io.github.mateuxlucax.caparao.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.caparao.ui.settings.ScaleStatusViewModel
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
-import io.github.mateuxlucax.caparao.ui.settings.ExportViewModel
 import io.github.mateuxlucax.caparao.ui.settings.TargetRatioViewModel
 import io.github.mateuxlucax.caparao.ui.theme.AppTheme
 import io.github.mateuxlucax.caparao.ui.components.ScaleReadout
@@ -228,7 +226,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(context.resources.getQuantityString(R.plurals.coffee_roasted_days, 12, 12), substring = true).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.rating_stars, 4)).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.mode_filter), substring = true).performClick()
-        waitFor(R.string.share)
+        waitFor(R.string.delete)
         // The brew detail's arrow is labelled Close.
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
