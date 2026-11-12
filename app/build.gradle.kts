@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.ksp)
     alias(libs.plugins.sentry.android)
@@ -22,21 +23,20 @@ val sentryProjectId = sentryDsn.trimEnd('/').substringAfterLast('/', "").takeIf 
 val keystorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
 
 android {
-    namespace = "io.github.mateuxlucax.caparao"
+    namespace = "dev.mateux.caparao"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.mateuxlucax.caparao"
+        applicationId = "dev.mateux.caparao"
         // Android 12+: BLUETOOTH_SCAN with neverForLocation, no location permission (#93).
         minSdk = 31
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["applicationClass"] = ".CaparaoApplication"
         // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
         buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
-        // True only in debug and the two benchmark variants: gates the scripted scale and the benchmark seed (#312).
-        buildConfigField("boolean", "SCRIPTED_SCALE", "false")
     }
 
     signingConfigs {
@@ -54,7 +54,7 @@ android {
         // A separate package so a debug build installs next to the release one instead of over it (their signers differ).
         debug {
             applicationIdSuffix = ".debug"
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
         }
         release {
             // R8: Compose without shrinking is ~25 MB. Room and WorkManager ship their own keep rules.
@@ -73,17 +73,17 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             isProfileable = true
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
             signingConfig = signingConfigs.getByName("debug")
         }
         create("benchmarkRelease") {
             initWith(getByName("release"))
-            // The plugin normally leaves its benchmark build type unminified; keep the reflection hooks readable.
+            // The plugin normally leaves its benchmark build type unminified; keep benchmark sources inspectable.
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = false
             isProfileable = true
-            buildConfigField("boolean", "SCRIPTED_SCALE", "true")
+            manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -103,7 +103,7 @@ android {
         buildConfig = true
     }
 
-    // Debug builds bundle the recorded sessions so the emulator can replay them (AppContainer.replay).
+    // Debug builds bundle recorded sessions for replay tests and scripted scenarios.
     sourceSets["debug"].assets.srcDir("src/test/resources")
 
     compileOptions {
@@ -152,7 +152,11 @@ ksp {
 
 dependencies {
     implementation(libs.activity.compose)
-    // FileProvider for the export files shared through the share sheet (#76).
+    implementation(libs.navigation3.runtime)
+    implementation(libs.navigation3.ui)
+    implementation(libs.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.core)
+    // androidx.core: URI helpers for the watch transport.
     implementation(libs.core.ktx)
     implementation(platform(libs.compose.bom))
     // Past the BOM: ButtonGroup, LoadingIndicator, the wavy progress and the button shapes arrive in 1.5 (#109).

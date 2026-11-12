@@ -96,6 +96,40 @@ jobs:
           printf 'Emulator startup diagnostics; see the emulator-runner step in the Actions log.\n' \
             >> "$raw_log_dir/emulator.log"
 
+      # Pull requests restore the snapshot written on main without uploading their own copy.
+      - name: Restore AVD cache
+        id: avd-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ runner.os }}-api-36-google-apis-x86_64-v1
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          channel: stable
+          force-avd-creation: false
+          emulator-boot-timeout: 300
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Save AVD cache
+        if: github.ref == 'refs/heads/main' && steps.avd-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ runner.os }}-api-36-google-apis-x86_64-v1
+
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           E2E_FORCE_FAILURE: ${{ inputs.force_failure || false }}
@@ -106,8 +140,10 @@ jobs:
           arch: x86_64
           # Leave the runner's 320x640 dp default in place to keep the small-screen weigh flow covered (#145).
           channel: stable
+          force-avd-creation: false
           emulator-boot-timeout: 300
           disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           # The action runs its script through sh -c; invoke the pipefail wrapper explicitly with Bash.
           script: bash scripts/ci/e2e-ci.sh
 

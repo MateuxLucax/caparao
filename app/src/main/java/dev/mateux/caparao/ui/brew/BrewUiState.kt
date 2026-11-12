@@ -1,0 +1,150 @@
+package dev.mateux.caparao.ui.brew
+
+import dev.mateux.caparao.brew.BrewPhase
+import dev.mateux.caparao.brew.BrewReadingState
+import dev.mateux.caparao.brew.BrewClockState
+import dev.mateux.caparao.brew.DrainWindow
+import dev.mateux.caparao.data.local.SettingsStore
+import dev.mateux.caparao.model.Brew
+import dev.mateux.caparao.model.BrewMode
+import dev.mateux.caparao.model.BrewSample
+import dev.mateux.caparao.model.CoffeeBag
+import dev.mateux.caparao.model.Recipe
+import dev.mateux.caparao.model.RecipeStep
+import dev.mateux.caparao.model.StepKind
+import dev.mateux.caparao.brew.StepState
+import dev.mateux.caparao.ui.components.NotesForm
+
+/** The brew screen's steps. */
+enum class BrewStep { DOSE, COFFEE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
+
+data class BrewUiState(
+    val mode: BrewMode,
+    val step: BrewStep = BrewStep.DOSE,
+    /** As typed or weighed; null until set (the last one is suggested).*/
+    val dose: Double? = null,
+    val phase: BrewPhase = BrewPhase.WAITING_FOR_CUP,
+    /** Taring and no zero even after the retry: the tare screen offers Retry until a zero comes. */
+    val tareTimedOut: Boolean = false,
+    val connected: Boolean = false,
+    /** Next was pressed on the dose without the scale: the weighing opens as soon as it connects (#182). */
+    val waitingForScale: Boolean = false,
+    /** Ten seconds without a connection before the brew started: the step offers the not-found card and Retry (#182). */
+    val scaleTimedOut: Boolean = false,
+    val weightGrams: Double = 0.0,
+    /** Smoothed from the weights, not the scale's raw flow. */
+    val flowGramsPerSecond: Double = 0.0,
+    /** Since the first drop or first water; 0 before. */
+    val elapsedMs: Long = 0,
+    /** Filter drain time, provided by the session so the alert and guide share one calculation. */
+    val drainWindow: Window? = null,
+    /** Time until an unattended filter pause ends at the lift; null outside a pause. */
+    val pauseRemainingMs: Long? = null,
+    /** The saved brew, on the summary; null there when nothing was recorded. */
+    val saved: Brew? = null,
+    /** The saved brew's curve, drawn on the espresso summary (#198). */
+    val curve: List<BrewSample> = emptyList(),
+    /** The X of the 1:X to stop at: the recipe's, or the free brew one from Settings. */
+    val targetRatio: Double = SettingsStore.defaultTargetRatio(mode),
+    /** The recipes of [mode], to choose from on the dose step. */
+    val recipes: List<Recipe> = emptyList(),
+    /** The one being followed; null for a free brew. */
+    val recipe: Recipe? = null,
+    /** Filter and French press preparation checklist marks, kept if setup needs to be lifted and tared again. */
+    val preparationChecks: Set<Int> = emptySet(),
+    /** Filter or French press with a recipe's steps, once brewing: where the guide stands (#103, #125). */
+    val guide: StepState? = null,
+    /** The post-4:00 French press removal was confirmed by stable near-zero scale readings. */
+    val frenchPressRemoved: Boolean = false,
+    /** A French press removal is being confirmed: the press is likely off the scale (#279). */
+    val frenchPressRemovalPending: Boolean = false,
+    /** Free French press: how long to steep, from the first water; set on the dose step (#218). */
+    val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
+    /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
+    val freeSteps: List<RecipeStep> = emptyList(),
+    /** On the summary: the saved brew's notes being typed. */
+    val notes: NotesForm? = null,
+    /** The open coffee bags: the coffee step's choices, and the summary's. Empty skips the coffee step (#291). */
+    val bags: List<CoffeeBag> = emptyList(),
+    /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
+    val bagId: String? = null,
+) {
+    fun withSessionState(state: BrewReadingState, steps: List<RecipeStep>): BrewUiState = copy(
+        phase = state.phase,
+        tareTimedOut = state.tareTimedOut,
+        weightGrams = state.weightGrams,
+        flowGramsPerSecond = state.flowGramsPerSecond,
+        elapsedMs = state.elapsedMs,
+        drainWindow = state.drainWindow?.toWindow(),
+        pauseRemainingMs = state.pauseRemainingMs,
+        guide = state.guide?.takeIf { recipe != null || it.index >= 1 } ?: guide,
+        freeSteps = if (recipe == null && state.guide != null) steps else freeSteps,
+        frenchPressRemoved = state.frenchPressRemoved || frenchPressRemoved,
+        frenchPressRemovalPending = state.frenchPressRemovalPending,
+    )
+
+    fun withSessionClock(state: BrewClockState): BrewUiState = copy(
+        elapsedMs = state.elapsedMs,
+        drainWindow = state.drainWindow?.toWindow(),
+        guide = state.guide?.takeIf { recipe != null || it.index >= 1 } ?: guide,
+        frenchPressRemoved = state.frenchPressRemoved || frenchPressRemoved,
+        frenchPressRemovalPending = state.frenchPressRemovalPending,
+    )
+
+    fun clearSessionMarkers(): BrewUiState = copy(frenchPressRemoved = false, frenchPressRemovalPending = false)
+
+    /** The steps being followed, when the guide is on. */
+    val steps: List<RecipeStep> get() = if (guide != null) recipe?.steps ?: freeSteps else emptyList()
+
+    /** True once the French press recipe reaches its terminal steep deadline. */
+    val frenchPressDeadlineReached: Boolean
+        get() {
+            val guided = steps
+            return mode == BrewMode.FRENCH_PRESS && guided.lastOrNull()?.kind == StepKind.PRESS &&
+                guide?.allDone(guided.size) == true
+        }
+
+    /** The deadline state, off while a removal candidate is being confirmed so a press lifted before it never shows it (#279). */
+    val pressDeadline: Boolean
+        get() = frenchPressDeadlineReached && !frenchPressRemoved && !frenchPressRemovalPending
+
+    /** Espresso with a recipe's time window: where the shot time stands; null without one or before the shot. */
+    val window: Window?
+        get() {
+            val min = recipe?.targetMinMs ?: return null
+            val max = recipe.targetMaxMs ?: return null
+            return when (mode) {
+                BrewMode.ESPRESSO -> if (phase != BrewPhase.BREWING && phase != BrewPhase.DONE) {
+                    null
+                } else {
+                    when {
+                        elapsedMs < min -> Window.BEFORE
+                        elapsedMs <= max -> Window.INSIDE
+                        else -> Window.PAST
+                    }
+                }
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> null
+            }
+        }
+
+    enum class Window { BEFORE, INSIDE, PAST }
+
+    private fun DrainWindow.toWindow() = when (this) {
+        DrainWindow.BEFORE -> Window.BEFORE
+        DrainWindow.INSIDE -> Window.INSIDE
+        DrainWindow.PAST -> Window.PAST
+    }
+
+    /** Live 1:X once the brew has started, when there is a dose; before, the weight on the scale is the cup. */
+    val ratio: Double?
+        get() = dose?.takeIf { it > 0 && weightGrams > 0 && (phase == BrewPhase.BREWING || phase == BrewPhase.PAUSED || phase == BrewPhase.DONE) }?.let { weightGrams / it }
+
+    /** How far [ratio] is toward [targetRatio], 0 to 1. */
+    val ratioProgress: Float get() = ((ratio ?: 0.0) / targetRatio).coerceIn(0.0, 1.0).toFloat()
+
+    /** At or past the target as shown: the ratio reads to one decimal, so 1:1.96 already reads 1:2.0. */
+    /** The water the dose and the target ratio call for. */
+    val plannedWater: Double? get() = dose?.let { it * targetRatio }
+
+    val onTarget: Boolean get() = ratio?.let { Math.round(it * 10) >= Math.round(targetRatio * 10) } ?: false
+}

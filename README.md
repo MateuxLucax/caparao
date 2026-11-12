@@ -24,7 +24,7 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
 </tr>
 <tr>
 <td align="center" valign="top"><img src="assets/demo/espresso-live.png" width="200" alt="Espresso extracting with its yield, ratio and timer"><br><b>Automatic espresso</b><br>Tares on the cup, starts on the first drop and stops when the flow does.</td>
-<td align="center" valign="top"><img src="assets/demo/data.png" width="200" alt="Saved espresso details with the weight and flow chart"><br><b>History and charts</b><br>Weight and flow curves for every brew, compare two brews, trends per recipe.</td>
+<td align="center" valign="top"><img src="assets/demo/data.png" width="200" alt="Saved espresso details with the weight and flow chart"><br><b>History and charts</b><br>Weight and flow curves for every brew.</td>
 <td align="center" valign="top"><img src="assets/demo/recipes.png" width="200" alt="Recipe list with Filter, Espresso and Press recipes"><br><b>Recipes</b><br>Built-in espresso, V60, Melitta and French press recipes, and your own with dose, ratio, grind, temperature and steps.</td>
 <td align="center" valign="top"><img src="assets/demo/brews.png" width="200" alt="Brew list with saved brews and their upload status"><br><b>Brews</b><br>Every brew with its dose, yield, ratio and upload status; no server needed.</td>
 </tr>
@@ -34,12 +34,11 @@ Personal, sideloaded app: no Play Store listing. English and Brazilian Portugues
   timer buttons, step vibration and a finish alert.
 - **Coffee bags:** name, roaster, origin and process, roast date, weight, notes and a finished flag; the brew notes
   suggest open bags first.
-- **Home-screen widget:** the last brew or a 7-day summary with brews, beverage, dose and caffeine.
+- **Home-screen widget:** the last brew, with a shortcut to start the next one.
 - **Offline-first:** no account and no server needed. Sync is an add-on.
 - **Your data:** brews go to any server that follows the [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md), such as
   [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter).
-- **Export:** recipes and brews as CSV, or brews as JSON in the upload format, in a zip through the share sheet.
-- **Material 3 Expressive:** Roboto Flex, Material You colors or the Caparaó green, light and dark.
+- **Material 3 Expressive:** Roboto Flex, Material You colors in light and dark themes.
 
 The screens above are emulator captures with a scripted scale standing in for the Dot.
 
@@ -74,7 +73,7 @@ lives.
 Download `caparao-<version>.apk` from [Releases](../../releases) and open it on the phone (allow installs from your
 browser or file manager when Android asks). Each release lists the APK signer's SHA-256; to check it before
 installing: `apksigner verify --print-certs caparao-<version>.apk`. Newer versions install over older ones and keep
-your brews.
+your brews. The app id is `dev.mateux.caparao`.
 
 ### Install on a Wear OS watch over Wi-Fi
 
@@ -127,9 +126,19 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Create the release key, or build a signed release APK | `scripts/release-key.sh`, `scripts/release-apk.sh` |
 | CI internals: emulator E2E wrapper, bounded, sanitized diagnostics and the PR description check | `scripts/ci/` (`e2e-ci.sh`, `e2e-diagnostics.py`, `pr-template-check.py`) |
 | Record a scale session and its Python dependencies | `scripts/capture/` (`capture-session.py`, `requirements-capture.txt`) |
+| Fetch a Sentry capture and convert it to replay JSONL | `scripts/capture/fetch-capture.py` |
 | Capture scripted scale scenarios on an emulator | `scripts/capture/capture-scenarios.py` |
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
+
+With diagnostics enabled, start a brew capture before brewing. Captures include only scale weight, battery and
+acknowledgement frames, successful app commands, and fixed app events; the uploaded recording includes the phone model,
+Android version and app version, but omits scale identifiers and user-entered data. They stay in app-private storage
+while offline and are removed after Sentry confirms delivery, when consent is turned off, or after 7 days. The release
+Sentry DSN is supplied by CI; public documentation uses `https://public@o0.ingest.sentry.io/0`.
+To rebuild a fixture from an event, set `SENTRY_AUTH_TOKEN` in the shell and run
+`python3 scripts/capture/fetch-capture.py <event-id> --org <org> --project <project>`. The script validates the capture
+and writes replay JSONL under the ignored `spike-captures/` directory by default.
 
 ### Dependency verification
 
@@ -155,7 +164,7 @@ Instrumented tests need an emulator or a phone: `./gradlew connectedDebugAndroid
 (the emulator has no Bluetooth):
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --es replay press-ramp --el replay_at_ms 38300
+adb shell am start -n dev.mateux.caparao.debug/dev.mateux.caparao.ui.MainActivity --es replay press-ramp --el replay_at_ms 38300
 ```
 
 The pinned real exporter is the development server. To run it directly, build it and start it with a disposable data
@@ -171,7 +180,7 @@ The debug-only scripted scale is controlled by a loopback HTTP API. It starts on
 forward a host port to its `127.0.0.1` socket to use it:
 
 ```bash
-adb shell am start -n io.github.mateuxlucax.caparao.debug/io.github.mateuxlucax.caparao.MainActivity --ez scripted_api true --ez script_paused true
+adb shell am start -n dev.mateux.caparao.debug/dev.mateux.caparao.ui.MainActivity --ez scripted_api true --ez script_paused true
 adb forward tcp:18765 tcp:8765
 curl -sS http://127.0.0.1:18765/state
 curl -sS -X POST -H 'Content-Type: application/json' --data-binary @app/src/test/resources/scenarios/filter.json http://127.0.0.1:18765/scenario
@@ -210,9 +219,9 @@ on the same device (each journey runs with `CompilationMode.None` and with the p
 
 ```bash
 ./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.StartupBenchmark
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.mateux.caparao.macrobenchmark.StartupBenchmark
 ./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=io.github.mateuxlucax.caparao.macrobenchmark.BrewBenchmarks
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.mateux.caparao.macrobenchmark.BrewBenchmarks
 ```
 
 Both benchmark variants use the debug signing key and stay off release builds; they carry the scripted scale and a

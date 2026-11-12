@@ -9,9 +9,9 @@
         android:shortcutShortLabel="@string/mode_espresso"
         android:shortcutLongLabel="@string/mode_espresso">
         <intent
-            android:action="io.github.mateuxlucax.caparao.shortcut.ESPRESSO"
-            android:targetPackage="io.github.mateuxlucax.caparao"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:action="dev.mateux.caparao.shortcut.ESPRESSO"
+            android:targetPackage="dev.mateux.caparao"
+            android:targetClass="dev.mateux.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="filter"
@@ -20,9 +20,9 @@
         android:shortcutShortLabel="@string/mode_filter"
         android:shortcutLongLabel="@string/mode_filter">
         <intent
-            android:action="io.github.mateuxlucax.caparao.shortcut.FILTER"
-            android:targetPackage="io.github.mateuxlucax.caparao"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:action="dev.mateux.caparao.shortcut.FILTER"
+            android:targetPackage="dev.mateux.caparao"
+            android:targetClass="dev.mateux.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="french-press"
@@ -31,9 +31,9 @@
         android:shortcutShortLabel="@string/mode_french_press"
         android:shortcutLongLabel="@string/mode_french_press">
         <intent
-            android:action="io.github.mateuxlucax.caparao.shortcut.FRENCH_PRESS"
-            android:targetPackage="io.github.mateuxlucax.caparao"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:action="dev.mateux.caparao.shortcut.FRENCH_PRESS"
+            android:targetPackage="dev.mateux.caparao"
+            android:targetClass="dev.mateux.caparao.ui.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="brews"
@@ -42,8 +42,8 @@
         android:shortcutShortLabel="@string/tab_brews"
         android:shortcutLongLabel="@string/tab_brews">
         <intent
-            android:action="io.github.mateuxlucax.caparao.shortcut.BREWS"
-            android:targetPackage="io.github.mateuxlucax.caparao"
-            android:targetClass="io.github.mateuxlucax.caparao.MainActivity" />
+            android:action="dev.mateux.caparao.shortcut.BREWS"
+            android:targetPackage="dev.mateux.caparao"
+            android:targetClass="dev.mateux.caparao.ui.MainActivity" />
     </shortcut>
 </shortcuts>

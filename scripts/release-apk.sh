@@ -14,7 +14,8 @@ SIGNING_STORE_PASSWORD="$(security find-generic-password -s "${CAPARAO_SIGNING_S
 export SIGNING_STORE_PASSWORD SIGNING_KEY_PASSWORD="$SIGNING_STORE_PASSWORD" SIGNING_KEY_ALIAS=release
 
 version="$(tr -d '[:space:]' < VERSION)-local"
-./gradlew --console=plain assembleRelease -PversionName="$version"
+# The signing passwords are read during configuration; keep them out of the project cache.
+./gradlew --console=plain --no-configuration-cache assembleRelease -PversionName="$version"
 apk=app/build/outputs/apk/release/app-release.apk
 
 apksigner="$(ls -d "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/ | sort -V | tail -n 1)apksigner"

@@ -19,8 +19,8 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = ROOT / "app/src/test/resources/scenarios"
 DEFAULT_OUTPUT = ROOT / "captures/scripted-scale"
-PACKAGE = "io.github.mateuxlucax.caparao.debug"
-ACTIVITY = f"{PACKAGE}/io.github.mateuxlucax.caparao.MainActivity"
+PACKAGE = "dev.mateux.caparao.debug"
+ACTIVITY = f"{PACKAGE}/dev.mateux.caparao.ui.MainActivity"
 API_PORT = 8765
 ADB = os.environ.get("ADB", str(Path.home() / "Library/Android/sdk/platform-tools/adb"))
 

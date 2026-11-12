@@ -19,22 +19,13 @@
     <string name="mode_french_press_short">Prensa</string>
 
     <!-- Widget da tela inicial -->
-    <string name="widget_description">Último preparo ou resumo dos últimos 7 dias</string>
+    <string name="widget_description">Último preparo</string>
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_french_press">Preparar prensa francesa</string>
     <string name="widget_brew_coffee">Preparar um café</string>
-    <string name="widget_weekly_title">Últimos 7 dias</string>
-    <string name="widget_weekly_empty">Nenhum preparo nesta semana</string>
-    <string name="widget_weekly_brews">Preparos</string>
-    <string name="widget_weekly_beverage">Bebida</string>
-    <string name="widget_weekly_dose">Dose</string>
-    <string name="widget_weekly_caffeine">Cafeína</string>
-    <string name="widget_weekly_chart_description">Preparos por dia: %1$s</string>
-    <string name="widget_amount_with_unit">%1$s %2$s</string>
-    <string name="widget_approximate_amount">≈ %1$s</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
@@ -42,13 +33,19 @@
     <string name="brews_empty_title">Você ainda não fez café.</string>
 
     <!-- Config -->
+    <string name="settings_no_browser">Nenhum navegador disponível.</string>
+    <string name="settings_allow_nearby">Permitir dispositivos próximos</string>
+    <string name="settings_brewing">No preparo</string>
+    <string name="settings_your_data">Seus dados</string>
+    <string name="settings_app">App</string>
+    <string name="settings_only_phone">Só neste celular</string>
+    <string name="settings_on">Ativado</string>
+    <string name="settings_off">Desativado</string>
+    <string name="settings_about">Caparaó %1$s</string>
+    <string name="section_about">Sobre</string>
     <string name="section_server">Servidor</string>
-    <string name="section_server_text">Opcional* Caso queira sincronizar automaticamente os dados dos seus preparos.</string>
-    <string name="section_permissions">Permissões</string>
-    <string name="section_permissions_text">Bluetooth, utilizado para comunicar com a balança.</string>
+    <string name="server_detail_text">Opcional. Seus preparos ficam neste celular até você configurar um servidor. Com um servidor, cada preparo salvo também é enviado para lá.</string>
     <string name="section_scale">Balança</string>
-    <string name="section_scale_text">Pareie a sua Timemore Dot. Se ela estiver pareada em outro dispositivo, segure o botão até a luz piscar rápido.</string>
-    <string name="version">Versão %1$s</string>
 
     <!-- Conexão com a balança -->
     <string name="scale_searching">Procurando a balança…</string>
@@ -265,36 +262,29 @@
     <string name="guide_press_serve">Abaixe o êmbolo e sirva</string>
     <string name="guide_press_serve_text">Sirva o café e toque em Pronto para encerrar o preparo.</string>
     <string name="guide_window">Alvo %1$s–%2$s s</string>
-    <string name="section_colors">Cores</string>
-    <string name="section_data">Dados</string>
-    <string name="section_data_text">Exporte suas receitas e preparos em CSV e JSON.</string>
-    <string name="export">Exportar</string>
-    <string name="export_include_samples">Incluir o CSV das amostras</string>
-    <string name="export_working">Preparando…</string>
-    <string name="export_failed">Não foi possível exportar. Tente novamente.</string>
-    <string name="share">Compartilhar</string>
-    <string name="share_export">Compartilhar exportação</string>
     <string name="section_diagnostics">Diagnóstico</string>
-    <string name="diagnostics_start">Iniciar gravação</string>
-    <string name="diagnostics_stop">Parar gravação</string>
-    <string name="diagnostics_share">Compartilhar arquivo</string>
-    <string name="diagnostics_share_title">Compartilhar diagnóstico</string>
+    <string name="diagnostics_on">Enviar diagnósticos</string>
+    <string name="diagnostics_text">Quando ativados, falhas e eventos do app são enviados. Uma captura de preparo também envia a gravação com o modelo do celular, a versão do Android e a versão do app. Notas do preparo, o token do seu servidor e o endereço da balança nunca são enviados.</string>
+    <string name="diagnostics_on_text">Os diagnósticos estão ativados.</string>
+    <string name="diagnostics_off_text">Os diagnósticos estão desativados. Nada é enviado.</string>
+    <string name="capture_title">Captura de preparo</string>
+    <string name="capture_start">Capturar próximo preparo</string>
+    <string name="capture_running">Capturando…</string>
+    <string name="capture_elapsed">Tempo decorrido: %1$d:%2$02d</string>
+    <string name="capture_stop">Parar</string>
+    <string name="capture_sent">Enviada</string>
+    <string name="capture_pending">Envio pendente</string>
     <string name="diagnostics_starting">Iniciando…</string>
-    <string name="diagnostics_recording">Gravando</string>
     <string name="diagnostics_saving">Salvando…</string>
-    <string name="diagnostics_ready">Gravação pronta</string>
     <string name="diagnostics_incomplete">Gravação incompleta</string>
     <string name="diagnostics_start_failed">Não foi possível iniciar. Libere espaço e tente novamente.</string>
     <string name="diagnostics_stop_failed">Não foi possível finalizar a gravação. Tente novamente.</string>
-    <string name="diagnostics_share_failed">Arquivo indisponível. Grave novamente.</string>
     <string name="diagnostics_reason_disconnected">Balança desconectada. Inicie outra gravação após reconectar.</string>
     <string name="diagnostics_reason_size_limit">Limite do arquivo atingido. Inicie outra gravação.</string>
+    <string name="diagnostics_reason_duration_limit">Limite de tempo atingido. Inicie a captura antes de outro preparo.</string>
     <string name="diagnostics_reason_writer_overrun">O armazenamento não acompanhou. Inicie outra gravação.</string>
     <string name="diagnostics_reason_storage">Erro de armazenamento. Libere espaço e inicie outra gravação.</string>
     <string name="diagnostics_reason_interrupted">O app foi fechado antes do fim. Inicie outra gravação.</string>
-    <string name="colors_system">Sistema</string>
-    <string name="section_guide_alerts">Alertas do preparo</string>
-    <string name="guide_alerts_text">A cada etapa, perto do alvo e nos últimos 5 segundos antes da próxima. No espresso, ao detectar a xícara, ao tarar, na primeira gota e ao chegar no alvo.</string>
     <string name="guide_vibration">Vibrar</string>
     <string name="guide_sound">Som</string>
     <string name="vibrate_on_phone">Celular</string>
@@ -308,13 +298,6 @@
     <string name="edit_notes">Editar anotações</string>
     <string name="brew_notes">Anotações</string>
     <string name="no_notes">Sem anotações ainda.</string>
-    <!-- Compare and trends (#106). -->
-    <string name="compare">Comparar</string>
-    <string name="compare_title">Comparar extrações</string>
-    <string name="compare_picked">%1$d de %2$d escolhidas</string>
-    <string name="compare_with_last">Comparar com a anterior</string>
-    <string name="trends">Tendências</string>
-    <string name="trends_subtitle">As últimas %1$d extrações, da mais antiga à esquerda.</string>
     <string name="step_of_named">Etapa %1$d de %2$d · %3$s</string>
     <string name="stage_ratio">Razão</string>
     <string name="stage_beans">Pesar os grãos</string>
@@ -348,8 +331,6 @@
     <string name="water_field">Água em ml</string>
     <string name="espresso_window">%1$s–%2$s s</string>
     <string name="unit_ml">ml</string>
-    <string name="unit_l">L</string>
-    <string name="unit_mg">mg</string>
     <!-- Coffee bags -->
     <string name="tab_coffees">Cafés</string>
     <string name="coffees_empty">Nenhum café na prateleira.</string>

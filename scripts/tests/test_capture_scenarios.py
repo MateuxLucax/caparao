@@ -14,6 +14,14 @@ LOADER.exec_module(capture_scenarios)
 
 
 class CaptureScenarioTests(unittest.TestCase):
+    def test_capture_targets_the_current_launcher_activity(self):
+        self.assertEqual(
+            f"{capture_scenarios.PACKAGE}/dev.mateux.caparao.ui.MainActivity",
+            capture_scenarios.ACTIVITY,
+        )
+        manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text()
+        self.assertIn('android:name=".ui.MainActivity"', manifest)
+
     def test_all_scenarios_have_ordered_named_checkpoints(self):
         paths = sorted(capture_scenarios.SCENARIO_DIR.glob("*.json"))
         self.assertGreaterEqual(len(paths), 6)

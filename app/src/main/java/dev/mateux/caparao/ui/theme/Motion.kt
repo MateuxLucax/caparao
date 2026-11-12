@@ -1,0 +1,88 @@
+package dev.mateux.caparao.ui.theme
+
+import android.provider.Settings
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+
+/**
+ * Whether the system asks for no animation (animations off in developer options or accessibility). The one place that
+ * reads it: every looping or glowing animation checks this, so they agree. Read once per composition, like the rest.
+ */
+@Composable
+fun animationsOff(): Boolean {
+    val context = LocalContext.current
+    return remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+}
+
+/**
+ * Material 3 motion tokens (m3.material.io/styles/motion/easing-and-duration/tokens-specs) and the transition patterns
+ * built from them, so every screen moves the same way.
+ */
+object Motion {
+    val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+    val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+    val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    const val SHORT_4 = 200
+    const val MEDIUM_2 = 300
+    const val MEDIUM_4 = 400
+
+    /** For values that change in place: colors, progress. */
+    fun <T> standard(durationMs: Int = SHORT_4): FiniteAnimationSpec<T> = tween(durationMs, easing = Standard)
+
+    /** [standard], or a snap when the system asks for no animation (#183): the state still changes, only without motion. */
+    fun <T> standardOrSnap(still: Boolean, durationMs: Int = SHORT_4): FiniteAnimationSpec<T> =
+        if (still) snap() else standard(durationMs)
+
+    /**
+     * Shared axis X: forward slides in from the right, back from the left, both fading. For steps in a flow and for
+     * opening a screen on top of another.
+     */
+    fun sharedAxisX(forward: Boolean, density: Density): ContentTransform {
+        val offset = with(density) { 30.dp.roundToPx() }
+        val enter: EnterTransition = slideInHorizontally(tween(MEDIUM_2, easing = EmphasizedDecelerate)) { if (forward) offset else -offset } +
+            fadeIn(tween(MEDIUM_2 / 2, delayMillis = MEDIUM_2 / 4, easing = EmphasizedDecelerate))
+        val exit: ExitTransition = slideOutHorizontally(tween(MEDIUM_2, easing = EmphasizedAccelerate)) { if (forward) -offset else offset } +
+            fadeOut(tween(MEDIUM_2 / 4, easing = EmphasizedAccelerate))
+        return enter togetherWith exit
+    }
+
+    /**
+     * Shared axis X on a spring, for the showcase flows (onboarding and the brews, #109):
+     * the content overshoots a little as it settles.
+     */
+    fun springAxisX(forward: Boolean, density: Density): ContentTransform {
+        val offset = with(density) { 48.dp.roundToPx() }
+        val slide = spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow, IntOffset.VisibilityThreshold)
+        val enter: EnterTransition = slideInHorizontally(slide) { if (forward) offset else -offset } +
+            fadeIn(tween(MEDIUM_2 / 2, delayMillis = MEDIUM_2 / 4, easing = EmphasizedDecelerate))
+        val exit: ExitTransition = slideOutHorizontally(slide) { if (forward) -offset else offset } +
+            fadeOut(tween(MEDIUM_2 / 4, easing = EmphasizedAccelerate))
+        return enter togetherWith exit
+    }
+
+    /** Fade through: between top-level destinations that aren't related, like the tabs. */
+    fun fadeThrough(): ContentTransform =
+        (fadeIn(tween(210, delayMillis = 90, easing = EmphasizedDecelerate)) + scaleIn(tween(210, delayMillis = 90, easing = EmphasizedDecelerate), initialScale = 0.92f)) togetherWith
+            fadeOut(tween(90, easing = EmphasizedAccelerate))
+}

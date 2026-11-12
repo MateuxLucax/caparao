@@ -22,7 +22,7 @@
     <!-- No backups (allowBackup); dataExtractionRules keeps data out of cloud backups and device transfers.
          Cleartext HTTP is allowed for servers on the local network; Settings warns when it goes to a public host. -->
     <application
-        android:name=".CaparaoApplication"
+        android:name="${applicationClass}"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
@@ -41,7 +41,7 @@
         <!-- singleTop: a launcher shortcut tapped with the task alive is delivered to onNewIntent, not as a second
              MainActivity (#116). -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
@@ -66,16 +66,5 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/brew_widget_info" />
         </receiver>
-
-        <!-- The export files in cache/exports, shared with ACTION_SEND and no storage permission (#76). -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
     </application>
 </manifest>

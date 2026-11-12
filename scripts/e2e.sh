@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
-app=io.github.mateuxlucax.caparao.debug
+app=dev.mateux.caparao.debug
 port="${E2E_PORT:-8099}"
 export ANDROID_SERIAL="${ANDROID_SERIAL:-$("$adb" devices | awk '/^emulator-/ { print $1; exit }')}"
 [ -n "$ANDROID_SERIAL" ] || { echo "no emulator running (or set ANDROID_SERIAL)" >&2; exit 1; }
@@ -72,21 +72,26 @@ curl -fs "http://127.0.0.1:$port/healthz" >/dev/null || { echo "exporter did not
 # The exporter is on this machine, which the emulator reaches at 10.0.2.2: a local network address on Android 17.
 "$adb" shell pm grant "$app" android.permission.ACCESS_LOCAL_NETWORK 2>/dev/null || true
 
-instrumentation_status=0
-if result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
-  -e class io.github.mateuxlucax.caparao.EndToEndTest "$app.test/androidx.test.runner.AndroidJUnitRunner"); then
-  :
-else
-  instrumentation_status=$?
-fi
-printf '%s\n' "$result" > "$tmp/instrumentation.log"
-if [ "$instrumentation_status" -ne 0 ]; then
+: > "$tmp/instrumentation.log"
+for test in anEspressoReachesTheServer aFrenchPressShortcutStaysOpenThroughTheSteepAndSavesAfterDone; do
+  # Each journey configures a different startup replay, so build a fresh process-owned AppContainer for each.
+  "$adb" shell am force-stop "$app" || true
+  if result=$("$adb" shell am instrument -w -e server_url "http://10.0.2.2:$port" -e token "$token" \
+    -e class "dev.mateux.caparao.EndToEndTest#$test" "$app.test/androidx.test.runner.AndroidJUnitRunner"); then
+    printf '%s\n' "$result" >> "$tmp/instrumentation.log"
+    if echo "$result" | grep -q "OK (1 test)"; then
+      continue
+    fi
+    instrumentation_status=1
+  else
+    instrumentation_status=$?
+    printf '%s\n' "$result" >> "$tmp/instrumentation.log"
+  fi
   echo "$result" >&2
   echo "--- exporter log" >&2
   cat "$tmp/server.log" >&2
   exit "$instrumentation_status"
-fi
-echo "$result" | grep -q "OK (2 tests)" || { echo "$result" >&2; echo "--- exporter log" >&2; cat "$tmp/server.log" >&2; exit 1; }
+done
 
 brews=$(curl -fs -H "Authorization: Bearer $token" "http://127.0.0.1:$port/api/v1/brews")
 python3 - "$brews" "http://127.0.0.1:$port" "$token" <<'PY'
