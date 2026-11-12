@@ -189,7 +189,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         click(R.string.tab_settings)
         click(R.string.section_server)
         compose.onNodeWithText(text(R.string.server_url)).assertIsDisplayed()
-        click(R.string.back)
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.onNodeWithText(text(R.string.guide_vibration)).assertIsDisplayed()
     }
 
@@ -203,11 +203,23 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     }
 
     @Test
+    fun oldSyncStatusIncludesItsDateWithoutShowingCredentials() {
+        val oldSync = 1_700_000_000_000L
+        settings.saveServer("https://coffee.example.com", "dev-token")
+        settings.lastSyncMs = oldSync
+        open("idle-5min", 0)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(context.getString(R.string.last_sync, Format.dateTime(oldSync, locale))).assertIsDisplayed()
+        compose.onNodeWithText("https://coffee.example.com").assertDoesNotExist()
+        compose.onNodeWithText("dev-token").assertDoesNotExist()
+    }
+
+    @Test
     fun revokedBluetoothPermissionAppearsInScaleDetail() {
         bluetoothGranted = false
         open("idle-5min", 0)
         click(R.string.tab_settings)
-        compose.onNodeWithText(text(R.string.error_permission_missing)).assertExists()
+        compose.onNodeWithText(text(R.string.settings_allow_nearby)).assertExists()
         click(R.string.section_scale)
         compose.onNodeWithText(text(R.string.allow_bluetooth)).assertIsDisplayed()
     }
@@ -227,8 +239,22 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         openDiagnosticsCard()
         diagnosticsAction(R.string.capture_start)
         waitFor(R.string.capture_running)
-        click(R.string.back)
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.onNodeWithText(text(R.string.capture_running)).assertExists()
+    }
+
+    @Test
+    fun openingDiagnosticsAgainDoesNotResendPendingCapture() {
+        openDiagnosticsCard()
+        diagnosticsAction(R.string.capture_start)
+        waitFor(R.string.capture_running)
+        diagnosticsAction(R.string.capture_stop)
+        waitFor(R.string.capture_pending)
+        assertEquals(1, diagnosticsSendAttempts.get())
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+        click(R.string.section_diagnostics)
+        compose.waitForIdle()
+        assertEquals(1, diagnosticsSendAttempts.get())
     }
 
     @Test

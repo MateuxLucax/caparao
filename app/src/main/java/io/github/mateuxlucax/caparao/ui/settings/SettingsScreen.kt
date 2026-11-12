@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -25,7 +24,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -42,13 +45,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.input.KeyboardType
+import android.widget.Toast
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -57,21 +61,16 @@ import io.github.mateuxlucax.caparao.R
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureIncompleteReason
 import io.github.mateuxlucax.caparao.data.diagnostics.CaptureWriterState
 import io.github.mateuxlucax.caparao.data.local.VibrationTarget
-import io.github.mateuxlucax.caparao.model.BrewMode
 import io.github.mateuxlucax.caparao.model.ScaleState
 import io.github.mateuxlucax.caparao.ui.components.AppActions
-import io.github.mateuxlucax.caparao.ui.components.BodyText
 import io.github.mateuxlucax.caparao.ui.components.ChoiceGroup
 import io.github.mateuxlucax.caparao.ui.components.CopyLogButton
 import io.github.mateuxlucax.caparao.ui.components.ScaleErrorCard
 import io.github.mateuxlucax.caparao.ui.components.ScaleStatusRow
-import io.github.mateuxlucax.caparao.ui.components.SectionCard
 import io.github.mateuxlucax.caparao.ui.server.ServerForm
 import io.github.mateuxlucax.caparao.ui.components.ShareFile
 import io.github.mateuxlucax.caparao.ui.components.StatusLine
-import io.github.mateuxlucax.caparao.ui.components.label
 import io.github.mateuxlucax.caparao.ui.server.ServerCheck
-import io.github.mateuxlucax.caparao.ui.server.ServerUiState
 import io.github.mateuxlucax.caparao.ui.server.ServerViewModel
 import io.github.mateuxlucax.caparao.ui.server.rememberLocalNetworkAccess
 import io.github.mateuxlucax.caparao.ui.format.Format
@@ -101,6 +100,8 @@ fun SettingsScreen(
     val capture by diagnostics.uiState.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val noBrowser = stringResource(R.string.settings_no_browser)
     var permissionGranted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
     LifecycleResumeEffect(Unit) {
         permissionGranted = actions.bluetoothPermissionGranted()
@@ -112,11 +113,10 @@ fun SettingsScreen(
     ) {
         Text(stringResource(R.string.settings_brewing), style = MaterialTheme.typography.titleSmall)
         SettingsLink(stringResource(R.string.section_scale), when {
-            !permissionGranted -> stringResource(R.string.error_permission_missing)
+            !permissionGranted -> stringResource(R.string.settings_allow_nearby)
             scaleState.scale is ScaleState.Failed -> stringResource((scaleState.scale as ScaleState.Failed).error.title)
-            scaleState.scale is ScaleState.Connected -> (scaleState.scale as ScaleState.Connected).battery?.let {
-                stringResource(R.string.settings_scale_battery, it.percent)
-            } ?: stringResource(R.string.scale_connected)
+            scaleState.scale is ScaleState.Connected -> stringResource(R.string.scale_connected) +
+                ((scaleState.scale as ScaleState.Connected).battery?.let { " · " + stringResource(R.string.battery_percent, it.percent) } ?: "")
             else -> stringResource(scaleState.scale.label)
         }) { onOpen(SettingsDetail.Scale) }
         GuideAlertsSection(targets)
@@ -124,7 +124,7 @@ fun SettingsScreen(
         SettingsLink(stringResource(R.string.section_server), when {
             !sync.serverConfigured -> stringResource(R.string.settings_only_phone)
             sync.lastError != null -> stringResource(sync.lastError!!.kind.message)
-            sync.lastSyncMs > 0 -> stringResource(R.string.last_sync, Format.time(sync.lastSyncMs, locale))
+            sync.lastSyncMs > 0 -> stringResource(R.string.last_sync, Format.dateTime(sync.lastSyncMs, locale))
             else -> stringResource(R.string.nothing_synced_yet)
         }) { onOpen(SettingsDetail.Server) }
         if (diagnostics.available) SettingsLink(stringResource(R.string.section_diagnostics), stringResource(when {
@@ -134,36 +134,47 @@ fun SettingsScreen(
         })) { onOpen(SettingsDetail.Diagnostics) }
         DataSection(export)
         Text(stringResource(R.string.settings_app), style = MaterialTheme.typography.titleSmall)
-        SettingsLink(stringResource(R.string.settings_about, versionName), stringResource(R.string.about_status), external = true) {
-            uriHandler.openUri("https://github.com/MateuxLucax/caparao")
+        SettingsLink(stringResource(R.string.settings_about, versionName), null) {
+            runCatching { uriHandler.openUri("https://github.com/MateuxLucax/caparao") }
+                .onFailure { Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show() }
         }
     }
 }
 
 @Composable
-private fun SettingsLink(title: String, status: String, external: Boolean = false, onClick: () -> Unit) {
+private fun SettingsLink(title: String, status: String?, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(status) },
-        trailingContent = { Text(if (external) "↗" else "›") },
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        supportingContent = status?.let { { Text(it) } },
+        trailingContent = { Icon(painterResource(R.drawable.ic_arrow_forward), contentDescription = null) },
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDetailScreen(
     detail: SettingsDetail, server: ServerViewModel, scale: ScaleStatusViewModel,
     diagnostics: CaptureViewModel, actions: AppActions, onClose: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TextButton(onClick = onClose) { Text(stringResource(R.string.back)) }
-        when (detail) {
-            SettingsDetail.Scale -> SectionCard(stringResource(R.string.section_scale)) {
-                ScaleSection(scale, actions)
-                PermissionsSection(actions)
+    val title = stringResource(when (detail) {
+        SettingsDetail.Scale -> R.string.section_scale
+        SettingsDetail.Server -> R.string.section_server
+        SettingsDetail.Diagnostics -> R.string.section_diagnostics
+    })
+    Scaffold(topBar = {
+        TopAppBar(title = { Text(title, style = MaterialTheme.typography.titleLargeEmphasized) }, navigationIcon = {
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) {
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
             }
-            SettingsDetail.Server -> SectionCard(stringResource(R.string.section_server)) { ServerSection(server, actions) }
-            SettingsDetail.Diagnostics -> if (diagnostics.available) SectionCard(stringResource(R.string.section_diagnostics)) { DiagnosticsSection(diagnostics) }
+        })
+    }) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            when (detail) {
+                SettingsDetail.Scale -> { ScaleSection(scale, actions); PermissionsSection(actions) }
+                SettingsDetail.Server -> ServerSection(server, actions)
+                SettingsDetail.Diagnostics -> if (diagnostics.available) DiagnosticsSection(diagnostics)
+            }
         }
     }
 }
