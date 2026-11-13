@@ -3,6 +3,7 @@ package dev.mateux.caparao.data.local
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewSample
+import dev.mateux.caparao.model.BrewTaste
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -25,6 +26,9 @@ class BrewRepository(
 
     suspend fun latest(): Brew? = dao.latest()?.toModel()
 
+    /** Brews that have not been rated yet, oldest first. */
+    suspend fun notRatedYet(): List<Brew> = dao.notRatedYet().map { it.toModel() }
+
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
     suspend fun delete(id: String) {
@@ -35,6 +39,18 @@ class BrewRepository(
     /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes), marks it unsynced and bumps its revision. */
     suspend fun updateNotes(brew: Brew) =
         dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
+
+    /** Saves taste, the notes found, stars and free-text notes, marks the brew rated and bumps its revision. */
+    suspend fun saveRating(brew: Brew, ratedAt: Long = System.currentTimeMillis()) {
+        dao.saveRating(
+            id = brew.id,
+            rating = brew.rating,
+            notes = brew.notes,
+            taste = brew.taste?.name?.lowercase(),
+            tastingNotesFound = CoffeeBagTastingNotesConverter().encode(brew.tastingNotesFound),
+            ratedAt = ratedAt,
+        )
+    }
 
     /**
      * The server confirmed [id] at [at] (epoch ms), unless it changed since [revision]; false means the upload carried
@@ -70,6 +86,9 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        taste = taste?.let { BrewTaste.valueOf(it.uppercase()) },
+        tastingNotesFound = tastingNotesFound,
+        ratedAt = ratedAt,
         revision = revision,
     )
 
@@ -93,6 +112,9 @@ class BrewRepository(
         waterTempCelsius = waterTempCelsius,
         rating = rating,
         notes = notes,
+        taste = taste?.name?.lowercase(),
+        tastingNotesFound = tastingNotesFound,
+        ratedAt = ratedAt,
         revision = revision,
     )
 }

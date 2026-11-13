@@ -27,6 +27,7 @@ class FakeBrewDao : BrewDao {
     override suspend fun get(id: String) = brews.value.find { it.id == id }
     override suspend fun samples(brewId: String) = samples[brewId].orEmpty()
     override suspend fun unsynced() = brews.value.filter { it.syncedAt == null }.sortedBy { it.startedAt }
+    override suspend fun notRatedYet() = brews.value.filter { it.ratedAt == null }.sortedBy { it.startedAt }
 
     override suspend fun markSynced(id: String, at: Long, revision: Int): Int {
         var updated = 0
@@ -56,6 +57,27 @@ class FakeBrewDao : BrewDao {
                     waterTempCelsius = waterTempCelsius,
                     rating = rating,
                     notes = notes,
+                    syncedAt = null,
+                    revision = it.revision + 1,
+                )
+            } else {
+                it
+            }
+        }
+    }
+
+    override suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long) {
+        val tastingNotes = org.json.JSONArray(tastingNotesFound).let { array ->
+            List(array.length()) { index -> array.getString(index) }
+        }
+        brews.value = brews.value.map {
+            if (it.id == id) {
+                it.copy(
+                    rating = rating,
+                    notes = notes,
+                    taste = taste,
+                    tastingNotesFound = tastingNotes,
+                    ratedAt = ratedAt,
                     syncedAt = null,
                     revision = it.revision + 1,
                 )

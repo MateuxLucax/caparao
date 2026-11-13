@@ -38,10 +38,11 @@ class BaselineSchemaTest {
     @Test
     fun baselineAndCurrentSchemasAreExported() {
         assertEquals(9, version)
-        assertEquals(setOf("9.json", "10.json", "11.json"), schemaDir.list()!!.toSet())
+        assertEquals(setOf("9.json", "10.json", "11.json", "12.json"), schemaDir.list()!!.toSet())
         assertEquals(version, JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(10, JSONObject(File(schemaDir, "10.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(11, JSONObject(File(schemaDir, "11.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(12, JSONObject(File(schemaDir, "12.json").readText()).getJSONObject("database").getInt("version"))
     }
 
     @Test
@@ -89,7 +90,7 @@ class BaselineSchemaTest {
             sqlite.query("PRAGMA table_info(brews)").use { cursor ->
                 while (cursor.moveToNext()) columns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
             }
-            assertTrue(columns.containsAll(setOf("bag_id", "revision", "recipe_id", "notes", "water_temp_celsius")))
+            assertTrue(columns.containsAll(setOf("bag_id", "revision", "recipe_id", "notes", "water_temp_celsius", "taste", "tasting_notes_found", "rated_at")))
         } finally {
             db.close()
         }

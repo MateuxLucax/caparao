@@ -41,7 +41,7 @@ class CoffeeBagTastingNotesMigrationTest {
         }
 
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_9_10, BrewDatabase.MIGRATION_10_11)
+            .addMigrations(BrewDatabase.MIGRATION_9_10, BrewDatabase.MIGRATION_10_11, BrewDatabase.MIGRATION_11_12)
             .allowMainThreadQueries()
             .build()
         try {
@@ -49,7 +49,7 @@ class CoffeeBagTastingNotesMigrationTest {
             assertEquals("Caparaó", bag.name)
             assertEquals("Catuaí, natural", bag.origin)
             assertEquals(emptyList<String>(), bag.tastingNotes)
-            assertEquals(11, migrated.openHelper.readableDatabase.version)
+            assertEquals(12, migrated.openHelper.readableDatabase.version)
         } finally {
             migrated.close()
         }
