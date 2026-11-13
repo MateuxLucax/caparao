@@ -120,8 +120,16 @@ interface BrewDao {
  * is not supported.
  */
 @Database(
-    entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 10,
+    entities = [
+        BrewEntity::class,
+        BrewSampleEntity::class,
+        RecipeEntity::class,
+        RecipeStepEntity::class,
+        CoffeeBagEntity::class,
+        BagRecipeAdjustmentEntity::class,
+        BagRecipeAdjustmentHistoryEntity::class,
+    ],
+    version = 11,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -130,18 +138,51 @@ abstract class BrewDatabase : RoomDatabase() {
 
     abstract fun coffeeBags(): CoffeeBagDao
 
+    abstract fun bagRecipeAdjustments(): BagRecipeAdjustmentDao
+
     companion object {
         /** The file name must never change. */
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_9_10)
+            .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
             .addCallback(SeedBuiltInRecipes)
             .build()
 
         val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE coffee_bags ADD COLUMN tasting_notes TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
+        val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS bag_recipe_adjustments (" +
+                        "bag_id TEXT NOT NULL, recipe_id TEXT NOT NULL, grind INTEGER, " +
+                        "water_temp_celsius INTEGER, dose_grams REAL, tuned INTEGER NOT NULL, " +
+                        "PRIMARY KEY(bag_id, recipe_id), " +
+                        "FOREIGN KEY(bag_id) REFERENCES coffee_bags(id) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(recipe_id) REFERENCES recipes(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS bag_recipe_adjustment_history (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bag_id TEXT NOT NULL, recipe_id TEXT NOT NULL, " +
+                        "changed_at INTEGER NOT NULL, old_grind INTEGER, new_grind INTEGER, " +
+                        "old_water_temp_celsius INTEGER, new_water_temp_celsius INTEGER, " +
+                        "old_dose_grams REAL, new_dose_grams REAL, old_tuned INTEGER NOT NULL, new_tuned INTEGER NOT NULL, " +
+                        "reason TEXT NOT NULL, brew_id TEXT, " +
+                        "FOREIGN KEY(bag_id, recipe_id) REFERENCES bag_recipe_adjustments(bag_id, recipe_id) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_bag_recipe_adjustments_recipe_id " +
+                        "ON bag_recipe_adjustments (recipe_id)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_bag_recipe_adjustment_history_bag_id_recipe_id_changed_at " +
+                        "ON bag_recipe_adjustment_history (bag_id, recipe_id, changed_at)",
+                )
             }
         }
     }

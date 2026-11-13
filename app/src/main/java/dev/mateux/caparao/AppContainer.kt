@@ -14,6 +14,7 @@ import dev.mateux.caparao.data.diagnostics.removeLegacyDiagnosticCaptures
 import dev.mateux.caparao.data.diagnostics.Diagnostics
 import dev.mateux.caparao.data.diagnostics.FanOutDiagnostics
 import dev.mateux.caparao.data.diagnostics.SentryDiagnostics
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.data.local.BrewDatabase
 import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.CoffeeBagRepository
@@ -102,6 +103,8 @@ class AppContainer(context: Context) {
     val recipes = RecipeRepository(database.recipes())
 
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
+
+    val bagRecipeAdjustments = BagRecipeAdjustmentRepository(database.bagRecipeAdjustments())
 
     private val exporter = ExporterClient()
 
