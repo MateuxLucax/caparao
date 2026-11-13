@@ -2,12 +2,15 @@ package dev.mateux.caparao.ui.components
 
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 
@@ -26,9 +29,11 @@ object DripperArt {
         scale(size.width / ART_SIZE, size.height / ART_SIZE, pivot = Offset.Zero) {
             translate(ART_OFFSET_X, ART_OFFSET_Y) {
                 scale(ART_SCALE, pivot = Offset.Zero) {
-                    val ghost = primary.copy(alpha = GHOST_ALPHA)
-                    listOf(Part.FLANGE, Part.CONE, Part.PLATE, Part.HANDLE, Part.SERVER).forEach { part ->
-                        drawPart(part, ghost, ghost)
+                    // One layer for the whole ghost: parts drawn translucent one by one darken where they overlap.
+                    drawIntoCanvas { canvas ->
+                        canvas.saveLayer(Rect(0f, 0f, ART_SIZE, ART_SIZE), Paint().apply { alpha = GHOST_ALPHA })
+                        parts.forEach { part -> drawPart(part, primary, primary) }
+                        canvas.restore()
                     }
                     listOf(Part.HANDLE, Part.SERVER, Part.PLATE, Part.CONE, Part.FLANGE).forEach { part ->
                         val amount = reveal[parts.indexOf(part)].coerceIn(0f, 1f)
