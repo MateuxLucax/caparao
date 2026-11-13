@@ -342,12 +342,20 @@ fun GuideHeader(stage: GuideStage, modifier: Modifier = Modifier, espresso: Bool
                 }
             }
         }
+        // Espresso keeps one screen from the cup to the first drop (#458): the cup's words stay through the tare, and
+        // the change to "ready" happens in place instead of sliding in as a new step.
+        val shownStage = if (espresso && stage == GuideStage.TARE) GuideStage.CUP else stage
+        val inPlace = espresso && (stage == GuideStage.CUP || stage == GuideStage.TARE || stage == GuideStage.FIRST_DROP)
+        val snap = still || (inPlace && animationsOff())
         AnimatedContent(
-            stage,
+            shownStage,
             Modifier.fillMaxWidth(),
             transitionSpec = {
-                if (still) EnterTransition.None togetherWith ExitTransition.None
-                else Motion.springAxisX(targetState.ordinal > initialState.ordinal, density)
+                when {
+                    snap -> EnterTransition.None togetherWith ExitTransition.None
+                    inPlace && initialState == GuideStage.CUP -> fadeIn(tween(Motion.MEDIUM_2)) togetherWith fadeOut(tween(Motion.SHORT_4))
+                    else -> Motion.springAxisX(targetState.ordinal > initialState.ordinal, density)
+                }
             },
             label = "stage",
         ) { shown ->

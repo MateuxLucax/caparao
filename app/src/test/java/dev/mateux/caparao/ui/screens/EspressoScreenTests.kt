@@ -335,11 +335,16 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed()
         click(R.string.prepare_ready)
         compose.waitForIdle()
-        // The cup lands at 8 s and is tared as soon as it is still.
+        // One screen from the cup to the first drop (#458): it asks for the cup with no button to confirm it.
+        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertIsDisplayed()
+        // The cup lands at 8 s and is tared as soon as it is still; the cup's words stay through the tare.
         playUntilShown(scale, R.string.taring, 15_000)
         compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertIsDisplayed()
         playUntilShown(scale, R.string.espresso_ready, 20_000)
         compose.waitForIdle()
+        compose.onAllNodes(hasText(text(R.string.espresso_place_cup))).assertCountEquals(0)
+        compose.onAllNodes(hasText(text(R.string.taring))).assertCountEquals(0)
     }
 
     /**
@@ -432,7 +437,9 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
                 play(scale, scale.nowMs + 100)
                 compose.waitForIdle()
             }
-            assertWeightAndTimerShown()
+            // While it tares, "Taring…" stands where the timer will run (#458); the weight stays.
+            compose.onNode(textMatching(Regex("\\d+[.,]\\d"))).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.taring)).assertIsDisplayed()
             compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
             compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
             playUntilShown(scale, R.string.espresso_ready, 20_000)

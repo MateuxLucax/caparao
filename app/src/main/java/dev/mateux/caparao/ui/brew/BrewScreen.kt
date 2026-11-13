@@ -40,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -294,6 +293,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 respectMotionSetting = state.mode == BrewMode.FILTER,
                 initialRingAlpha = if (wasPaused) PAUSED_RING_ALPHA else 1f,
                 flowCue = espresso,
+                // The cup and the first drop share one screen (#458): the tare shows where the timer will run.
+                timerText = if (espresso && state.phase == BrewPhase.TARING) stringResource(R.string.taring) else null,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
                     BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
@@ -317,9 +318,6 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
             }
         }
         when (state.phase) {
-            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.connected) {
-                Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
-            }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
                 Text(
                     stringResource(
