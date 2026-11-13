@@ -156,7 +156,7 @@ private fun Readout(snapshot: WatchSnapshot, onTimer: () -> Unit, onReset: () ->
             Text(time, style = timeStyle, color = MaterialTheme.colorScheme.primary)
         }
         // The pace shows as the arc's color; only the countdown to the next step stays in words.
-        val due = snapshot.guide?.dueInMs?.takeIf { snapshot.state == WatchState.BREWING && it > 0 }
+        val due = WatchFormat.nextStepDueMs(snapshot)
         if (due != null) {
             Text(stringResource(R.string.guide_due_in, WatchFormat.seconds(due)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
