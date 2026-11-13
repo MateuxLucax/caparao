@@ -54,6 +54,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
+import java.text.DateFormat
+import java.util.Date
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -367,6 +369,22 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
     ) {
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.capture_title), style = MaterialTheme.typography.titleMedium)
+            SettingsRow(
+                stringResource(R.string.capture_every_brew),
+                checked = state.captureEveryBrew,
+                onCheckedChange = viewModel::setCaptureEveryBrew,
+                testTag = "capture-every-brew",
+            )
+            Text(
+                stringResource(R.string.capture_every_brew_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val lastSent = state.history.lastSentAtEpochMillis.takeIf { it > 0L }?.let {
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
+            } ?: stringResource(R.string.capture_never_sent)
+            Text(stringResource(R.string.capture_last_sent, lastSent), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.capture_pending_uploads, state.history.pendingUploads), style = MaterialTheme.typography.bodyMedium)
             val status = if (state.starting) R.string.diagnostics_starting else when (capture) {
                 CaptureWriterState.Idle -> null
                 CaptureWriterState.Starting -> R.string.diagnostics_starting
@@ -422,7 +440,7 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
                 Text(stringResource(R.string.diagnostics_stop_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (!state.starting) {
+                if (!state.starting && (!state.captureEveryBrew || capture is CaptureWriterState.Recording)) {
                     when (capture) {
                         is CaptureWriterState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
                             Text(stringResource(R.string.capture_stop))

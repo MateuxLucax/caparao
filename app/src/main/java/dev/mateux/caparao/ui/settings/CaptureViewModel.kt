@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.mateux.caparao.data.diagnostics.DiagnosticCapture
 import dev.mateux.caparao.data.diagnostics.CaptureWriterState
+import dev.mateux.caparao.data.diagnostics.CaptureHistory
 import dev.mateux.caparao.data.local.SettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,8 @@ data class CaptureUiState(
     val startFailed: Boolean = false,
     val stopFailed: Boolean = false,
     val optedIn: Boolean = false,
+    val captureEveryBrew: Boolean = false,
+    val history: CaptureHistory = CaptureHistory(),
 )
 
 /** Controls opt-in diagnostics and the bounded brew capture that is uploaded to Sentry. */
@@ -27,7 +30,9 @@ class CaptureViewModel(
     private val settings: SettingsStore,
     val available: Boolean = true,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(CaptureUiState(optedIn = settings.remoteDiagnostics))
+    private val _uiState = MutableStateFlow(
+        CaptureUiState(optedIn = settings.remoteDiagnostics, captureEveryBrew = settings.captureEveryBrew),
+    )
     val uiState: StateFlow<CaptureUiState> = _uiState.asStateFlow()
 
     init {
@@ -36,11 +41,24 @@ class CaptureViewModel(
             capture.state.collect { state -> _uiState.update { it.copy(capture = state, starting = state is CaptureWriterState.Starting) } }
         }
         viewModelScope.launch {
-            settings.remoteDiagnosticsChanges.collect { enabled -> _uiState.update { it.copy(optedIn = enabled) } }
+            settings.remoteDiagnosticsChanges.collect { enabled ->
+                _uiState.update { it.copy(optedIn = enabled, captureEveryBrew = settings.captureEveryBrew) }
+            }
+        }
+        viewModelScope.launch {
+            capture.history.collect { history -> _uiState.update { it.copy(history = history) } }
         }
     }
 
-    fun setOptedIn(enabled: Boolean) { settings.remoteDiagnostics = enabled }
+    fun setOptedIn(enabled: Boolean) {
+        settings.remoteDiagnostics = enabled
+        _uiState.update { it.copy(optedIn = enabled, captureEveryBrew = settings.captureEveryBrew) }
+    }
+
+    fun setCaptureEveryBrew(enabled: Boolean) {
+        settings.captureEveryBrew = enabled
+        _uiState.update { it.copy(captureEveryBrew = settings.captureEveryBrew) }
+    }
 
     fun start() {
         if (_uiState.value.starting || _uiState.value.capture is CaptureWriterState.Recording || _uiState.value.capture is CaptureWriterState.Starting) return

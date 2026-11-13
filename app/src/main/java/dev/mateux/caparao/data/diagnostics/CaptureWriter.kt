@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -91,11 +92,20 @@ class CaptureWriter(
     private val appVersion: String = "0.0-test",
     private val phoneModel: String = "synthetic",
     private val androidVersion: String = "test",
+    private val captureEveryBrew: () -> Boolean = { false },
+    private val lastSentAt: () -> Long = { 0L },
+    private val recordSentAt: (Long) -> Unit = {},
 ) : Diagnostics, DiagnosticCapture {
     private val lock = Any()
     private val lifecycleLock = kotlinx.coroutines.sync.Mutex()
     private val _state = MutableStateFlow<CaptureWriterState>(CaptureWriterState.Idle)
     override val state: StateFlow<CaptureWriterState> = _state.asStateFlow()
+    private val _history = MutableStateFlow(CaptureHistory(lastSentAtEpochMillis = lastSentAt()))
+    override val history: StateFlow<CaptureHistory> = _history.asStateFlow()
+    private val uploadMutex = Mutex()
+    private var retryJob: Job? = null
+    private var autoCaptureRequested = false
+    @Volatile private var autoCaptureEnded = false
 
     private var active: Session? = null
     private var finishing: Session? = null
@@ -109,24 +119,7 @@ class CaptureWriter(
         }
         finishingSession()?.let { it.finished.await() }
 
-        val (pending, validPendingFile) = withContext(ioDispatcher) {
-            expireOldSessions()
-            val latest = listSessionFiles().maxByOrNull(File::lastModified)
-            latest to (latest == null || repairInterruptedFile(latest))
-        }
-        if (!validPendingFile) {
-            synchronized(lock) { _state.value = CaptureWriterState.Failed(CaptureWriterError.STORAGE) }
-            return@withLock false
-        }
-        if (pending != null) {
-            val status = withContext(ioDispatcher) {
-                readSessionStatus(pending).also { upload(pending, it.complete, readSessionMode(pending)) }
-            }
-            if (pending.exists()) {
-                synchronized(lock) { _state.value = status.copy(pending = true) }
-                return@withLock false
-            }
-        }
+        withContext(ioDispatcher) { expireOldSessions() }
 
         val wallTime = wallClockMillis()
         val startNanos = monotonicNanos()
@@ -239,12 +232,36 @@ class CaptureWriter(
     }
 
     override fun event(event: DiagnosticEvent) {
+        var startAutomatic = false
         synchronized(lock) {
-            val session = active ?: return
-            val mode = (event as? DiagnosticEvent.BrewPhaseChanged)?.mode?.note
-            if (mode != null) session.mode = mode
-            enqueueLocked(session, Payload.Event(event.note(), mode))
-            if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded) finishLocked(session, null)
+            val session = active
+            if (session != null) {
+                val mode = (event as? DiagnosticEvent.BrewPhaseChanged)?.mode?.note
+                if (mode != null) session.mode = mode
+                enqueueLocked(session, Payload.Event(event.note(), mode))
+                if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded) finishLocked(session, null)
+            }
+            if (event is DiagnosticEvent.BrewPhaseChanged && event.phase == DiagnosticBrewPhase.BREWING && !autoCaptureRequested) {
+                autoCaptureRequested = true
+                autoCaptureEnded = false
+                startAutomatic = captureEveryBrew() && active == null
+            }
+            if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded || event == DiagnosticEvent.BrewInterrupted) {
+                autoCaptureEnded = true
+                autoCaptureRequested = false
+            }
+        }
+        if (startAutomatic) scope.launch(ioDispatcher) {
+            if (start()) {
+                if (!autoCaptureEnded) synchronized(lock) {
+                    active?.let { session ->
+                        val mode = (event as DiagnosticEvent.BrewPhaseChanged).mode.note
+                        session.mode = mode
+                        enqueueLocked(session, Payload.Event("brew_${mode}_brewing", mode))
+                    }
+                }
+                if (autoCaptureEnded) stop()
+            }
         }
     }
 
@@ -273,8 +290,11 @@ class CaptureWriter(
             return@withContext
         }
         expireOldSessions()
-        val latest = listSessionFiles().maxByOrNull(File::lastModified)
-        val recovered = latest?.takeIf(::repairInterruptedFile)?.let(::readSessionStatus)
+        val files = listSessionFiles().sortedBy(File::lastModified)
+        val validFiles = files.filter(::repairInterruptedFile)
+        val latest = files.lastOrNull()
+        val recovered = latest?.takeIf { it in validFiles }?.let(::readSessionStatus)
+        updateHistory()
         synchronized(lock) {
             // A settings screen can request refresh just as recording starts. Do not overwrite the newer state.
             val current = _state.value
@@ -283,7 +303,11 @@ class CaptureWriter(
                 _state.value = recovered ?: if (latest == null) CaptureWriterState.Idle else CaptureWriterState.Failed(CaptureWriterError.STORAGE)
             }
         }
-        if (recovered != null) upload(recovered.file, recovered.complete, readSessionMode(recovered.file))
+        validFiles.forEach { file ->
+            val status = readSessionStatus(file)
+            upload(file, status.complete, readSessionMode(file))
+        }
+        ensureRetryLoop()
     }
 
     /** Remove unsent files immediately when consent is withdrawn. */
@@ -292,6 +316,8 @@ class CaptureWriter(
         finishingSession()?.finished?.await()
         listSessionFiles().forEach(File::delete)
         synchronized(lock) { if (active == null) _state.value = CaptureWriterState.Idle }
+        retryJob?.cancel()
+        updateHistory()
     }
 
     private fun enqueueLocked(session: Session, payload: Payload) {
@@ -401,23 +427,66 @@ class CaptureWriter(
             _state.value = result
         }
         session.finished.complete(Unit)
-        if (result is CaptureWriterState.Ready && optedIn()) scope.launch(ioDispatcher) { upload(result.file, result.complete, session.mode) }
+        updateHistory()
+        if (result is CaptureWriterState.Ready && optedIn()) scope.launch(ioDispatcher) {
+            upload(result.file, result.complete, session.mode)
+            if (result.file.exists()) ensureRetryLoop()
+        }
     }
 
     private suspend fun upload(file: File, complete: Boolean, mode: String = "unknown") {
-        if (!optedIn()) { file.delete(); return }
-        if (runCatching { send(file, complete, mode) }.getOrDefault(false)) {
-            file.delete()
-            synchronized(lock) {
-                val current = _state.value as? CaptureWriterState.Ready
-                if (current?.file == file) _state.value = current.copy(sent = true, pending = false)
+        uploadMutex.withLock {
+            if (!optedIn()) {
+                file.delete()
+                updateHistory()
+                return
             }
-        } else {
-            synchronized(lock) {
-                val current = _state.value as? CaptureWriterState.Ready
-                if (current?.file == file) _state.value = current.copy(pending = true)
+            if (runCatching { send(file, complete, mode) }.getOrDefault(false)) {
+                file.delete()
+                recordSentAt(wallClockMillis())
+                synchronized(lock) {
+                    val current = _state.value as? CaptureWriterState.Ready
+                    if (current?.file == file) _state.value = current.copy(sent = true, pending = false)
+                }
+            } else {
+                synchronized(lock) {
+                    val current = _state.value as? CaptureWriterState.Ready
+                    if (current?.file == file) _state.value = current.copy(pending = true)
+                }
+            }
+            updateHistory()
+        }
+    }
+
+    private fun ensureRetryLoop() {
+        synchronized(lock) {
+            if (retryJob?.isActive == true) return
+            retryJob = scope.launch(ioDispatcher) {
+                var waitMs = INITIAL_RETRY_DELAY_MS
+                for (round in 0 until MAX_RETRY_ROUNDS) {
+                    if (!optedIn()) break
+                    kotlinx.coroutines.delay(waitMs)
+                    val pending = withContext(ioDispatcher) {
+                        expireOldSessions()
+                        val writing = synchronized(lock) { setOfNotNull(active?.file, finishing?.file) }
+                        listSessionFiles().filterNot { it in writing }.filter(::repairInterruptedFile).sortedBy(File::lastModified)
+                    }
+                    if (pending.isEmpty()) break
+                    for (file in pending) {
+                        val status = withContext(ioDispatcher) { readSessionStatus(file) }
+                        upload(file, status.complete, readSessionMode(file))
+                    }
+                    waitMs = (waitMs * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+                }
+                updateHistory()
             }
         }
+    }
+
+    private suspend fun updateHistory() = withContext(ioDispatcher) {
+        val writing = synchronized(lock) { setOfNotNull(active?.file, finishing?.file) }
+        val pending = listSessionFiles().count { it !in writing }
+        _history.value = CaptureHistory(pendingUploads = pending, lastSentAtEpochMillis = lastSentAt())
     }
 
     private fun prepareDirectory() {
@@ -583,6 +652,9 @@ class CaptureWriter(
     companion object {
         const val FORMAT_NAME = "caparao-diagnostic-jsonl"
         const val FORMAT_VERSION = 2
+        private const val INITIAL_RETRY_DELAY_MS = 30_000L
+        private const val MAX_RETRY_DELAY_MS = 6 * 60 * 60 * 1000L
+        private const val MAX_RETRY_ROUNDS = 4
         private const val FILE_PREFIX = "capture-"
         private const val FILE_SUFFIX = ".jsonl"
         private const val FLUSH_EVERY_LINES = 8

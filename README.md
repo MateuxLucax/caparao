@@ -131,7 +131,7 @@ scripts/check.sh         # JVM tests, lint, debug build and instrumented-test co
 | Generate synthetic replay fixtures | `scripts/fixtures/` (`synthetic-session.py`, `synthetic-guide-sessions.py`) |
 | Script tests | `scripts/tests/` |
 
-With diagnostics enabled, start a brew capture before brewing. Captures include only scale weight, battery and
+With diagnostics enabled, you can capture only the next brew or turn on **Capture every brew** in Settings. Captures include only scale weight, battery and
 acknowledgement frames, successful app commands, and fixed app events; the uploaded recording includes the phone model,
 Android version and app version, but omits scale identifiers and user-entered data. They stay in app-private storage
 while offline and are removed after Sentry confirms delivery, when consent is turned off, or after 7 days. The release

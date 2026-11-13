@@ -35,7 +35,7 @@ class CaptureWriterTest {
     fun jsonlReplaysRawChunksAndKeepsDuplicateReadingsAndPrebrewBaseline() = runTest {
         val directory = tempDir()
         var clock = 1_000_000_000L
-        val recorder = recorder(directory, { clock }, backgroundScope)
+        val recorder = recorder(directory, { clock }, this)
         assertTrue(recorder.start())
 
         val mutable = zeroWeight.copyOf()
@@ -65,7 +65,7 @@ class CaptureWriterTest {
         assertTrue(rows.first().getLong("t_ms") <= rows[1].getLong("t_ms"))
         assertEquals(listOf(0L, 0L, 100L, 200L, 300L, 300L, 300L), rows.map { it.getLong("t_ms") })
 
-        val replay = ReplayScaleSource(backgroundScope, lines, playbackSpeed = 100.0, repeat = false)
+        val replay = ReplayScaleSource(this, lines, playbackSpeed = 100.0, repeat = false)
         val readings = async(UnconfinedTestDispatcher(testScheduler)) { replay.readings.take(3).toList() }
         replay.start()
         advanceUntilIdle()
@@ -80,7 +80,7 @@ class CaptureWriterTest {
     fun commandsEventsAndNotificationsShareOneMonotonicClockAndOrder() = runTest {
         val directory = tempDir()
         var clock = 4_000_000_000L
-        val recorder = recorder(directory, { clock }, backgroundScope)
+        val recorder = recorder(directory, { clock }, this)
         assertTrue(recorder.start())
         clock += 5_000_000L
         recorder.event(DiagnosticEvent.ScanStarted)
@@ -103,7 +103,7 @@ class CaptureWriterTest {
     @Test
     fun writerOverrunProducesAnExplicitIncompleteFooter() = runTest {
         val directory = tempDir()
-        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope, limits = limits(queueCapacity = 2))
+        val recorder = recorder(directory, { 1_000_000_000L }, this, limits = limits(queueCapacity = 2))
         assertTrue(recorder.start()) // session_started uses one queue slot before the writer is scheduled
         notifyWeight(recorder, zeroWeight)
         notifyWeight(recorder, zeroWeight) // fills the bounded queue and stops capture
@@ -152,7 +152,7 @@ class CaptureWriterTest {
     @Test
     fun gzipFetchConverterOutputReplaysWithOriginalChunkBoundaries() = runTest {
         val directory = tempDir()
-        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
         assertTrue(recorder.start())
         val split = zeroWeight.size / 2
         val firstChunk = zeroWeight.copyOfRange(0, split)
@@ -185,7 +185,7 @@ class CaptureWriterTest {
         val rx = lines.drop(1).map(::JSONObject).filter { it.optString("dir") == "rx" }
         assertEquals(listOf(firstChunk, secondChunk, thirtyGrams, thirtyGrams).map(::hex), rx.map { it.getString("hex") })
 
-        val replay = ReplayScaleSource(backgroundScope, lines, playbackSpeed = 100.0, repeat = false)
+        val replay = ReplayScaleSource(this, lines, playbackSpeed = 100.0, repeat = false)
         val readings = async(UnconfinedTestDispatcher(testScheduler)) { replay.readings.take(3).toList() }
         replay.start()
         advanceUntilIdle()
@@ -199,7 +199,7 @@ class CaptureWriterTest {
     @Test
     fun fragmentedFramesKeepOriginalChunksAndUnsupportedRepliesAreDroppedWithoutStoppingCapture() = runTest {
         val directory = tempDir()
-        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
         assertTrue(recorder.start())
         val split = zeroWeight.size / 2
         recorder.notification(zeroWeight.copyOfRange(0, split), DiagnosticFrameClassification(emptyList(), true))
@@ -213,7 +213,7 @@ class CaptureWriterTest {
             DiagnosticFrameType.UNKNOWN to bytes("A5 5A 77 77 00 03 DE AD BE 00 00"),
         )
         unsupported.forEachIndexed { index, (type, reply) ->
-            val filtered = recorder(File(directory, "unsupported-$index"), { 1_000_000_000L }, backgroundScope)
+            val filtered = recorder(File(directory, "unsupported-$index"), { 1_000_000_000L }, this)
             assertTrue(filtered.start())
             filtered.notification(reply, DiagnosticFrameClassification(listOf(type), false))
             notifyWeight(filtered, zeroWeight)
@@ -365,7 +365,7 @@ class CaptureWriterTest {
         val recorder = recorder(
             directory,
             { 1_000_000_000L },
-            backgroundScope,
+            this,
             limits = limits(maxSessionBytes = 1_024, footerReserveBytes = 384),
         )
         assertTrue(recorder.start())
@@ -384,7 +384,7 @@ class CaptureWriterTest {
     fun storageErrorsFailStartAndMarkWriterFailuresIncomplete() = runTest {
         val root = tempDir()
         val notDirectory = File(root, "file").apply { writeText("occupied") }
-        val cannotStart = recorder(notDirectory.resolve("diagnostics"), { 0L }, backgroundScope)
+        val cannotStart = recorder(notDirectory.resolve("diagnostics"), { 0L }, this)
         assertFalse(cannotStart.start())
         assertEquals(CaptureWriterState.Failed(CaptureWriterError.STORAGE), cannotStart.state.value)
 
@@ -394,7 +394,7 @@ class CaptureWriterTest {
             java.io.FileOutputStream(file, append)
         }
         val brokenWriter = CaptureWriter(
-            File(root, "writer"), backgroundScope, monotonicNanos = { 0L },
+            File(root, "writer"), this, monotonicNanos = { 0L },
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
             outputStream = output,
         )
@@ -409,12 +409,12 @@ class CaptureWriterTest {
     }
 
     @Test
-    fun anUnsentCaptureIsKeptAndBlocksAnotherCapture() = runTest {
+    fun anUnsentCaptureRetriesWithoutBlockingAnotherCapture() = runTest {
         val directory = tempDir()
         var wall = 1_700_000_000_000L
         var monotonic = 1_000_000_000L
         val recorder = CaptureWriter(
-            directory, backgroundScope, monotonicNanos = { monotonic }, wallClockMillis = { wall },
+            directory, this, monotonicNanos = { monotonic }, wallClockMillis = { wall },
             ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
             limits = limits(maxSessionBytes = 4_096),
         )
@@ -423,19 +423,69 @@ class CaptureWriterTest {
         val pending = (recorder.stop() as CaptureWriterState.Ready).file
         wall += 1_000L
         monotonic += 1_000_000_000L
-        assertFalse(recorder.start())
+        assertTrue(recorder.start())
+        val current = (recorder.stop() as CaptureWriterState.Ready).file
         val files = directory.listFiles().orEmpty().filter { it.extension == "jsonl" }
-        assertEquals(1, files.size)
+        assertEquals(2, files.size)
         assertTrue(pending.exists())
+        assertTrue(current.exists())
         assertTrue(files.all { it.length() <= 4_096L })
         assertTrue(files.sumOf(File::length) <= 8_192L)
         directory.deleteRecursively()
     }
 
     @Test
+    fun failedCaptureUploadRetriesInTheBackground() = runTest {
+        val directory = tempDir()
+        var attempts = 0
+        val recorder = CaptureWriter(
+            directory,
+            this,
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            send = { _, _, _ -> ++attempts > 1 },
+        )
+        assertTrue(recorder.start())
+        val ready = recorder.stop() as CaptureWriterState.Ready
+        runCurrent()
+        assertEquals(1, attempts)
+        assertTrue(ready.file.exists())
+        advanceTimeBy(30_000L)
+        runCurrent()
+        assertEquals(2, attempts)
+        assertFalse(ready.file.exists())
+        assertEquals(0, recorder.history.value.pendingUploads)
+        assertTrue((recorder.state.value as CaptureWriterState.Ready).sent)
+        directory.deleteRecursively()
+    }
+
+    @Test
+    fun everyBrewStartsAndEndsItsOwnAutomaticCapture() = runTest {
+        val directory = tempDir()
+        var enabled = true
+        val recorder = CaptureWriter(
+            directory,
+            this,
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            optedIn = { enabled },
+            captureEveryBrew = { enabled },
+        )
+
+        recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.FILTER, DiagnosticBrewPhase.BREWING))
+        runCurrent()
+        assertTrue(recorder.state.value is CaptureWriterState.Recording)
+        recorder.event(DiagnosticEvent.BrewResultReady)
+        runCurrent()
+        val sent = recorder.state.value as CaptureWriterState.Ready
+        assertTrue(sent.complete)
+        assertTrue(sent.file.readText().contains("brew_filter_brewing"))
+        assertTrue(sent.file.readText().contains("brew_result_ready"))
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun concurrentStopWritesOneFooterAndLeavesACompleteSession() = runTest {
         val directory = tempDir()
-        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
         assertTrue(recorder.start())
         notifyWeight(recorder, zeroWeight)
         val stops = List(8) { async { recorder.stop() } }
@@ -518,7 +568,7 @@ class CaptureWriterTest {
     @Test
     fun retainedInterruptedSessionIsRecoverableAndMetadataContainsNoIdentifiers() = runTest {
         val directory = tempDir()
-        val recorder = recorder(directory, { 1_000_000_000L }, backgroundScope)
+        val recorder = recorder(directory, { 1_000_000_000L }, this)
         assertTrue(recorder.start())
         recorder.event(DiagnosticEvent.ScaleConnected)
         notifyWeight(recorder, zeroWeight)
@@ -534,7 +584,7 @@ class CaptureWriterTest {
         assertFalse(output.contains("coffee.example.com"))
         assertFalse(output.contains("dev-token"))
 
-        val recovered = CaptureWriter(directory, backgroundScope, ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
+        val recovered = CaptureWriter(directory, this, ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
         recovered.refresh()
         val state = recovered.state.value as CaptureWriterState.Ready
         assertFalse(state.complete)

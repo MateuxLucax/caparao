@@ -1,6 +1,6 @@
 # Caparaó privacy policy
 
-Last updated: 2026-11-12 · [Português](#política-de-privacidade-do-caparaó)
+Last updated: 2026-11-13 · [Português](#política-de-privacidade-do-caparaó)
 
 Caparaó is a companion app for the Timemore Dot coffee scale, for Android phones and Wear OS watches. This policy
 explains what the app does with your data.
@@ -14,12 +14,13 @@ paired watch. They are excluded from cloud backups and device transfers. Uninsta
 
 - **Your own server.** If you set a server address in Settings, each brew is sent to that server. You control that
   server; the developer receives nothing.
-- **Diagnostics, off by default.** If you turn diagnostics on, the app sends crash and error reports, and the scale
-  recordings you choose to capture, to the developer's error-tracking service. Reports include the phone model, Android
-  version and app version. Scale recordings contain scale weight, battery and acknowledgement frames, app commands and
-  fixed app events. Diagnostics never include your notes, recipes, coffee details, server address or the scale's
-  identifiers. Pending recordings are deleted after delivery, when you turn diagnostics off, or after 7 days. Data is
-  encrypted in transit.
+- **Diagnostics, off by default.** If you turn diagnostics on, the app sends crash and error reports to Sentry. You can
+  also choose to capture only the next brew, or turn on **Capture every brew** to send a scale recording to Sentry when
+  each brew ends. Reports include the phone model, Android version and app version. Scale recordings contain scale
+  weight, battery and acknowledgement frames, app commands and fixed app events. Diagnostics never include your notes,
+  recipes, coffee details, server address, server token or the scale's identifiers. Pending recordings stay in the app's
+  private storage while offline and are retried; they are deleted after delivery, when you turn diagnostics off, or
+  after 7 days. Data is encrypted in transit.
 
 ## Permissions
 
@@ -50,7 +51,7 @@ mateuxlucax@gmail.com
 
 # Política de privacidade do Caparaó
 
-Última atualização: 2026-11-12
+Última atualização: 2026-11-13
 
 O Caparaó é um app para a balança de café Timemore Dot, para celulares Android e relógios Wear OS. Esta política
 explica o que o app faz com os seus dados.
@@ -65,12 +66,14 @@ dados.
 
 - **Seu próprio servidor.** Se você definir um endereço de servidor nas Configurações, cada preparo é enviado para esse
   servidor. Você controla esse servidor; o desenvolvedor não recebe nada.
-- **Diagnóstico, desligado por padrão.** Se você ativar o diagnóstico, o app envia relatórios de falhas e erros, e as
-  gravações da balança que você escolher capturar, para o serviço de rastreamento de erros do desenvolvedor. Os
-  relatórios incluem o modelo do celular, a versão do Android e a versão do app. As gravações contêm leituras de peso,
-  bateria e confirmações da balança, comandos do app e eventos fixos do app. O diagnóstico nunca inclui suas notas,
-  receitas, dados de café, endereço do servidor nem os identificadores da balança. Gravações pendentes são apagadas
-  após o envio, quando você desliga o diagnóstico ou após 7 dias. Os dados são criptografados no envio.
+- **Diagnóstico, desligado por padrão.** Se você ativar o diagnóstico, o app envia relatórios de falhas e erros ao
+  Sentry. Você também pode capturar só o próximo preparo ou ativar **Capturar todos os preparos** para enviar ao Sentry
+  uma gravação da balança ao fim de cada preparo. Os relatórios incluem o modelo do celular, a versão do Android e a
+  versão do app. As gravações contêm leituras de peso, bateria e confirmações da balança, comandos do app e eventos
+  fixos do app. O diagnóstico nunca inclui suas notas, receitas, dados de café, endereço ou token do servidor nem os
+  identificadores da balança. Gravações pendentes ficam no armazenamento privado do app enquanto estiver sem conexão e
+  são enviadas novamente; elas são apagadas após o envio, quando você desliga o diagnóstico ou após 7 dias. Os dados
+  são criptografados no envio.
 
 ## Permissões
 
