@@ -701,8 +701,8 @@ fun PrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: ()
         BrewMode.FILTER -> listOf(
             PrepRowData(stringResource(R.string.prepare_rdt)),
             PrepRowData(stringResource(R.string.prepare_grind), grind),
-            PrepRowData(stringResource(R.string.prepare_rinse_filter)),
             PrepRowData(stringResource(R.string.prepare_dripper_server)),
+            PrepRowData(stringResource(R.string.prepare_rinse_filter)),
             PrepRowData(stringResource(R.string.prepare_add_grounds)),
         )
         BrewMode.FRENCH_PRESS -> listOf(

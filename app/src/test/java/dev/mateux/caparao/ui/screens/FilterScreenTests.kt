@@ -222,12 +222,12 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNodeWithContentDescription(text(R.string.milestone_prepare)).assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-picture").assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
-        // The single source of the filter row order: the dripper and server go on the scale before the grounds (#278).
+        // The single source of the filter row order: the dripper and server are on the scale before the filter is rinsed (#457).
         listOf(
             R.string.prepare_rdt,
             R.string.prepare_grind,
-            R.string.prepare_rinse_filter,
             R.string.prepare_dripper_server,
+            R.string.prepare_rinse_filter,
             R.string.prepare_add_grounds,
         ).forEachIndexed { row, label ->
             compose.onNodeWithTag("filter-prepare-row-$row").assertIsDisplayed().assertTextContains(text(label))
