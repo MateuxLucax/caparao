@@ -23,6 +23,8 @@ data class CoffeeBag(
     val lastBrewedAt: Long? = null,
     /** Average rating of the linked brews that have one; null when none has one. */
     val averageRating: Double? = null,
+    /** Ordered tasting profile; at most six short notes, stored on this phone only. */
+    val tastingNotes: List<String> = emptyList(),
 ) {
     val leftGrams: Double get() = (weightGrams - usedGrams).coerceAtLeast(0.0)
 

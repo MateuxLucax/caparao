@@ -32,6 +32,7 @@ class TranslationsTest {
             "prepare_rdt", "prepare_wdt", "prepare_dose",
             "milestone_and_step",
             "settings_app", "settings_about",
+            "tasting_chocolate", "tasting_floral",
         )
         assertEquals(allowed, same)
     }

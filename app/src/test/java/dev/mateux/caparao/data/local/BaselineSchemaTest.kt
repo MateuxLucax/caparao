@@ -17,8 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.File
 
 /**
- * Version 9 is the compatibility baseline (#396): it is the only exported schema and a phone already on it opens
- * without any migration, keeping its brews, curves, recipes and coffee bags.
+ * Version 9 is the compatibility baseline (#396): a phone already on it opens with its brews, curves, recipes and bags.
  */
 @RunWith(RobolectricTestRunner::class)
 class BaselineSchemaTest {
@@ -38,15 +37,15 @@ class BaselineSchemaTest {
     }
 
     @Test
-    fun theBaselineIsTheOnlyExportedSchema() {
+    fun baselineAndCurrentSchemasAreExported() {
         assertEquals(9, version)
-        assertEquals(setOf("$version.json"), schemaDir.list()!!.toSet())
-        val exported = JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database")
-        assertEquals(version, exported.getInt("version"))
+        assertEquals(setOf("9.json", "10.json"), schemaDir.list()!!.toSet())
+        assertEquals(version, JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(10, JSONObject(File(schemaDir, "10.json").readText()).getJSONObject("database").getInt("version"))
     }
 
     @Test
-    fun aPhoneAlreadyOnTheBaselineKeepsEverythingWithoutAMigration() = runBlocking {
+    fun aPhoneAlreadyOnTheBaselineKeepsEverythingAcrossMigration() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
             createBaseline(db)
             db.execSQL(

@@ -353,6 +353,15 @@
     <string name="coffee_mark_finished">Mark as finished</string>
     <string name="coffee_mark_open">Mark as open</string>
     <string name="coffee_more_details">More details</string>
+    <string name="coffee_tasting_notes">Tasting notes</string>
+    <string name="coffee_tasting_profile">Tasting profile</string>
+    <string name="coffee_add_tasting_note">Add tasting note</string>
+    <string name="tasting_caramel">Caramel</string>
+    <string name="tasting_chocolate">Chocolate</string>
+    <string name="tasting_citrus">Citrus</string>
+    <string name="tasting_red_fruit">Red fruit</string>
+    <string name="tasting_floral">Floral</string>
+    <string name="tasting_nuts">Nuts</string>
     <string name="coffee_no_brews">No brews with it yet.</string>
     <string name="edit">Edit</string>
     <string name="delete_coffee_title">Delete this coffee?</string>

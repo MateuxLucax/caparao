@@ -347,6 +347,15 @@
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>
     <string name="coffee_more_details">Mais detalhes</string>
+    <string name="coffee_tasting_notes">Notas sensoriais</string>
+    <string name="coffee_tasting_profile">Perfil sensorial</string>
+    <string name="coffee_add_tasting_note">Adicionar nota sensorial</string>
+    <string name="tasting_caramel">Caramelo</string>
+    <string name="tasting_chocolate">Chocolate</string>
+    <string name="tasting_citrus">Cítrico</string>
+    <string name="tasting_red_fruit">Frutas vermelhas</string>
+    <string name="tasting_floral">Floral</string>
+    <string name="tasting_nuts">Castanhas</string>
     <string name="coffee_no_brews">Nenhum preparo com ele ainda.</string>
     <string name="edit">Editar</string>
     <string name="delete_coffee_title">Apagar este café?</string>

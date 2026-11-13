@@ -308,7 +308,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         val day = 86_400_000L
         val now = System.currentTimeMillis()
         runBlocking {
-            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now, tastingNotes = listOf("Chocolate", "Red fruit")))
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 10.0, createdAt = now - day))
         }
     }
@@ -321,6 +321,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         click(R.string.next)
         waitFor(R.string.coffee_step_title)
         compose.onNode(hasText("Caparaó natural") and isSelected()).assertExists()
+        compose.onNodeWithText("Chocolate · Red fruit").assertIsDisplayed()
         compose.onNode(hasText("Mantiqueira") and isNotSelected()).assertExists()
         compose.onNodeWithText(text(R.string.coffee_below_dose)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.no_bag)).performClick()

@@ -80,6 +80,13 @@ fun CoffeeBagDetailScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Roast(current)
+            if (current.tastingNotes.isNotEmpty()) {
+                Text(
+                    "${stringResource(R.string.coffee_tasting_profile)}: ${current.tastingNotes.joinToString(" · ")}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (current.finished) {
                 Text(stringResource(R.string.coffee_finished), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {

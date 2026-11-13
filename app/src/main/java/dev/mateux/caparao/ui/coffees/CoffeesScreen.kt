@@ -3,6 +3,8 @@ package dev.mateux.caparao.ui.coffees
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +22,8 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumExtendedFloatingActionButton
@@ -46,6 +50,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.ui.components.wholeGrams
@@ -137,10 +142,11 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
  * Add or edit a bag (C3, and the edit from C4). Quick add shows the name, roaster, roast date and weight; origin and
  * notes sit under More details. Closing with other edits asks first, like the recipe editor (#181).
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
     var picking by remember { mutableStateOf(false) }
+    var tastingNote by rememberSaveable(form.id) { mutableStateOf("") }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val dirty = rememberUpdatedState(viewModel.dirty(form))
     // Swiping down, the scrim and back all hide the sheet through here; with other edits it stays and asks.
@@ -170,10 +176,49 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
             Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
-            var moreDetails by rememberSaveable { mutableStateOf(form.origin.isNotEmpty() || form.notes.isNotEmpty()) }
+            var moreDetails by rememberSaveable { mutableStateOf(form.origin.isNotEmpty() || form.notes.isNotEmpty() || form.tastingNotes.isNotEmpty()) }
             if (moreDetails) {
                 Field(form.origin, R.string.coffee_origin) { viewModel.change(form.copy(origin = it.take(120))) }
                 Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
+                OutlinedTextField(
+                    value = tastingNote,
+                    onValueChange = { tastingNote = it.take(40) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.coffee_tasting_notes)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                val value = tastingNote.trim()
+                                if (value.isNotEmpty() && form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(value, true) }) {
+                                    viewModel.change(form.copy(tastingNotes = form.tastingNotes + value))
+                                    tastingNote = ""
+                                }
+                            },
+                            enabled = tastingNote.isNotBlank() && form.tastingNotes.size < 6,
+                        ) { Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.coffee_add_tasting_note)) }
+                    },
+                )
+                val suggestions = listOf(
+                    R.string.tasting_caramel, R.string.tasting_chocolate, R.string.tasting_citrus,
+                    R.string.tasting_red_fruit, R.string.tasting_floral, R.string.tasting_nuts,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    suggestions.forEach { label ->
+                        val value = stringResource(label)
+                        val selected = form.tastingNotes.any { it.equals(value, true) }
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                val updated = if (selected) form.tastingNotes.filterNot { it.equals(value, true) }
+                                else if (form.tastingNotes.size < 6) form.tastingNotes + value else form.tastingNotes
+                                viewModel.change(form.copy(tastingNotes = updated))
+                            },
+                            label = { Text(value) },
+                        )
+                    }
+                }
             } else {
                 TextButton(onClick = { moreDetails = true }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffee_more_details)) }
             }
