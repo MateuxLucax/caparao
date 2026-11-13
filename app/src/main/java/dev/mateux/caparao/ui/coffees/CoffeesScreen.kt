@@ -24,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumExtendedFloatingActionButton
@@ -200,6 +201,17 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                         ) { Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.coffee_add_tasting_note)) }
                     },
                 )
+                if (form.tastingNotes.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        form.tastingNotes.forEach { note ->
+                            InputChip(
+                                selected = true,
+                                onClick = { viewModel.change(form.copy(tastingNotes = form.tastingNotes.filterNot { it == note })) },
+                                label = { Text(note) },
+                            )
+                        }
+                    }
+                }
                 val suggestions = listOf(
                     R.string.tasting_caramel, R.string.tasting_chocolate, R.string.tasting_citrus,
                     R.string.tasting_red_fruit, R.string.tasting_floral, R.string.tasting_nuts,
@@ -207,16 +219,15 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     suggestions.forEach { label ->
                         val value = stringResource(label)
-                        val selected = form.tastingNotes.any { it.equals(value, true) }
-                        FilterChip(
-                            selected = selected,
-                            onClick = {
-                                val updated = if (selected) form.tastingNotes.filterNot { it.equals(value, true) }
-                                else if (form.tastingNotes.size < 6) form.tastingNotes + value else form.tastingNotes
-                                viewModel.change(form.copy(tastingNotes = updated))
-                            },
-                            label = { Text(value) },
-                        )
+                        if (form.tastingNotes.none { it.equals(value, true) }) {
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    if (form.tastingNotes.size < 6) viewModel.change(form.copy(tastingNotes = form.tastingNotes + value))
+                                },
+                                label = { Text(value) },
+                            )
+                        }
                     }
                 }
             } else {
@@ -224,7 +235,17 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = close, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) }
-                TextButton(onClick = viewModel::save, enabled = form.valid, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.save)) }
+                TextButton(
+                    onClick = {
+                        val draft = tastingNote.trim()
+                        if (draft.isNotEmpty() && form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(draft, true) }) {
+                            viewModel.change(form.copy(tastingNotes = form.tastingNotes + draft))
+                        }
+                        viewModel.save()
+                    },
+                    enabled = form.valid,
+                    shapes = ButtonDefaults.shapes(),
+                ) { Text(stringResource(R.string.save)) }
             }
         }
     }

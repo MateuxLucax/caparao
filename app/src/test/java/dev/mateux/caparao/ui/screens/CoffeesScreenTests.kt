@@ -218,6 +218,28 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(profile).assertIsDisplayed()
     }
 
+    @Test
+    fun aCustomTastingNoteCanBeAddedRemovedAndSavedFromTheDraft() {
+        openCoffeeBag(withBrew = false)
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        click(R.string.coffee_more_details)
+
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_tasting_notes)))
+            .performTextReplacement("Blueberry")
+        compose.onNodeWithContentDescription(text(R.string.coffee_add_tasting_note)).performClick()
+        compose.onNodeWithText("Blueberry").assertIsDisplayed()
+        compose.onNodeWithText("Blueberry").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Blueberry").fetchSemanticsNodes().isEmpty() }
+
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_tasting_notes)))
+            .performTextReplacement("Peach")
+        click(R.string.save)
+        val profile = "${context.getString(R.string.coffee_tasting_profile)}: Peach"
+        compose.waitUntilAtLeastOneExists(hasText(profile), 5_000)
+        compose.onNodeWithText(profile).assertIsDisplayed()
+    }
+
     /**
      * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
      * move the bag between the states; Edit opens the same sheet, filled.
