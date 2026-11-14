@@ -288,6 +288,9 @@ class BrewViewModel(
      */
     fun restart() {
         if (_uiState.value.step != BrewStep.LIVE) return
+        if (session?.phase == BrewPhase.BREWING || session?.phase == BrewPhase.PAUSED) {
+            diagnostics.event(DiagnosticEvent.BrewInterrupted)
+        }
         clearRun()
         _uiState.update {
             it.copy(

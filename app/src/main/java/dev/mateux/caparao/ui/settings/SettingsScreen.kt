@@ -450,7 +450,6 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
                             Button(
                                 shapes = ButtonDefaults.shapes(),
                                 onClick = viewModel::start,
-                                enabled = capture !is CaptureWriterState.Ready || capture.sent,
                             ) {
                                 Text(stringResource(R.string.capture_start))
                             }

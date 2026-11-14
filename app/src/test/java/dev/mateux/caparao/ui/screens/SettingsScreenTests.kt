@@ -338,7 +338,8 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         waitFor(R.string.capture_running)
         diagnosticsAction(R.string.capture_stop)
         waitFor(R.string.capture_pending)
-        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsEnabled().performClick()
+        waitFor(R.string.capture_running)
     }
 
     @Test

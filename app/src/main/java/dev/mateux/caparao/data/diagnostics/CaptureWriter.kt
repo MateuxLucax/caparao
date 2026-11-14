@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -103,6 +104,7 @@ class CaptureWriter(
     private val _history = MutableStateFlow(CaptureHistory(lastSentAtEpochMillis = lastSentAt()))
     override val history: StateFlow<CaptureHistory> = _history.asStateFlow()
     private val uploadMutex = Mutex()
+    private val retryWake = Channel<Unit>(Channel.CONFLATED)
     private var retryJob: Job? = null
     private var autoCaptureRequested = false
     @Volatile private var autoCaptureEnded = false
@@ -239,7 +241,9 @@ class CaptureWriter(
                 val mode = (event as? DiagnosticEvent.BrewPhaseChanged)?.mode?.note
                 if (mode != null) session.mode = mode
                 enqueueLocked(session, Payload.Event(event.note(), mode))
-                if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded) finishLocked(session, null)
+                if (event == DiagnosticEvent.BrewResultReady || event == DiagnosticEvent.BrewLiftEnded || event == DiagnosticEvent.BrewInterrupted) {
+                    finishLocked(session, null)
+                }
             }
             if (event is DiagnosticEvent.BrewPhaseChanged && event.phase == DiagnosticBrewPhase.BREWING && !autoCaptureRequested) {
                 autoCaptureRequested = true
@@ -282,18 +286,23 @@ class CaptureWriter(
     override fun error(throwable: Throwable, context: DiagnosticErrorContext) = Unit
 
     /** Re-read the retained session list when Settings opens, including recovery after process death. */
-    override suspend fun refresh() = withContext(ioDispatcher) {
-        if (synchronized(lock) { active != null || finishing != null }) return@withContext
+    override suspend fun refresh() {
         if (!optedIn()) {
-            listSessionFiles().forEach(File::delete)
-            synchronized(lock) { if (active == null) _state.value = CaptureWriterState.Idle }
-            return@withContext
+            val deleted = lifecycleLock.withLock {
+                withContext(ioDispatcher) {
+                    if (synchronized(lock) { active != null || finishing != null }) return@withContext false
+                    listSessionFiles().forEach(File::delete)
+                    true
+                }
+            }
+            if (deleted) synchronized(lock) { _state.value = CaptureWriterState.Idle }
+            retryJob?.cancel()
+            updateHistory()
+            return
         }
-        expireOldSessions()
-        val files = listSessionFiles().sortedBy(File::lastModified)
-        val validFiles = files.filter(::repairInterruptedFile)
+        val (files, validFiles) = pendingSessionFiles()
         val latest = files.lastOrNull()
-        val recovered = latest?.takeIf { it in validFiles }?.let(::readSessionStatus)
+        val recovered = latest?.takeIf { it in validFiles }?.let { withContext(ioDispatcher) { readSessionStatus(it) } }
         updateHistory()
         synchronized(lock) {
             // A settings screen can request refresh just as recording starts. Do not overwrite the newer state.
@@ -304,8 +313,8 @@ class CaptureWriter(
             }
         }
         validFiles.forEach { file ->
-            val status = readSessionStatus(file)
-            upload(file, status.complete, readSessionMode(file))
+            val (status, mode) = withContext(ioDispatcher) { readSessionStatus(file) to readSessionMode(file) }
+            withContext(ioDispatcher) { upload(file, status.complete, mode) }
         }
         ensureRetryLoop()
     }
@@ -317,6 +326,7 @@ class CaptureWriter(
         listSessionFiles().forEach(File::delete)
         synchronized(lock) { if (active == null) _state.value = CaptureWriterState.Idle }
         retryJob?.cancel()
+        retryWake.tryReceive().getOrNull()
         updateHistory()
     }
 
@@ -460,26 +470,46 @@ class CaptureWriter(
 
     private fun ensureRetryLoop() {
         synchronized(lock) {
-            if (retryJob?.isActive == true) return
-            retryJob = scope.launch(ioDispatcher) {
+            if (retryJob?.isActive == true) {
+                retryWake.trySend(Unit)
+                return
+            }
+            retryJob = scope.launch {
                 var waitMs = INITIAL_RETRY_DELAY_MS
-                for (round in 0 until MAX_RETRY_ROUNDS) {
-                    if (!optedIn()) break
-                    kotlinx.coroutines.delay(waitMs)
-                    val pending = withContext(ioDispatcher) {
-                        expireOldSessions()
-                        val writing = synchronized(lock) { setOfNotNull(active?.file, finishing?.file) }
-                        listSessionFiles().filterNot { it in writing }.filter(::repairInterruptedFile).sortedBy(File::lastModified)
+                while (optedIn()) {
+                    val pending = pendingSessionFiles().second
+                    if (pending.isEmpty()) {
+                        val idle = synchronized(lock) {
+                            if (retryWake.tryReceive().isSuccess) false
+                            else {
+                                retryJob = null
+                                true
+                            }
+                        }
+                        if (idle) break
+                        waitMs = INITIAL_RETRY_DELAY_MS
+                        continue
                     }
-                    if (pending.isEmpty()) break
-                    for (file in pending) {
-                        val status = withContext(ioDispatcher) { readSessionStatus(file) }
-                        upload(file, status.complete, readSessionMode(file))
+                    withTimeoutOrNull(waitMs) { retryWake.receive() }
+                    if (!optedIn()) break
+                    val due = pendingSessionFiles().second
+                    for (file in due) {
+                        val (status, mode) = withContext(ioDispatcher) { readSessionStatus(file) to readSessionMode(file) }
+                        withContext(ioDispatcher) { upload(file, status.complete, mode) }
                     }
                     waitMs = (waitMs * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
                 }
                 updateHistory()
             }
+        }
+    }
+
+    private suspend fun pendingSessionFiles(): Pair<List<File>, List<File>> = lifecycleLock.withLock {
+        withContext(ioDispatcher) {
+            expireOldSessions()
+            val writing = synchronized(lock) { setOfNotNull(active?.file, finishing?.file) }
+            val files = listSessionFiles().filterNot { it in writing }.sortedBy(File::lastModified)
+            files to files.filter(::repairInterruptedFile)
         }
     }
 
@@ -654,7 +684,6 @@ class CaptureWriter(
         const val FORMAT_VERSION = 2
         private const val INITIAL_RETRY_DELAY_MS = 30_000L
         private const val MAX_RETRY_DELAY_MS = 6 * 60 * 60 * 1000L
-        private const val MAX_RETRY_ROUNDS = 4
         private const val FILE_PREFIX = "capture-"
         private const val FILE_SUFFIX = ".jsonl"
         private const val FLUSH_EVERY_LINES = 8
