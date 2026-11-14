@@ -33,6 +33,7 @@ data class RecipeForm(
         if (method.isBlank()) add(Field.METHOD)
         if (number(dose)?.takeIf { it in BrewLimits.DOSE_GRAMS } == null) add(Field.DOSE)
         if (number(ratio)?.takeIf { it in BrewLimits.RATIO } == null) add(Field.RATIO)
+        if (grind.isNotBlank() && grind.trim().toIntOrNull() == null) add(Field.GRIND)
         if (temp.isNotBlank() && temp.trim().toIntOrNull()?.takeIf { it in BrewLimits.TEMPERATURE_CELSIUS } == null) add(Field.TEMP)
         when (mode) {
             BrewMode.ESPRESSO -> {
@@ -76,7 +77,7 @@ data class RecipeForm(
         method = method.trim(),
         doseGrams = number(dose)!!,
         targetRatio = number(ratio)!!,
-        grind = grind.trim().ifEmpty { null },
+        grind = grind.trim().toIntOrNull(),
         waterTempCelsius = temp.trim().toIntOrNull(),
         notes = notes.trim().ifEmpty { null },
         targetMinMs = when (mode) {
@@ -108,7 +109,7 @@ data class RecipeForm(
     /** The X of 1:X total: water (filter) or beverage (espresso); null while the dose or ratio is not a number. */
     val targetGrams: Double? get() = number(dose)?.let { d -> number(ratio)?.let { d * it } }
 
-    enum class Field { NAME, METHOD, DOSE, RATIO, TEMP, WINDOW, STEPS }
+    enum class Field { NAME, METHOD, DOSE, RATIO, GRIND, TEMP, WINDOW, STEPS }
 
     companion object {
         private fun flowRate(text: String): Double? = number(text)?.takeIf { it.isFinite() }
@@ -126,7 +127,7 @@ data class RecipeForm(
             method = recipe.method,
             dose = plain(recipe.doseGrams, locale),
             ratio = plain(recipe.targetRatio, locale),
-            grind = recipe.grind.orEmpty(),
+            grind = recipe.grind?.toString().orEmpty(),
             temp = recipe.waterTempCelsius?.toString().orEmpty(),
             minTime = recipe.targetMinMs?.let(::clockText).orEmpty(),
             maxTime = recipe.targetMaxMs?.let(::clockText).orEmpty(),

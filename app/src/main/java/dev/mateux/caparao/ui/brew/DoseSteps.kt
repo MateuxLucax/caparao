@@ -355,7 +355,7 @@ private fun EspressoRecipeSummary(recipe: Recipe, locale: Locale, still: Boolean
                     still,
                 )
             }
-            recipe.grind?.takeIf { it.isNotBlank() }?.let { SummaryRow(stringResource(R.string.recipe_grind), it, still) }
+            recipe.grind?.let { SummaryRow(stringResource(R.string.recipe_grind), it.toString(), still) }
             recipe.waterTempCelsius?.let {
                 SummaryRow(stringResource(R.string.recipe_temp), "$it ${stringResource(R.string.unit_celsius)}", still)
             }
@@ -641,7 +641,7 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit, 
 fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     var checked by remember { mutableStateOf(setOf<Int>()) }
-    val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
+    val grind = state.recipe?.grind?.toString()
     val items = listOf(
         PrepRowData(stringResource(R.string.prepare_rdt)),
         PrepRowData(stringResource(R.string.prepare_grind), grind),
@@ -711,7 +711,7 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
 @Composable
 fun PrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
-    val grind = state.recipe?.grind?.takeIf(String::isNotBlank)
+    val grind = state.recipe?.grind?.toString()
     val items = when (state.mode) {
         BrewMode.FILTER -> listOf(
             PrepRowData(stringResource(R.string.prepare_rdt)),
@@ -897,7 +897,7 @@ private fun prepareStrip(state: BrewUiState, locale: Locale): String {
     val recipe = state.recipe
     if (state.activeAdjustment == null || recipe == null) return dose
     return listOfNotNull(
-        recipe.grind?.takeIf(String::isNotBlank)?.let { stringResource(R.string.brew_strip_grind, it) },
+        recipe.grind?.toString()?.let { stringResource(R.string.brew_strip_grind, it) },
         recipe.waterTempCelsius?.let { "$it ${stringResource(R.string.unit_celsius)}" },
         dose,
     ).joinToString(" · ")

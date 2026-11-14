@@ -46,7 +46,7 @@ abstract class BrewSuggestionScreenTests(lang: String, theme: String) : ScreenTe
             recipes.save(
                 Recipe(
                     id = "suggest", name = "Melitta 102", mode = BrewMode.FILTER, method = "Melitta", doseGrams = 20.0, targetRatio = 15.0,
-                    grind = "22", waterTempCelsius = 93, targetMinMs = 150_000, targetMaxMs = 180_000, createdAt = 0, updatedAt = 0,
+                    grind = 22, waterTempCelsius = 93, targetMinMs = 150_000, targetMaxMs = 180_000, createdAt = 0, updatedAt = 0,
                 ),
             )
             brews.save(
@@ -174,7 +174,7 @@ abstract class BrewSuggestionScreenTests(lang: String, theme: String) : ScreenTe
             recipes.save(
                 Recipe(
                     id = "suggest", name = "Melitta 102", mode = BrewMode.FILTER, method = "Melitta", doseGrams = 20.0, targetRatio = 15.0,
-                    grind = "22", waterTempCelsius = 93, targetMinMs = 150_000, targetMaxMs = 180_000, createdAt = 0, updatedAt = 0,
+                    grind = 22, waterTempCelsius = 93, targetMinMs = 150_000, targetMaxMs = 180_000, createdAt = 0, updatedAt = 0,
                 ),
             )
             adjustments.save(BagRecipeAdjustment("bag-1", "suggest", grind = 21, waterTempCelsius = 92, doseGrams = 21.0), 1)

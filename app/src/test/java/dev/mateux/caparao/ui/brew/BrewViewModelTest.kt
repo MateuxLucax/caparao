@@ -580,7 +580,7 @@ class BrewViewModelTest {
 
     private val v60 = Recipe(
         id = "v60", name = "V60", mode = BrewMode.FILTER, method = "V60", doseGrams = 15.0, targetRatio = 16.0,
-        grind = "22", waterTempCelsius = 94, createdAt = 0, updatedAt = 0,
+        grind = 22, waterTempCelsius = 94, createdAt = 0, updatedAt = 0,
     )
     private val espresso = v60.copy(id = "esp", name = "Espresso", mode = BrewMode.ESPRESSO, method = "Espresso", doseGrams = 18.0, targetRatio = 2.4)
 

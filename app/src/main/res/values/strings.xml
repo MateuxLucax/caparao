@@ -210,6 +210,9 @@
     <string name="recipe_dose">Dose</string>
     <string name="recipe_ratio">Ratio</string>
     <string name="recipe_grind">Grind</string>
+    <string name="recipe_grind_decrease">Decrease grind</string>
+    <string name="recipe_grind_increase">Increase grind</string>
+    <string name="recipe_error_grind">Enter a whole number.</string>
     <string name="recipe_temp">Water temperature</string>
     <string name="recipe_window">Time from the first drop</string>
     <string name="recipe_window_min">From</string>

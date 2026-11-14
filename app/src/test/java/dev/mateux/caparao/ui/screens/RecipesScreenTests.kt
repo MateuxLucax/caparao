@@ -180,6 +180,19 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(text(R.string.step_summary_weight, "45") + " · 0:00").assertIsDisplayed()
     }
 
+    @Test
+    fun recipeGrindCanBeSetWithIncrementAndDecrementButtons() = runBlocking {
+        openV60Editor()
+        compose.onNodeWithContentDescription(text(R.string.recipe_grind_increase), useUnmergedTree = true).performClick()
+        compose.onNode(hasSetTextAction() and hasContentDescription(text(R.string.recipe_grind)), useUnmergedTree = true).assertTextContains("1")
+        compose.onNodeWithContentDescription(text(R.string.recipe_grind_decrease), useUnmergedTree = true).performClick()
+        compose.onNode(hasSetTextAction() and hasContentDescription(text(R.string.recipe_grind)), useUnmergedTree = true).assertTextContains("0")
+        compose.onNodeWithContentDescription(text(R.string.recipe_grind_increase), useUnmergedTree = true).performClick()
+        compose.onNodeWithText(text(R.string.save)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.recipe_name)).fetchSemanticsNodes().isEmpty() }
+        assertEquals(1, recipes.get(BuiltInRecipes.V60_ID)?.grind)
+    }
+
     /** The editor offers the stir step for French press recipes (#219). The filter list is checked in RecipeEditorViewModelTest. */
     @Test
     fun frenchPressRecipeEditorOffersStir() {
@@ -264,7 +277,7 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText("${Format.grams(19.0 * 2.2, locale)} $grams").assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.ratio_value, Format.ratio(2.2, locale))).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.espresso_window, "27", "33")).assertIsDisplayed()
-        compose.onNodeWithText("10").assertIsDisplayed()
+        compose.onNodeWithText("10").assertDoesNotExist()
         compose.onNodeWithText("92 ${text(R.string.unit_celsius)}").assertIsDisplayed()
         compose.onNodeWithText("Pirados por Café", substring = true).assertIsDisplayed()
 

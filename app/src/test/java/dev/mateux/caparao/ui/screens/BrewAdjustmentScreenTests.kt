@@ -35,7 +35,10 @@ abstract class BrewAdjustmentScreenTests(lang: String, theme: String) : ScreenTe
     /** Espresso Oster is 19 g, grind 10 and 92 °C; "Caparaó natural" brews it at 18 g, grind 9 and 91 °C. */
     private fun espressoCoffeeStep(): SessionScale {
         seedCoffeeBags()
-        runBlocking { adjustments.save(BagRecipeAdjustment("bag-1", BuiltInRecipes.ESPRESSO_ID, grind = 9, waterTempCelsius = 91, doseGrams = 18.0), 1) }
+        runBlocking {
+            recipes.get(BuiltInRecipes.ESPRESSO_ID)?.let { recipes.save(it.copy(grind = 10)) }
+            adjustments.save(BagRecipeAdjustment("bag-1", BuiltInRecipes.ESPRESSO_ID, grind = 9, waterTempCelsius = 91, doseGrams = 18.0), 1)
+        }
         val scale = open("synthetic-espresso", 0)
         click(R.string.mode_espresso)
         // The dose step's preselected recipe; on a 320 dp screen only the current milestone name shows, so wait for this instead.

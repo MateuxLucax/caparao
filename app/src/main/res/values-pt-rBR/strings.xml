@@ -206,6 +206,9 @@
     <string name="recipe_dose">Dose</string>
     <string name="recipe_ratio">Razão</string>
     <string name="recipe_grind">Moagem</string>
+    <string name="recipe_grind_decrease">Diminuir moagem</string>
+    <string name="recipe_grind_increase">Aumentar moagem</string>
+    <string name="recipe_error_grind">Digite um número inteiro.</string>
     <string name="recipe_temp">Temperatura da água</string>
     <string name="recipe_window">Tempo desde a primeira gota</string>
     <string name="recipe_window_min">De</string>

@@ -22,7 +22,7 @@ class RecipeDaoTest {
 
     private val filter = Recipe(
         id = "f", name = "Kalita", mode = BrewMode.FILTER, method = "Kalita", doseGrams = 15.0, targetRatio = 16.0,
-        grind = "22", waterTempCelsius = 94, notes = "Slow last pour",
+        grind = 22, waterTempCelsius = 94, notes = "Slow last pour",
         steps = listOf(
             RecipeStep(StepKind.BLOOM, 45.0, 0),
             RecipeStep(StepKind.WAIT, null, 30_000),

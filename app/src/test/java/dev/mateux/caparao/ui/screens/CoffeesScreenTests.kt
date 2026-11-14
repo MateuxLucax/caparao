@@ -366,6 +366,9 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         runBlocking {
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
         }
+        runBlocking {
+            recipes.get(BuiltInRecipes.ESPRESSO_ID)?.let { recipes.save(it.copy(grind = 10)) }
+        }
         linkBrew("brew-1", "bag-1", 19.0, recipeId = BuiltInRecipes.ESPRESSO_ID)
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)

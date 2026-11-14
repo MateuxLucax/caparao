@@ -38,11 +38,12 @@ class BaselineSchemaTest {
     @Test
     fun baselineAndCurrentSchemasAreExported() {
         assertEquals(9, version)
-        assertEquals(setOf("9.json", "10.json", "11.json", "12.json"), schemaDir.list()!!.toSet())
+        assertEquals(setOf("9.json", "10.json", "11.json", "12.json", "13.json"), schemaDir.list()!!.toSet())
         assertEquals(version, JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(10, JSONObject(File(schemaDir, "10.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(11, JSONObject(File(schemaDir, "11.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(12, JSONObject(File(schemaDir, "12.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(13, JSONObject(File(schemaDir, "13.json").readText()).getJSONObject("database").getInt("version"))
     }
 
     @Test

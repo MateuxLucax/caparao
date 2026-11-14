@@ -232,7 +232,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         ).forEachIndexed { row, label ->
             compose.onNodeWithTag("filter-prepare-row-$row").assertIsDisplayed().assertTextContains(text(label))
         }
-        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("filter-prepare-row-0").performClick()
         compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())

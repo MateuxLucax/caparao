@@ -185,7 +185,7 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
     if (Field.DOSE in errors) ErrorText(R.string.recipe_error_dose)
     if (Field.RATIO in errors) ErrorText(R.string.recipe_error_ratio)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Cell(form.grind, { v -> viewModel.edit { it.copy(grind = v) } }, R.string.recipe_grind, false, CellShape, cell.weight(1f), input = Input.TEXT)
+        GrindCell(form.grind, Field.GRIND in errors, { v -> viewModel.edit { it.copy(grind = v) } }, cell.weight(1f))
         Cell(form.temp, { v -> viewModel.edit { it.copy(temp = v) } }, R.string.recipe_temp_short, Field.TEMP in errors, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_celsius))
         if (form.mode != BrewMode.FRENCH_PRESS) {
             CellBox(if (form.mode == BrewMode.ESPRESSO) R.string.recipe_shot_time else R.string.recipe_ideal_time, Field.WINDOW in errors, CellShape, cell.weight(1f)) {
@@ -197,6 +197,7 @@ private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel
             }
         }
     }
+    if (Field.GRIND in errors) ErrorText(R.string.recipe_error_grind)
     if (Field.TEMP in errors) ErrorText(R.string.recipe_error_temp)
     if (Field.WINDOW in errors) ErrorText(if (form.mode == BrewMode.ESPRESSO) R.string.recipe_error_window else R.string.recipe_error_total_time)
     if (form.mode != BrewMode.ESPRESSO) {
@@ -457,7 +458,34 @@ private fun StepSummary(
 private val CellHeight = 56.dp
 private val CellShape = RoundedCornerShape(12.dp)
 
-private enum class Input { TEXT, DECIMAL, CLOCK }
+private enum class Input { TEXT, DECIMAL, INTEGER, CLOCK }
+
+@Composable
+private fun GrindCell(value: String, isError: Boolean, onValue: (String) -> Unit, modifier: Modifier) {
+    val valueNumber = value.toIntOrNull()
+    val label = stringResource(R.string.recipe_grind)
+    val decrease = stringResource(R.string.recipe_grind_decrease)
+    val increase = stringResource(R.string.recipe_grind_increase)
+    CellInput(value, onValue, Input.INTEGER, modifier, description = label) { inner ->
+        CellBox(R.string.recipe_grind, isError, CellShape, Modifier.fillMaxSize()) {
+            // The number sits where the other cells' values do; − and + share the right edge.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { inner() }
+                IconButton(
+                    shapes = IconButtonDefaults.shapes(),
+                    onClick = { valueNumber?.let { onValue((it - 1).toString()) } },
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = decrease },
+                    enabled = valueNumber != null,
+                ) { Text("−", style = MaterialTheme.typography.titleMedium) }
+                IconButton(
+                    shapes = IconButtonDefaults.shapes(),
+                    onClick = { onValue(((valueNumber ?: 0) + 1).toString()) },
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = increase },
+                ) { Text("+", style = MaterialTheme.typography.titleMedium) }
+            }
+        }
+    }
+}
 
 // A filled field without the indicator line, its label small inside, so fields sit side by side as one compact row.
 @Composable
@@ -526,6 +554,7 @@ private fun CellInput(
                 when (input) {
                     Input.TEXT -> v.take(80)
                     Input.CLOCK -> v.filter { it.isDigit() || it == ':' }.take(5)
+                    Input.INTEGER -> v.filterIndexed { index, char -> char.isDigit() || (index == 0 && char == '-') }.take(11)
                     Input.DECIMAL -> v.filter { it.isDigit() || it == ',' || it == '.' }.take(6)
                 },
             )
@@ -537,6 +566,7 @@ private fun CellInput(
         keyboardOptions = when (input) {
             Input.TEXT -> KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
             Input.CLOCK -> KeyboardOptions(keyboardType = KeyboardType.Number)
+            Input.INTEGER -> KeyboardOptions(keyboardType = KeyboardType.Number)
             Input.DECIMAL -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
         },
     )
