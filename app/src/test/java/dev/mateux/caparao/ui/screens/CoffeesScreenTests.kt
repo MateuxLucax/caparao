@@ -394,7 +394,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText("Espresso Oster").performClick()
         waitFor(R.string.adjustment_history)
         compose.onNodeWithText(text(R.string.adjustment_manual)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.adjustment_change_grind, "10", "9"), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.adjustment_change_grind, text(R.string.adjustment_as_recipe), "9"), substring = true).assertIsDisplayed()
         click(R.string.adjustment_reset)
         waitFor(R.string.adjustment_reset_title)
         compose.onAllNodesWithText(text(R.string.adjustment_reset)).onLast().performClick()

@@ -47,7 +47,6 @@ import dev.mateux.caparao.R
 import dev.mateux.caparao.model.BagRecipeAdjustmentHistory
 import dev.mateux.caparao.model.BagRecipeAdjustmentReason
 import dev.mateux.caparao.model.BrewMode
-import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.format.Format
 import java.util.Locale
 
@@ -127,7 +126,7 @@ fun CoffeeAdjustmentScreen(viewModel: CoffeeAdjustmentViewModel, onClose: () -> 
             if (history.isNotEmpty()) {
                 Text(stringResource(R.string.adjustment_history), Modifier.padding(top = 14.dp, bottom = 6.dp), style = MaterialTheme.typography.titleMedium)
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    history.forEach { HistoryLine(it, recipe, locale) }
+                    history.forEach { HistoryLine(it, locale) }
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -176,23 +175,20 @@ private fun Stepper(label: Int, recipeValue: String?, value: String, changed: Bo
 
 // One change: the day, what moved from what to what, and where it came from.
 @Composable
-private fun HistoryLine(entry: BagRecipeAdjustmentHistory, recipe: Recipe, locale: Locale) {
+private fun HistoryLine(entry: BagRecipeAdjustmentHistory, locale: Locale) {
     val g = stringResource(R.string.unit_grams)
     val c = stringResource(R.string.unit_celsius)
-    // A side with no value followed the recipe, so it reads as the recipe's own value.
+    // A side with no value followed the recipe. It says so instead of a number: the recipe may have changed since.
     val asRecipe = stringResource(R.string.adjustment_as_recipe)
-    val recipeGrind = recipe.grind?.trim()?.ifEmpty { null } ?: asRecipe
-    val recipeTemp = recipe.waterTempCelsius?.let { "$it $c" } ?: asRecipe
-    val recipeDose = "${Format.grams(recipe.doseGrams, locale)} $g"
     val changes = buildList {
         if (entry.oldGrind != entry.newGrind) {
-            add(stringResource(R.string.adjustment_change_grind, entry.oldGrind?.toString() ?: recipeGrind, entry.newGrind?.toString() ?: recipeGrind))
+            add(stringResource(R.string.adjustment_change_grind, entry.oldGrind?.toString() ?: asRecipe, entry.newGrind?.toString() ?: asRecipe))
         }
         if (entry.oldWaterTempCelsius != entry.newWaterTempCelsius) {
-            add(stringResource(R.string.adjustment_change_temp, entry.oldWaterTempCelsius?.let { "$it $c" } ?: recipeTemp, entry.newWaterTempCelsius?.let { "$it $c" } ?: recipeTemp))
+            add(stringResource(R.string.adjustment_change_temp, entry.oldWaterTempCelsius?.let { "$it $c" } ?: asRecipe, entry.newWaterTempCelsius?.let { "$it $c" } ?: asRecipe))
         }
         if (entry.oldDoseGrams != entry.newDoseGrams) {
-            add(stringResource(R.string.adjustment_change_dose, entry.oldDoseGrams?.let { "${Format.grams(it, locale)} $g" } ?: recipeDose, entry.newDoseGrams?.let { "${Format.grams(it, locale)} $g" } ?: recipeDose))
+            add(stringResource(R.string.adjustment_change_dose, entry.oldDoseGrams?.let { "${Format.grams(it, locale)} $g" } ?: asRecipe, entry.newDoseGrams?.let { "${Format.grams(it, locale)} $g" } ?: asRecipe))
         }
         if (!entry.oldTuned && entry.newTuned) add(stringResource(R.string.adjustment_tuned))
     }
