@@ -897,7 +897,7 @@ private fun prepareStrip(state: BrewUiState, locale: Locale): String {
     val recipe = state.recipe
     if (state.activeAdjustment == null || recipe == null) return dose
     return listOfNotNull(
-        recipe.grind?.takeIf(String::isNotBlank)?.let { stringResource(R.string.brew_strip_grind, it) },
+        recipe.grind?.toString()?.let { stringResource(R.string.brew_strip_grind, it) },
         recipe.waterTempCelsius?.let { "$it ${stringResource(R.string.unit_celsius)}" },
         dose,
     ).joinToString(" · ")

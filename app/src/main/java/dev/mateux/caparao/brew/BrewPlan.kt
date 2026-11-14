@@ -51,7 +51,7 @@ class BrewPlan private constructor(
         if (adjustment == null || adjustment.recipeId != base.id) return this
         val current = brewRecipe ?: base
         val tuned = current.copy(
-            grind = adjustment.grind?.toString() ?: current.grind,
+            grind = adjustment.grind ?: current.grind,
             waterTempCelsius = adjustment.waterTempCelsius ?: current.waterTempCelsius,
         )
         // A dose whose water would go beyond the scale's range is left out with the water, so the ring, the strip

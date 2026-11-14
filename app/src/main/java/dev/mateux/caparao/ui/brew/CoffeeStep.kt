@@ -153,7 +153,7 @@ private fun AdjustmentCard(adjustment: BagRecipeAdjustment, recipe: Recipe, foll
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 adjustment.grind?.let {
-                    AdjustedValue(R.string.recipe_grind, it.toString(), recipe.grind?.trim()?.takeIf(String::isNotEmpty))
+                    AdjustedValue(R.string.recipe_grind, it.toString(), recipe.grind?.toString())
                 }
                 adjustment.waterTempCelsius?.let {
                     AdjustedValue(R.string.recipe_temp_short, "$it $c", recipe.waterTempCelsius?.let { saved -> "$saved $c" })

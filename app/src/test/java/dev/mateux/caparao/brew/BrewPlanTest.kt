@@ -29,14 +29,14 @@ class BrewPlanTest {
     @Test
     fun anAdjustmentReplacesGrindAndTemperatureAndScalesTheWaterToItsDose() {
         val saved = filter.copy(
-            doseGrams = 20.0, targetRatio = 15.0, grind = "24", waterTempCelsius = 94,
+            doseGrams = 20.0, targetRatio = 15.0, grind = 24, waterTempCelsius = 94,
             steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 300.0, 30_000)),
         )
         val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
             .withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, waterTempCelsius = 93, doseGrams = 21.0))
 
         assertEquals(21.0, plan.doseGrams, 0.0)
-        assertEquals("23", plan.brewRecipe!!.grind)
+        assertEquals(23, plan.brewRecipe!!.grind)
         assertEquals(93, plan.brewRecipe!!.waterTempCelsius)
         assertEquals(listOf(42.0, 315.0), plan.brewRecipe!!.steps.map { it.targetWeightGrams })
         // The selected recipe stays as saved, so the adjustment can be dropped again.
@@ -45,7 +45,7 @@ class BrewPlanTest {
 
     @Test
     fun anAdjustmentKeepsWhatItDoesNotChangeAndAWaterChosenForThisBrew() {
-        val saved = filter.copy(doseGrams = 20.0, targetRatio = 15.0, grind = "24", waterTempCelsius = 94)
+        val saved = filter.copy(doseGrams = 20.0, targetRatio = 15.0, grind = 24, waterTempCelsius = 94)
         val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
 
         val grindOnly = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23))
@@ -54,13 +54,13 @@ class BrewPlanTest {
 
         val edited = plan.withWater(240.0)!!.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, doseGrams = 21.0))
         assertEquals(16.0, edited.doseGrams, 0.0)
-        assertEquals("23", edited.brewRecipe!!.grind)
+        assertEquals(23, edited.brewRecipe!!.grind)
     }
 
     @Test
     fun anAdjustmentDoseThatWouldNeedWaterBeyondTheScaleIsLeftOut() {
         val saved = filter.copy(
-            doseGrams = 20.0, targetRatio = 30.0, grind = "24", waterTempCelsius = 94,
+            doseGrams = 20.0, targetRatio = 30.0, grind = 24, waterTempCelsius = 94,
             steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 600.0, 30_000)),
         )
         val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
@@ -68,7 +68,7 @@ class BrewPlanTest {
         // 67 g × 30 is 2010 g of water, beyond the scale: the brew keeps the recipe's dose and targets, consistently.
         val kept = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, doseGrams = 67.0))
         assertEquals(20.0, kept.doseGrams, 0.0)
-        assertEquals("23", kept.brewRecipe!!.grind)
+        assertEquals(23, kept.brewRecipe!!.grind)
         assertEquals(listOf(40.0, 600.0), kept.brewRecipe!!.steps.map { it.targetWeightGrams })
 
         // 66 g × 30 is 1980 g of water: within the scale, so the dose scales the water as usual.

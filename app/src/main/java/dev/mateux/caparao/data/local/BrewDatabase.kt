@@ -249,7 +249,7 @@ abstract class BrewDatabase : RoomDatabase() {
                     }
                 }
                 recipeGrinds.forEach { (id, grinderNumber) ->
-                    db.execSQL("UPDATE recipes SET grind = ? WHERE id = ?", arrayOf(grinderNumber, id))
+                    db.execSQL("UPDATE recipes SET grind = ? WHERE id = ?", arrayOf<Any?>(grinderNumber, id))
                 }
                 db.execSQL(
                     "CREATE TABLE recipe_steps (recipe_id TEXT NOT NULL, position INTEGER NOT NULL, kind TEXT NOT NULL, " +
