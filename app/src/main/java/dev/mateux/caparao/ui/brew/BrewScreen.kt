@@ -251,6 +251,9 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 
 private const val PAUSED_RING_ALPHA = 0.45f
 
+/** How long the espresso screen waits for the cup before it offers "Tare now". */
+private const val TARE_LINK_DELAY_MS = 5_000L
+
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
     // The ring comes back from its paused color instead of jumping when the brew resumes.
@@ -353,9 +356,6 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
 }
 
 /** Free and guided filter share the same lift pause: the clock and guide hold until the dripper returns. */
-/** How long the espresso screen waits for the cup before it offers "Tare now". */
-private const val TARE_LINK_DELAY_MS = 5_000L
-
 @Composable
 private fun FilterPausedStep(state: BrewUiState, onDone: () -> Unit) {
     Column(
