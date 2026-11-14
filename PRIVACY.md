@@ -26,7 +26,7 @@ paired watch. They are excluded from cloud backups and device transfers. Uninsta
 
 - **Nearby devices (Bluetooth):** to find and connect to the scale.
 - **Local network and internet:** to send brews to your server and, if enabled, diagnostics.
-- **Notifications (watch):** to show a brew in progress.
+- **Notifications:** optional local reminders to rate a saved brew, and to show a brew in progress on a paired watch. Rating reminders use brew details already stored on your phone and are not sent anywhere.
 - **Vibration:** brew cues.
 
 ## Sharing and selling
@@ -79,7 +79,7 @@ dados.
 
 - **Dispositivos próximos (Bluetooth):** para encontrar e conectar à balança.
 - **Rede local e internet:** para enviar preparos ao seu servidor e, se ativado, o diagnóstico.
-- **Notificações (relógio):** para mostrar um preparo em andamento.
+- **Notificações:** lembretes locais opcionais para avaliar um preparo salvo e para mostrar um preparo em andamento no relógio pareado. Os lembretes usam dados que já ficam no celular e não enviam nada para terceiros.
 - **Vibração:** avisos durante o preparo.
 
 ## Compartilhamento e venda

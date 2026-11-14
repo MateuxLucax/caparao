@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,6 +80,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import dev.mateux.caparao.R
 import dev.mateux.caparao.brew.BrewPhase
 import dev.mateux.caparao.model.Brew
@@ -86,6 +88,7 @@ import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.components.BrewChart
 import dev.mateux.caparao.ui.components.BrewNumbers
+import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.components.RatioTarget
 import dev.mateux.caparao.ui.components.ScaleReadout
 import dev.mateux.caparao.ui.components.SystemBack
@@ -103,6 +106,7 @@ fun BrewScreen(
     onClose: () -> Unit,
     onRate: (String) -> Unit = {},
     onEditAdjustment: (bagId: String, recipeId: String) -> Unit = { _, _ -> },
+    actions: AppActions? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val view = LocalView.current
@@ -119,6 +123,63 @@ fun BrewScreen(
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     val finish = onClose
     var remindToRate by rememberSaveable { mutableStateOf(viewModel.remindToRate) }
+    // The Notifications rationale, shown once before the system prompt the first time the reminder needs it (#465).
+    var showReminderPermissionRationale by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val declineReminderPermission = {
+        viewModel.markRatingNotificationsPermissionAsked()
+        remindToRate = false
+        viewModel.setRemindToRate(false)
+    }
+    LaunchedEffect(state.saved?.id) {
+        if (
+            state.saved != null && viewModel.remindToRate && actions != null &&
+            !actions.notificationsPermissionGranted() && !viewModel.ratingNotificationsPermissionAsked
+        ) {
+            showReminderPermissionRationale = true
+        }
+    }
+    if (showReminderPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showReminderPermissionRationale = false; declineReminderPermission() },
+            title = { Text(stringResource(R.string.rating_reminder_permission_title)) },
+            text = { Text(stringResource(R.string.rating_reminder_permission_text)) },
+            confirmButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                    showReminderPermissionRationale = false
+                    scope.launch {
+                        viewModel.markRatingNotificationsPermissionAsked()
+                        if (actions != null && !actions.requestNotificationsPermission()) {
+                            remindToRate = false
+                            viewModel.setRemindToRate(false)
+                        } else if (!remindToRate) {
+                            remindToRate = true
+                            viewModel.setRemindToRate(true)
+                        }
+                    }
+                }) { Text(stringResource(R.string.rating_reminder_allow_notifications)) }
+            },
+            dismissButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showReminderPermissionRationale = false; declineReminderPermission() }) {
+                    Text(stringResource(R.string.rating_reminder_not_now))
+                }
+            },
+        )
+    }
+    val changeReminder: (Boolean) -> Unit = { enabled ->
+        if (!enabled) {
+            remindToRate = false
+            viewModel.setRemindToRate(false)
+        } else if (actions == null || actions.notificationsPermissionGranted()) {
+            remindToRate = true
+            viewModel.setRemindToRate(true)
+        } else if (viewModel.ratingNotificationsPermissionAsked) {
+            // Asked once and not granted: the switch stays off without nagging; App settings is the way (#465).
+            remindToRate = false
+        } else {
+            showReminderPermissionRationale = true
+        }
+    }
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
@@ -251,7 +312,7 @@ fun BrewScreen(
                     BrewStep.SUMMARY -> SummaryStep(
                         state,
                         remindToRate = remindToRate,
-                        onRemindToRate = { enabled -> remindToRate = enabled; viewModel.setRemindToRate(enabled) },
+                        onRemindToRate = changeReminder,
                         onRateNow = { brew -> onRate(brew.id) },
                         onDone = finish,
                         onDiscard = { viewModel.discard(); onClose() },
@@ -482,7 +543,7 @@ private fun SummaryStep(
                 Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = remindToRate, onCheckedChange = onRemindToRate)
+            Switch(checked = remindToRate, onCheckedChange = onRemindToRate, modifier = Modifier.testTag("remind-to-rate"))
         }
         Spacer(Modifier.height(8.dp))
         FilledTonalButton(

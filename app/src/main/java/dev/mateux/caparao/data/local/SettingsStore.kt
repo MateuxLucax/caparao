@@ -25,7 +25,7 @@ data class SyncStatus(
  * `guide_sound`; `remote_diagnostics` and `remote_diagnostics_consent_ms`; `server_url`, `server_token`,
  * `last_sync_ms`, `last_sync_error`, `last_sync_error_detail` and `last_sync_error_brew`.
  * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472);
- * `remind_to_rate` (#464).
+ * `remind_to_rate` (#464), `rating_reminder_delay_minutes` and `rating_notifications_permission_asked` (#465).
  */
 class SettingsStore(private val prefs: SharedPreferences) {
     var onboardingDone: Boolean
@@ -63,6 +63,20 @@ class SettingsStore(private val prefs: SharedPreferences) {
     var remindToRate: Boolean
         get() = prefs.getBoolean(KEY_REMIND_TO_RATE, true)
         set(value) = prefs.edit().putBoolean(KEY_REMIND_TO_RATE, value).apply()
+
+    /** Minutes after a saved brew before its rating reminder, from 5 through 15; defaults to 10 (#465). */
+    var ratingReminderDelayMinutes: Int
+        get() = prefs.getInt(KEY_RATING_REMINDER_DELAY, DEFAULT_RATING_REMINDER_DELAY_MINUTES)
+            .coerceIn(MIN_RATING_REMINDER_DELAY_MINUTES, MAX_RATING_REMINDER_DELAY_MINUTES)
+        set(value) = prefs.edit().putInt(
+            KEY_RATING_REMINDER_DELAY,
+            value.coerceIn(MIN_RATING_REMINDER_DELAY_MINUTES, MAX_RATING_REMINDER_DELAY_MINUTES),
+        ).apply()
+
+    /** Whether the app has already asked once for Android's Notifications permission (#465). */
+    var ratingNotificationsPermissionAsked: Boolean
+        get() = prefs.getBoolean(KEY_RATING_NOTIFICATIONS_PERMISSION_ASKED, false)
+        set(value) = prefs.edit().putBoolean(KEY_RATING_NOTIFICATIONS_PERMISSION_ASKED, value).apply()
 
     /** Guided brew alerts (#103): vibration on by default, sound off. */
     var guideVibration: Boolean
@@ -182,6 +196,11 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_LAST_STEEP = "last_steep_ms"
         private const val KEY_REMIND_TO_RATE = "remind_to_rate"
+        private const val KEY_RATING_REMINDER_DELAY = "rating_reminder_delay_minutes"
+        private const val KEY_RATING_NOTIFICATIONS_PERMISSION_ASKED = "rating_notifications_permission_asked"
+        const val DEFAULT_RATING_REMINDER_DELAY_MINUTES = 10
+        const val MIN_RATING_REMINDER_DELAY_MINUTES = 5
+        const val MAX_RATING_REMINDER_DELAY_MINUTES = 15
         const val DEFAULT_STEEP_MS = 4 * 60 * 1000L
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"

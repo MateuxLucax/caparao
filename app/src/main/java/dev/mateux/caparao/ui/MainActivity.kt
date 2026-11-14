@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -63,6 +64,8 @@ class MainActivity : ComponentActivity() {
 
     /** A launcher shortcut (#116) asked for a destination that [App] has not applied yet; null once it has. */
     private val requestedShortcut = MutableStateFlow<LauncherShortcut?>(null)
+    /** A reminder notification asked MainActivity to show this brew's rating screen. */
+    private val requestedRating = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -74,17 +77,21 @@ class MainActivity : ComponentActivity() {
             launchAction = intent.action,
             recreated = savedInstanceState != null,
         )
+        requestedRating.value = savedInstanceState?.getString(STATE_RATING) ?: intent?.ratingBrewId()
         val actions = AppActions(
             requestBluetoothPermissions = ::requestBluetoothPermissions,
             bluetoothPermissionGranted = { BLUETOOTH_PERMISSIONS.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } },
             enableBluetooth = ::enableBluetooth,
             openAppSettings = ::openAppSettings,
             requestLocalNetwork = ::requestLocalNetwork,
+            requestNotificationsPermission = ::requestNotificationsPermission,
+            notificationsPermissionGranted = ::notificationsPermissionGranted,
         )
         if (savedInstanceState == null) lifecycleScope.launch { container.uploads.ensurePending() }
         keepScreenOnWhileConnected()
         setContent {
             val shortcut by requestedShortcut.collectAsStateWithLifecycle()
+            val ratingBrewId by requestedRating.collectAsStateWithLifecycle()
             AppTheme {
                 App(
                     container.viewModelFactory,
@@ -94,6 +101,8 @@ class MainActivity : ComponentActivity() {
                     BuildConfig.VERSION_NAME,
                     shortcut = shortcut,
                     onShortcutConsumed = ::shortcutConsumed,
+                    ratingBrewId = ratingBrewId,
+                    onRatingConsumed = ::ratingConsumed,
                     entryStoreProvider = navEntryStoreProvider,
                 )
             }
@@ -103,19 +112,28 @@ class MainActivity : ComponentActivity() {
     /** A shortcut tapped while the task is alive: MainActivity is singleTop, so the system delivers it here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         LauncherShortcut.fromAction(intent.action)?.let { requestedShortcut.value = it }
+        requestedRating.value = intent.ratingBrewId()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         // A consumed shortcut is saved as absent, so a rotation or a restored process does not apply it again.
         outState.putString(STATE_SHORTCUT, requestedShortcut.value?.id)
+        outState.putString(STATE_RATING, requestedRating.value)
     }
 
     private fun shortcutConsumed() {
         requestedShortcut.value = null
         // The launch intent outlives the activity that consumed it: drop the action so a later re-creation cannot read it.
         intent?.action = null
+    }
+
+    private fun ratingConsumed() {
+        requestedRating.value = null
+        intent?.action = null
+        intent?.removeExtra(EXTRA_RATING_BREW_ID)
     }
 
     /**
@@ -193,10 +211,36 @@ class MainActivity : ComponentActivity() {
         return result.await()
     }
 
+    private fun notificationsPermissionGranted(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    private suspend fun requestNotificationsPermission(): Boolean {
+        if (notificationsPermissionGranted()) return true
+        notificationsPermissionResult?.complete(false)
+        val result = CompletableDeferred<Boolean>().also { notificationsPermissionResult = it }
+        notificationsPermissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+        return result.await()
+    }
+
     companion object {
         val BLUETOOTH_PERMISSIONS = arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
         /** The shortcut still pending in the saved instance state (#116). */
         private const val STATE_SHORTCUT = "shortcut"
+        private const val STATE_RATING = "rating_brew_id"
+        const val ACTION_RATE_BREW = "dev.mateux.caparao.action.RATE_BREW"
+        const val EXTRA_RATING_BREW_ID = "rating_brew_id"
+
+        private fun Intent.ratingBrewId(): String? =
+            takeIf { action == ACTION_RATE_BREW }?.getStringExtra(EXTRA_RATING_BREW_ID)?.takeIf(String::isNotBlank)
+    }
+
+    /** Waiting for the answer to the first Notifications permission request. */
+    private var notificationsPermissionResult: CompletableDeferred<Boolean>? = null
+
+    private val notificationsPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationsPermissionResult?.complete(granted)
+        notificationsPermissionResult = null
     }
 }

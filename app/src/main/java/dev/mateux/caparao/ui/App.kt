@@ -109,6 +109,8 @@ fun App(
     versionName: String,
     shortcut: LauncherShortcut? = null,
     onShortcutConsumed: () -> Unit = {},
+    ratingBrewId: String? = null,
+    onRatingConsumed: () -> Unit = {},
     entryStoreProvider: ViewModelStoreProvider? = null,
 ) {
     LifecycleStartEffect(scale) {
@@ -125,7 +127,7 @@ fun App(
             onboarded = true
         }
     } else {
-        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed, entryStoreProvider)
+        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed, ratingBrewId, onRatingConsumed, entryStoreProvider)
     }
 }
 
@@ -137,6 +139,8 @@ private fun Main(
     versionName: String,
     shortcut: LauncherShortcut?,
     onShortcutConsumed: () -> Unit,
+    ratingBrewId: String?,
+    onRatingConsumed: () -> Unit,
     entryStoreProvider: ViewModelStoreProvider?,
 ) {
     val backStack = rememberNavBackStack(Destination.Tabs)
@@ -191,6 +195,12 @@ private fun Main(
         }
     }
 
+    LaunchedEffect(ratingBrewId) {
+        val id = ratingBrewId ?: return@LaunchedEffect
+        if (backStack.lastOrNull() != Destination.Rating(id)) backStack.add(Destination.Rating(id))
+        onRatingConsumed()
+    }
+
     NavDisplay(
         backStack = backStack,
         onBack = { handleBack() },
@@ -239,6 +249,7 @@ private fun Main(
                         onClose = close,
                         onRate = { backStack.add(Destination.Rating(it)) },
                         onEditAdjustment = { bagId, recipeId -> backStack.add(Destination.Adjustment(bagId, recipeId)) },
+                        actions = actions,
                     )
                 }
             }

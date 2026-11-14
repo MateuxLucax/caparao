@@ -35,6 +35,8 @@ class BrewDetailViewModel(
     private val onEdited: (String) -> Unit = {},
     /** The bags the notes pick the coffee from; null in tests that never edit notes. */
     private val coffeeBags: CoffeeBagRepository? = null,
+    /** Called after the brew was deleted, to cancel its upload and local rating reminder. */
+    private val onBrewDeleted: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewDetailUiState())
     val uiState: StateFlow<BrewDetailUiState> = _uiState.asStateFlow()
@@ -80,6 +82,7 @@ class BrewDetailViewModel(
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
             repository.delete(id)
+            onBrewDeleted(id)
             onDeleted()
         }
     }
