@@ -33,6 +33,8 @@ import dev.mateux.caparao.sync.WorkManagerUploadQueue
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
 import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
@@ -110,6 +112,7 @@ class AppContainer(context: Context) {
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
 
     val bagRecipeAdjustments = BagRecipeAdjustmentRepository(database.bagRecipeAdjustments())
+    val brewSuggestions = BrewSuggestions(recipes, bagRecipeAdjustments)
 
     private val exporter = ExporterClient()
 
@@ -167,7 +170,8 @@ class AppContainer(context: Context) {
         initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
-        initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags, uploads::brewSaved) }
+        initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags, uploads::brewSaved, brewSuggestions::afterRating) }
+        initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, coffeeBags, brewSuggestions, bagRecipeAdjustments) }
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,

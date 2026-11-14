@@ -31,6 +31,8 @@ class BrewRatingViewModel(
     private val coffeeBags: CoffeeBagRepository,
     /** Called after the changed rating has been persisted, so it can be uploaded again. */
     private val onSaved: (String) -> Unit = {},
+    /** What the saved rating leads to: a suggestion, a tuned confirmation, or nothing (#468). */
+    private val next: suspend (Brew) -> RatingNext = { RatingNext.CLOSE },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewRatingUiState())
     val uiState: StateFlow<BrewRatingUiState> = _uiState.asStateFlow()
@@ -66,8 +68,11 @@ class BrewRatingViewModel(
 
     fun setNotes(notes: String) = _uiState.update { it.copy(notes = notes.take(1000)) }
 
-    /** Saves the chosen taste and notes, schedules the updated brew for upload, and closes the screen. */
-    fun save(onClose: () -> Unit) {
+    /**
+     * Saves the chosen taste and notes and schedules the updated brew for upload. [onDone] gets what comes next; only
+     * a new or changed taste can lead to a suggestion, so editing the notes later does not suggest again.
+     */
+    fun save(onDone: (RatingNext) -> Unit) {
         val state = _uiState.value
         val brew = state.brew ?: return
         if (state.loading || state.saving) return
@@ -81,14 +86,14 @@ class BrewRatingViewModel(
                 ).distinct(),
         )
         if (updated == brew) {
-            onClose()
+            onDone(RatingNext.CLOSE)
             return
         }
         _uiState.update { it.copy(saving = true) }
         viewModelScope.launch {
             repository.saveRating(updated)
             onSaved(id)
-            onClose()
+            onDone(if (updated.taste != brew.taste) next(updated) else RatingNext.CLOSE)
         }
     }
 

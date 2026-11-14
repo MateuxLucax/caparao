@@ -170,6 +170,70 @@ class BrewAdjustmentSuggestionTest {
         }
     }
 
+    @Test
+    fun anchorsSuggestionsOnWhatTheBrewRecorded() {
+        // The stored adjustment says 9, 85 °C and 18 g, but the brew followed the recipe (10, 90 °C, 15 g).
+        val stored = BagRecipeAdjustment("bag", "recipe", grind = 9, waterTempCelsius = 85, doseGrams = 18.0)
+        val followed = brew(99_000, BrewTaste.SOUR, grind = "10", waterTempCelsius = 90, doseGrams = 15.0)
+
+        // The next grind moves from the recorded 10, and the unused values are not carried over.
+        assertEquals(
+            suggested(BagRecipeAdjustment("bag", "recipe", grind = 9)),
+            suggestBrewAdjustment(recipe, followed, stored, lowestGrindNumber = 1),
+        )
+        // On target and sour, the water moves from the recorded 90, not from the stored 85.
+        assertEquals(
+            suggested(BagRecipeAdjustment("bag", "recipe", waterTempCelsius = 91)),
+            suggestBrewAdjustment(
+                recipe,
+                brew(110_000, BrewTaste.SOUR, grind = "10", waterTempCelsius = 90, doseGrams = 15.0),
+                stored,
+                lowestGrindNumber = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun doesNotMarkAnAdjustmentTheBrewDidNotUseAsTuned() {
+        val stored = BagRecipeAdjustment("bag", "recipe", grind = 9, waterTempCelsius = 91, doseGrams = 18.0)
+        val followed = brew(110_000, BrewTaste.BALANCED, grind = "10", waterTempCelsius = 90, doseGrams = 15.0)
+        assertEquals(BrewAdjustmentSuggestion.NothingToSuggest, suggestBrewAdjustment(recipe, followed, stored, 1))
+    }
+
+    @Test
+    fun marksTheAdjustmentTunedWhenTheBrewUsedIt() {
+        val stored = BagRecipeAdjustment("bag", "recipe", grind = 9, waterTempCelsius = 91, doseGrams = 18.0)
+        val brewed = brew(110_000, BrewTaste.BALANCED, grind = "9", waterTempCelsius = 91, doseGrams = 18.2)
+        assertEquals(BrewAdjustmentSuggestion.Tuned, suggestBrewAdjustment(recipe, brewed, stored, 1))
+        // A suggestion moves from the recorded values and keeps the used adjustment as its base.
+        assertEquals(
+            suggested(stored.copy(grind = 8)),
+            suggestBrewAdjustment(
+                recipe,
+                brew(99_000, BrewTaste.SOUR, grind = "9", waterTempCelsius = 91, doseGrams = 18.2),
+                stored,
+                lowestGrindNumber = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun skipsSuggestionsWhenTheRecipeNoLongerExplainsTheBrew() {
+        // The brew recorded 10 and 90 °C; the recipe has since been edited to 12 and 85 °C.
+        val edited = recipe.copy(grind = "12", waterTempCelsius = 85, targetMinMs = 120_000, targetMaxMs = 150_000)
+        val old = brew(99_000, BrewTaste.SOUR, grind = "10", waterTempCelsius = 90)
+        assertEquals(
+            BrewAdjustmentSuggestion.NothingToSuggest,
+            suggestBrewAdjustment(edited, old, BagRecipeAdjustment("bag", "recipe"), 1),
+        )
+        // A changed temperature alone is enough to stop judging the old brew.
+        val oldWithoutGrind = brew(99_000, BrewTaste.SOUR, waterTempCelsius = 90)
+        assertEquals(
+            BrewAdjustmentSuggestion.NothingToSuggest,
+            suggestBrewAdjustment(edited.copy(grind = "medium"), oldWithoutGrind, BagRecipeAdjustment("bag", "recipe"), 1),
+        )
+    }
+
     private fun suggested(adjustment: BagRecipeAdjustment) = BrewAdjustmentSuggestion.Suggested(adjustment)
 
     private fun brew(
@@ -177,17 +241,22 @@ class BrewAdjustmentSuggestionTest {
         taste: BrewTaste?,
         interrupted: Boolean = false,
         mode: BrewMode = BrewMode.FILTER,
+        grind: String? = null,
+        waterTempCelsius: Int? = null,
+        doseGrams: Double = 15.0,
     ) = Brew(
         id = "brew",
         mode = mode,
         startedAt = 0,
         durationMs = durationMs,
-        doseGrams = 15.0,
+        doseGrams = doseGrams,
         yieldGrams = 240.0,
         timeToFirstDropMs = null,
         flowAvgGramsPerSecond = 2.0,
         flowPeakGramsPerSecond = 5.0,
         interrupted = interrupted,
         taste = taste,
+        grind = grind,
+        waterTempCelsius = waterTempCelsius,
     )
 }

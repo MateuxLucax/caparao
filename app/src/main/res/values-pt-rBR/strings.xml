@@ -437,4 +437,25 @@
     <string name="milestone_coffee">Café</string>
     <string name="no_bag">Sem pacote</string>
     <string name="coffee_below_dose">Menos que esta dose</string>
+    <string name="suggestion_title">Sugestão</string>
+    <string name="suggestion_grind_coarser">Moagem mais grossa</string>
+    <string name="suggestion_grind_finer">Moagem mais fina</string>
+    <string name="suggestion_temp_hotter">Água mais quente</string>
+    <string name="suggestion_temp_cooler">Água mais fria</string>
+    <string name="suggestion_opposite">Tempo e sabor discordam</string>
+    <string name="suggestion_opposite_text">Por isso não há sugestão desta vez. Você pode mudar o ajuste por conta própria.</string>
+    <string name="suggestion_why">Por quê</string>
+    <string name="suggestion_time_over">%1$s, %2$d s acima da meta (%3$s–%4$s)</string>
+    <string name="suggestion_time_under">%1$s, %2$d s abaixo da meta (%3$s–%4$s)</string>
+    <string name="suggestion_time_on">%1$s, dentro da meta (%2$s–%3$s)</string>
+    <string name="suggestion_taste_sour">Ficou azedo</string>
+    <string name="suggestion_taste_balanced">Ficou equilibrado</string>
+    <string name="suggestion_taste_bitter">Ficou amargo</string>
+    <string name="suggestion_notes">%1$d de %2$d notas sentidas</string>
+    <string name="suggestion_keeps_grind">A temperatura da água e a dose continuam iguais.</string>
+    <string name="suggestion_keeps_temp">A moagem e a dose continuam iguais.</string>
+    <string name="suggestion_save">Salvar para este café</string>
+    <string name="suggestion_not_now">Agora não</string>
+    <string name="suggestion_edit_adjustment">Editar ajuste</string>
+    <string name="suggestion_tuned">Afinado para este café.</string>
 </resources>
