@@ -468,14 +468,15 @@ private fun GrindCell(value: String, isError: Boolean, onValue: (String) -> Unit
     val increase = stringResource(R.string.recipe_grind_increase)
     CellInput(value, onValue, Input.INTEGER, modifier, description = label) { inner ->
         CellBox(R.string.recipe_grind, isError, CellShape, Modifier.fillMaxSize()) {
+            // The number sits where the other cells' values do; − and + share the right edge.
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { inner() }
                 IconButton(
                     shapes = IconButtonDefaults.shapes(),
                     onClick = { valueNumber?.let { onValue((it - 1).toString()) } },
                     modifier = Modifier.size(32.dp).semantics { contentDescription = decrease },
                     enabled = valueNumber != null,
                 ) { Text("−", style = MaterialTheme.typography.titleMedium) }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { inner() }
                 IconButton(
                     shapes = IconButtonDefaults.shapes(),
                     onClick = { onValue(((valueNumber ?: 0) + 1).toString()) },
