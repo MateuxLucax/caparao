@@ -285,6 +285,48 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         waitFor(R.string.coffee_tends_bitter)
         compose.onNodeWithText(notes(3)).assertExists()
     }
+
+
+    /** The summary card at 320 dp (#469): the three stats wrap instead of clipping, in pt-BR. */
+    @Test
+    fun smallScreenCoffeeSummary() {
+        assumeTrue(
+            "small-screen variant only",
+            context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640,
+        )
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(
+                CoffeeBag("bag-1", "Caparaó natural", weightGrams = 250.0, createdAt = now, tastingNotes = listOf("Caramel")),
+            )
+            repeat(3) { index ->
+                brews.save(
+                    Brew(
+                        "t$index", BrewMode.FILTER, now - (index + 1) * 1_000, 185_000, 20.0, 300.0, null, 1.6, 4.0,
+                        interrupted = false, recipeName = "Melitta 102", bagId = "bag-1", rating = 4,
+                        taste = BrewTaste.BALANCED, tastingNotesFound = listOf("Caramel"), ratedAt = now,
+                    ),
+                    emptyList(),
+                )
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.coffee_summary_rating)
+        // The tendency is the widest stat in pt-BR; it must stay fully inside the screen.
+        val tendency = compose.onNodeWithText(text(R.string.coffee_tends_balanced))
+        tendency.assertIsDisplayed()
+        compose.waitForIdle()
+        val rootWidth = compose.onRoot().fetchSemanticsNode().boundsInRoot.width
+        val bounds = tendency.fetchSemanticsNode().boundsInRoot
+        assertTrue("tendency clipped at 320dp: right=${bounds.right} > $rootWidth", bounds.right <= rootWidth + 0.5f)
+        compose.onNodeWithText(text(R.string.coffee_summary_rating)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.tab_brews)).assertIsDisplayed()
+    }
+
+
     /**
      * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
      * move the bag between the states; Edit opens the same sheet, filled.

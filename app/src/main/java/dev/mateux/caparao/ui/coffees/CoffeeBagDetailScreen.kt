@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import dev.mateux.caparao.model.BrewTaste
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -152,8 +153,8 @@ private fun Roast(bag: CoffeeBag) {
 private fun Summary(bag: CoffeeBag, summary: CoffeeSummary, locale: Locale) {
     Card(Modifier.fillMaxWidth().testTag("coffee-summary"), shape = MaterialTheme.shapes.large) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                bag.averageRating?.let { Stat(R.string.coffee_summary_rating, Format.ratio(it, locale)) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                bag.averageRating?.let { Stat(R.string.coffee_summary_rating, Format.oneDecimal(it, locale)) }
                 Stat(R.string.tab_brews, bag.brewCount.toString())
                 summary.tendency?.let {
                     Stat(
