@@ -75,8 +75,15 @@ class BrewRatingViewModel(
             rating = state.rating,
             notes = state.notes.trim().ifEmpty { null },
             taste = state.taste,
-            tastingNotesFound = state.bagTastingNotes.filter { it in state.tastingNotesFound },
+            tastingNotesFound = (
+                brew.tastingNotesFound.filterNot { it in state.bagTastingNotes } +
+                    state.bagTastingNotes.filter { it in state.tastingNotesFound }
+                ).distinct(),
         )
+        if (updated == brew) {
+            onClose()
+            return
+        }
         _uiState.update { it.copy(saving = true) }
         viewModelScope.launch {
             repository.saveRating(updated)

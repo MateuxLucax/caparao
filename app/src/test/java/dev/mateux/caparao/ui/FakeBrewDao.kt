@@ -48,7 +48,7 @@ class FakeBrewDao : BrewDao {
         samples.remove(id)
     }
 
-    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?, now: Long) {
+    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?) {
         brews.value = brews.value.map {
             if (it.id == id) {
                 it.copy(
@@ -56,9 +56,6 @@ class FakeBrewDao : BrewDao {
                     bagId = bagId,
                     grind = grind,
                     waterTempCelsius = waterTempCelsius,
-                    rating = rating,
-                    notes = notes,
-                    ratedAt = if (rating != null || !notes.isNullOrBlank()) it.ratedAt ?: now else it.ratedAt,
                     syncedAt = null,
                     revision = it.revision + 1,
                 )
@@ -68,7 +65,7 @@ class FakeBrewDao : BrewDao {
         }
     }
 
-    override suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long) {
+    override suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long?) {
         val tastingNotes = org.json.JSONArray(tastingNotesFound).let { array ->
             List(array.length()) { index -> array.getString(index) }
         }
@@ -79,7 +76,7 @@ class FakeBrewDao : BrewDao {
                     notes = notes,
                     taste = taste,
                     tastingNotesFound = tastingNotes,
-                    ratedAt = ratedAt,
+                    ratedAt = it.ratedAt ?: ratedAt,
                     syncedAt = null,
                     revision = it.revision + 1,
                 )

@@ -12,6 +12,8 @@ import dev.mateux.caparao.model.BrewSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -40,8 +42,12 @@ class BrewDetailViewModel(
 
     init {
         viewModelScope.launch {
-            val brew = repository.get(id)
-            _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false)
+            val samples = repository.samples(id)
+            repository.brews
+                .map { brews -> brews.firstOrNull { it.id == id } }
+                .collect { brew ->
+                    _uiState.update { it.copy(brew = brew, samples = samples, loading = false) }
+                }
         }
     }
 
@@ -57,7 +63,7 @@ class BrewDetailViewModel(
 
     fun cancelNotes() = _uiState.update { it.copy(notes = null) }
 
-    /** Saves the notes; the brew is unsynced until the server has them (#105). */
+    /** Saves the coffee and recipe notes; the brew is unsynced until the server has them (#105). */
     fun saveNotes() {
         val state = _uiState.value
         val brew = state.brew ?: return

@@ -160,7 +160,7 @@ class UploadRunnerTest {
 
         val firstAttempt = async(Dispatchers.Default) { runner.run("b1") }
         uploadStarted.await()
-        repository.updateNotes(repository.get("b1")!!.copy(notes = "Sweet"))
+        repository.saveRating(repository.get("b1")!!.copy(notes = "Sweet"), ratedAt = 41_000)
         releaseUpload.complete(Unit)
 
         assertEquals(UploadOutcome.RETRY, firstAttempt.await())

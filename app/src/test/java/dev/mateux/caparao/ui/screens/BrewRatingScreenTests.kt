@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -13,8 +14,12 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.runtime.mutableStateOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.mateux.caparao.R
+import dev.mateux.caparao.data.local.CoffeeBagRepository
+import dev.mateux.caparao.ui.brews.BrewRatingScreen
+import dev.mateux.caparao.ui.theme.AppTheme
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewTaste
 import kotlinx.coroutines.runBlocking
@@ -54,22 +59,88 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
     }
 
     @Test
-    fun brewDetailKeepsCoffeeGrindAndTemperatureEditingAndCanOpenRating() {
+    fun brewDetailCanRateThenEditGrindWithoutLosingTheRating() {
         seedCoffeeBags()
         linkBrew("detail-rate", "bag-1", 18.0)
-        open("idle-5min", 0)
-        click(R.string.tab_brews)
-        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
-        compose.onNode(hasText(" ${text(R.string.unit_grams)} →", substring = true)).performClick()
-        waitFor(R.string.edit_notes)
+        openBrewDetail()
+
+        compose.onNodeWithText(text(R.string.brew_rate)).performClick()
+        waitFor(R.string.brew_how_was_it)
+        waitFor(R.string.brew_taste)
+        compose.onNodeWithText(text(R.string.brew_taste_balanced)).performScrollTo().performClick()
+        compose.onNodeWithText("Chocolate").performScrollTo().performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.rating_stars, 4)).performScrollTo().performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_notes)))
+            .performScrollTo()
+            .performTextReplacement("Peach and honey")
+        compose.onNodeWithText(text(R.string.brew_save_rating)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.brew_how_was_it)).fetchSemanticsNodes().isEmpty() }
 
         compose.onNodeWithText(text(R.string.edit_notes)).performScrollTo().performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_coffee))).assertExists()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_grind))).assertExists()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_temp))).assertExists()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_grind)))
+            .performScrollTo()
+            .performTextReplacement("Fine")
+        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+
+        val saved = runBlocking { brews.get("detail-rate")!! }
+        assertEquals("Fine", saved.grind)
+        assertEquals(BrewTaste.BALANCED, saved.taste)
+        assertEquals(listOf("Chocolate"), saved.tastingNotesFound)
+        assertEquals(4, saved.rating)
+        assertEquals("Peach and honey", saved.notes)
+        tapEditorClose()
+    }
+
+    @Test
+    fun bagWithoutTastingNotesHidesThatSection() {
+        seedCoffeeBags()
+        linkBrew("no-bag-notes", "bag-2", 18.0)
+        openBrewDetail()
         compose.onNodeWithText(text(R.string.brew_rate)).performClick()
         waitFor(R.string.brew_how_was_it)
         waitFor(R.string.brew_taste)
+
+        compose.onNodeWithText(text(R.string.brew_tasting_notes_found)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_tasting_notes_hint)).assertDoesNotExist()
+        tapBack()
+    }
+
+    @Test
+    fun reopeningARatedBrewShowsItsSavedValues() {
+        seedCoffeeBags()
+        linkBrew("rated-brew", "bag-1", 18.0, rating = 4)
+        runBlocking {
+            val saved = brews.get("rated-brew")!!
+            brews.saveRating(
+                saved.copy(taste = BrewTaste.BALANCED, tastingNotesFound = listOf("Chocolate"), notes = "Peach and honey"),
+                ratedAt = saved.startedAt + 1,
+            )
+        }
+        openBrewDetail()
+        compose.onNodeWithText(text(R.string.brew_rate)).performClick()
+        waitFor(R.string.brew_how_was_it)
+        waitFor(R.string.brew_taste)
+
+        compose.onNode(hasText("Chocolate") and isSelected()).assertExists()
+        compose.onNode(hasSetTextAction() and hasText("Peach and honey")).assertIsDisplayed()
+        tapBack()
+    }
+
+    @Test
+    fun missingBrewClosesTheRatingScreen() {
+        val closed = mutableStateOf(false)
+        val viewModel = dev.mateux.caparao.ui.brews.BrewRatingViewModel(
+            "missing",
+            brews,
+            CoffeeBagRepository(db.coffeeBags()),
+        )
+        compose.setContent { AppTheme { BrewRatingScreen(viewModel) { closed.value = true } } }
+
+        compose.waitUntil(5_000) { closed.value }
+        assertEquals(true, closed.value)
     }
 
     private fun espressoToSaved() {
@@ -140,7 +211,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
     private fun assertSavedScreenHasNoRatingForm() {
         compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_rating))).assertDoesNotExist()
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_notes))).assertDoesNotExist()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_notes))).assertDoesNotExist()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_coffee))).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.brew_rate_now)).assertIsDisplayed()
     }
@@ -155,7 +226,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
         compose.onNodeWithText(text(R.string.brew_taste_balanced)).performScrollTo().performClick()
         compose.onNodeWithText("Chocolate").performScrollTo().performClick()
         compose.onNodeWithContentDescription(context.getString(R.string.rating_stars, 4)).performScrollTo().performClick()
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_notes)))
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_notes)))
             .performScrollTo()
             .performTextReplacement("Peach and honey")
         // Save sits under the form, always in reach.
@@ -175,6 +246,14 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
 
     private fun waitForSavedBrewInDatabase() {
         compose.waitUntil(5_000) { runBlocking { brews.latest() != null } }
+    }
+
+    private fun openBrewDetail() {
+        open("idle-5min", 0)
+        click(R.string.tab_brews)
+        compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
+        compose.onNode(hasText(" ${text(R.string.unit_grams)} →", substring = true)).performClick()
+        waitFor(R.string.brew_rate)
     }
 }
 

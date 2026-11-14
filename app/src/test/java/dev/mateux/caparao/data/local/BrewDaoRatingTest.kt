@@ -22,18 +22,30 @@ class BrewDaoRatingTest {
     fun tearDown() = db.close()
 
     @Test
-    fun updateNotesMarksRatedForStarsOrNonblankNotesAndPreservesFirstRatingTime() = runBlocking {
-        dao.insert(brew("notes", startedAt = 1_000))
-        dao.insert(brew("stars", startedAt = 2_000))
+    fun editingBrewNotesDoesNotOverwriteTheRating() = runBlocking {
+        dao.insert(brew("rated", startedAt = 1_000).copy(
+            coffee = "Caparaó",
+            grind = "Medium",
+            rating = 4,
+            notes = "Sweet",
+            taste = "balanced",
+            tastingNotesFound = listOf("cocoa"),
+            ratedAt = 2_000,
+            revision = 1,
+        ))
 
-        dao.updateNotes("notes", null, null, null, null, rating = null, notes = "Sweet", now = 3_000)
-        dao.updateNotes("stars", null, null, null, null, rating = 4, notes = null, now = 4_000)
-        dao.updateNotes("notes", null, null, null, null, rating = null, notes = "  ", now = 5_000)
+        dao.updateNotes("rated", "Caparaó", "bag-1", "Fine", 93)
 
-        assertEquals(3_000L, dao.get("notes")!!.ratedAt)
-        assertEquals(4_000L, dao.get("stars")!!.ratedAt)
-        assertNull(dao.get("notes")!!.rating)
-        assertEquals(emptyList<BrewEntity>(), dao.notRatedYet().first())
+        val saved = dao.get("rated")!!
+        assertEquals("Fine", saved.grind)
+        assertEquals(93, saved.waterTempCelsius)
+        assertEquals(4, saved.rating)
+        assertEquals("Sweet", saved.notes)
+        assertEquals("balanced", saved.taste)
+        assertEquals(listOf("cocoa"), saved.tastingNotesFound)
+        assertEquals(2_000L, saved.ratedAt)
+        assertEquals(2, saved.revision)
+        assertNull(saved.syncedAt)
     }
 
     @Test
@@ -44,8 +56,18 @@ class BrewDaoRatingTest {
         dao.insert(brew("new", startedAt = 1_000))
         assertEquals(listOf("new"), notRated.first { it.isNotEmpty() }.map { it.id })
 
-        dao.updateNotes("new", null, null, null, null, rating = null, notes = "Balanced", now = 2_000)
+        dao.saveRating("new", rating = null, notes = "Balanced", taste = null, tastingNotesFound = "[]", ratedAt = 2_000)
         assertEquals(emptyList<BrewEntity>(), notRated.first { it.isEmpty() })
+    }
+
+    @Test
+    fun savingNoRatingDataDoesNotSetRatedAt() = runBlocking {
+        dao.insert(brew("new", startedAt = 1_000))
+
+        dao.saveRating("new", rating = null, notes = null, taste = null, tastingNotesFound = "[]", ratedAt = null)
+
+        assertNull(dao.get("new")!!.ratedAt)
+        assertEquals(listOf("new"), dao.notRatedYet().first().map { it.id })
     }
 
     private fun brew(id: String, startedAt: Long) = BrewEntity(

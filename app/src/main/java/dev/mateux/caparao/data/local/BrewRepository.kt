@@ -36,19 +36,20 @@ class BrewRepository(
         refreshAfterChange()
     }
 
-    /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes), marks it unsynced and bumps its revision. */
+    /** Saves [brew]'s coffee and recipe notes, marks it unsynced and bumps its revision. */
     suspend fun updateNotes(brew: Brew) =
-        dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes, System.currentTimeMillis())
+        dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius)
 
     /** Saves taste, the notes found, stars and free-text notes, marks the brew rated and bumps its revision. */
-    suspend fun saveRating(brew: Brew, ratedAt: Long = System.currentTimeMillis()) {
+    suspend fun saveRating(brew: Brew, ratedAt: Long? = null) {
+        val hasRating = brew.rating != null || !brew.notes.isNullOrBlank() || brew.taste != null || brew.tastingNotesFound.isNotEmpty()
         dao.saveRating(
             id = brew.id,
             rating = brew.rating,
             notes = brew.notes,
             taste = brew.taste?.name?.lowercase(),
             tastingNotesFound = CoffeeBagTastingNotesConverter().encode(brew.tastingNotesFound),
-            ratedAt = ratedAt,
+            ratedAt = brew.ratedAt ?: ratedAt ?: if (hasRating) System.currentTimeMillis() else null,
         )
     }
 

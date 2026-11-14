@@ -78,7 +78,7 @@ class BrewDaoTest {
     @Test
     fun markingSyncedOnlyMatchesTheRevisionThatWasUploaded() = runBlocking {
         dao.insertWithSamples(brew("a", "FILTER", 1), samples("a"))
-        dao.updateNotes("a", null, null, null, null, null, "Sweet", now = 100)
+        dao.updateNotes("a", coffee = null, bagId = null, grind = "22", waterTempCelsius = null)
 
         assertEquals(0, dao.markSynced("a", 20, revision = 0))
         assertNull(dao.get("a")!!.syncedAt)
@@ -87,27 +87,28 @@ class BrewDaoTest {
     }
 
     @Test
-    fun notesUnsyncTheBrewBumpItsRevisionAndKeepItsBagLink() = runBlocking {
+    fun coffeeNotesUnsyncTheBrewBumpItsRevisionAndKeepItsBagLink() = runBlocking {
         dao.insertWithSamples(brew("a", "FILTER", 1, syncedAt = 10).copy(coffee = "Old"), samples("a"))
-        dao.updateNotes("a", "New", "bag-1", "22", 94, 5, "Sweet", now = 100)
+        dao.updateNotes("a", "New", "bag-1", "22", 94)
         val a = dao.get("a")!!
         assertEquals("bag-1", a.bagId)
-        assertEquals(5, a.rating)
-        assertEquals("Sweet", a.notes)
+        assertEquals("New", a.coffee)
+        assertEquals("22", a.grind)
+        assertEquals(94, a.waterTempCelsius)
         assertNull(a.syncedAt)
         assertEquals(1, a.revision)
-        assertEquals(100L, a.ratedAt)
+        assertNull(a.ratedAt)
     }
 
     @Test
-    fun updateNotesOnlyMarksRatedWhenRatingOrNonblankNotesArePresent() = runBlocking {
+    fun updateNotesDoesNotMarkAnUnratedBrewAsRated() = runBlocking {
         dao.insertWithSamples(brew("a", "FILTER", 1), samples("a"))
         dao.insertWithSamples(brew("b", "FILTER", 2), samples("b"))
 
-        dao.updateNotes("a", null, null, null, null, null, "   ", now = 100)
-        dao.updateNotes("b", null, null, null, null, 4, null, now = 200)
+        dao.updateNotes("a", coffee = "Coffee", bagId = null, grind = null, waterTempCelsius = null)
+        dao.updateNotes("b", coffee = null, bagId = null, grind = "Fine", waterTempCelsius = null)
 
         assertNull(dao.get("a")!!.ratedAt)
-        assertEquals(200L, dao.get("b")!!.ratedAt)
+        assertNull(dao.get("b")!!.ratedAt)
     }
 }

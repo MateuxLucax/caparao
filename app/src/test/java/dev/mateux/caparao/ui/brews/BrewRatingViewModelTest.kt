@@ -44,6 +44,26 @@ class BrewRatingViewModelTest {
     }
 
     @Test
+    fun reopeningARatedBrewPrefillsItsRatingAndFoundNotes() = runTest {
+        val rated = brew.copy(
+            rating = 4,
+            notes = "Peach and honey",
+            taste = BrewTaste.BALANCED,
+            tastingNotesFound = listOf("Chocolate"),
+            ratedAt = 2_000,
+        )
+        repository.save(rated, emptyList())
+        bagRepository.save(CoffeeBag("bag1", "Caparaó", weightGrams = 250.0, createdAt = 1, tastingNotes = listOf("Chocolate", "Red fruit")))
+
+        val state = BrewRatingViewModel("b1", repository, bagRepository).uiState.value
+
+        assertEquals(BrewTaste.BALANCED, state.taste)
+        assertEquals(setOf("Chocolate"), state.tastingNotesFound)
+        assertEquals(4, state.rating)
+        assertEquals("Peach and honey", state.notes)
+    }
+
+    @Test
     fun selectedTasteAndBagNotesCanBeClearedAndOnlyBagNotesAreKept() = runTest {
         repository.save(brew, emptyList())
         bagRepository.save(CoffeeBag("bag1", "Caparaó", weightGrams = 250.0, createdAt = 1, tastingNotes = listOf("Chocolate")))
@@ -93,5 +113,72 @@ class BrewRatingViewModelTest {
         assertEquals(1, saved.revision)
         assertEquals("b1", savedId)
         assertTrue(closed)
+    }
+
+    @Test
+    fun savingWithoutAnyRatingDoesNotMarkOrChangeAnUnratedBrew() = runTest {
+        repository.save(brew, emptyList())
+        var saved = false
+        var closed = false
+        val vm = BrewRatingViewModel("b1", repository, bagRepository, onSaved = { saved = true })
+
+        vm.save { closed = true }
+
+        val unchanged = repository.get("b1")!!
+        assertNull(unchanged.ratedAt)
+        assertEquals(0, unchanged.revision)
+        assertNull(unchanged.syncedAt)
+        assertFalse(saved)
+        assertTrue(closed)
+    }
+
+    @Test
+    fun savingUnchangedValuesOnARatedBrewDoesNotReupload() = runTest {
+        repository.save(brew.copy(
+            rating = 4,
+            notes = "Bright",
+            taste = BrewTaste.SOUR,
+            tastingNotesFound = listOf("Chocolate"),
+            ratedAt = 2_000,
+            syncedAt = 3_000,
+            revision = 7,
+        ), emptyList())
+        bagRepository.save(CoffeeBag("bag1", "Caparaó", weightGrams = 250.0, createdAt = 1, tastingNotes = listOf("Chocolate")))
+        var saved = false
+        var closed = false
+        val vm = BrewRatingViewModel("b1", repository, bagRepository, onSaved = { saved = true })
+
+        vm.save { closed = true }
+
+        val unchanged = repository.get("b1")!!
+        assertEquals(7, unchanged.revision)
+        assertEquals(3_000L, unchanged.syncedAt)
+        assertEquals(2_000L, unchanged.ratedAt)
+        assertFalse(saved)
+        assertTrue(closed)
+    }
+
+    @Test
+    fun ratingAfterBagDeletionKeepsPreviouslyFoundNotes() = runTest {
+        repository.save(brew.copy(tastingNotesFound = listOf("Chocolate", "Red fruit")), emptyList())
+        val vm = BrewRatingViewModel("b1", repository, bagRepository)
+        vm.setRating(5)
+
+        vm.save {}
+
+        assertEquals(listOf("Chocolate", "Red fruit"), repository.get("b1")!!.tastingNotesFound)
+    }
+
+    @Test
+    fun ratingAfterBagNotesChangeKeepsFoundNotesOutsideTheCurrentBagList() = runTest {
+        repository.save(brew.copy(tastingNotesFound = listOf("Chocolate")), emptyList())
+        bagRepository.save(CoffeeBag("bag1", "Caparaó", weightGrams = 250.0, createdAt = 1, tastingNotes = listOf("Vanilla")))
+        val vm = BrewRatingViewModel("b1", repository, bagRepository)
+        vm.setRating(5)
+        vm.toggleTastingNote("Vanilla")
+
+        vm.save {}
+
+        assertEquals(listOf("Chocolate", "Vanilla"), repository.get("b1")!!.tastingNotesFound)
     }
 }

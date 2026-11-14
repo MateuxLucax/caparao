@@ -10,9 +10,6 @@ data class NotesForm(
     val bagId: String? = null,
     val grind: String = "",
     val temp: String = "",
-    /** 1–5, null when not rated. */
-    val rating: Int? = null,
-    val notes: String = "",
 ) {
     /** The temperature is empty or 1–100 °C. */
     val valid: Boolean get() = temp.isBlank() || temp.trim().toIntOrNull() in 1..100
@@ -29,8 +26,6 @@ data class NotesForm(
         bagId = bagId.takeIf { coffee.isNotBlank() },
         grind = grind.trim().ifEmpty { null },
         waterTempCelsius = temp.trim().toIntOrNull(),
-        rating = rating,
-        notes = notes.trim().ifEmpty { null },
     )
 
     companion object {
@@ -40,8 +35,6 @@ data class NotesForm(
             bagId = brew.bagId,
             grind = brew.grind.orEmpty(),
             temp = brew.waterTempCelsius?.toString().orEmpty(),
-            rating = brew.rating,
-            notes = brew.notes.orEmpty(),
         )
     }
 }

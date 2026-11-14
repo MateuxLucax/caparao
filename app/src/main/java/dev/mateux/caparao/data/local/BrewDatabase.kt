@@ -114,11 +114,10 @@ interface BrewDao {
     @Query("DELETE FROM brews WHERE id = :id")
     suspend fun delete(id: String)
 
-    /** The notes changed: the server's copy is stale, so the brew is unsynced again and its revision grows (#105, #315). */
+    /** The brew's coffee or recipe notes changed: its upload is stale and its revision grows (#105, #315). */
     @Query(
-        "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
-            "notes = :notes, rated_at = CASE WHEN :rating IS NOT NULL OR (:notes IS NOT NULL AND TRIM(:notes) != '') " +
-            "THEN COALESCE(rated_at, :now) ELSE rated_at END, synced_at = NULL, revision = revision + 1 WHERE id = :id",
+        "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, " +
+            "synced_at = NULL, revision = revision + 1 WHERE id = :id",
     )
     suspend fun updateNotes(
         id: String,
@@ -126,18 +125,15 @@ interface BrewDao {
         bagId: String?,
         grind: String?,
         waterTempCelsius: Int?,
-        rating: Int?,
-        notes: String?,
-        now: Long,
     )
 
     /** Saves a brew's rating locally and invalidates its previous upload. */
     @Query(
         "UPDATE brews SET rating = :rating, notes = :notes, taste = :taste, " +
-            "tasting_notes_found = :tastingNotesFound, rated_at = :ratedAt, synced_at = NULL, revision = revision + 1 " +
+            "tasting_notes_found = :tastingNotesFound, rated_at = COALESCE(rated_at, :ratedAt), synced_at = NULL, revision = revision + 1 " +
             "WHERE id = :id",
     )
-    suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long)
+    suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long?)
 }
 
 /**

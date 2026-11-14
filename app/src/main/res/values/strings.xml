@@ -318,7 +318,7 @@
     <string name="brew_taste_sour">Sour</string>
     <string name="brew_taste_balanced">Balanced</string>
     <string name="brew_taste_bitter">Bitter</string>
-    <string name="brew_tasting_notes_found">Did the bag’s notes show up?</string>
+    <string name="brew_tasting_notes_found">Did the bag\'s notes show up?</string>
     <string name="brew_tasting_notes_hint">Tap the ones you tasted in the cup.</string>
     <string name="brew_save_rating">Save rating</string>
     <string name="brew_rating">Rating</string>

@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -61,6 +62,9 @@ import dev.mateux.caparao.ui.format.Format
 fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
+    LaunchedEffect(state.loading, state.brew) {
+        if (!state.loading && state.brew == null) onClose()
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -140,7 +144,7 @@ fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
                         value = state.notes,
                         onValueChange = viewModel::setNotes,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.recipe_notes)) },
+                        label = { Text(stringResource(R.string.brew_notes)) },
                         minLines = 3,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         shape = MaterialTheme.shapes.medium,
