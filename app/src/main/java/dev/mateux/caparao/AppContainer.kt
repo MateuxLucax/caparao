@@ -162,7 +162,7 @@ class AppContainer(context: Context) {
         initializer { CoffeeBagsViewModel(coffeeBags) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-        initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
+        initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
         initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags, uploads::brewSaved) }

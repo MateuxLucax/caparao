@@ -31,6 +31,12 @@
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
     <string name="brews_empty_title">Você ainda não fez café.</string>
+    <string name="brews_to_rate">Para avaliar</string>
+    <string name="brews_rated">Avaliados</string>
+    <string name="filter_all">Todos</string>
+    <string name="brews_filter_empty">Nenhum preparo com este café ainda.</string>
+    <string name="brew_row_grind">moagem %1$s</string>
+    <string name="synced">Sincronizado</string>
 
     <!-- Config -->
     <string name="settings_no_browser">Nenhum navegador disponível.</string>

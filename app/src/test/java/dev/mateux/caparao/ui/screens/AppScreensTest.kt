@@ -140,7 +140,7 @@ class AppScreensTest {
             initializer { CoffeeBagsViewModel(coffeeBags) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus) {} }
             // No server is reached: Test connection fails, saving enqueues nothing.
             initializer {
                 ServerViewModel(

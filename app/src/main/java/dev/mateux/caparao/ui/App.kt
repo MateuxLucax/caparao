@@ -201,6 +201,7 @@ private fun Main(
                     onShortcutTabConsumed = { shortcutTab = null; onShortcutConsumed() },
                     onBrew = { backStack.add(Destination.Brew(it)) },
                     onOpen = { backStack.add(Destination.Detail(it)) },
+                    onRate = { backStack.add(Destination.Rating(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
                     onSettings = { backStack.add(Destination.Settings(it)) },
@@ -319,6 +320,7 @@ private fun Tabs(
     onShortcutTabConsumed: () -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
+    onRate: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
     onSettings: (SettingsDetail) -> Unit,
@@ -369,7 +371,7 @@ private fun Tabs(
                     modifier,
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     settingsServer,
                     settingsScale,

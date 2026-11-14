@@ -250,7 +250,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
             initializer {
                 ServerViewModel(
                     settings,

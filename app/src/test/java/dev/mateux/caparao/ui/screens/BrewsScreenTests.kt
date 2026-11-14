@@ -182,7 +182,69 @@ abstract class ScreenBrewsTests(lang: String, theme: String, compactOnly: Boolea
         compose.waitForIdle()
     }
 
-    /** An S-shaped pour to [water] over [durationMs], one sample a second. */
+    private fun save(id: String, daysAgo: Int, bagId: String? = null, ratedAt: Long? = null, rating: Int? = null, recipe: String = "V60") = runBlocking {
+        brews.save(
+            Brew(
+                id, BrewMode.FILTER, BREWED_AT - daysAgo * 86_400_000L, 185_000, 15.0, 240.0 + daysAgo, null, 1.3, 6.0, interrupted = false,
+                recipeName = recipe, bagId = bagId, ratedAt = ratedAt, rating = rating, grind = "22",
+                taste = if (ratedAt != null) dev.mateux.caparao.model.BrewTaste.BALANCED else null,
+            ),
+            curve(240.0, 185_000),
+        )
+    }
+
+    /** With every brew rated there is no "To rate" section; a rated row shows its taste, grind and stars. */
+    @Test
+    fun ratedBrewsHideTheToRateSection() {
+        save("rated", 0, ratedAt = BREWED_AT, rating = 4)
+        open("press-ramp", 0)
+        click(R.string.tab_brews)
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.brew_row_grind, "22"), substring = true), 5_000)
+        compose.onNodeWithText(text(R.string.brews_to_rate)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_rate)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_taste_balanced), substring = true, useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription(context.getString(R.string.rating_stars, 4), useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("${text(R.string.no_bag)} · V60", useUnmergedTree = true).assertExists()
+    }
+
+    /** A brew not rated yet sits under "To rate"; its Rate button opens the rating screen. */
+    @Test
+    fun toRateSectionOpensTheRating() {
+        save("rated", 1, ratedAt = BREWED_AT, rating = 5)
+        save("pending", 0)
+        open("press-ramp", 0)
+        click(R.string.tab_brews)
+        waitFor(R.string.brews_to_rate)
+        compose.onNodeWithText(text(R.string.brews_rated)).assertExists()
+        compose.onAllNodesWithText(text(R.string.brew_rate)).assertCountEquals(1)
+        click(R.string.brew_rate)
+        waitFor(R.string.brew_taste_balanced)
+    }
+
+    /** The filter row lists the open bags; picking one keeps its brews only, long names included. */
+    @Test
+    fun filtersTheListByCoffee() {
+        seedCoffeeBags()
+        val long = "Fazenda Santa Clara do Caparaó lote 12 catuaí amarelo fermentado"
+        runBlocking { CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-3", long, weightGrams = 250.0, createdAt = 1)) }
+        save("one", 0, bagId = "bag-1", recipe = "Melitta 102 da manhã com bloom longo e três despejos")
+        save("two", 1, bagId = "bag-3")
+        save("three", 2)
+        open("press-ramp", 0)
+        click(R.string.tab_brews)
+        waitFor(R.string.filter_all)
+        compose.onNode(hasText(text(R.string.filter_all)) and isSelected()).assertExists()
+        compose.onNodeWithText("$long · V60", useUnmergedTree = true).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.brew_rate)).assertCountEquals(3)
+        compose.onNode(hasText("Caparaó natural") and isSelectable()).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.brew_rate)).fetchSemanticsNodes().size == 1 }
+        compose.onNodeWithText("Caparaó natural · Melitta", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        // A bag without brews shows the one-line empty state, and All brings the list back.
+        compose.onNode(hasText("Mantiqueira") and isSelectable()).performClick()
+        waitFor(R.string.brews_filter_empty)
+        click(R.string.filter_all)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.brew_rate)).fetchSemanticsNodes().size == 3 }
+    }
 }
 
 private const val BREWED_AT = 1_791_793_800_000L
