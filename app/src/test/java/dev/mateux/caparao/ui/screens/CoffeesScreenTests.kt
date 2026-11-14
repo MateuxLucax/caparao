@@ -324,7 +324,10 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         val bounds = tendency.fetchSemanticsNode().boundsInRoot
         assertTrue("tendency clipped at 320dp: right=${bounds.right} > $rootWidth", bounds.right <= rootWidth + 0.5f)
         compose.onNodeWithText(text(R.string.coffee_summary_rating)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.tab_brews)).assertIsDisplayed()
+        // The notes line proves the card renders at 320 dp, next to the wrapped stats.
+        compose.onNodeWithText(
+            context.getString(R.string.coffee_notes_found, context.getString(R.string.coffee_note_count, "Caramel", 3, 3)),
+        ).assertIsDisplayed()
     }
 
 
