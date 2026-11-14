@@ -29,6 +29,16 @@ data class BagForm(
 ) {
     val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null
 
+    /**
+     * Adds [value] as a tasting note when there is room: trimmed, case-insensitive duplicates ignored,
+     * six notes at most. Returns this form unchanged when the note is not added.
+     */
+    fun withNote(value: String): BagForm {
+        val note = value.trim()
+        if (note.isEmpty() || tastingNotes.size >= 6 || tastingNotes.any { it.equals(note, true) }) return this
+        return copy(tastingNotes = tastingNotes + note)
+    }
+
     fun toModel(now: Long, newId: () -> String) = CoffeeBag(
         id = id ?: newId(),
         name = name.trim(),

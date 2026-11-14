@@ -21,7 +21,7 @@ data class CoffeeBagEntity(
     val notes: String?,
     val finished: Boolean,
     @ColumnInfo(name = "created_at") val createdAt: Long,
-    @androidx.room.TypeConverters(CoffeeBagTastingNotesConverter::class)
+    @androidx.room.TypeConverters(TastingNotesConverter::class)
     @ColumnInfo(name = "tasting_notes", defaultValue = "'[]'") val tastingNotes: List<String> = emptyList(),
 )
 
@@ -61,8 +61,8 @@ interface CoffeeBagDao {
     }
 }
 
-/** Stores the ordered tasting profile as JSON in one local database column. */
-class CoffeeBagTastingNotesConverter {
+/** Stores an ordered tasting profile (a bag's or a brew's notes) as JSON in one local database column. */
+class TastingNotesConverter {
     @androidx.room.TypeConverter
     fun encode(notes: List<String>): String = org.json.JSONArray(notes).toString()
 

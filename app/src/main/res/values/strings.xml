@@ -356,6 +356,7 @@
     <string name="coffee_tasting_notes">Tasting notes</string>
     <string name="coffee_tasting_profile">Tasting profile</string>
     <string name="coffee_add_tasting_note">Add tasting note</string>
+    <string name="coffee_remove_tasting_note">Remove tasting note %1$s</string>
     <string name="tasting_caramel">Caramel</string>
     <string name="tasting_chocolate">Chocolate</string>
     <string name="tasting_citrus">Citrus</string>

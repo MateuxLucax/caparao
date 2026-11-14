@@ -191,9 +191,9 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                     trailingIcon = {
                         IconButton(
                             onClick = {
-                                val value = tastingNote.trim()
-                                if (value.isNotEmpty() && form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(value, true) }) {
-                                    viewModel.change(form.copy(tastingNotes = form.tastingNotes + value))
+                                val added = form.withNote(tastingNote)
+                                if (added !== form) {
+                                    viewModel.change(added)
                                     tastingNote = ""
                                 }
                             },
@@ -208,6 +208,12 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                                 selected = true,
                                 onClick = { viewModel.change(form.copy(tastingNotes = form.tastingNotes.filterNot { it == note })) },
                                 label = { Text(note) },
+                                trailingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.ic_close),
+                                        contentDescription = stringResource(R.string.coffee_remove_tasting_note, note),
+                                    )
+                                },
                             )
                         }
                     }
@@ -222,9 +228,7 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                         if (form.tastingNotes.none { it.equals(value, true) }) {
                             FilterChip(
                                 selected = false,
-                                onClick = {
-                                    if (form.tastingNotes.size < 6) viewModel.change(form.copy(tastingNotes = form.tastingNotes + value))
-                                },
+                                onClick = { viewModel.change(form.withNote(value)) },
                                 label = { Text(value) },
                             )
                         }
@@ -237,10 +241,7 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 TextButton(onClick = close, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) }
                 TextButton(
                     onClick = {
-                        val draft = tastingNote.trim()
-                        if (draft.isNotEmpty() && form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(draft, true) }) {
-                            viewModel.change(form.copy(tastingNotes = form.tastingNotes + draft))
-                        }
+                        viewModel.change(form.withNote(tastingNote))
                         viewModel.save()
                     },
                     enabled = form.valid,
