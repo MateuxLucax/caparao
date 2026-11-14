@@ -58,6 +58,26 @@ class BrewPlanTest {
     }
 
     @Test
+    fun anAdjustmentDoseThatWouldNeedWaterBeyondTheScaleIsLeftOut() {
+        val saved = filter.copy(
+            doseGrams = 20.0, targetRatio = 30.0, grind = "24", waterTempCelsius = 94,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 600.0, 30_000)),
+        )
+        val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
+
+        // 67 g × 30 is 2010 g of water, beyond the scale: the brew keeps the recipe's dose and targets, consistently.
+        val kept = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, doseGrams = 67.0))
+        assertEquals(20.0, kept.doseGrams, 0.0)
+        assertEquals("23", kept.brewRecipe!!.grind)
+        assertEquals(listOf(40.0, 600.0), kept.brewRecipe!!.steps.map { it.targetWeightGrams })
+
+        // 66 g × 30 is 1980 g of water: within the scale, so the dose scales the water as usual.
+        val applied = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, doseGrams = 66.0))
+        assertEquals(66.0, applied.doseGrams, 0.0)
+        assertEquals(listOf(132.0, 1980.0), applied.brewRecipe!!.steps.map { it.targetWeightGrams })
+    }
+
+    @Test
     fun anAdjustmentIsLeftOutWithoutARecipeForAnotherRecipeAndForFrenchPress() {
         val free = BrewPlan.create(BrewMode.FILTER, null, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
         assertSame(free, free.withAdjustment(BagRecipeAdjustment("bag", "any", grind = 23)))

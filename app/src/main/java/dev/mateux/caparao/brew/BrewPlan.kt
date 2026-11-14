@@ -54,7 +54,12 @@ class BrewPlan private constructor(
             grind = adjustment.grind?.toString() ?: current.grind,
             waterTempCelsius = adjustment.waterTempCelsius ?: current.waterTempCelsius,
         )
-        val dose = adjustment.doseGrams?.takeIf { !editedForThisBrew && it in BrewLimits.DOSE_GRAMS }
+        // A dose whose water would go beyond the scale's range is left out with the water, so the ring, the strip
+        // and the pour targets all stay the recipe's, consistently (#463 review).
+        val dose = adjustment.doseGrams?.takeIf {
+            !editedForThisBrew && it in BrewLimits.DOSE_GRAMS &&
+                (mode == BrewMode.ESPRESSO || it * tuned.targetRatio in BrewLimits.WATER_GRAMS)
+        }
         val adjusted = when {
             dose == null -> tuned
             mode == BrewMode.ESPRESSO -> tuned.copy(doseGrams = dose)
