@@ -441,4 +441,25 @@
     <string name="milestone_coffee">Coffee</string>
     <string name="no_bag">No bag</string>
     <string name="coffee_below_dose">Less than this dose</string>
+    <string name="suggestion_title">Suggestion</string>
+    <string name="suggestion_grind_coarser">Grind coarser</string>
+    <string name="suggestion_grind_finer">Grind finer</string>
+    <string name="suggestion_temp_hotter">Hotter water</string>
+    <string name="suggestion_temp_cooler">Cooler water</string>
+    <string name="suggestion_opposite">Time and taste disagree</string>
+    <string name="suggestion_opposite_text">So there is no suggestion this time. You can change the adjustment yourself.</string>
+    <string name="suggestion_why">Why</string>
+    <string name="suggestion_time_over">%1$s, %2$d s over the target (%3$s–%4$s)</string>
+    <string name="suggestion_time_under">%1$s, %2$d s under the target (%3$s–%4$s)</string>
+    <string name="suggestion_time_on">%1$s, on target (%2$s–%3$s)</string>
+    <string name="suggestion_taste_sour">Tasted sour</string>
+    <string name="suggestion_taste_balanced">Tasted balanced</string>
+    <string name="suggestion_taste_bitter">Tasted bitter</string>
+    <string name="suggestion_notes">%1$d of %2$d notes found</string>
+    <string name="suggestion_keeps_grind">Water temperature and dose stay the same.</string>
+    <string name="suggestion_keeps_temp">Grind and dose stay the same.</string>
+    <string name="suggestion_save">Save for this coffee</string>
+    <string name="suggestion_not_now">Not now</string>
+    <string name="suggestion_edit_adjustment">Edit adjustment</string>
+    <string name="suggestion_tuned">Tuned for this coffee.</string>
 </resources>

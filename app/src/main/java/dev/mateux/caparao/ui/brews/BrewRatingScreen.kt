@@ -43,7 +43,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -59,7 +61,8 @@ import dev.mateux.caparao.ui.format.Format
 /** "How was it?" (#464): rated once the coffee can be tasted. The brew's numbers, the taste, the bag's notes found, stars and notes. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
+fun BrewRatingScreen(viewModel: BrewRatingViewModel, onSuggest: () -> Unit = {}, onClose: () -> Unit) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     LaunchedEffect(state.loading, state.brew) {
@@ -94,7 +97,18 @@ fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
         bottomBar = {
             if (!state.loading && state.brew != null) {
                 Button(
-                    onClick = { viewModel.save(onClose) },
+                    onClick = {
+                        viewModel.save { next ->
+                            when (next) {
+                                RatingNext.SUGGEST -> onSuggest()
+                                RatingNext.TUNED -> {
+                                    Toast.makeText(context, R.string.suggestion_tuned, Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                }
+                                RatingNext.CLOSE -> onClose()
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 24.dp, vertical = 12.dp).height(ButtonDefaults.MediumContainerHeight),
                     shapes = ButtonDefaults.shapes(),
                     enabled = !state.saving,

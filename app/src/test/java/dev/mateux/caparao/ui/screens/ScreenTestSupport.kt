@@ -109,6 +109,8 @@ import dev.mateux.caparao.ui.brew.FlowPoint
 import dev.mateux.caparao.ui.brew.GuidedStep
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
 import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.home.HomeViewModel
@@ -166,6 +168,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
+    protected val brewSuggestions = BrewSuggestions(recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()))
     protected val settings = SettingsStore(context.getSharedPreferences("screen-tests", Context.MODE_PRIVATE))
     protected var diagnosticsAvailable = true
     protected var diagnosticsSendSucceeds = false
@@ -269,7 +272,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
-            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags())) }
+            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags()), next = brewSuggestions::afterRating) }
+            initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags()), brewSuggestions, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         }
         scale.start()
         compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }

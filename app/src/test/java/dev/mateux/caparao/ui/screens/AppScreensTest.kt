@@ -51,6 +51,8 @@ import dev.mateux.caparao.data.scale.ScaleSource
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
 import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
@@ -156,6 +158,7 @@ class AppScreensTest {
             initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
             initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags) }
+            initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, coffeeBags, BrewSuggestions(recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())), BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         }
     }
 
