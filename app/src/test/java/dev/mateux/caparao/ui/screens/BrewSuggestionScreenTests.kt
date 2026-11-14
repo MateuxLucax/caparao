@@ -1,6 +1,7 @@
 package dev.mateux.caparao.ui.screens
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.mateux.caparao.R
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.model.BagRecipeAdjustmentReason
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
@@ -55,6 +57,11 @@ abstract class BrewSuggestionScreenTests(lang: String, theme: String) : ScreenTe
                 emptyList(),
             )
         }
+        openBrewAndRate(taste)
+    }
+
+    /** Brews tab -> the seeded brew -> Rate -> taste -> Save rating, waiting for the rating screen to close. */
+    private fun openBrewAndRate(taste: Int) {
         open("idle-5min", 0)
         click(R.string.tab_brews)
         compose.waitUntilAtLeastOneExists(hasText(" ${text(R.string.unit_grams)} →", substring = true), 5_000)
@@ -157,6 +164,36 @@ abstract class BrewSuggestionScreenTests(lang: String, theme: String) : ScreenTe
         waitFor(R.string.delete)
         compose.onNodeWithText(text(R.string.suggestion_title)).assertDoesNotExist()
         assertTrue(adjustment()?.tuned == true)
+    }
+
+    /** The brew followed the recipe despite the saved adjustment: rating it closes without suggesting or tuning it. */
+    @Test
+    fun ratingABrewThatFollowedTheRecipeSuggestsNothingAndNeverTunes() {
+        seedCoffeeBags()
+        runBlocking {
+            recipes.save(
+                Recipe(
+                    id = "suggest", name = "Melitta 102", mode = BrewMode.FILTER, method = "Melitta", doseGrams = 20.0, targetRatio = 15.0,
+                    grind = "22", waterTempCelsius = 93, targetMinMs = 150_000, targetMaxMs = 180_000, createdAt = 0, updatedAt = 0,
+                ),
+            )
+            adjustments.save(BagRecipeAdjustment("bag-1", "suggest", grind = 21, waterTempCelsius = 92, doseGrams = 21.0), 1)
+            // The brew recorded the recipe's values: the adjustment was left out for this brew (#463).
+            brews.save(
+                Brew(
+                    "rated", BrewMode.FILTER, System.currentTimeMillis(), 165 * 1000L, 20.0, 300.0, null, 1.6, 4.0, interrupted = false,
+                    recipeId = "suggest", recipeName = "Melitta 102", bagId = "bag-1", grind = "22", waterTempCelsius = 93,
+                ),
+                emptyList(),
+            )
+        }
+        openBrewAndRate(R.string.brew_taste_balanced)
+        // The rating closed with nothing to say: no suggestion screen, no tuned confirmation, and the unused
+        // adjustment is exactly as it was.
+        waitFor(R.string.delete)
+        compose.onAllNodesWithText(text(R.string.suggestion_title)).assertCountEquals(0)
+        compose.onAllNodesWithText(text(R.string.suggestion_tuned)).assertCountEquals(0)
+        assertEquals(BagRecipeAdjustment("bag-1", "suggest", grind = 21, waterTempCelsius = 92, doseGrams = 21.0), adjustment())
     }
 }
 
