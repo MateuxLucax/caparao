@@ -22,8 +22,10 @@ import dev.mateux.caparao.model.Brew
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /** One pending local rating reminder at a time; the newest saved brew replaces the older one. */
 class RatingReminderScheduler(context: Context) {
@@ -45,8 +47,19 @@ class RatingReminderScheduler(context: Context) {
             )
             .setInputData(Data.Builder().putString(INPUT_BREW_ID, brewId).build())
             .addTag(WORK_TAG)
+            .addTag(workTagForBrew(brewId))
             .build()
         workManager.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+    }
+
+    /** Cancels this brew's pending reminder and any reminder already shown for it. */
+    suspend fun cancelForBrew(brewId: String) {
+        withContext(Dispatchers.IO) {
+            workManager.getWorkInfosForUniqueWork(WORK_NAME).get()
+                .filter { !it.state.isFinished && workTagForBrew(brewId) in it.tags }
+                .forEach { workManager.cancelWorkById(it.id).result.get() }
+        }
+        cancelPostedRatingReminder(applicationContext, brewId)
     }
 
     companion object {
@@ -55,7 +68,21 @@ class RatingReminderScheduler(context: Context) {
         const val INPUT_BREW_ID = "rating_reminder_brew_id"
         const val CHANNEL_ID = "rating-reminders"
         const val NOTIFICATION_ID = 465
+        const val EXTRA_NOTIFICATION_BREW_ID = "rating_reminder_notification_brew_id"
+
+        private fun workTagForBrew(brewId: String) = "rating-reminder-brew-$brewId"
     }
+}
+
+/** Dismisses the posted reminder only when it belongs to [brewId]. */
+internal fun cancelPostedRatingReminder(context: Context, brewId: String) {
+    val manager = context.getSystemService(NotificationManager::class.java)
+    manager.activeNotifications
+        .filter {
+            it.id == RatingReminderScheduler.NOTIFICATION_ID &&
+                it.notification.extras?.getString(RatingReminderScheduler.EXTRA_NOTIFICATION_BREW_ID) == brewId
+        }
+        .forEach { manager.cancel(it.tag, it.id) }
 }
 
 /**
@@ -118,6 +145,7 @@ class RatingReminderWorker internal constructor(
             .addAction(0, context.getString(R.string.rating_reminder_rate), ratePendingIntent)
             .addAction(0, context.getString(R.string.rating_reminder_later), laterPendingIntent)
             .build()
+        notification.extras.putString(RatingReminderScheduler.EXTRA_NOTIFICATION_BREW_ID, brew.id)
         try {
             NotificationManagerCompat.from(context).notify(RatingReminderScheduler.NOTIFICATION_ID, notification)
         } catch (_: SecurityException) {

@@ -171,8 +171,25 @@ class AppContainer(context: Context) {
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
-        initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags, uploads::brewSaved, brewSuggestions::afterRating) }
+        initializer {
+            BrewDetailViewModel(
+                requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags,
+                onBrewDeleted = { id ->
+                    uploads.brewDeleted(id)
+                    ratingReminders.cancelForBrew(id)
+                },
+            )
+        }
+        initializer {
+            BrewRatingViewModel(
+                requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags,
+                onSaved = { id ->
+                    uploads.brewSaved(id)
+                    ratingReminders.cancelForBrew(id)
+                },
+                next = brewSuggestions::afterRating,
+            )
+        }
         initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, coffeeBags, brewSuggestions, bagRecipeAdjustments) }
         initializer {
             BrewViewModel(
@@ -185,7 +202,10 @@ class AppContainer(context: Context) {
                 onReminderChanged = { id, enabled ->
                     ratingReminders.update(id, enabled, settings.ratingReminderDelayMinutes)
                 },
-                onDiscarded = uploads::brewDeleted,
+                onDiscarded = { id ->
+                    uploads.brewDeleted(id)
+                    ratingReminders.cancelForBrew(id)
+                },
                 diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
                 coffeeBags = coffeeBags,

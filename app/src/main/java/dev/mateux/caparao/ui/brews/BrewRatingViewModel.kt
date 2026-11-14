@@ -29,8 +29,8 @@ class BrewRatingViewModel(
     private val id: String,
     private val repository: BrewRepository,
     private val coffeeBags: CoffeeBagRepository,
-    /** Called after the changed rating has been persisted, so it can be uploaded again. */
-    private val onSaved: (String) -> Unit = {},
+    /** Called after the changed rating has been persisted, so it can be uploaded again and its reminder canceled. */
+    private val onSaved: suspend (String) -> Unit = {},
     /** What the saved rating leads to: a suggestion, a tuned confirmation, or nothing (#468). */
     private val next: suspend (Brew) -> RatingNext = { RatingNext.CLOSE },
 ) : ViewModel() {

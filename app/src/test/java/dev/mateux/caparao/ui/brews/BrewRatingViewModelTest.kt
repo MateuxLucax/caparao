@@ -95,8 +95,12 @@ class BrewRatingViewModelTest {
         repository.save(brew, emptyList())
         bagRepository.save(CoffeeBag("bag1", "Caparaó", weightGrams = 250.0, createdAt = 1, tastingNotes = listOf("Chocolate", "Red fruit")))
         var savedId: String? = null
+        var callbackSawPersistedRating = false
         var closed = false
-        val vm = BrewRatingViewModel("b1", repository, bagRepository, onSaved = { savedId = it })
+        val vm = BrewRatingViewModel("b1", repository, bagRepository, onSaved = { id ->
+            savedId = id
+            callbackSawPersistedRating = repository.get(id)?.ratedAt != null
+        })
 
         vm.setTaste(BrewTaste.BALANCED)
         vm.toggleTastingNote("Chocolate")
@@ -112,6 +116,7 @@ class BrewRatingViewModelTest {
         assertNotNull(saved.ratedAt)
         assertEquals(1, saved.revision)
         assertEquals("b1", savedId)
+        assertTrue(callbackSawPersistedRating)
         assertTrue(closed)
     }
 

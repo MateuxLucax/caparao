@@ -49,8 +49,12 @@ class BrewDetailViewModelTest {
     fun deleteRemovesTheBrewBeforeCallingBack() = runTest {
         repository.save(brew, curve)
         var goneWhenCalled: Boolean? = null
-        BrewDetailViewModel("b1", repository).delete { goneWhenCalled = true }
+        var cleanupSawDeletedBrew = false
+        BrewDetailViewModel("b1", repository, onBrewDeleted = { id ->
+            cleanupSawDeletedBrew = id == "b1" && repository.get(id) == null
+        }).delete { goneWhenCalled = true }
         assertEquals(true, goneWhenCalled)
+        assertTrue(cleanupSawDeletedBrew)
         assertNull(repository.get("b1"))
         assertTrue(repository.samples("b1").isEmpty())
     }

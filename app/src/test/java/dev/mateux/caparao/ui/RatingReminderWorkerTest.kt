@@ -75,6 +75,21 @@ class RatingReminderWorkerTest {
     }
 
     @Test
+    fun cancelingARatedBrewReminderDismissesOnlyItsPostedNotification() = runBlocking {
+        brews.save(brew("fresh", 1_000), emptyList())
+        worker("fresh").doWork()
+
+        val posted = notifications.allNotifications.single()
+        assertEquals("fresh", posted.extras.getString(RatingReminderScheduler.EXTRA_NOTIFICATION_BREW_ID))
+        cancelPostedRatingReminder(context, "another-brew")
+        assertEquals(1, notifications.allNotifications.size)
+
+        cancelPostedRatingReminder(context, "fresh")
+
+        assertTrue(notifications.allNotifications.isEmpty())
+    }
+
+    @Test
     fun ratedBrewPostsNothing() = runBlocking {
         val saved = brew("rated", 1_000)
         brews.save(saved, emptyList())
