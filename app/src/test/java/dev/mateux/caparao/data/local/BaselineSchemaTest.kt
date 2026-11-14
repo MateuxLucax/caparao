@@ -38,9 +38,10 @@ class BaselineSchemaTest {
     @Test
     fun baselineAndCurrentSchemasAreExported() {
         assertEquals(9, version)
-        assertEquals(setOf("9.json", "10.json"), schemaDir.list()!!.toSet())
+        assertEquals(setOf("9.json", "10.json", "11.json"), schemaDir.list()!!.toSet())
         assertEquals(version, JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database").getInt("version"))
         assertEquals(10, JSONObject(File(schemaDir, "10.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(11, JSONObject(File(schemaDir, "11.json").readText()).getJSONObject("database").getInt("version"))
     }
 
     @Test
@@ -76,7 +77,14 @@ class BaselineSchemaTest {
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
                 while (cursor.moveToNext()) tables += cursor.getString(0)
             }
-            assertTrue(tables.containsAll(setOf("brews", "brew_samples", "recipes", "recipe_steps", "coffee_bags")))
+            assertTrue(
+                tables.containsAll(
+                    setOf(
+                        "brews", "brew_samples", "recipes", "recipe_steps", "coffee_bags",
+                        "bag_recipe_adjustments", "bag_recipe_adjustment_history",
+                    ),
+                ),
+            )
             val columns = mutableSetOf<String>()
             sqlite.query("PRAGMA table_info(brews)").use { cursor ->
                 while (cursor.moveToNext()) columns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
