@@ -64,6 +64,9 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
         notificationPermissionRequestResult = false
         espressoSummary()
 
+        // The rationale comes first; the system prompt fires only when the user allows it.
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.rating_reminder_allow_notifications)), 5_000)
+        compose.onNodeWithText(text(R.string.rating_reminder_allow_notifications)).performClick()
         compose.waitUntil(5_000) { notificationPermissionRequests == 1 }
         assertFalse(settings.remindToRate)
         assertTrue(settings.ratingNotificationsPermissionAsked)
@@ -71,6 +74,51 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
         compose.waitForIdle()
         assertEquals(1, notificationPermissionRequests)
         assertFalse(settings.remindToRate)
+    }
+
+    @Test
+    fun reminderPermissionRationaleShowsInTheLocaleBeforeTheSystemPrompt() {
+        settings.remindToRate = true
+        notificationsGranted = false
+        espressoSummary()
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.rating_reminder_permission_title)), 5_000)
+        compose.onNodeWithText(text(R.string.rating_reminder_permission_text)).assertIsDisplayed()
+        assertEquals(0, notificationPermissionRequests)
+        compose.onNodeWithText(text(R.string.rating_reminder_not_now)).performClick()
+        compose.waitForIdle()
+        assertEquals(0, notificationPermissionRequests)
+        assertFalse(settings.remindToRate)
+        assertTrue(settings.ratingNotificationsPermissionAsked)
+    }
+
+    @Test
+    fun allowingNotificationsKeepsTheReminderOn() {
+        settings.remindToRate = true
+        notificationsGranted = false
+        notificationPermissionRequestResult = true
+        espressoSummary()
+
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.rating_reminder_allow_notifications)), 5_000)
+        compose.onNodeWithText(text(R.string.rating_reminder_allow_notifications)).performClick()
+        compose.waitUntil(5_000) { notificationPermissionRequests == 1 }
+        assertTrue(settings.remindToRate)
+        assertTrue(settings.ratingNotificationsPermissionAsked)
+    }
+
+    @Test
+    fun turningTheReminderOnShowsTheRationaleFirst() {
+        settings.remindToRate = false
+        notificationsGranted = false
+        notificationPermissionRequestResult = true
+        espressoSummary()
+
+        compose.onNodeWithTag("remind-to-rate").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.rating_reminder_allow_notifications)), 5_000)
+        assertEquals(0, notificationPermissionRequests)
+        compose.onNodeWithText(text(R.string.rating_reminder_allow_notifications)).performClick()
+        compose.waitUntil(5_000) { notificationPermissionRequests == 1 }
+        assertTrue(settings.remindToRate)
     }
 
     @Test

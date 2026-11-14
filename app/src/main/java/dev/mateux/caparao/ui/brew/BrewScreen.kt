@@ -123,37 +123,61 @@ fun BrewScreen(
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     val finish = onClose
     var remindToRate by rememberSaveable { mutableStateOf(viewModel.remindToRate) }
+    // The Notifications rationale, shown once before the system prompt the first time the reminder needs it (#465).
+    var showReminderPermissionRationale by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val declineReminderPermission = {
+        viewModel.markRatingNotificationsPermissionAsked()
+        remindToRate = false
+        viewModel.setRemindToRate(false)
+    }
     LaunchedEffect(state.saved?.id) {
         if (
             state.saved != null && viewModel.remindToRate && actions != null &&
             !actions.notificationsPermissionGranted() && !viewModel.ratingNotificationsPermissionAsked
         ) {
-            viewModel.markRatingNotificationsPermissionAsked()
-            if (!actions.requestNotificationsPermission()) {
-                remindToRate = false
-                viewModel.setRemindToRate(false)
-            }
+            showReminderPermissionRationale = true
         }
+    }
+    if (showReminderPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showReminderPermissionRationale = false; declineReminderPermission() },
+            title = { Text(stringResource(R.string.rating_reminder_permission_title)) },
+            text = { Text(stringResource(R.string.rating_reminder_permission_text)) },
+            confirmButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                    showReminderPermissionRationale = false
+                    scope.launch {
+                        viewModel.markRatingNotificationsPermissionAsked()
+                        if (actions != null && !actions.requestNotificationsPermission()) {
+                            remindToRate = false
+                            viewModel.setRemindToRate(false)
+                        } else if (!remindToRate) {
+                            remindToRate = true
+                            viewModel.setRemindToRate(true)
+                        }
+                    }
+                }) { Text(stringResource(R.string.rating_reminder_allow_notifications)) }
+            },
+            dismissButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showReminderPermissionRationale = false; declineReminderPermission() }) {
+                    Text(stringResource(R.string.rating_reminder_not_now))
+                }
+            },
+        )
     }
     val changeReminder: (Boolean) -> Unit = { enabled ->
         if (!enabled) {
             remindToRate = false
             viewModel.setRemindToRate(false)
+        } else if (actions == null || actions.notificationsPermissionGranted()) {
+            remindToRate = true
+            viewModel.setRemindToRate(true)
+        } else if (viewModel.ratingNotificationsPermissionAsked) {
+            // Asked once and not granted: the switch stays off without nagging; App settings is the way (#465).
+            remindToRate = false
         } else {
-            scope.launch {
-                if (actions != null && !actions.notificationsPermissionGranted()) {
-                    if (viewModel.ratingNotificationsPermissionAsked) return@launch
-                    viewModel.markRatingNotificationsPermissionAsked()
-                    if (!actions.requestNotificationsPermission()) {
-                        remindToRate = false
-                        viewModel.setRemindToRate(false)
-                        return@launch
-                    }
-                }
-                remindToRate = true
-                viewModel.setRemindToRate(true)
-            }
+            showReminderPermissionRationale = true
         }
     }
     val closeBrew = {

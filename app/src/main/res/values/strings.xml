@@ -329,6 +329,10 @@
     <string name="rating_reminder_later">Later</string>
     <string name="rating_reminder_channel">Rating reminders</string>
     <string name="rating_reminder_channel_description">A local reminder to rate a saved brew.</string>
+    <string name="rating_reminder_permission_title">Notifications</string>
+    <string name="rating_reminder_permission_text">Notifications lets the app remind you to rate this brew. The reminder stays on your phone.</string>
+    <string name="rating_reminder_allow_notifications">Allow notifications</string>
+    <string name="rating_reminder_not_now">Not now</string>
     <string name="brew_how_was_it">How was it?</string>
     <string name="brew_taste">Taste</string>
     <string name="brew_taste_sour">Sour</string>

@@ -17,6 +17,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dev.mateux.caparao.CaparaoApplication
 import dev.mateux.caparao.R
+import dev.mateux.caparao.data.local.SettingsStore
+import dev.mateux.caparao.model.Brew
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,7 +36,13 @@ class RatingReminderScheduler(context: Context) {
             return
         }
         val request = OneTimeWorkRequestBuilder<RatingReminderWorker>()
-            .setInitialDelay(delayMinutes.coerceIn(5, 15).toLong(), TimeUnit.MINUTES)
+            .setInitialDelay(
+                delayMinutes.coerceIn(
+                    SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES,
+                    SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES,
+                ).toLong(),
+                TimeUnit.MINUTES,
+            )
             .setInputData(Data.Builder().putString(INPUT_BREW_ID, brewId).build())
             .addTag(WORK_TAG)
             .build()
@@ -50,15 +58,34 @@ class RatingReminderScheduler(context: Context) {
     }
 }
 
-/** Rechecks the phone's source of truth immediately before showing the notification. */
-class RatingReminderWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
+/**
+ * Whether the reminder may post for [brewId] right now: the brew still exists unrated and the app may still post
+ * notifications. A discarded brew is gone from the database and a rated one is gone from [unratedBrews], so neither is
+ * in the list; the reminder for a brew that no longer qualifies is silently dropped.
+ */
+internal fun ratingReminderEligible(brewId: String, unratedBrews: List<Brew>, notificationsAllowed: Boolean): Brew? =
+    if (!notificationsAllowed) null else unratedBrews.firstOrNull { it.id == brewId }
+
+/**
+ * Rechecks the phone's source of truth immediately before showing the notification: the brew still exists unrated and
+ * the app still may post notifications.
+ */
+class RatingReminderWorker internal constructor(
+    context: Context,
+    parameters: WorkerParameters,
+    /** The brews not rated yet; injected so the eligibility check runs against a test database. */
+    private val unratedBrews: suspend () -> List<Brew>,
+) : CoroutineWorker(context, parameters) {
+    /** WorkManager creates the worker through this constructor, by reflection on its name; do not change it. */
+    constructor(context: Context, parameters: WorkerParameters) : this(
+        context,
+        parameters,
+        { (context.applicationContext as CaparaoApplication).container.brews.notRatedYet().first() },
+    )
+
     override suspend fun doWork(): Result {
         val brewId = inputData.getString(RatingReminderScheduler.INPUT_BREW_ID) ?: return Result.failure()
-        val container = (applicationContext as CaparaoApplication).container
-        val brew = container.brews.notRatedYet().first().firstOrNull { it.id == brewId } ?: return Result.success()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(applicationContext, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) return Result.success()
+        val brew = ratingReminderEligible(brewId, unratedBrews(), notificationsAllowed()) ?: return Result.success()
 
         val context = applicationContext
         createChannel(context)
@@ -98,6 +125,11 @@ class RatingReminderWorker(context: Context, parameters: WorkerParameters) : Cor
         }
         return Result.success()
     }
+
+    private fun notificationsAllowed(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(applicationContext, android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
 
     private fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)

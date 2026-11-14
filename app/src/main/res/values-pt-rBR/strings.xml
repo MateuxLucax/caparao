@@ -323,6 +323,10 @@
     <string name="rating_reminder_later">Depois</string>
     <string name="rating_reminder_channel">Lembretes de avaliação</string>
     <string name="rating_reminder_channel_description">Um lembrete local para avaliar um preparo salvo.</string>
+    <string name="rating_reminder_permission_title">Notificações</string>
+    <string name="rating_reminder_permission_text">As notificações permitem que o app lembre você de avaliar este preparo. O lembrete fica no seu celular.</string>
+    <string name="rating_reminder_allow_notifications">Permitir notificações</string>
+    <string name="rating_reminder_not_now">Agora não</string>
     <string name="brew_how_was_it">Como ficou?</string>
     <string name="brew_taste">Sabor</string>
     <string name="brew_taste_sour">Azedo</string>

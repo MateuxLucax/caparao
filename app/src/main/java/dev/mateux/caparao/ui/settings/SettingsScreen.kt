@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.data.diagnostics.CaptureIncompleteReason
 import dev.mateux.caparao.data.diagnostics.CaptureWriterState
+import dev.mateux.caparao.data.local.SettingsStore
 import dev.mateux.caparao.data.local.VibrationTarget
 import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.ui.components.AppActions
@@ -144,18 +145,21 @@ fun SettingsScreen(
                         Slider(
                             value = selectedDelay,
                             onValueChange = { selectedDelay = it.roundToInt().toFloat() },
-                            valueRange = 5f..15f,
-                            steps = 9,
+                            valueRange = SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES.toFloat()..SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES.toFloat(),
+                            steps = SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES - SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES - 1,
                         )
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.rating_reminder_delay_value, 5))
-                            Text(stringResource(R.string.rating_reminder_delay_value, 15))
+                            Text(stringResource(R.string.rating_reminder_delay_value, SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES))
+                            Text(stringResource(R.string.rating_reminder_delay_value, SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES))
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        ratingReminderDelay = selectedDelay.roundToInt().coerceIn(5, 15)
+                        ratingReminderDelay = selectedDelay.roundToInt().coerceIn(
+                            SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES,
+                            SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES,
+                        )
                         targets.ratingReminderDelayMinutes = ratingReminderDelay
                         editRatingReminderDelay = false
                     }) { Text(stringResource(R.string.save)) }
