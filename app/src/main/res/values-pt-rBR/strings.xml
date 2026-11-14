@@ -380,6 +380,12 @@
     <string name="tasting_floral">Floral</string>
     <string name="tasting_nuts">Castanhas</string>
     <string name="coffee_no_brews">Nenhum preparo com ele ainda.</string>
+    <string name="coffee_summary_rating">Nota média</string>
+    <string name="coffee_notes_found">Notas sentidas: %1$s</string>
+    <string name="coffee_note_count">%1$s %2$d de %3$d</string>
+    <string name="coffee_tends_sour">Tende ao azedo</string>
+    <string name="coffee_tends_balanced">Tende ao equilibrado</string>
+    <string name="coffee_tends_bitter">Tende ao amargo</string>
     <string name="edit">Editar</string>
     <string name="delete_coffee_title">Apagar este café?</string>
     <string name="delete_coffee_text">Os preparos que o usaram mantêm o nome dele.</string>

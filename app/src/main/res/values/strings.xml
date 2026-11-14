@@ -386,6 +386,12 @@
     <string name="tasting_floral">Floral</string>
     <string name="tasting_nuts">Nuts</string>
     <string name="coffee_no_brews">No brews with it yet.</string>
+    <string name="coffee_summary_rating">Average rating</string>
+    <string name="coffee_notes_found">Notes found: %1$s</string>
+    <string name="coffee_note_count">%1$s %2$d of %3$d</string>
+    <string name="coffee_tends_sour">Tends to sour</string>
+    <string name="coffee_tends_balanced">Tends to balanced</string>
+    <string name="coffee_tends_bitter">Tends to bitter</string>
     <string name="edit">Edit</string>
     <string name="delete_coffee_title">Delete this coffee?</string>
     <string name="delete_coffee_text">Brews that used it keep its name.</string>

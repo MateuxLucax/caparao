@@ -42,6 +42,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -70,6 +71,7 @@ import dev.mateux.caparao.data.local.SeedBuiltInRecipes
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewSample
+import dev.mateux.caparao.model.BrewTaste
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.RecipeStep
@@ -218,6 +220,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(profile).assertIsDisplayed()
     }
 
+
     @Test
     fun aCustomTastingNoteCanBeAddedRemovedAndSavedFromTheDraft() {
         openCoffeeBag(withBrew = false)
@@ -244,6 +247,90 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
      * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
      * move the bag between the states; Edit opens the same sheet, filled.
      */
+
+    
+    /** The summary card (#469): average and count always; the tendency and the notes found once brews have a taste. */
+    @Test
+    fun coffeeBagSummary() {
+        val now = System.currentTimeMillis()
+        fun tasted(id: String, vararg found: String) = runBlocking {
+            brews.save(
+                Brew(
+                    id, BrewMode.FILTER, now - 1_000, 185_000, 20.0, 300.0, null, 1.6, 4.0, interrupted = false, recipeName = "Melitta 102",
+                    bagId = "bag-1", rating = 4, taste = BrewTaste.BITTER, tastingNotesFound = found.toList(), ratedAt = now,
+                ),
+                emptyList(),
+            )
+        }
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", weightGrams = 250.0, createdAt = now, tastingNotes = listOf("Caramel", "Orange")))
+        }
+        tasted("t1", "Caramel")
+        tasted("t2", "Caramel", "Orange")
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.coffee_summary_rating)
+        val notes = { of: Int ->
+            context.getString(
+                R.string.coffee_notes_found,
+                context.getString(R.string.coffee_note_count, "Caramel", of, of) + " · " + context.getString(R.string.coffee_note_count, "Orange", 1, of),
+            )
+        }
+        compose.onNodeWithText(notes(2)).assertExists()
+        // Two brews with a taste are too few for a tendency.
+        compose.onNodeWithText(text(R.string.coffee_tends_bitter)).assertDoesNotExist()
+        compose.onAllNodesWithText("Melitta 102", substring = true).assertCountEquals(2)
+        tasted("t3", "Caramel")
+        waitFor(R.string.coffee_tends_bitter)
+        compose.onNodeWithText(notes(3)).assertExists()
+    }
+
+
+    /** The summary card at 320 dp (#469): the three stats wrap instead of clipping, in pt-BR. */
+    @Test
+    fun smallScreenCoffeeSummary() {
+        assumeTrue(
+            "small-screen variant only",
+            context.resources.configuration.screenWidthDp == 320 && context.resources.configuration.screenHeightDp == 640,
+        )
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(
+                CoffeeBag("bag-1", "Caparaó natural", weightGrams = 250.0, createdAt = now, tastingNotes = listOf("Caramel")),
+            )
+            repeat(3) { index ->
+                brews.save(
+                    Brew(
+                        "t$index", BrewMode.FILTER, now - (index + 1) * 1_000, 185_000, 20.0, 300.0, null, 1.6, 4.0,
+                        interrupted = false, recipeName = "Melitta 102", bagId = "bag-1", rating = 4,
+                        taste = BrewTaste.BALANCED, tastingNotesFound = listOf("Caramel"), ratedAt = now,
+                    ),
+                    emptyList(),
+                )
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.coffee_summary_rating)
+        // The tendency is the widest stat in pt-BR; it must stay fully inside the screen.
+        val tendency = compose.onNodeWithText(text(R.string.coffee_tends_balanced))
+        tendency.assertIsDisplayed()
+        compose.waitForIdle()
+        val rootWidth = compose.onRoot().fetchSemanticsNode().boundsInRoot.width
+        val bounds = tendency.fetchSemanticsNode().boundsInRoot
+        assertTrue("tendency clipped at 320dp: right=${bounds.right} > $rootWidth", bounds.right <= rootWidth + 0.5f)
+        compose.onNodeWithText(text(R.string.coffee_summary_rating)).assertIsDisplayed()
+        // The notes line proves the card renders at 320 dp, next to the wrapped stats.
+        compose.onNodeWithText(
+            context.getString(R.string.coffee_notes_found, context.getString(R.string.coffee_note_count, "Caramel", 3, 3)),
+        ).assertIsDisplayed()
+    }
+
+
     /**
      * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
      * move the bag between the states; Edit opens the same sheet, filled.

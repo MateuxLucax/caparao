@@ -1,8 +1,13 @@
 package dev.mateux.caparao.ui.coffees
 import dev.mateux.caparao.ui.components.wholeGrams
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import dev.mateux.caparao.model.BrewTaste
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -96,6 +101,7 @@ fun CoffeeBagDetailScreen(
                 )
                 LinearProgressIndicator(progress = { (current.leftGrams / current.weightGrams).toFloat() }, modifier = Modifier.fillMaxWidth())
             }
+            if (current.brewCount > 0) Summary(current, remember(current.tastingNotes, brews) { CoffeeSummary.of(current.tastingNotes, brews) }, locale)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { viewModel.setFinished(!current.finished) }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(if (current.finished) R.string.coffee_mark_open else R.string.coffee_mark_finished))
@@ -142,21 +148,72 @@ private fun Roast(bag: CoffeeBag) {
     }
 }
 
-/** A brew that used the bag: its mode, when, the dose and yield, and its rating. Tapping it opens the brew. */
+/** How the coffee has been turning out (#469): average rating, brews, the taste it tends to, and the notes found. */
+@Composable
+private fun Summary(bag: CoffeeBag, summary: CoffeeSummary, locale: Locale) {
+    Card(Modifier.fillMaxWidth().testTag("coffee-summary"), shape = MaterialTheme.shapes.large) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                bag.averageRating?.let { Stat(R.string.coffee_summary_rating, Format.oneDecimal(it, locale)) }
+                Stat(R.string.tab_brews, bag.brewCount.toString())
+                summary.tendency?.let {
+                    Stat(
+                        R.string.brew_taste,
+                        stringResource(
+                            when (it) {
+                                BrewTaste.SOUR -> R.string.coffee_tends_sour
+                                BrewTaste.BALANCED -> R.string.coffee_tends_balanced
+                                BrewTaste.BITTER -> R.string.coffee_tends_bitter
+                            },
+                        ),
+                    )
+                }
+            }
+            if (summary.notesFound.isNotEmpty()) {
+                val notes = summary.notesFound.map { stringResource(R.string.coffee_note_count, it.note, it.found, summary.tasted) }
+                Text(
+                    stringResource(R.string.coffee_notes_found, notes.joinToString(" · ")),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Stat(@StringRes label: Int, value: String) {
+    Column(Modifier.semantics(mergeDescendants = true) {}) {
+        Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+/** A brew that used the bag: its recipe, when, the dose and yield, the time, the taste and its rating. Tapping it opens the brew. */
 @Composable
 private fun BrewLine(brew: Brew, locale: Locale, onClick: () -> Unit) {
     val g = stringResource(R.string.unit_grams)
+    val taste = when (brew.taste) {
+        BrewTaste.SOUR -> R.string.brew_taste_sour
+        BrewTaste.BALANCED -> R.string.brew_taste_balanced
+        BrewTaste.BITTER -> R.string.brew_taste_bitter
+        null -> null
+    }
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(brew.mode.icon), contentDescription = null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    stringResource(brew.mode.label) + " · " + Format.dateTime(brew.startedAt, locale),
+                    (brew.recipeName ?: stringResource(brew.mode.label)) + " · " + Format.dateTime(brew.startedAt, locale),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    "${Format.grams(brew.doseGrams, locale)} $g → ${Format.grams(brew.yieldGrams, locale)} $g",
+                    listOfNotNull(
+                        "${Format.grams(brew.doseGrams, locale)} $g → ${Format.grams(brew.yieldGrams, locale)} $g",
+                        Format.timer((brew.durationMs / 1000).toInt()),
+                        taste?.let { stringResource(it) },
+                    ).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
