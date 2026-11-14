@@ -405,7 +405,6 @@
     <string name="adjustment_change_grind">grind %1$s → %2$s</string>
     <string name="adjustment_change_temp">temperature %1$s → %2$s</string>
     <string name="adjustment_change_dose">dose %1$s → %2$s</string>
-    <string name="recipe_temp_short">Temperature</string>
     <string name="coffee_tasting_profile">Tasting profile</string>
     <string name="coffee_add_tasting_note">Add tasting note</string>
     <string name="coffee_remove_tasting_note">Remove tasting note %1$s</string>

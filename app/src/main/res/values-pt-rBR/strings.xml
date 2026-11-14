@@ -399,7 +399,6 @@
     <string name="adjustment_change_grind">moagem %1$s → %2$s</string>
     <string name="adjustment_change_temp">temperatura %1$s → %2$s</string>
     <string name="adjustment_change_dose">dose %1$s → %2$s</string>
-    <string name="recipe_temp_short">Temperatura</string>
     <string name="coffee_tasting_profile">Perfil sensorial</string>
     <string name="coffee_add_tasting_note">Adicionar nota sensorial</string>
     <string name="coffee_remove_tasting_note">Remover nota sensorial %1$s</string>
