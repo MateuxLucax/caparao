@@ -203,19 +203,24 @@
     <string name="recipe_method">Method</string>
     <string name="recipe_dose">Dose</string>
     <string name="recipe_ratio">Ratio</string>
-    <string name="recipe_target_water">%1$s g of water</string>
-    <string name="recipe_target_yield">%1$s g of yield</string>
     <string name="recipe_grind">Grind</string>
     <string name="recipe_temp">Water temperature</string>
     <string name="recipe_window">Time from the first drop</string>
-    <string name="recipe_total_time">Ideal total time</string>
     <string name="recipe_window_min">From</string>
     <string name="recipe_window_max">To</string>
     <string name="unit_seconds" translatable="false">s</string>
     <string name="unit_celsius" translatable="false">°C</string>
+    <string name="method_other">Other</string>
+    <string name="recipe_water">Water</string>
+    <string name="recipe_yield">Yield</string>
+    <string name="recipe_temp_short">Temperature</string>
+    <string name="recipe_ideal_time">Ideal time</string>
+    <string name="recipe_shot_time">Shot time</string>
+    <string name="step_sheet_title">Step %1$d</string>
+    <string name="recipe_steps_text">Weight is what the scale shows, counted from the tare. Start counts from the first water.</string>
+    <string name="step_summary_weight">to %1$s g</string>
     <string name="recipe_notes">Notes</string>
     <string name="recipe_steps">Steps</string>
-    <string name="recipe_steps_text">Weight is what the scale shows, counted from the tare. Start counts from the first water.</string>
     <string name="step_bloom">Bloom</string>
     <string name="step_pour">Pour</string>
     <string name="step_wait">Wait</string>
@@ -224,15 +229,15 @@
     <string name="step_press">Steep</string>
     <string name="step_weight">Up to</string>
     <string name="step_start">Start</string>
-    <string name="step_flow_target">Flow target</string>
+    <string name="step_flow_target">Flow (optional)</string>
     <string name="add_step">Add step</string>
     <string name="remove_step">Remove step</string>
     <string name="required">Required</string>
     <string name="recipe_error_dose">From 1 to 100 g</string>
     <string name="recipe_error_ratio">From 1:0.5 to 1:30</string>
     <string name="recipe_error_temp">From 1 to 100 °C</string>
-    <string name="recipe_error_window">Whole seconds, the first not above the second.</string>
-    <string name="recipe_error_total_time">Use whole seconds for both times, or leave both blank. The first must not be above the second.</string>
+    <string name="recipe_error_window">Use m:ss, the first not above the second.</string>
+    <string name="recipe_error_total_time">Use m:ss for both times, or leave both blank. The first must not be above the second.</string>
     <string name="recipe_error_steps">Each step starts at or after the one before, as m:ss. Each pour goes higher than the one before. Flow targets must be positive.</string>
     <string name="recipe_error_no_steps">Add at least one step.</string>
     <string name="delete_recipe_title">Delete this recipe?</string>

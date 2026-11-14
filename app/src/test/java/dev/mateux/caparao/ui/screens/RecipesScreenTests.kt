@@ -172,11 +172,12 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
         compose.onNodeWithText("V60 One and Done").performClick()
         waitFor(R.string.recipe_name)
-        compose.onNodeWithText(text(R.string.recipe_total_time)).assertIsDisplayed()
-        compose.onAllNodesWithText(text(R.string.recipe_window_min)).onFirst().assertIsDisplayed()
-        compose.onAllNodesWithText(text(R.string.recipe_window_max)).onFirst().assertIsDisplayed()
-        compose.onNodeWithText("120").assertIsDisplayed()
-        compose.onNodeWithText("150").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.recipe_ideal_time)).assertIsDisplayed()
+        compose.onNodeWithText("2:00").assertIsDisplayed()
+        compose.onNodeWithText("2:30").assertIsDisplayed()
+        // Save sits in the top bar, and each step is one row (#470).
+        compose.onNodeWithText(text(R.string.save)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.step_summary_weight, "45") + " · 0:00").assertIsDisplayed()
     }
 
     /** The editor offers the stir step for French press recipes (#219). The filter list is checked in RecipeEditorViewModelTest. */
@@ -188,8 +189,10 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.waitUntilAtLeastOneExists(hasText("French press"), 5_000)
         compose.onNode(hasText("French press")).performClick()
         waitFor(R.string.recipe_name)
+        // The row opens the step's sheet, which lists the kinds.
         compose.onAllNodesWithText(text(R.string.step_bloom)).onFirst().performClick()
-        compose.onNodeWithText(text(R.string.step_stir)).assertIsDisplayed()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.step_stir)), 5_000)
+        compose.onNodeWithText(text(R.string.step_sheet_title, 1)).assertIsDisplayed()
     }
 
     /** Opens the V60 recipe in its editor, as the recipes list leads to it. */

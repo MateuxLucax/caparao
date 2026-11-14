@@ -131,4 +131,15 @@ class RecipeEditorViewModelTest {
         vm.edit { it.copy(name = "V60 short") }
         assertTrue(vm.state.value.dirty)
     }
+
+    /** The timeline marks each step's start and ends at the ideal time when that is later (#470). */
+    @Test
+    fun timelineMarksStepStartsAndTheIdealEnd() {
+        val form = RecipeForm.new(BrewMode.FILTER).copy(
+            maxTime = "2:50",
+            steps = listOf(StepForm(StepKind.BLOOM, "40", "0:00"), StepForm(StepKind.POUR, "300", "0:30")),
+        )
+        assertEquals(listOf(0L, 30_000L, 170_000L), timelineMarks(form))
+        assertEquals(listOf(0L, 30_000L), timelineMarks(form.copy(maxTime = "")))
+    }
 }

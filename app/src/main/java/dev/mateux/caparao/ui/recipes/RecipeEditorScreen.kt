@@ -1,46 +1,47 @@
 package dev.mateux.caparao.ui.recipes
 
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,23 +50,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.components.BrewModeGroup
+import dev.mateux.caparao.ui.components.RecipeForm
+import dev.mateux.caparao.ui.components.RecipeForm.Field
+import dev.mateux.caparao.ui.components.StepForm
 import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.format.Format
-import dev.mateux.caparao.ui.components.RecipeForm
-import dev.mateux.caparao.ui.components.StepForm
-import dev.mateux.caparao.ui.components.RecipeForm.Field
 
 /** Creates or edits a recipe (wireframe 2); closes after saving or deleting. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,17 +120,17 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
                             Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete))
                         }
                     }
+                    Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::save, modifier = Modifier.padding(end = 12.dp)) { Text(stringResource(R.string.save)) }
                 },
             )
         },
     ) { padding ->
         val form = state.form ?: return@Scaffold
         Column(
-            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Form(form, state.errors, state.isNew, viewModel)
-            Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::save, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.save)) }
         }
     }
 }
@@ -128,186 +138,261 @@ fun RecipeEditorScreen(viewModel: RecipeEditorViewModel, onClose: () -> Unit) {
 @Composable
 private fun Form(form: RecipeForm, errors: Set<Field>, isNew: Boolean, viewModel: RecipeEditorViewModel) {
     val locale = LocalConfiguration.current.locales[0]
+    val cell = Modifier.height(CellHeight)
     // The mode decides the fields, so it is chosen once, when the recipe is created.
     if (isNew) {
         BrewModeGroup(form.mode, { mode ->
             viewModel.edit { RecipeForm.new(mode).copy(name = it.name, dose = it.dose, grind = it.grind, temp = it.temp, notes = it.notes) }
         })
     }
-    TextField(form.name, { v -> viewModel.edit { it.copy(name = v) } }, R.string.recipe_name, Field.NAME in errors, R.string.required, text = true)
-    TextField(form.method, { v -> viewModel.edit { it.copy(method = v) } }, R.string.recipe_method, Field.METHOD in errors, R.string.required, text = true)
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RecipeForm.METHODS.getValue(form.mode).forEach { method ->
-            FilledTonalButton(
-                    onClick = { viewModel.edit { it.copy(method = method) } },
-                    shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
-                ) { Text(method) }
+    Cell(form.name, { v -> viewModel.edit { it.copy(name = v) } }, R.string.recipe_name, Field.NAME in errors, CellShape, Modifier.fillMaxWidth().height(64.dp), input = Input.TEXT, textStyle = MaterialTheme.typography.titleLarge)
+    if (Field.NAME in errors) ErrorText(R.string.required)
+    Method(form, Field.METHOD in errors, viewModel)
+    Spacer(Modifier.height(4.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Cell(form.dose, { v -> viewModel.edit { it.copy(dose = v) } }, R.string.recipe_dose, Field.DOSE in errors, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_grams))
+        Cell(form.ratio, { v -> viewModel.edit { it.copy(ratio = v) } }, R.string.recipe_ratio, Field.RATIO in errors, CellShape, cell.weight(1f), prefix = "1:")
+        // Computed from the two beside it, so it reads as a result, not a field.
+        CellBox(
+            when (form.mode) {
+                BrewMode.ESPRESSO -> R.string.recipe_yield
+                BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.recipe_water
+            },
+            false,
+            CellShape,
+            cell.weight(1f),
+            container = MaterialTheme.colorScheme.primaryContainer,
+        ) {
+            Text(
+                form.targetGrams?.let { Format.grams(it, locale) + " " + stringResource(R.string.unit_grams) } ?: "–",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 1,
+            )
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextField(form.dose, { v -> viewModel.edit { it.copy(dose = v) } }, R.string.recipe_dose, Field.DOSE in errors, R.string.recipe_error_dose, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
-        TextField(form.ratio, { v -> viewModel.edit { it.copy(ratio = v) } }, R.string.recipe_ratio, Field.RATIO in errors, R.string.recipe_error_ratio, Modifier.weight(1f), prefix = "1:")
-    }
-    form.targetGrams?.let {
-        Text(
-            stringResource(
-                when (form.mode) {
-                    BrewMode.ESPRESSO -> R.string.recipe_target_yield
-                    BrewMode.FILTER, BrewMode.FRENCH_PRESS -> R.string.recipe_target_water
-                },
-                Format.grams(it, locale),
-            ),
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.titleMedium,
-        )
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextField(form.grind, { v -> viewModel.edit { it.copy(grind = v) } }, R.string.recipe_grind, false, R.string.required, Modifier.weight(1f), text = true)
-        TextField(form.temp, { v -> viewModel.edit { it.copy(temp = v) } }, R.string.recipe_temp, Field.TEMP in errors, R.string.recipe_error_temp, Modifier.weight(1f), suffix = stringResource(R.string.unit_celsius))
-    }
-    when (form.mode) {
-        BrewMode.ESPRESSO -> {
-            Text(stringResource(R.string.recipe_window), style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val s = stringResource(R.string.unit_seconds)
-                TextField(form.minSeconds, { v -> viewModel.edit { it.copy(minSeconds = v) } }, R.string.recipe_window_min, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
-                TextField(form.maxSeconds, { v -> viewModel.edit { it.copy(maxSeconds = v) } }, R.string.recipe_window_max, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
+    if (Field.DOSE in errors) ErrorText(R.string.recipe_error_dose)
+    if (Field.RATIO in errors) ErrorText(R.string.recipe_error_ratio)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Cell(form.grind, { v -> viewModel.edit { it.copy(grind = v) } }, R.string.recipe_grind, false, CellShape, cell.weight(1f), input = Input.TEXT)
+        Cell(form.temp, { v -> viewModel.edit { it.copy(temp = v) } }, R.string.recipe_temp_short, Field.TEMP in errors, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_celsius))
+        if (form.mode != BrewMode.FRENCH_PRESS) {
+            CellBox(if (form.mode == BrewMode.ESPRESSO) R.string.recipe_shot_time else R.string.recipe_ideal_time, Field.WINDOW in errors, CellShape, cell.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CellInput(form.minTime, { v -> viewModel.edit { it.copy(minTime = v) } }, Input.CLOCK, Modifier.width(IntrinsicSize.Min).widthIn(min = 16.dp), stringResource(R.string.recipe_window_min))
+                    Text("–", Modifier.padding(horizontal = 2.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CellInput(form.maxTime, { v -> viewModel.edit { it.copy(maxTime = v) } }, Input.CLOCK, Modifier.weight(1f), stringResource(R.string.recipe_window_max))
+                }
             }
-            if (Field.WINDOW in errors) ErrorText(R.string.recipe_error_window)
         }
-        BrewMode.FILTER -> {
-            Text(stringResource(R.string.recipe_total_time), style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val s = stringResource(R.string.unit_seconds)
-                TextField(form.minSeconds, { v -> viewModel.edit { it.copy(minSeconds = v) } }, R.string.recipe_window_min, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
-                TextField(form.maxSeconds, { v -> viewModel.edit { it.copy(maxSeconds = v) } }, R.string.recipe_window_max, Field.WINDOW in errors, null, Modifier.weight(1f), suffix = s)
-            }
-            if (Field.WINDOW in errors) ErrorText(R.string.recipe_error_total_time)
-            Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
-        }
-        BrewMode.FRENCH_PRESS -> Steps(form.mode, form.steps, Field.STEPS in errors, viewModel)
     }
-    TextField(form.notes, { v -> viewModel.edit { it.copy(notes = v) } }, R.string.recipe_notes, false, R.string.required, text = true, singleLine = false)
+    if (Field.TEMP in errors) ErrorText(R.string.recipe_error_temp)
+    if (Field.WINDOW in errors) ErrorText(if (form.mode == BrewMode.ESPRESSO) R.string.recipe_error_window else R.string.recipe_error_total_time)
+    if (form.mode != BrewMode.ESPRESSO) {
+        Spacer(Modifier.height(8.dp))
+        Steps(form, Field.STEPS in errors, viewModel)
+    }
+    Spacer(Modifier.height(8.dp))
+    Cell(form.notes, { v -> viewModel.edit { it.copy(notes = v) } }, R.string.recipe_notes, false, CellShape, Modifier.fillMaxWidth().heightIn(min = CellHeight), input = Input.TEXT, singleLine = false)
 }
 
+// Chips only: the last one opens a field for a method the list does not have.
 @Composable
-private fun Steps(mode: BrewMode, steps: List<StepForm>, error: Boolean, viewModel: RecipeEditorViewModel) {
-    Text(stringResource(R.string.recipe_steps), style = MaterialTheme.typography.titleMedium)
-    Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    steps.forEachIndexed { index, step ->
-        StepRow(
-            step,
-            error,
-            allowedKinds = stepKindsFor(mode),
-            onChange = { viewModel.updateStep(index, it) },
-            onRemove = { viewModel.removeStep(index) },
+private fun Method(form: RecipeForm, error: Boolean, viewModel: RecipeEditorViewModel) {
+    val methods = RecipeForm.METHODS.getValue(form.mode)
+    var custom by rememberSaveable(form.mode) { mutableStateOf(form.method.isNotBlank() && form.method !in methods) }
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        methods.forEach { method ->
+            FilterChip(
+                selected = !custom && form.method == method,
+                onClick = { custom = false; viewModel.edit { it.copy(method = method) } },
+                label = { Text(method) },
+            )
+        }
+        FilterChip(
+            selected = custom,
+            onClick = { if (!custom) { custom = true; viewModel.edit { it.copy(method = "") } } },
+            label = { Text(stringResource(R.string.method_other)) },
         )
     }
+    if (custom) {
+        Cell(form.method, { v -> viewModel.edit { it.copy(method = v) } }, R.string.recipe_method, error, CellShape, Modifier.fillMaxWidth().height(CellHeight), input = Input.TEXT)
+    }
+    if (error) ErrorText(R.string.required)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Steps(form: RecipeForm, error: Boolean, viewModel: RecipeEditorViewModel) {
+    val steps = form.steps
+    // The step whose sheet is open; the list itself stays one row per step.
+    var open by rememberSaveable { mutableStateOf(-1) }
+    Text(stringResource(R.string.recipe_steps), style = MaterialTheme.typography.titleMedium)
+    Timeline(form)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        steps.forEachIndexed { index, step ->
+            StepSummary(index, step, error, groupShape(index, steps.size)) { open = index }
+        }
+    }
     if (error) ErrorText(if (steps.isEmpty()) R.string.recipe_error_no_steps else R.string.recipe_error_steps)
-    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = viewModel::addStep) {
+    FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { viewModel.addStep(); open = steps.size }) {
         Icon(painterResource(R.drawable.ic_add), contentDescription = null)
         Text(stringResource(R.string.add_step), Modifier.padding(start = 8.dp))
     }
-}
-
-// One connected group per step, like a button group: kind, weight, start and remove share a height, 2dp gaps, small
-// inner corners and full outer ones.
-@Composable
-private fun StepRow(
-    step: StepForm,
-    error: Boolean,
-    allowedKinds: List<StepKind>,
-    onChange: (StepForm) -> Unit,
-    onRemove: () -> Unit,
-) {
-    val inner = CornerSize(8.dp)
-    val outer = CornerSize(50)
-    val start = RoundedCornerShape(outer, inner, inner, outer)
-    val middle = RoundedCornerShape(inner)
-    val end = RoundedCornerShape(inner, outer, outer, inner)
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth().height(StepHeight), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            KindPicker(step.kind, allowedKinds, start, Modifier.width(104.dp).fillMaxHeight()) { onChange(step.copy(kind = it)) }
-            if (step.kind.pours) {
-                StepField(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, middle, Modifier.weight(1f), suffix = stringResource(R.string.unit_grams))
-            } else {
-                Box(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer, middle))
-            }
-            StepField(step.start, { onChange(step.copy(start = it)) }, R.string.step_start, error, middle, Modifier.weight(1f), clock = true)
-            FilledTonalIconButton(onClick = onRemove, shape = end, modifier = Modifier.width(48.dp).fillMaxHeight()) {
-                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.remove_step))
-            }
-        }
-        if (step.kind.pours) {
-            StepField(
-                step.flowTarget,
-                { onChange(step.copy(flowTarget = it)) },
-                R.string.step_flow_target,
+    steps.getOrNull(open)?.let { step ->
+        ModalBottomSheet(onDismissRequest = { open = -1 }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            StepSheet(
+                open,
+                step,
                 error,
-                RoundedCornerShape(12.dp),
-                Modifier.fillMaxWidth().height(48.dp),
-                suffix = stringResource(R.string.unit_grams_per_second),
+                stepKindsFor(form.mode),
+                onChange = { viewModel.updateStep(open, it) },
+                onRemove = { val index = open; open = -1; viewModel.removeStep(index) },
+                onDone = { open = -1 },
             )
         }
     }
 }
 
-private val StepHeight = 56.dp
-
+// The fields of one step: what kind it is, how far it pours, when it starts and, for a pour, how fast.
 @Composable
-private fun KindPicker(kind: StepKind, options: List<StepKind>, shape: Shape, modifier: Modifier, onPick: (StepKind) -> Unit) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    Box(modifier) {
-        FilledTonalButton(onClick = { open = true }, shape = shape, contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.fillMaxSize()) {
-            Text(stringResource(kind.label), maxLines = 1)
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large) {
-            options.forEach { entry ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(entry.label)) },
-                    onClick = { open = false; onPick(entry) },
-                    leadingIcon = if (entry == kind) {
-                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
-                    } else {
-                        null
-                    },
-                )
+private fun StepSheet(
+    index: Int,
+    step: StepForm,
+    error: Boolean,
+    allowedKinds: List<StepKind>,
+    onChange: (StepForm) -> Unit,
+    onRemove: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val cell = Modifier.height(CellHeight)
+    Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp).imePadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.step_sheet_title, index + 1), style = MaterialTheme.typography.titleLarge)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            allowedKinds.forEach { kind ->
+                FilterChip(selected = step.kind == kind, onClick = { onChange(step.copy(kind = kind)) }, label = { Text(stringResource(kind.label)) })
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (step.kind.pours) {
+                Cell(step.weight, { onChange(step.copy(weight = it)) }, R.string.step_weight, error, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_grams))
+            }
+            Cell(step.start, { onChange(step.copy(start = it)) }, R.string.step_start, error, CellShape, cell.weight(1f), input = Input.CLOCK)
+            if (step.kind.pours) {
+                Cell(step.flowTarget, { onChange(step.copy(flowTarget = it)) }, R.string.step_flow_target, error, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_grams_per_second))
+            }
+        }
+        Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (error) ErrorText(R.string.recipe_error_steps)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onRemove, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                Text(stringResource(R.string.remove_step))
+            }
+            Button(shapes = ButtonDefaults.shapes(), onClick = onDone) { Text(stringResource(R.string.done)) }
         }
     }
 }
 
-// A filled field without the indicator line, its label small inside, so it reads as one segment of the step group.
+// Rows of one list read as one group: full corners outside, small ones between rows.
+private fun groupShape(index: Int, size: Int): Shape {
+    val outer = CornerSize(16.dp)
+    val inner = CornerSize(4.dp)
+    val top = if (index == 0) outer else inner
+    val bottom = if (index == size - 1) outer else inner
+    return RoundedCornerShape(top, top, bottom, bottom)
+}
+
+/** Where each step starts, and where the brew ends: the ideal time when it is later than the last step. */
+internal fun timelineMarks(form: RecipeForm): List<Long> {
+    var last = 0L
+    val starts = form.steps.map { step -> (RecipeForm.clock(step.start) ?: last).coerceAtLeast(last).also { last = it } }
+    val end = RecipeForm.clock(form.maxTime)?.takeIf { it > last }
+    return (starts + listOfNotNull(end)).distinct()
+}
+
+// The steps as one bar, each as wide as it lasts, with its start time under it.
 @Composable
-private fun StepField(
+private fun Timeline(form: RecipeForm) {
+    val marks = timelineMarks(form)
+    if (marks.size < 2) return
+    val colors = MaterialTheme.colorScheme
+    val total = (marks.last() - marks.first()).toFloat()
+    Column(Modifier.clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            marks.zipWithNext().forEachIndexed { index, (from, to) ->
+                // A short step keeps a visible sliver.
+                Box(Modifier.weight(((to - from) / total).coerceAtLeast(0.06f)).fillMaxHeight().background(if (index % 2 == 0) colors.primary else colors.tertiary, CircleShape))
+            }
+        }
+        Box(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                marks.zipWithNext().forEach { (from, to) ->
+                    Text(
+                        RecipeForm.clockText(from),
+                        Modifier.weight(((to - from) / total).coerceAtLeast(0.06f)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        softWrap = false,
+                    )
+                }
+            }
+            Text(RecipeForm.clockText(marks.last()), Modifier.align(Alignment.CenterEnd).background(colors.surface).padding(start = 4.dp), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+        }
+    }
+}
+
+// One row per step: its number, its kind and what it asks for. Tapping it opens its sheet.
+@Composable
+private fun StepSummary(index: Int, step: StepForm, error: Boolean, shape: Shape, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val summary = buildList {
+        if (step.kind.pours && step.weight.isNotBlank()) add(stringResource(R.string.step_summary_weight, step.weight))
+        RecipeForm.clock(step.start)?.let { add(RecipeForm.clockText(it)) }
+        if (step.kind.pours && step.flowTarget.isNotBlank()) add(step.flowTarget + " " + stringResource(R.string.unit_grams_per_second))
+    }.joinToString(" · ")
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 60.dp).clip(shape).background(colors.surfaceContainer).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(32.dp).background(if (error) colors.errorContainer else colors.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
+            Text((index + 1).toString(), style = MaterialTheme.typography.labelLarge, color = if (error) colors.onErrorContainer else colors.onPrimaryContainer)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(step.kind.label), style = MaterialTheme.typography.titleMedium)
+            if (summary.isNotEmpty()) Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, maxLines = 1)
+        }
+    }
+}
+
+private val CellHeight = 56.dp
+private val CellShape = RoundedCornerShape(12.dp)
+
+private enum class Input { TEXT, DECIMAL, CLOCK }
+
+// A filled field without the indicator line, its label small inside, so fields sit side by side as one compact row.
+@Composable
+private fun Cell(
     value: String,
     onValue: (String) -> Unit,
     label: Int,
     isError: Boolean,
     shape: Shape,
     modifier: Modifier,
+    prefix: String? = null,
     suffix: String? = null,
-    clock: Boolean = false,
+    input: Input = Input.DECIMAL,
+    singleLine: Boolean = true,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
     val colors = MaterialTheme.colorScheme
-    val textStyle = MaterialTheme.typography.bodyLarge
-    BasicTextField(
-        value = value,
-        onValueChange = { v -> onValue(if (clock) v.filter { it.isDigit() || it == ':' }.take(5) else v.filter { it.isDigit() || it == ',' || it == '.' }.take(6)) },
-        modifier = modifier.fillMaxHeight(),
-        singleLine = true,
-        textStyle = textStyle.copy(color = colors.onSurface),
-        cursorBrush = SolidColor(colors.primary),
-        keyboardOptions = KeyboardOptions(keyboardType = if (clock) KeyboardType.Number else KeyboardType.Decimal),
-    ) { inner ->
-        Column(
-            Modifier.fillMaxSize().background(if (isError) colors.errorContainer else colors.surfaceContainerHigh, shape).padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = if (isError) colors.onErrorContainer else colors.onSurfaceVariant, maxLines = 1)
+    // The label sits in the decoration, so the field is announced and found by it.
+    CellInput(value, onValue, input, modifier, singleLine = singleLine, textStyle = textStyle) { inner ->
+        CellBox(label, isError, shape, if (singleLine) Modifier.fillMaxSize() else Modifier.fillMaxWidth().heightIn(min = CellHeight)) {
             Row(verticalAlignment = Alignment.Bottom) {
+                prefix?.let { Text(it, style = textStyle, color = colors.onSurfaceVariant) }
                 Box(Modifier.weight(1f)) { inner() }
                 suffix?.let { Text(it, style = textStyle, color = colors.onSurfaceVariant) }
             }
@@ -316,43 +401,57 @@ private fun StepField(
 }
 
 @Composable
-private fun TextField(
-    value: String,
-    onValue: (String) -> Unit,
+private fun CellBox(
     label: Int,
     isError: Boolean,
-    errorText: Int?,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    prefix: String? = null,
-    suffix: String? = null,
-    text: Boolean = false,
-    clock: Boolean = false,
-    singleLine: Boolean = true,
+    shape: Shape,
+    modifier: Modifier,
+    container: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    content: @Composable () -> Unit,
 ) {
-    OutlinedTextField(
+    val colors = MaterialTheme.colorScheme
+    Column(
+        modifier.background(if (isError) colors.errorContainer else container, shape).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = if (isError) colors.onErrorContainer else colors.onSurfaceVariant, maxLines = 1)
+        content()
+    }
+}
+
+@Composable
+private fun CellInput(
+    value: String,
+    onValue: (String) -> Unit,
+    input: Input,
+    modifier: Modifier,
+    description: String? = null,
+    singleLine: Boolean = true,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    decoration: @Composable (@Composable () -> Unit) -> Unit = { it() },
+) {
+    val colors = MaterialTheme.colorScheme
+    BasicTextField(
+        decorationBox = decoration,
         value = value,
         onValueChange = { v ->
             onValue(
-                when {
-                    text -> v.take(80)
-                    clock -> v.filter { it.isDigit() || it == ':' }.take(5)
-                    else -> v.filter { it.isDigit() || it == ',' || it == '.' }.take(6)
+                when (input) {
+                    Input.TEXT -> v.take(80)
+                    Input.CLOCK -> v.filter { it.isDigit() || it == ':' }.take(5)
+                    Input.DECIMAL -> v.filter { it.isDigit() || it == ',' || it == '.' }.take(6)
                 },
             )
         },
-        modifier = modifier,
-        label = { Text(stringResource(label), maxLines = 1) },
-        prefix = prefix?.let { { Text(it) } },
-        suffix = suffix?.let { { Text(it) } },
-        isError = isError,
-        supportingText = if (isError && errorText != null) ({ Text(stringResource(errorText)) }) else null,
+        modifier = if (description != null) modifier.semantics { contentDescription = description } else modifier,
         singleLine = singleLine,
-        keyboardOptions = when {
-            text -> KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-            clock -> KeyboardOptions(keyboardType = KeyboardType.Number)
-            else -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        textStyle = textStyle.copy(color = colors.onSurface),
+        cursorBrush = SolidColor(colors.primary),
+        keyboardOptions = when (input) {
+            Input.TEXT -> KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+            Input.CLOCK -> KeyboardOptions(keyboardType = KeyboardType.Number)
+            Input.DECIMAL -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
         },
-        shape = MaterialTheme.shapes.medium,
     )
 }
 

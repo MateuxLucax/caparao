@@ -21,9 +21,9 @@ data class RecipeForm(
     val ratio: String = "",
     val grind: String = "",
     val temp: String = "",
-    /** Espresso shot or filter total-time window in seconds. */
-    val minSeconds: String = "",
-    val maxSeconds: String = "",
+    /** Espresso shot or filter total-time window, as m:ss. */
+    val minTime: String = "",
+    val maxTime: String = "",
     val notes: String = "",
     val steps: List<StepForm> = emptyList(),
 ) {
@@ -36,17 +36,17 @@ data class RecipeForm(
         if (temp.isNotBlank() && temp.trim().toIntOrNull()?.takeIf { it in BrewLimits.TEMPERATURE_CELSIUS } == null) add(Field.TEMP)
         when (mode) {
             BrewMode.ESPRESSO -> {
-                val min = seconds(minSeconds)
-                val max = seconds(maxSeconds)
-                if (minSeconds.isNotBlank() && min == null) add(Field.WINDOW)
-                if (maxSeconds.isNotBlank() && max == null) add(Field.WINDOW)
+                val min = window(minTime)
+                val max = window(maxTime)
+                if (minTime.isNotBlank() && min == null) add(Field.WINDOW)
+                if (maxTime.isNotBlank() && max == null) add(Field.WINDOW)
                 if (min != null && max != null && min > max) add(Field.WINDOW)
             }
             BrewMode.FILTER, BrewMode.FRENCH_PRESS -> {
-                val min = seconds(minSeconds)
-                val max = seconds(maxSeconds)
-                val hasMin = minSeconds.isNotBlank()
-                val hasMax = maxSeconds.isNotBlank()
+                val min = window(minTime)
+                val max = window(maxTime)
+                val hasMin = minTime.isNotBlank()
+                val hasMax = maxTime.isNotBlank()
                 if (mode == BrewMode.FILTER && (hasMin != hasMax || (hasMin && (min == null || max == null || min > max)))) {
                     add(Field.WINDOW)
                 }
@@ -80,13 +80,13 @@ data class RecipeForm(
         waterTempCelsius = temp.trim().toIntOrNull(),
         notes = notes.trim().ifEmpty { null },
         targetMinMs = when (mode) {
-            BrewMode.ESPRESSO -> seconds(minSeconds)?.times(1000)
-            BrewMode.FILTER -> seconds(minSeconds)?.times(1000)
+            BrewMode.ESPRESSO -> window(minTime)
+            BrewMode.FILTER -> window(minTime)
             BrewMode.FRENCH_PRESS -> null
         },
         targetMaxMs = when (mode) {
-            BrewMode.ESPRESSO -> seconds(maxSeconds)?.times(1000)
-            BrewMode.FILTER -> seconds(maxSeconds)?.times(1000)
+            BrewMode.ESPRESSO -> window(maxTime)
+            BrewMode.FILTER -> window(maxTime)
             BrewMode.FRENCH_PRESS -> null
         },
         steps = when (mode) {
@@ -128,8 +128,8 @@ data class RecipeForm(
             ratio = plain(recipe.targetRatio, locale),
             grind = recipe.grind.orEmpty(),
             temp = recipe.waterTempCelsius?.toString().orEmpty(),
-            minSeconds = recipe.targetMinMs?.let { (it / 1000).toString() }.orEmpty(),
-            maxSeconds = recipe.targetMaxMs?.let { (it / 1000).toString() }.orEmpty(),
+            minTime = recipe.targetMinMs?.let(::clockText).orEmpty(),
+            maxTime = recipe.targetMaxMs?.let(::clockText).orEmpty(),
             notes = recipe.notes.orEmpty(),
             steps = recipe.steps.map {
                 StepForm(
@@ -161,7 +161,8 @@ data class RecipeForm(
         /** A comma or a dot. */
         fun number(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }
 
-        private fun seconds(text: String): Long? = text.trim().toLongOrNull()?.takeIf { it in 1..600 }
+        /** m:ss or plain seconds, from one second to ten minutes. */
+        private fun window(text: String): Long? = clock(text)?.takeIf { it in 1_000..600_000 }
 
         /** m:ss, or plain seconds. */
         fun clock(text: String): Long? = parseClockText(text)

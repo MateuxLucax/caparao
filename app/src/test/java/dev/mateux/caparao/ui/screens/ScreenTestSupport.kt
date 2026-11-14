@@ -198,6 +198,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     protected fun text(id: Int) = context.getString(id)
 
+    protected fun text(id: Int, vararg args: Any) = context.getString(id, *args)
+
     /** The rendered text of a TextView [id] in an applied widget's view tree. */
     protected fun widgetText(root: View, id: Int): String {
         val view = root.findViewById<TextView>(id)

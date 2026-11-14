@@ -790,13 +790,13 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.save)).performClick()
         compose.onAllNodesWithText(text(R.string.required)).onFirst().assertExists()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).performTextReplacement("Morning shot")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_dose))).performTextReplacement("18")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_ratio))).performTextReplacement("2,4")
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.save)).performClick()
         // Back on the list, which now shows it.
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
         compose.waitUntil(5_000) {
