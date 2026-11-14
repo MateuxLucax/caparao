@@ -13,6 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -467,19 +468,23 @@ private fun SummaryStep(
                 )
             }
         }
-        Button(
-            onClick = { onRateNow(brew) },
-            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
-            shapes = ButtonDefaults.shapes(),
-        ) { Text(stringResource(R.string.brew_rate_now), style = MaterialTheme.typography.titleMedium) }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleSmall)
-                Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Rating waits until the coffee can be tasted (#464): a reminder by default, or right away.
+        Row(
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.large).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = remindToRate, onCheckedChange = onRemindToRate)
         }
         Spacer(Modifier.height(8.dp))
+        FilledTonalButton(
+            onClick = { onRateNow(brew) },
+            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(),
+        ) { Text(stringResource(R.string.brew_rate_now), style = MaterialTheme.typography.titleMedium) }
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }
     }

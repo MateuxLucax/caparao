@@ -148,8 +148,9 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
     private fun openRatingAndSave() {
         compose.onNodeWithText(text(R.string.brew_rate_now)).performScrollTo().performClick()
         waitFor(R.string.brew_how_was_it)
-        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural"), 5_000)
-        compose.onNodeWithText("Caparaó natural").assertIsDisplayed()
+        // The header names the brew in one line: coffee, recipe and when.
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural · ", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural · ", substring = true).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.brew_taste_sour)).performScrollTo().performClick()
         compose.onNodeWithText(text(R.string.brew_taste_balanced)).performScrollTo().performClick()
         compose.onNodeWithText("Chocolate").performScrollTo().performClick()
@@ -157,7 +158,8 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_notes)))
             .performScrollTo()
             .performTextReplacement("Peach and honey")
-        compose.onNodeWithText(text(R.string.brew_save_rating)).performScrollTo().performClick()
+        // Save sits under the form, always in reach.
+        compose.onNodeWithText(text(R.string.brew_save_rating)).performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.brew_how_was_it)).fetchSemanticsNodes().isEmpty() }
     }
 

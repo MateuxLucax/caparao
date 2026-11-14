@@ -1,6 +1,19 @@
 package dev.mateux.caparao.ui.brews
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import dev.mateux.caparao.model.BrewMode
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -42,6 +55,7 @@ import dev.mateux.caparao.ui.components.BrewRating
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.format.Format
 
+/** "How was it?" (#464): rated once the coffee can be tasted. The brew's numbers, the taste, the bag's notes found, stars and notes. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
@@ -50,13 +64,38 @@ fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.brew_how_was_it), style = MaterialTheme.typography.titleLargeEmphasized) },
+                title = {
+                    Column {
+                        Text(stringResource(R.string.brew_how_was_it), style = MaterialTheme.typography.titleLargeEmphasized)
+                        state.brew?.let { brew ->
+                            // Which brew this is, in one line: the coffee, the recipe and when.
+                            Text(
+                                listOfNotNull(brew.coffee, brew.recipeName ?: stringResource(R.string.free_brew), Format.dateTime(brew.startedAt, locale)).joinToString(" · "),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
                     }
                 },
             )
+        },
+        // Save stays in reach while the form scrolls under it.
+        bottomBar = {
+            if (!state.loading && state.brew != null) {
+                Button(
+                    onClick = { viewModel.save(onClose) },
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 24.dp, vertical = 12.dp).height(ButtonDefaults.MediumContainerHeight),
+                    shapes = ButtonDefaults.shapes(),
+                    enabled = !state.saving,
+                ) { Text(stringResource(R.string.brew_save_rating), style = MaterialTheme.typography.titleMedium) }
+            }
         },
     ) { padding ->
         if (state.loading) {
@@ -66,32 +105,24 @@ fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
         } else {
             val brew = state.brew ?: return@Scaffold
             Column(
-                Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                BrewRatingHeader(brew, locale)
-                Text(stringResource(R.string.brew_taste), style = MaterialTheme.typography.titleMedium)
-                FlowRow(
-                    modifier = Modifier.selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    listOf(
-                        BrewTaste.SOUR to R.string.brew_taste_sour,
-                        BrewTaste.BALANCED to R.string.brew_taste_balanced,
-                        BrewTaste.BITTER to R.string.brew_taste_bitter,
-                    ).forEach { (taste, label) ->
-                        FilterChip(
-                            selected = state.taste == taste,
-                            onClick = { viewModel.setTaste(taste) },
-                            label = { Text(stringResource(label)) },
+                BrewFacts(brew, locale)
+                Section(R.string.brew_taste) {
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        val tastes = listOf(
+                            BrewTaste.SOUR to R.string.brew_taste_sour,
+                            BrewTaste.BALANCED to R.string.brew_taste_balanced,
+                            BrewTaste.BITTER to R.string.brew_taste_bitter,
                         )
+                        tastes.forEachIndexed { index, (taste, label) ->
+                            TasteButton(stringResource(label), state.taste == taste, index, tastes.size, Modifier.weight(1f)) { viewModel.setTaste(taste) }
+                        }
                     }
                 }
                 if (state.bagTastingNotes.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.brew_tasting_notes_found), style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.brew_tasting_notes_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Section(R.string.brew_tasting_notes_found, R.string.brew_tasting_notes_hint) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             state.bagTastingNotes.forEach { note ->
                                 FilterChip(
@@ -103,36 +134,69 @@ fun BrewRatingScreen(viewModel: BrewRatingViewModel, onClose: () -> Unit) {
                         }
                     }
                 }
-                BrewRating(state.rating, viewModel::setRating)
-                OutlinedTextField(
-                    value = state.notes,
-                    onValueChange = viewModel::setNotes,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.recipe_notes)) },
-                    minLines = 3,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    shape = MaterialTheme.shapes.medium,
-                )
-                Button(
-                    onClick = { viewModel.save(onClose) },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    shapes = ButtonDefaults.shapes(),
-                    enabled = !state.saving,
-                ) { Text(stringResource(R.string.brew_save_rating), style = MaterialTheme.typography.titleMedium) }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BrewRating(state.rating, viewModel::setRating)
+                    OutlinedTextField(
+                        value = state.notes,
+                        onValueChange = viewModel::setNotes,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.recipe_notes)) },
+                        minLines = 3,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                }
             }
         }
     }
 }
 
+// A titled group of the form, with an optional line saying what to do.
 @Composable
-private fun BrewRatingHeader(brew: Brew, locale: java.util.Locale) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(brew.coffee ?: stringResource(R.string.no_bag), style = MaterialTheme.typography.titleMedium)
-        Text(brew.recipeName ?: stringResource(R.string.free_brew), style = MaterialTheme.typography.bodyLarge)
-        Text(
-            Format.dateTime(brew.startedAt, locale),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun Section(title: Int, hint: Int? = null, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column {
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+            hint?.let { Text(stringResource(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        content()
+    }
+}
+
+// One of the three tastes: a big segment of a connected group. Tapping the chosen one clears it.
+@Composable
+private fun TasteButton(label: String, selected: Boolean, index: Int, count: Int, modifier: Modifier, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val outer = CornerSize(50)
+    val inner = CornerSize(8.dp)
+    val start = if (index == 0) outer else inner
+    val end = if (index == count - 1) outer else inner
+    val shape = RoundedCornerShape(start, end, end, start)
+    val container by animateColorAsState(if (selected) colors.primary else colors.surfaceContainerHigh, label = "taste")
+    Box(
+        modifier.height(56.dp).clip(shape).background(container).selectable(selected, role = Role.RadioButton, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium, color = if (selected) colors.onPrimary else colors.onSurface, maxLines = 1)
+    }
+}
+
+// What was brewed, to remember the cup by: the time, the water or yield, and the grind when it was noted.
+@Composable
+private fun BrewFacts(brew: Brew, locale: java.util.Locale) {
+    val g = stringResource(R.string.unit_grams)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Fact(R.string.label_time, Format.timer((brew.durationMs / 1000).toInt()), Modifier.weight(1f))
+        Fact(if (brew.mode == BrewMode.ESPRESSO) R.string.label_yield else R.string.label_water, "${Format.grams(brew.yieldGrams, locale)} $g", Modifier.weight(1f))
+        brew.grind?.takeIf { it.isNotBlank() }?.let { Fact(R.string.recipe_grind, it, Modifier.weight(1f)) }
+    }
+}
+
+@Composable
+private fun Fact(label: Int, value: String, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.background(colors.surfaceContainer, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
