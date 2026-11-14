@@ -169,8 +169,8 @@ private fun timeFact(brew: Brew, recipe: Recipe): String {
     val low = Format.timer((min / 1000).toInt())
     val high = Format.timer((max / 1000).toInt())
     return when {
-        brew.durationMs > max -> stringResource(R.string.suggestion_time_over, time, ((brew.durationMs - max) / 1000).toInt(), low, high)
-        brew.durationMs < min -> stringResource(R.string.suggestion_time_under, time, ((min - brew.durationMs) / 1000).toInt(), low, high)
+        brew.durationMs > max -> stringResource(R.string.suggestion_time_over, time, ((brew.durationMs - max + 999) / 1000).toInt(), low, high)
+        brew.durationMs < min -> stringResource(R.string.suggestion_time_under, time, ((min - brew.durationMs + 999) / 1000).toInt(), low, high)
         else -> stringResource(R.string.suggestion_time_on, time, low, high)
     }
 }
