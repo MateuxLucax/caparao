@@ -212,7 +212,13 @@ class BrewViewModel(
         basePlan = brewPlan
         // Back from the coffee keeps the pick: the last bag used is only the first suggestion.
         _uiState.update {
-            it.copy(step = BrewStep.COFFEE, bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id)
+            it.copy(
+                step = BrewStep.COFFEE,
+                bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id,
+                // A previous recipe's adjustment no longer applies until the watch re-emits for this one (#463 review).
+                adjustment = null,
+                adjustedBagIds = emptySet(),
+            )
         }
         watchAdjustments()
     }
