@@ -79,6 +79,14 @@ data class CaptureWriterLimits(
 /**
  * Stores opt-in raw BLE sessions as bounded JSONL. Calls made from BLE and brew handling only copy small values and
  * use [Channel.trySend]; file I/O runs on [ioDispatcher] and cannot hold up the detector or GATT event collector.
+ *
+ * The writer owns the whole capture lifecycle, so [start] keeps one responsibility instead of splitting the
+ * upload/retry loop out: a session goes start (file, header and SessionStarted; automatic captures also enqueue the
+ * brewing marker, all before any frame) → frames through [notification] and [command] → stop/finish → Ready on disk.
+ * [upload] sends a Ready file once; a failed send leaves it pending and [ensureRetryLoop] re-uploads pending files
+ * with exponential backoff until one succeeds or consent is withdrawn ([clear] deletes them). Starting a new session
+ * never blocks on a pending upload: uploads run in their own coroutines, and the retry loop re-reads the pending
+ * files on each pass.
  */
 class CaptureWriter(
     private val directory: File,
@@ -113,7 +121,13 @@ class CaptureWriter(
     private var finishing: Session? = null
 
     /** Start one new recording. Returns false when already recording or when storage cannot create a file. */
-    override suspend fun start(): Boolean = lifecycleLock.withLock {
+    override suspend fun start(): Boolean = startInternal(null)
+
+    /**
+     * [start], with one difference: for a non-null [brewingMode] the synthetic `brew_<mode>_brewing` marker is
+     * enqueued under the same lock that publishes the session, so it always precedes any frame.
+     */
+    private suspend fun startInternal(brewingMode: String?): Boolean = lifecycleLock.withLock {
         if (!optedIn()) return@withLock false
         synchronized(lock) {
             if (active != null) return@withLock false
@@ -149,6 +163,10 @@ class CaptureWriter(
             active = session
             _state.value = CaptureWriterState.Recording(wallTime)
             enqueueLocked(session, Payload.Event(DiagnosticEvent.SessionStarted.note()))
+            if (brewingMode != null) {
+                session.mode = brewingMode
+                enqueueLocked(session, Payload.Event("brew_${brewingMode}_brewing", brewingMode))
+            }
         }
         scope.launch(ioDispatcher) { writeSession(session) }
         session.durationTimer = scope.launch {
@@ -256,14 +274,8 @@ class CaptureWriter(
             }
         }
         if (startAutomatic) scope.launch(ioDispatcher) {
-            if (start()) {
-                if (!autoCaptureEnded) synchronized(lock) {
-                    active?.let { session ->
-                        val mode = (event as DiagnosticEvent.BrewPhaseChanged).mode.note
-                        session.mode = mode
-                        enqueueLocked(session, Payload.Event("brew_${mode}_brewing", mode))
-                    }
-                }
+            val mode = (event as DiagnosticEvent.BrewPhaseChanged).mode.note
+            if (startInternal(mode)) {
                 if (autoCaptureEnded) stop()
             }
         }

@@ -22,9 +22,9 @@ data class SyncStatus(
  *
  * The keys are frozen from the first Play upload (#396): `onboarding_done`; `last_dose_`, `last_recipe_` and
  * `target_ratio_` plus a lowercase mode name; `last_steep_ms`; `guide_vibration`, `guide_vibration_on` and
- * `guide_sound`; `remote_diagnostics` and `remote_diagnostics_consent_ms`; `capture_every_brew`,
- * `capture_every_brew_consent_ms` and `last_capture_sent_ms`; `server_url`, `server_token`,
+ * `guide_sound`; `remote_diagnostics` and `remote_diagnostics_consent_ms`; `server_url`, `server_token`,
  * `last_sync_ms`, `last_sync_error`, `last_sync_error_detail` and `last_sync_error_brew`.
+ * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472).
  */
 class SettingsStore(private val prefs: SharedPreferences) {
     var onboardingDone: Boolean

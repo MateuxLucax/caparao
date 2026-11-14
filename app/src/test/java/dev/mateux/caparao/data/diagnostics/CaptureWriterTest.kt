@@ -528,6 +528,34 @@ class CaptureWriterTest {
     }
 
     @Test
+    fun theBrewingMarkerPrecedesTheFirstFrame() = runTest {
+        val directory = tempDir()
+        var enabled = true
+        val recorder = CaptureWriter(
+            directory,
+            this,
+            ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler),
+            optedIn = { enabled },
+            captureEveryBrew = { enabled },
+        )
+
+        recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.FILTER, DiagnosticBrewPhase.BREWING))
+        runCurrent() // The session is published with the marker already enqueued.
+        recorder.notification(byteArrayOf(1, 2, 3), DiagnosticFrameClassification(false, false))
+        recorder.event(DiagnosticEvent.BrewResultReady)
+        runCurrent()
+        val sent = recorder.state.value as CaptureWriterState.Ready
+        val lines = sent.file.readLines().filter { it.isNotBlank() }
+        val marker = lines.indexOfFirst { it.contains("brew_filter_brewing") }
+        val frame = lines.indexOfFirst { it.contains("\"note\":\"notification\"") }
+        assertTrue("brewing marker missing", marker != -1)
+        assertTrue("notification frame missing", frame != -1)
+        assertTrue("marker at $marker must precede the frame at $frame", marker < frame)
+        recorder.clear()
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun restartingABrewEndsItsCaptureBeforeTheNextOneStarts() = runTest {
         val directory = tempDir()
         val sent = mutableListOf<String>()
