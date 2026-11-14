@@ -110,6 +110,7 @@
     <string name="prepare_ready">Ready</string>
     <string name="espresso_place_cup">Put the cup on the scale</string>
     <string name="espresso_place_cup_text">The scale tares once the cup is steady.</string>
+    <string name="tare_now">Tare now</string>
     <string name="taring">Taring…</string>
     <string name="tare_failed_title">The scale didn\'t reach zero</string>
     <string name="tare_failed_hint">Keep the cup still and retry.</string>

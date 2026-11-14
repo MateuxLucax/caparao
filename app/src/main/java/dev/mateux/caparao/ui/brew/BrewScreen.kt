@@ -48,6 +48,8 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -318,6 +320,17 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
             }
         }
         when (state.phase) {
+            // No button asks to confirm the cup (#458). A cup that was already on the scale never shows up as a rise,
+            // so after a short wait a quiet link offers the tare by hand.
+            BrewPhase.WAITING_FOR_CUP -> {
+                var offerTare by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { delay(TARE_LINK_DELAY_MS); offerTare = true }
+                Box(Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), contentAlignment = Alignment.Center) {
+                    if (offerTare && espresso) {
+                        TextButton(onClick = viewModel::armNow, shapes = ButtonDefaults.shapes(), enabled = state.connected) { Text(stringResource(R.string.tare_now)) }
+                    }
+                }
+            }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
                 Text(
                     stringResource(
@@ -340,6 +353,9 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
 }
 
 /** Free and guided filter share the same lift pause: the clock and guide hold until the dripper returns. */
+/** How long the espresso screen waits for the cup before it offers "Tare now". */
+private const val TARE_LINK_DELAY_MS = 5_000L
+
 @Composable
 private fun FilterPausedStep(state: BrewUiState, onDone: () -> Unit) {
     Column(

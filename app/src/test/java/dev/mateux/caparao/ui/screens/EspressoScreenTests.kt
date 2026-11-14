@@ -347,6 +347,21 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.onAllNodes(hasText(text(R.string.taring))).assertCountEquals(0)
     }
 
+    /** A cup already on the scale never reads as a rise: after a short wait the screen offers the tare by hand (#458). */
+    @Test
+    fun espressoOffersTareNowWhileWaitingForTheCup() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        compose.onAllNodes(hasText(text(R.string.tare_now))).assertCountEquals(0)
+        compose.mainClock.advanceTimeBy(5_100)
+        compose.onNodeWithText(text(R.string.tare_now)).assertIsDisplayed().performClick()
+        playUntilShown(scale, R.string.taring, 5_000)
+    }
+
     /**
      * With animations off, the espresso pictures are still frames: the cup, the LED and the open ring show the same
      * state as the animated ones, and the weight, timer and flow stay on screen through the shot (#194).
