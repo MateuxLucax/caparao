@@ -355,6 +355,54 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNode(hasSetTextAction() and hasText("Caparaó natural")).assertIsDisplayed()
     }
 
+    /**
+     * The adjustments per recipe (#462): a recipe the bag was brewed with follows the recipe until it is adjusted; the
+     * adjustment is edited, shows on the detail with its history, and goes back to the recipe after a confirmation.
+     */
+    @Test
+    fun coffeeBagAdjustmentIsEditedListedAndCleared() {
+        val day = 86_400_000L
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+        }
+        linkBrew("brew-1", "bag-1", 19.0, recipeId = BuiltInRecipes.ESPRESSO_ID)
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.adjustments_title)
+        compose.onNodeWithText(text(R.string.adjustment_none)).assertIsDisplayed()
+
+        // Edit: one step finer and one degree cooler; Save is off until something changes.
+        compose.onNodeWithText("Espresso Oster").performClick()
+        waitFor(R.string.adjustment_title)
+        val finer = text(R.string.adjustment_less, text(R.string.recipe_grind))
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(finer), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.adjustment_history)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.adjustment_less, text(R.string.recipe_grind)), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.adjustment_less, text(R.string.recipe_temp_short)), useUnmergedTree = true).performClick()
+        click(R.string.save)
+
+        // Listed on the detail, beside the recipe's own grind.
+        waitFor(R.string.adjustments_title)
+        val celsius = text(R.string.unit_celsius)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.adjustment_grind_recipe, "9", "10") + " · 91 $celsius"), 5_000)
+
+        // History, then back to the recipe after the confirmation.
+        compose.onNodeWithText("Espresso Oster").performClick()
+        waitFor(R.string.adjustment_history)
+        compose.onNodeWithText(text(R.string.adjustment_manual)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.adjustment_change_grind, text(R.string.adjustment_as_recipe), "9"), substring = true).assertIsDisplayed()
+        click(R.string.adjustment_reset)
+        waitFor(R.string.adjustment_reset_title)
+        compose.onAllNodesWithText(text(R.string.adjustment_reset)).onLast().performClick()
+        click(R.string.save)
+        waitFor(R.string.adjustments_title)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.adjustment_none)), 5_000)
+    }
+
     /** A bag with no brews says so (C4). */
     @Test
     fun coffeeBagDetailWithoutBrews() {

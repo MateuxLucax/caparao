@@ -68,6 +68,8 @@ import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.components.LauncherShortcut
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -138,7 +140,8 @@ class AppScreensTest {
             initializer { CaptureViewModel(diagnostics, settings, available = true) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(coffeeBags) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus) {} }
             // No server is reached: Test connection fails, saving enqueues nothing.

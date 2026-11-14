@@ -76,6 +76,8 @@ import dev.mateux.caparao.model.ScaleError
 import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -248,7 +250,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), CoffeeBagRepository(db.coffeeBags()), recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
             initializer {
@@ -355,12 +358,12 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected fun clickLast(id: Int) = compose.onAllNodesWithText(text(id)).onLast().performClick()
 
     /** The Coffees tab's add sheet (C3): Save waits for a name and a weight; More details holds origin and notes. */
-    protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null) = runBlocking {
+    protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null, recipeId: String? = null) = runBlocking {
         db.brews().insertWithSamples(
             BrewEntity(
                 id = id, mode = "FILTER", startedAt = System.currentTimeMillis(), durationMs = 60_000, doseGrams = dose,
                 yieldGrams = 250.0, timeToFirstDropMs = null, flowAvg = 1.0, flowPeak = 2.0, interrupted = false,
-                syncedAt = null, coffee = null, rating = rating, bagId = bagId,
+                syncedAt = null, coffee = null, rating = rating, bagId = bagId, recipeId = recipeId,
             ),
             emptyList(),
         )

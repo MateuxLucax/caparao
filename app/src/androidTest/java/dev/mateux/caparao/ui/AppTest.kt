@@ -23,6 +23,8 @@ import dev.mateux.caparao.data.local.BrewDatabase
 import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.RecipeRepository
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.data.local.SettingsStore
 import dev.mateux.caparao.data.scale.ReplayScaleSource
 import dev.mateux.caparao.data.scale.ScaleSource
@@ -77,7 +79,8 @@ class AppTest {
         initializer { TargetRatioViewModel(settings) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
+        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+        initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), CoffeeBagRepository(db.coffeeBags()), recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
         initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
