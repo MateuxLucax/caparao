@@ -40,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,6 +48,8 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -250,6 +251,9 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 
 private const val PAUSED_RING_ALPHA = 0.45f
 
+/** How long the espresso screen waits for the cup before it offers "Tare now". */
+private const val TARE_LINK_DELAY_MS = 5_000L
+
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
     // The ring comes back from its paused color instead of jumping when the brew resumes.
@@ -294,6 +298,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 respectMotionSetting = state.mode == BrewMode.FILTER,
                 initialRingAlpha = if (wasPaused) PAUSED_RING_ALPHA else 1f,
                 flowCue = espresso,
+                // The cup and the first drop share one screen (#458): the tare shows where the timer will run.
+                timerText = if (espresso && state.phase == BrewPhase.TARING) stringResource(R.string.taring) else null,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
                     BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
@@ -317,8 +323,16 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
             }
         }
         when (state.phase) {
-            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.connected) {
-                Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
+            // No button asks to confirm the cup (#458). A cup that was already on the scale never shows up as a rise,
+            // so after a short wait a quiet link offers the tare by hand.
+            BrewPhase.WAITING_FOR_CUP -> {
+                var offerTare by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { delay(TARE_LINK_DELAY_MS); offerTare = true }
+                Box(Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), contentAlignment = Alignment.Center) {
+                    if (offerTare && espresso) {
+                        TextButton(onClick = viewModel::armNow, shapes = ButtonDefaults.shapes(), enabled = state.connected) { Text(stringResource(R.string.tare_now)) }
+                    }
+                }
             }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
                 Text(

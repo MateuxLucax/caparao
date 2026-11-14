@@ -293,7 +293,7 @@ class AppScreensTest {
         compose.onNodeWithTag("weigh-step-next").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
         compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
 
         assertEquals(null, replay.reading.value)
         replay.resume()

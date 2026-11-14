@@ -120,10 +120,10 @@ class EndToEndTest {
             val dao = (context.applicationContext as CaparaoApplication).container.database.brews()
             // Don't start the 52 s fixture until the live screen and detector are mounted.
             val liveStepError = runCatching {
-                compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 10_000)
+                compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 10_000)
             }.exceptionOrNull()
             if (liveStepError != null) {
-                val visibleSteps = listOf(R.string.ratio_caption, R.string.weigh_beans_title, R.string.tare, R.string.cup_on)
+                val visibleSteps = listOf(R.string.ratio_caption, R.string.weigh_beans_title, R.string.tare, R.string.espresso_place_cup)
                     .filter { compose.onAllNodes(hasText(text(it))).fetchSemanticsNodes().isNotEmpty() }
                     .map { text(it) }
                 throw AssertionError(
