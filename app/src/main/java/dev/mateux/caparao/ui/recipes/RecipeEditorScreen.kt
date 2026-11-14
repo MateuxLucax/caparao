@@ -2,6 +2,7 @@ package dev.mateux.caparao.ui.recipes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,17 +57,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.BrewMode
@@ -76,6 +86,7 @@ import dev.mateux.caparao.ui.components.StepForm
 import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.format.Format
+
 
 /** Creates or edits a recipe (wireframe 2); closes after saving or deleting. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -229,9 +240,45 @@ private fun Steps(form: RecipeForm, error: Boolean, viewModel: RecipeEditorViewM
     var open by rememberSaveable { mutableStateOf(-1) }
     Text(stringResource(R.string.recipe_steps), style = MaterialTheme.typography.titleMedium)
     Timeline(form)
+    // The step being dragged by its handle and how far it is from its place, in pixels.
+    var dragging by remember { mutableStateOf(-1) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var rowHeight by remember { mutableStateOf(0) }
+    val gap = with(LocalDensity.current) { 2.dp.toPx() }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         steps.forEachIndexed { index, step ->
-            StepSummary(index, step, error, groupShape(index, steps.size)) { open = index }
+            val current by rememberUpdatedState(index)
+            val count by rememberUpdatedState(steps.size)
+            StepSummary(
+                index,
+                step,
+                error,
+                groupShape(index, steps.size),
+                Modifier
+                    .onSizeChanged { rowHeight = it.height }
+                    .zIndex(if (dragging == index) 1f else 0f)
+                    .graphicsLayer { translationY = if (dragging == index) dragOffset else 0f },
+                handle = Modifier.pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { dragging = current; dragOffset = 0f },
+                        onDragEnd = { dragging = -1; dragOffset = 0f },
+                        onDragCancel = { dragging = -1; dragOffset = 0f },
+                    ) { change, amount ->
+                        change.consume()
+                        dragOffset += amount.y
+                        val slot = rowHeight + gap
+                        // Past half a row, the step trades places with its neighbour and the finger keeps holding it.
+                        if (dragOffset > slot / 2 && dragging < count - 1) {
+                            viewModel.moveStep(dragging, dragging + 1); dragging += 1; dragOffset -= slot
+                        } else if (dragOffset < -slot / 2 && dragging > 0) {
+                            viewModel.moveStep(dragging, dragging - 1); dragging -= 1; dragOffset += slot
+                        }
+                    }
+                },
+                onMoveUp = if (index > 0) ({ viewModel.moveStep(index, index - 1) }) else null,
+                onMoveDown = if (index < steps.lastIndex) ({ viewModel.moveStep(index, index + 1) }) else null,
+                onRemove = { viewModel.removeStep(index) },
+            ) { open = index }
         }
     }
     if (error) ErrorText(if (steps.isEmpty()) R.string.recipe_error_no_steps else R.string.recipe_error_steps)
@@ -248,6 +295,8 @@ private fun Steps(form: RecipeForm, error: Boolean, viewModel: RecipeEditorViewM
                 stepKindsFor(form.mode),
                 onChange = { viewModel.updateStep(open, it) },
                 onRemove = { val index = open; open = -1; viewModel.removeStep(index) },
+                onMoveUp = if (open > 0) ({ viewModel.moveStep(open, open - 1); open -= 1 }) else null,
+                onMoveDown = if (open < steps.lastIndex) ({ viewModel.moveStep(open, open + 1); open += 1 }) else null,
                 onDone = { open = -1 },
             )
         }
@@ -263,11 +312,22 @@ private fun StepSheet(
     allowedKinds: List<StepKind>,
     onChange: (StepForm) -> Unit,
     onRemove: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
     onDone: () -> Unit,
 ) {
     val cell = Modifier.height(CellHeight)
     Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp).imePadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.step_sheet_title, index + 1), style = MaterialTheme.typography.titleLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.step_sheet_title, index + 1), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+            // Reordering without dragging: the same move the handle makes, one place at a time.
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onMoveUp?.invoke() }, enabled = onMoveUp != null) {
+                Icon(painterResource(R.drawable.ic_arrow_upward), contentDescription = stringResource(R.string.step_move_up))
+            }
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onMoveDown?.invoke() }, enabled = onMoveDown != null) {
+                Icon(painterResource(R.drawable.ic_arrow_downward), contentDescription = stringResource(R.string.step_move_down))
+            }
+        }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             allowedKinds.forEach { kind ->
                 FilterChip(selected = step.kind == kind, onClick = { onChange(step.copy(kind = kind)) }, label = { Text(stringResource(kind.label)) })
@@ -345,15 +405,38 @@ private fun Timeline(form: RecipeForm) {
 
 // One row per step: its number, its kind and what it asks for. Tapping it opens its sheet.
 @Composable
-private fun StepSummary(index: Int, step: StepForm, error: Boolean, shape: Shape, onClick: () -> Unit) {
+private fun StepSummary(
+    index: Int,
+    step: StepForm,
+    error: Boolean,
+    shape: Shape,
+    modifier: Modifier,
+    handle: Modifier,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onRemove: () -> Unit,
+    onClick: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     val summary = buildList {
         if (step.kind.pours && step.weight.isNotBlank()) add(stringResource(R.string.step_summary_weight, step.weight))
         RecipeForm.clock(step.start)?.let { add(RecipeForm.clockText(it)) }
         if (step.kind.pours && step.flowTarget.isNotBlank()) add(step.flowTarget + " " + stringResource(R.string.unit_grams_per_second))
     }.joinToString(" · ")
+    val moveUp = stringResource(R.string.step_move_up)
+    val moveDown = stringResource(R.string.step_move_down)
+    val remove = stringResource(R.string.remove_step)
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 60.dp).clip(shape).background(colors.surfaceContainer).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier.fillMaxWidth().heightIn(min = 60.dp).clip(shape).background(colors.surfaceContainer).clickable(onClick = onClick)
+            // TalkBack reorders and removes from the row's actions, without the drag.
+            .semantics {
+                customActions = listOfNotNull(
+                    onMoveUp?.let { CustomAccessibilityAction(moveUp) { it(); true } },
+                    onMoveDown?.let { CustomAccessibilityAction(moveDown) { it(); true } },
+                    CustomAccessibilityAction(remove) { onRemove(); true },
+                )
+            }
+            .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -363,6 +446,10 @@ private fun StepSummary(index: Int, step: StepForm, error: Boolean, shape: Shape
         Column(Modifier.weight(1f)) {
             Text(stringResource(step.kind.label), style = MaterialTheme.typography.titleMedium)
             if (summary.isNotEmpty()) Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, maxLines = 1)
+        }
+        // Decorative for TalkBack: the row's actions do the same.
+        Box(handle.size(48.dp).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.ic_drag_handle), contentDescription = null, tint = colors.onSurfaceVariant)
         }
     }
 }

@@ -210,6 +210,8 @@
     <string name="recipe_temp_short">Temperatura</string>
     <string name="recipe_ideal_time">Tempo ideal</string>
     <string name="recipe_shot_time">Tempo de extração</string>
+    <string name="step_move_up">Mover para cima</string>
+    <string name="step_move_down">Mover para baixo</string>
     <string name="step_sheet_title">Etapa %1$d</string>
     <string name="recipe_steps_text">O peso é o que a balança mostra, contado a partir da tara. O início conta da primeira água.</string>
     <string name="step_summary_weight">até %1$s g</string>
