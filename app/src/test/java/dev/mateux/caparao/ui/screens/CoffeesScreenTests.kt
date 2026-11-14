@@ -206,10 +206,38 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(text(R.string.save)).assertIsEnabled()
         click(R.string.coffee_more_details)
         compose.onNodeWithText(text(R.string.coffee_origin)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_tasting_notes)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.tasting_chocolate)).performClick()
         click(R.string.save)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.coffee_weight)).fetchSemanticsNodes().isEmpty() }
         compose.waitUntilAtLeastOneExists(hasText("Mantiqueira", substring = true), 5_000)
         compose.onNodeWithText(context.getString(R.string.coffee_left, "250", "250")).assertIsDisplayed()
+        compose.onNodeWithText("Mantiqueira", substring = true).performClick()
+        val profile = "${context.getString(R.string.coffee_tasting_profile)}: ${context.getString(R.string.tasting_chocolate)}"
+        compose.waitUntilAtLeastOneExists(hasText(profile), 5_000)
+        compose.onNodeWithText(profile).assertIsDisplayed()
+    }
+
+    @Test
+    fun aCustomTastingNoteCanBeAddedRemovedAndSavedFromTheDraft() {
+        openCoffeeBag(withBrew = false)
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        click(R.string.coffee_more_details)
+
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_tasting_notes)))
+            .performTextReplacement("Blueberry")
+        compose.onNodeWithContentDescription(text(R.string.coffee_add_tasting_note)).performClick()
+        compose.onNodeWithText("Blueberry").assertIsDisplayed()
+        compose.onNodeWithText("Blueberry").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Blueberry").fetchSemanticsNodes().isEmpty() }
+
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_tasting_notes)))
+            .performTextReplacement("Peach")
+        click(R.string.save)
+        val profile = "${context.getString(R.string.coffee_tasting_profile)}: Peach"
+        compose.waitUntilAtLeastOneExists(hasText(profile), 5_000)
+        compose.onNodeWithText(profile).assertIsDisplayed()
     }
 
     /**

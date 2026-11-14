@@ -52,6 +52,7 @@ fun CoffeeStep(state: BrewUiState, onSelect: (String?) -> Unit, onNext: () -> Un
                 val details = buildList {
                     add(stringResource(R.string.coffee_left, wholeGrams(bag.leftGrams, locale), wholeGrams(bag.weightGrams, locale)))
                     bag.daysSinceRoast(now)?.let { days -> add(pluralStringResource(R.plurals.coffee_roasted_days, days.toInt(), days.toInt())) }
+                    bag.tastingNotes.takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
                 }
                 val short = state.dose?.let { bag.leftGrams < it } == true
                 CoffeeChoice(

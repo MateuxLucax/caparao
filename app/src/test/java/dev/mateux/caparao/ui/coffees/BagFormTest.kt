@@ -33,4 +33,14 @@ class BagFormTest {
         assertEquals(3L, bag.daysSinceRoast(3 * 86_400_000L + 5))
         assertNull(bag.copy(roastedAt = null).daysSinceRoast(0))
     }
+
+    @Test
+    fun withNoteTrimsDeduplicatesAndCapsAtSix() {
+        val form = BagForm(tastingNotes = listOf("Caramel", "Citrus"))
+        assertEquals(listOf("Caramel", "Citrus", "Chocolate"), form.withNote("  Chocolate ").tastingNotes)
+        assertTrue(form.withNote("caramel") === form) // case-insensitive duplicate
+        assertTrue(form.withNote("   ") === form) // blank
+        val full = BagForm(tastingNotes = listOf("a", "b", "c", "d", "e", "f"))
+        assertTrue(full.withNote("g") === full) // already six
+    }
 }

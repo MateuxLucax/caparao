@@ -117,11 +117,11 @@ interface BrewDao {
  * The app's database: brews, their curves and the recipes, only on the phone (#87).
  *
  * Version 9 is the compatibility baseline (#396). There are no migrations below it: a database older than the baseline
- * is not supported. The next schema change adds a migration and its test again.
+ * is not supported.
  */
 @Database(
     entities = [BrewEntity::class, BrewSampleEntity::class, RecipeEntity::class, RecipeStepEntity::class, CoffeeBagEntity::class],
-    version = 9,
+    version = 10,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -135,8 +135,15 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
+            .addMigrations(MIGRATION_9_10)
             .addCallback(SeedBuiltInRecipes)
             .build()
+
+        val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN tasting_notes TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
     }
 }
 
