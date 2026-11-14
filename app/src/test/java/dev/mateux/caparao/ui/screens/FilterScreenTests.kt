@@ -165,7 +165,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
     }
 
-    /** The summary closes through Back, which saves the notes; it has no X (#185, Summary row). */
+    /** The saved summary closes through Back; it has no X (#185, Summary row). */
     @Test
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
@@ -192,7 +192,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
@@ -222,17 +222,17 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNodeWithContentDescription(text(R.string.milestone_prepare)).assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-picture").assertIsDisplayed()
         compose.onNodeWithTag("filter-prepare-dose").assertIsDisplayed()
-        // The single source of the filter row order: the dripper and server go on the scale before the grounds (#278).
+        // The single source of the filter row order: the dripper and server are on the scale before the filter is rinsed (#457).
         listOf(
             R.string.prepare_rdt,
             R.string.prepare_grind,
-            R.string.prepare_rinse_filter,
             R.string.prepare_dripper_server,
+            R.string.prepare_rinse_filter,
             R.string.prepare_add_grounds,
         ).forEachIndexed { row, label ->
             compose.onNodeWithTag("filter-prepare-row-$row").assertIsDisplayed().assertTextContains(text(label))
         }
-        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("filter-prepare-grind-setting", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("filter-prepare-ready").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithTag("filter-prepare-row-0").performClick()
         compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())

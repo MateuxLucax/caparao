@@ -12,8 +12,9 @@ import dev.mateux.caparao.model.BrewSample
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class BrewDetailUiState(
@@ -34,14 +35,19 @@ class BrewDetailViewModel(
     private val onEdited: (String) -> Unit = {},
     /** The bags the notes pick the coffee from; null in tests that never edit notes. */
     private val coffeeBags: CoffeeBagRepository? = null,
+    /** Called after the brew was deleted, to cancel its upload and local rating reminder. */
+    private val onBrewDeleted: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewDetailUiState())
     val uiState: StateFlow<BrewDetailUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val brew = repository.get(id)
-            _uiState.value = BrewDetailUiState(brew, repository.samples(id), loading = false)
+            val samples = repository.samples(id)
+            repository.observe(id)
+                .collect { brew ->
+                    _uiState.update { it.copy(brew = brew, samples = samples, loading = false) }
+                }
         }
     }
 
@@ -57,7 +63,7 @@ class BrewDetailViewModel(
 
     fun cancelNotes() = _uiState.update { it.copy(notes = null) }
 
-    /** Saves the notes; the brew is unsynced until the server has them (#105). */
+    /** Saves the coffee and recipe notes; the brew is unsynced until the server has them (#105). */
     fun saveNotes() {
         val state = _uiState.value
         val brew = state.brew ?: return
@@ -76,6 +82,7 @@ class BrewDetailViewModel(
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
             repository.delete(id)
+            onBrewDeleted(id)
             onDeleted()
         }
     }

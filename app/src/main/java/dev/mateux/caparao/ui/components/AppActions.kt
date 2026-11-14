@@ -10,4 +10,8 @@ class AppActions(
     val openAppSettings: () -> Unit,
     /** Asks for the local network permission (or opens the app's settings once it was denied for good); returns whether it is granted. */
     val requestLocalNetwork: suspend () -> Boolean,
+    /** Shows Android's Notifications permission prompt; returns whether it was granted. */
+    val requestNotificationsPermission: suspend () -> Boolean = { true },
+    /** Whether Android currently allows this app to post notifications. */
+    val notificationsPermissionGranted: () -> Boolean = { true },
 )

@@ -1,0 +1,626 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 12,
+    "identityHash": "c0f58f795b16d9e3d74335fd853ffaaf",
+    "entities": [
+      {
+        "tableName": "brews",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mode` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `duration_ms` INTEGER NOT NULL, `dose_grams` REAL NOT NULL, `yield_grams` REAL NOT NULL, `time_to_first_drop_ms` INTEGER, `flow_avg` REAL NOT NULL, `flow_peak` REAL NOT NULL, `interrupted` INTEGER NOT NULL, `synced_at` INTEGER, `recipe_id` TEXT, `recipe_name` TEXT, `coffee` TEXT, `grind` TEXT, `water_temp_celsius` INTEGER, `rating` INTEGER, `notes` TEXT, `taste` TEXT, `tasting_notes_found` TEXT NOT NULL DEFAULT '[]', `rated_at` INTEGER, `bag_id` TEXT, `revision` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "started_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "duration_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "doseGrams",
+            "columnName": "dose_grams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "yieldGrams",
+            "columnName": "yield_grams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeToFirstDropMs",
+            "columnName": "time_to_first_drop_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "flowAvg",
+            "columnName": "flow_avg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flowPeak",
+            "columnName": "flow_peak",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "interrupted",
+            "columnName": "interrupted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipe_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recipeName",
+            "columnName": "recipe_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coffee",
+            "columnName": "coffee",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "grind",
+            "columnName": "grind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "waterTempCelsius",
+            "columnName": "water_temp_celsius",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "taste",
+            "columnName": "taste",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tastingNotesFound",
+            "columnName": "tasting_notes_found",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "ratedAt",
+            "columnName": "rated_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bagId",
+            "columnName": "bag_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_brews_started_at",
+            "unique": false,
+            "columnNames": [
+              "started_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_brews_started_at` ON `${TABLE_NAME}` (`started_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "brew_samples",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`brew_id` TEXT NOT NULL, `at_ms` INTEGER NOT NULL, `weight_grams` REAL NOT NULL, `flow` REAL NOT NULL, PRIMARY KEY(`brew_id`, `at_ms`), FOREIGN KEY(`brew_id`) REFERENCES `brews`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "brewId",
+            "columnName": "brew_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "atMs",
+            "columnName": "at_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightGrams",
+            "columnName": "weight_grams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flow",
+            "columnName": "flow",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "brew_id",
+            "at_ms"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "brews",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "brew_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "recipes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `mode` TEXT NOT NULL, `method` TEXT NOT NULL, `dose_grams` REAL NOT NULL, `target_ratio` REAL NOT NULL, `grind` TEXT, `water_temp_celsius` INTEGER, `notes` TEXT, `target_min_ms` INTEGER, `target_max_ms` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "method",
+            "columnName": "method",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "doseGrams",
+            "columnName": "dose_grams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetRatio",
+            "columnName": "target_ratio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "grind",
+            "columnName": "grind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "waterTempCelsius",
+            "columnName": "water_temp_celsius",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "targetMinMs",
+            "columnName": "target_min_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "targetMaxMs",
+            "columnName": "target_max_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "recipe_steps",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recipe_id` TEXT NOT NULL, `position` INTEGER NOT NULL, `kind` TEXT NOT NULL, `target_weight_grams` REAL, `target_at_ms` INTEGER NOT NULL, `target_flow_grams_per_second` REAL, PRIMARY KEY(`recipe_id`, `position`), FOREIGN KEY(`recipe_id`) REFERENCES `recipes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipe_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetWeightGrams",
+            "columnName": "target_weight_grams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "targetAtMs",
+            "columnName": "target_at_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetFlowGramsPerSecond",
+            "columnName": "target_flow_grams_per_second",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "recipe_id",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "recipes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipe_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "coffee_bags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `roaster` TEXT, `origin` TEXT, `roasted_at` INTEGER, `weight_grams` REAL NOT NULL, `notes` TEXT, `finished` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `tasting_notes` TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roaster",
+            "columnName": "roaster",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "roastedAt",
+            "columnName": "roasted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "weightGrams",
+            "columnName": "weight_grams",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "finished",
+            "columnName": "finished",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tastingNotes",
+            "columnName": "tasting_notes",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "bag_recipe_adjustments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bag_id` TEXT NOT NULL, `recipe_id` TEXT NOT NULL, `grind` INTEGER, `water_temp_celsius` INTEGER, `dose_grams` REAL, `tuned` INTEGER NOT NULL, PRIMARY KEY(`bag_id`, `recipe_id`), FOREIGN KEY(`bag_id`) REFERENCES `coffee_bags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recipe_id`) REFERENCES `recipes`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "bagId",
+            "columnName": "bag_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipe_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "grind",
+            "columnName": "grind",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "waterTempCelsius",
+            "columnName": "water_temp_celsius",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "doseGrams",
+            "columnName": "dose_grams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "tuned",
+            "columnName": "tuned",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bag_id",
+            "recipe_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bag_recipe_adjustments_recipe_id",
+            "unique": false,
+            "columnNames": [
+              "recipe_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bag_recipe_adjustments_recipe_id` ON `${TABLE_NAME}` (`recipe_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "coffee_bags",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "bag_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "recipes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipe_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "bag_recipe_adjustment_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `bag_id` TEXT NOT NULL, `recipe_id` TEXT NOT NULL, `changed_at` INTEGER NOT NULL, `old_grind` INTEGER, `new_grind` INTEGER, `old_water_temp_celsius` INTEGER, `new_water_temp_celsius` INTEGER, `old_dose_grams` REAL, `new_dose_grams` REAL, `old_tuned` INTEGER NOT NULL, `new_tuned` INTEGER NOT NULL, `reason` TEXT NOT NULL, `brew_id` TEXT, FOREIGN KEY(`bag_id`, `recipe_id`) REFERENCES `bag_recipe_adjustments`(`bag_id`, `recipe_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bagId",
+            "columnName": "bag_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipe_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changedAt",
+            "columnName": "changed_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldGrind",
+            "columnName": "old_grind",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "newGrind",
+            "columnName": "new_grind",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "oldWaterTempCelsius",
+            "columnName": "old_water_temp_celsius",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "newWaterTempCelsius",
+            "columnName": "new_water_temp_celsius",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "oldDoseGrams",
+            "columnName": "old_dose_grams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "newDoseGrams",
+            "columnName": "new_dose_grams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "oldTuned",
+            "columnName": "old_tuned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newTuned",
+            "columnName": "new_tuned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brewId",
+            "columnName": "brew_id",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_bag_recipe_adjustment_history_bag_id_recipe_id_changed_at",
+            "unique": false,
+            "columnNames": [
+              "bag_id",
+              "recipe_id",
+              "changed_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_bag_recipe_adjustment_history_bag_id_recipe_id_changed_at` ON `${TABLE_NAME}` (`bag_id`, `recipe_id`, `changed_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "bag_recipe_adjustments",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "bag_id",
+              "recipe_id"
+            ],
+            "referencedColumns": [
+              "bag_id",
+              "recipe_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c0f58f795b16d9e3d74335fd853ffaaf')"
+    ]
+  }
+}

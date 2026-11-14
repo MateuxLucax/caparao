@@ -4,7 +4,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
-import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -17,8 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.File
 
 /**
- * Version 9 is the compatibility baseline (#396): it is the only exported schema and a phone already on it opens
- * without any migration, keeping its brews, curves, recipes and coffee bags.
+ * Version 9 is the compatibility baseline (#396): a phone already on it opens with its brews, curves, recipes and bags.
  */
 @RunWith(RobolectricTestRunner::class)
 class BaselineSchemaTest {
@@ -38,17 +36,20 @@ class BaselineSchemaTest {
     }
 
     @Test
-    fun theBaselineIsTheOnlyExportedSchema() {
+    fun baselineAndCurrentSchemasAreExported() {
         assertEquals(9, version)
-        assertEquals(setOf("$version.json"), schemaDir.list()!!.toSet())
-        val exported = JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database")
-        assertEquals(version, exported.getInt("version"))
+        assertEquals(setOf("9.json", "10.json", "11.json", "12.json", "13.json"), schemaDir.list()!!.toSet())
+        assertEquals(version, JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(10, JSONObject(File(schemaDir, "10.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(11, JSONObject(File(schemaDir, "11.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(12, JSONObject(File(schemaDir, "12.json").readText()).getJSONObject("database").getInt("version"))
+        assertEquals(13, JSONObject(File(schemaDir, "13.json").readText()).getJSONObject("database").getInt("version"))
     }
 
     @Test
-    fun aPhoneAlreadyOnTheBaselineKeepsEverythingWithoutAMigration() = runBlocking {
+    fun aPhoneAlreadyOnTheBaselineKeepsEverythingAcrossMigration() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
-            createBaseline(db)
+            createSchemaFromJson(db, version)
             db.execSQL(
                 "INSERT INTO brews (id, mode, started_at, duration_ms, dose_grams, yield_grams, flow_avg, flow_peak, " +
                     "interrupted, bag_id) VALUES ('brew', 'FILTER', 1000, 60000, 15.0, 250.0, 1.3, 4.8, 0, 'bag')",
@@ -78,31 +79,21 @@ class BaselineSchemaTest {
             sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
                 while (cursor.moveToNext()) tables += cursor.getString(0)
             }
-            assertTrue(tables.containsAll(setOf("brews", "brew_samples", "recipes", "recipe_steps", "coffee_bags")))
+            assertTrue(
+                tables.containsAll(
+                    setOf(
+                        "brews", "brew_samples", "recipes", "recipe_steps", "coffee_bags",
+                        "bag_recipe_adjustments", "bag_recipe_adjustment_history",
+                    ),
+                ),
+            )
             val columns = mutableSetOf<String>()
             sqlite.query("PRAGMA table_info(brews)").use { cursor ->
                 while (cursor.moveToNext()) columns += cursor.getString(cursor.getColumnIndexOrThrow("name"))
             }
-            assertTrue(columns.containsAll(setOf("bag_id", "revision", "recipe_id", "notes", "water_temp_celsius")))
+            assertTrue(columns.containsAll(setOf("bag_id", "revision", "recipe_id", "notes", "water_temp_celsius", "taste", "tasting_notes_found", "rated_at")))
         } finally {
             db.close()
         }
-    }
-
-    /** Room's own v9 tables, indices and bookkeeping rows, exactly as app/schemas/…/9.json describes them. */
-    private fun createBaseline(db: SQLiteDatabase) {
-        val schema = JSONObject(File(schemaDir, "$version.json").readText()).getJSONObject("database")
-        val entities = schema.getJSONArray("entities")
-        for (i in 0 until entities.length()) {
-            val entity = entities.getJSONObject(i)
-            val table = entity.getString("tableName")
-            db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
-            val indices = entity.optJSONArray("indices") ?: JSONArray()
-            for (j in 0 until indices.length()) {
-                db.execSQL(indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table))
-            }
-        }
-        val setup = schema.getJSONArray("setupQueries")
-        for (i in 0 until setup.length()) db.execSQL(setup.getString(i))
     }
 }

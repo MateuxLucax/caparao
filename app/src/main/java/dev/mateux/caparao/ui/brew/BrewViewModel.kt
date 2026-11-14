@@ -19,6 +19,8 @@ import dev.mateux.caparao.data.diagnostics.DiagnosticEvent
 import dev.mateux.caparao.data.diagnostics.Diagnostics
 import dev.mateux.caparao.data.diagnostics.NoDiagnostics
 import dev.mateux.caparao.data.diagnostics.recordBrewPhase
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.RecipeRepository
@@ -30,13 +32,13 @@ import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.ScaleReading
 import dev.mateux.caparao.model.ScaleState
-import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.ui.theme.Motion
 import dev.mateux.caparao.watch.WatchBrewState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,14 +67,18 @@ class BrewViewModel(
     private val newId: () -> String = { UUID.randomUUID().toString() },
     /** Called once a brew is in the database (UploadScheduler.brewSaved). */
     private val onSaved: (String) -> Unit = {},
-    /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
-    private val onDiscarded: (String) -> Unit = {},
+    /** Called when the Saved screen turns this brew's reminder on or off (#465). */
+    private val onReminderChanged: (String, Boolean) -> Unit = { _, _ -> },
+    /** Called when a saved brew is discarded, to cancel its upload and local rating reminder. */
+    private val onDiscarded: suspend (String) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
     private val diagnostics: Diagnostics = NoDiagnostics,
     /** Whether the system animates (ValueAnimator.areAnimatorsEnabled); with it off, the timer jumps to the saved time. */
     private val animations: () -> Boolean = { true },
     /** The coffee bags to pick from before weighing and on the summary (#291); null leaves the coffee step out. */
     private val coffeeBags: CoffeeBagRepository? = null,
+    /** What each coffee changes in a recipe (#463); null brews every bag as the recipe says. */
+    private val adjustments: BagRecipeAdjustmentRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BrewUiState(mode))
     val uiState: StateFlow<BrewUiState> = _uiState.asStateFlow()
@@ -94,6 +100,20 @@ class BrewViewModel(
     /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
     val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
 
+    /** The Saved screen's local reminder preference; the notification is handled separately (#465). */
+    val remindToRate: Boolean get() = settings.remindToRate
+
+    fun setRemindToRate(enabled: Boolean) {
+        settings.remindToRate = enabled
+        _uiState.value.saved?.let { onReminderChanged(it.id, enabled) }
+    }
+
+    val ratingNotificationsPermissionAsked: Boolean get() = settings.ratingNotificationsPermissionAsked
+
+    fun markRatingNotificationsPermissionAsked() {
+        settings.ratingNotificationsPermissionAsked = true
+    }
+
     /** Counts the steep on the phone's clock while the scale is gone (#221). */
     private var steepClockJob: Job? = null
     /** Counts the seconds without a scale before the brew starts; the screen keeps listening (#182). */
@@ -110,6 +130,10 @@ class BrewViewModel(
     private var recipeChosen = false
     /** The user picked a coffee on the coffee step, so going back to Dose and on keeps that pick (#291). */
     private var coffeeBagChosen = false
+    /** The plan as the Dose step left it, before a coffee's adjustment; the coffee step builds this brew's plan from it. */
+    private var basePlan: BrewPlan? = null
+    private var adjustmentsJob: Job? = null
+    private var bagAdjustments: Map<String, BagRecipeAdjustment> = emptyMap()
     private var lastDiagnosticPhase: BrewPhase? = null
 
     /** The brew screen opened: start from the dose, listening to the scale. Does nothing while a brew is open. */
@@ -194,10 +218,46 @@ class BrewViewModel(
             beginWeighing()
             return
         }
+        basePlan = brewPlan
         // Back from the coffee keeps the pick: the last bag used is only the first suggestion.
         _uiState.update {
-            it.copy(step = BrewStep.COFFEE, bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id)
+            it.copy(
+                step = BrewStep.COFFEE,
+                bagId = if (coffeeBagChosen) it.bagId else (lastUsedBag(it.bags) ?: it.bags.first()).id,
+                // A previous recipe's adjustment no longer applies until the watch re-emits for this one (#463 review).
+                adjustment = null,
+                adjustedBagIds = emptySet(),
+            )
         }
+        watchAdjustments()
+    }
+
+    /** Follows the open bags' adjustments for the chosen recipe while the coffee is picked, so an edit shows at once. */
+    private fun watchAdjustments() {
+        adjustmentsJob?.cancel()
+        val state = _uiState.value
+        val recipeId = brewPlan.recipe?.id
+        if (adjustments == null || recipeId == null || mode == BrewMode.FRENCH_PRESS || state.bags.isEmpty()) {
+            bagAdjustments = emptyMap()
+            _uiState.update { it.copy(adjustedBagIds = emptySet(), adjustment = null) }
+            return
+        }
+        adjustmentsJob = viewModelScope.launch {
+            combine(state.bags.map { adjustments.forBag(it.id) }) { perBag ->
+                perBag.flatMap { it.toList() }
+                    .filter { it.recipeId == recipeId && (it.grind != null || it.waterTempCelsius != null || it.doseGrams != null) }
+                    .associateBy { it.bagId }
+            }.collect { found ->
+                bagAdjustments = found
+                _uiState.update { it.copy(adjustedBagIds = found.keys, adjustment = found[it.bagId]) }
+            }
+        }
+    }
+
+    /** On the coffee step: brew this once as the recipe says, or with the coffee's adjustment again. */
+    fun setFollowRecipe(follow: Boolean) {
+        if (_uiState.value.step != BrewStep.COFFEE) return
+        _uiState.update { it.copy(followRecipe = follow) }
     }
 
     /** On the coffee step: the bag this brew uses, or null for No bag. */
@@ -205,12 +265,18 @@ class BrewViewModel(
         val state = _uiState.value
         if (state.step != BrewStep.COFFEE || bagId != null && state.bags.none { it.id == bagId }) return
         coffeeBagChosen = true
-        _uiState.update { it.copy(bagId = bagId) }
+        _uiState.update { it.copy(bagId = bagId, adjustment = bagAdjustments[bagId], followRecipe = false) }
     }
 
     /** From the coffee to weighing the beans. */
     fun continueToBeans() {
-        if (_uiState.value.step != BrewStep.COFFEE) return
+        val state = _uiState.value
+        if (state.step != BrewStep.COFFEE) return
+        // The one place the plan takes the coffee's adjustment; the session is created from the plan as before.
+        val base = basePlan ?: brewPlan
+        val active = state.activeAdjustment
+        usePlan(base.withAdjustment(active))
+        _uiState.update { it.copy(adjustedDose = active?.doseGrams != null && brewPlan.doseGrams == active.doseGrams) }
         beginWeighing()
     }
 
@@ -278,8 +344,14 @@ class BrewViewModel(
             BrewStep.PREPARE_PORTAFILTER -> BrewStep.WEIGH
             else -> return
         }
+        // Before the beans the plan is the Dose step's again; the coffee step applies the adjustment on the way forward.
+        if (state.step == BrewStep.WEIGH || state.step == BrewStep.COFFEE) basePlan?.let(::usePlan)
+        if (previous == BrewStep.DOSE) {
+            adjustmentsJob?.cancel()
+            basePlan = null
+        }
         // A wait for the scale belongs to the step it was waiting on.
-        _uiState.update { it.copy(step = previous, waitingForScale = false) }
+        _uiState.update { it.copy(step = previous, waitingForScale = false, adjustedDose = if (previous == BrewStep.WEIGH) it.adjustedDose else false) }
     }
 
     /**
@@ -288,6 +360,9 @@ class BrewViewModel(
      */
     fun restart() {
         if (_uiState.value.step != BrewStep.LIVE) return
+        if (session?.phase == BrewPhase.BREWING || session?.phase == BrewPhase.PAUSED) {
+            diagnostics.event(DiagnosticEvent.BrewInterrupted)
+        }
         clearRun()
         _uiState.update {
             it.copy(
@@ -360,28 +435,6 @@ class BrewViewModel(
         current.stop(clock()).forEach(::alert)
         recordDiagnosticPhase(current.phase)
         finish()
-    }
-
-    /** The notes on the summary changed. */
-    fun editNotes(form: NotesForm) = _uiState.update { if (it.saved == null) it else it.copy(notes = form) }
-
-    /**
-     * Saves the notes typed on the summary into the brew just saved; it is sent again with them
-     * (#105). Returns false when a field is invalid.
-     */
-    fun saveNotes(): Boolean {
-        val state = _uiState.value
-        val brew = state.saved ?: return true
-        val form = state.notes ?: return true
-        if (!form.valid) return false
-        val updated = form.applyTo(brew)
-        if (updated == brew) return true
-        _uiState.update { it.copy(saved = updated) }
-        viewModelScope.launch {
-            repository.updateNotes(updated)
-            onSaved(updated.id)
-        }
-        return true
     }
 
     /** Deletes the brew just saved. */
@@ -562,7 +615,7 @@ class BrewViewModel(
             recipeName = recipe?.name,
             coffee = bag?.name,
             bagId = bag?.id,
-            grind = recipe?.grind,
+            grind = recipe?.grind?.toString(),
             waterTempCelsius = recipe?.waterTempCelsius,
         )
         // Keep the live screen until the timer reaches the saved time, with the curve ready for the summary.
@@ -572,7 +625,6 @@ class BrewViewModel(
             repository.save(brew, summary.curve)
             // After the insert, so the upload job always finds the brew.
             onSaved(brew.id)
-            _uiState.update { if (it.saved?.id == brew.id) it.copy(notes = NotesForm.of(brew)) else it }
         }
     }
 
@@ -617,6 +669,9 @@ class BrewViewModel(
         clearRun()
         recipeChosen = false
         coffeeBagChosen = false
+        basePlan = null
+        adjustmentsJob?.cancel()
+        bagAdjustments = emptyMap()
         brewPlan = BrewPlan.create(mode, null, settings.lastDose(mode), settings.targetRatio(mode), settings.lastSteepMs())
         _uiState.value = BrewUiState(
             mode,

@@ -26,4 +26,8 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
         set(value) {
             settings.guideSound = value
         }
+
+    var ratingReminderDelayMinutes: Int
+        get() = settings.ratingReminderDelayMinutes
+        set(value) { settings.ratingReminderDelayMinutes = value }
 }

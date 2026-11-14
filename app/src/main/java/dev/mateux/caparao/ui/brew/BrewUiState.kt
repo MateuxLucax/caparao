@@ -5,6 +5,7 @@ import dev.mateux.caparao.brew.BrewReadingState
 import dev.mateux.caparao.brew.BrewClockState
 import dev.mateux.caparao.brew.DrainWindow
 import dev.mateux.caparao.data.local.SettingsStore
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewSample
@@ -13,7 +14,6 @@ import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.RecipeStep
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.brew.StepState
-import dev.mateux.caparao.ui.components.NotesForm
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, COFFEE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
@@ -62,13 +62,22 @@ data class BrewUiState(
     val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
     /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
     val freeSteps: List<RecipeStep> = emptyList(),
-    /** On the summary: the saved brew's notes being typed. */
-    val notes: NotesForm? = null,
-    /** The open coffee bags: the coffee step's choices, and the summary's. Empty skips the coffee step (#291). */
+    /** The open coffee bags: the coffee step's choices. Empty skips the coffee step (#291). */
     val bags: List<CoffeeBag> = emptyList(),
     /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
     val bagId: String? = null,
+    /** The open bags with an adjustment for the chosen recipe (#463). */
+    val adjustedBagIds: Set<String> = emptySet(),
+    /** What the picked bag changes in the chosen recipe; null without a bag, a recipe or an adjustment. */
+    val adjustment: BagRecipeAdjustment? = null,
+    /** "Use the recipe": this brew leaves the picked bag's adjustment out. */
+    val followRecipe: Boolean = false,
+    /** The dose being weighed is the picked bag's adjusted dose. */
+    val adjustedDose: Boolean = false,
 ) {
+    /** The adjustment this brew uses. */
+    val activeAdjustment: BagRecipeAdjustment? get() = adjustment?.takeIf { !followRecipe }
+
     fun withSessionState(state: BrewReadingState, steps: List<RecipeStep>): BrewUiState = copy(
         phase = state.phase,
         tareTimedOut = state.tareTimedOut,

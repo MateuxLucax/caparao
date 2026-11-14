@@ -93,6 +93,8 @@ fun ScaleReadout(
     respectMotionSetting: Boolean = false,
     /** Where the ring's color starts when it comes back from a pause, so it returns instead of jumping. */
     initialRingAlpha: Float = ringAlpha,
+    /** Shown where the timer sits while there is nothing to time yet, as espresso's "Taring…" (#458). */
+    timerText: String? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val motionOff = respectMotionSetting && animationsOff()
@@ -151,7 +153,7 @@ fun ScaleReadout(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(timerStyle), color = shownTimerColor)
+            Text(timerText ?: Format.timer(timerSeconds), style = MaterialTheme.typography.headlineSmall.merge(timerStyle), color = shownTimerColor)
         }
     }
     if (ratio == null && spacious) {

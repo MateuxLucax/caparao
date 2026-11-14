@@ -4,10 +4,12 @@ import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.SettingsStore
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
+import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.SyncError
 import dev.mateux.caparao.ui.FakeBrewDao
 import dev.mateux.caparao.ui.FakePreferences
 import dev.mateux.caparao.ui.MainDispatcherRule
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -23,7 +25,7 @@ class BrewsViewModelTest {
 
     private val settings = SettingsStore(FakePreferences())
     private var resent = 0
-    private val viewModel by lazy { BrewsViewModel(BrewRepository(FakeBrewDao()), settings.syncStatus) { resent++ } }
+    private val viewModel by lazy { BrewsViewModel(BrewRepository(FakeBrewDao()), flowOf(emptyList()), settings.syncStatus) { resent++ } }
 
     @Test
     fun showsTheServerTheLastSyncAndTheLastError() = runTest {
@@ -42,24 +44,47 @@ class BrewsViewModelTest {
         assertEquals(1, resent)
     }
 
-    private fun brew(id: String, mode: BrewMode, startedAt: Long) =
-        Brew(id, mode, startedAt, 28_000, 18.0, 36.0, 4_000, 1.3, 2.4, interrupted = false)
+    private fun brew(id: String, startedAt: Long, bagId: String? = null, ratedAt: Long? = null, coffee: String? = null) =
+        Brew(id, BrewMode.FILTER, startedAt, 28_000, 18.0, 36.0, 4_000, 1.3, 2.4, interrupted = false, bagId = bagId, ratedAt = ratedAt, coffee = coffee)
+
+    private val open = CoffeeBag("open", "Sitio", weightGrams = 250.0, createdAt = 0)
+    private val finished = CoffeeBag("done", "Catuai", weightGrams = 250.0, createdAt = 0, finished = true)
 
     @Test
-    fun groupsByModeInModeOrderNewestFirst() {
-        val brews = listOf(
-            brew("e1", BrewMode.ESPRESSO, 1),
-            brew("f1", BrewMode.FILTER, 2),
-            brew("e2", BrewMode.ESPRESSO, 3),
+    fun splitsToRateFromRatedNewestFirst() {
+        val state = BrewsViewModel.lines(
+            listOf(brew("a", 1), brew("b", 2, ratedAt = 9), brew("c", 3), brew("d", 4, ratedAt = 9)),
+            emptyList(),
+            coffee = null,
         )
-        val sections = BrewsViewModel.group(brews)
-        assertEquals(listOf(BrewMode.FILTER, BrewMode.ESPRESSO), sections.map { it.first })
-        assertEquals(listOf("e2", "e1"), sections[1].second.map { it.id })
+        assertEquals(listOf("c", "a"), state.toRate.map { it.brew.id })
+        assertEquals(listOf("d", "b"), state.rated.map { it.brew.id })
+        assertFalse(state.empty)
+        assertTrue(BrewsViewModel.lines(emptyList(), emptyList(), null).empty)
     }
 
     @Test
-    fun modesWithoutBrewsAreLeftOut() {
-        assertEquals(listOf(BrewMode.ESPRESSO), BrewsViewModel.group(listOf(brew("e1", BrewMode.ESPRESSO, 1))).map { it.first })
-        assertEquals(emptyList<Pair<BrewMode, List<Brew>>>(), BrewsViewModel.group(emptyList()))
+    fun namesTheCoffeeFromTheBagThenFromTheBrew() {
+        val state = BrewsViewModel.lines(
+            listOf(brew("a", 3, bagId = "done", coffee = "Old name"), brew("b", 2, coffee = "Typed"), brew("c", 1, coffee = " ")),
+            listOf(open, finished),
+            coffee = null,
+        )
+        assertEquals(listOf("Catuai", "Typed", null), state.toRate.map { it.coffee })
+        // Only open bags are offered as filters.
+        assertEquals(listOf(CoffeeFilter("open", "Sitio")), state.coffees)
+    }
+
+    @Test
+    fun filtersByAnOpenBagAndDropsAFilterOnAFinishedOne() {
+        val brews = listOf(brew("a", 1, bagId = "open"), brew("b", 2, bagId = "done"), brew("c", 3))
+        val filtered = BrewsViewModel.lines(brews, listOf(open, finished), coffee = "open")
+        assertEquals("open", filtered.coffee)
+        assertEquals(listOf("a"), filtered.toRate.map { it.brew.id })
+        assertFalse(filtered.empty)
+
+        val dropped = BrewsViewModel.lines(brews, listOf(open, finished), coffee = "done")
+        assertEquals(null, dropped.coffee)
+        assertEquals(3, dropped.toRate.size)
     }
 }

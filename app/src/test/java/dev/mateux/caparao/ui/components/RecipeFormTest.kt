@@ -31,14 +31,24 @@ class RecipeFormTest {
     }
 
     @Test
+    fun recipeGrindIsAnOptionalWholeNumber() {
+        val withGrind = filter.copy(grind = "18")
+        assertEquals(emptySet<Field>(), withGrind.validate())
+        assertEquals(18, withGrind.toRecipe("id", 1, 2).grind)
+        assertEquals("18", RecipeForm.of(withGrind.toRecipe("id", 1, 2), Locale.US).grind)
+        assertEquals(setOf(Field.GRIND), withGrind.copy(grind = "18.5").validate())
+        assertNull(filter.toRecipe("id", 1, 2).grind)
+    }
+
+    @Test
     fun filterTimeWindowIsOptionalButMustBeACompleteOrderedPair() {
         assertEquals(emptySet<Field>(), filter.validate())
-        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "120").validate())
-        assertEquals(setOf(Field.WINDOW), filter.copy(maxSeconds = "150").validate())
-        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "bad", maxSeconds = "150").validate())
-        assertEquals(setOf(Field.WINDOW), filter.copy(minSeconds = "151", maxSeconds = "150").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minTime = "120").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(maxTime = "150").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minTime = "bad", maxTime = "150").validate())
+        assertEquals(setOf(Field.WINDOW), filter.copy(minTime = "151", maxTime = "150").validate())
 
-        val withRange = filter.copy(minSeconds = "120", maxSeconds = "150")
+        val withRange = filter.copy(minTime = "2:00", maxTime = "2:30")
         assertEquals(emptySet<Field>(), withRange.validate())
         val recipe = withRange.toRecipe("filter", 0, 1)
         assertEquals(120_000L, recipe.targetMinMs)
@@ -80,11 +90,11 @@ class RecipeFormTest {
 
     @Test
     fun espressoChecksTheWindowAndDropsSteps() {
-        val espresso = RecipeForm.new(BrewMode.ESPRESSO).copy(name = "E", dose = "18", ratio = "2", minSeconds = "28", maxSeconds = "34")
+        val espresso = RecipeForm.new(BrewMode.ESPRESSO).copy(name = "E", dose = "18", ratio = "2", minTime = "28", maxTime = "34")
         assertEquals(emptySet<Field>(), espresso.validate())
         assertEquals(28_000L, espresso.toRecipe("e", 0, 0).targetMinMs)
-        assertEquals(setOf(Field.WINDOW), espresso.copy(minSeconds = "40").validate())
-        assertEquals(emptySet<Field>(), espresso.copy(minSeconds = "", maxSeconds = "").validate())
+        assertEquals(setOf(Field.WINDOW), espresso.copy(minTime = "40").validate())
+        assertEquals(emptySet<Field>(), espresso.copy(minTime = "", maxTime = "").validate())
     }
 
     @Test
@@ -177,6 +187,7 @@ class RecipeFormTest {
     @Test
     fun aRecipeRoundTripsThroughTheForm() {
         for (recipe in BuiltInRecipes.all(5)) {
+            assertNull("built-in grind is personal", recipe.grind)
             val form = RecipeForm.of(recipe, Locale.US)
             assertEquals(emptySet<Field>(), form.validate())
             assertEquals(recipe, form.toRecipe(recipe.id, 5, 5))

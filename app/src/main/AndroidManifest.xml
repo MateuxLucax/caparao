@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Guided brew alerts (#103); a normal permission, granted at install. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Android 13+: asked when a saved brew's rating reminder is first enabled (#465). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android 17+: needed to reach a server on the local network, asked at runtime (#101). -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
@@ -66,5 +68,9 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/brew_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".ui.RatingReminderActionReceiver"
+            android:exported="false" />
     </application>
 </manifest>

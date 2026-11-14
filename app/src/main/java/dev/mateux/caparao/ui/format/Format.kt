@@ -26,6 +26,9 @@ object Format {
     /** The X of 1:X, one decimal. */
     fun ratio(value: Double, locale: Locale): String = String.format(locale, "%.1f", value)
 
+    /** One decimal in the app's locale, e.g. "4.7" for a rating. */
+    fun oneDecimal(value: Double, locale: Locale): String = String.format(locale, "%.1f", value)
+
     fun timer(seconds: Int): String {
         val clamped = seconds.coerceAtLeast(0)
         return String.format(Locale.ROOT, "%02d:%02d", clamped / 60, clamped % 60)

@@ -65,7 +65,9 @@ class CoffeeBagRepositoryTest {
         assertEquals(15.0, brew.doseGrams, 0.0)
     }
 
-    private fun bag(id: String, name: String) = CoffeeBag(id, name, weightGrams = 250.0, createdAt = 0)
+    private fun bag(id: String, name: String) = CoffeeBag(
+        id, name, weightGrams = 250.0, createdAt = 0, tastingNotes = listOf("cocoa", "red fruit"),
+    )
 
     private fun brew(id: String, startedAt: Long, dose: Double, rating: Int?, bagId: String?, coffee: String? = null) = BrewEntity(
         id = id,

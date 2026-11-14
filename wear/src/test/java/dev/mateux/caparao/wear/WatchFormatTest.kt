@@ -1,6 +1,11 @@
 package dev.mateux.caparao.wear
 
+import dev.mateux.caparao.watch.WatchGuide
+import dev.mateux.caparao.watch.WatchSnapshot
+import dev.mateux.caparao.watch.WatchState
+import dev.mateux.caparao.watch.WatchStepKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Locale
 
@@ -32,4 +37,28 @@ class WatchFormatTest {
         assertEquals(1, WatchFormat.seconds(1))
         assertEquals(0, WatchFormat.seconds(0))
     }
+
+    @Test
+    fun nextStepDueOnlyWhileBrewingWithAStepToFollow() {
+        assertEquals(4_200L, WatchFormat.nextStepDueMs(brewing(WatchStepKind.POUR, index = 1, count = 5, dueInMs = 4_200L)))
+
+        // The last step's remaining time is its own, not a countdown to a next step.
+        assertNull(WatchFormat.nextStepDueMs(brewing(WatchStepKind.WAIT, index = 4, count = 5, dueInMs = 4_200L)))
+        assertNull(WatchFormat.nextStepDueMs(brewing(WatchStepKind.PRESS, index = 1, count = 2, dueInMs = 4_200L)))
+        assertNull(WatchFormat.nextStepDueMs(brewing(WatchStepKind.STIR, index = 1, count = 2, dueInMs = 4_200L)))
+
+        // Nothing to count down outside a brew, without time left, or without a guide.
+        assertNull(
+            WatchFormat.nextStepDueMs(
+                brewing(WatchStepKind.POUR, index = 1, count = 5, dueInMs = 4_200L).copy(state = WatchState.SCALE),
+            ),
+        )
+        assertNull(WatchFormat.nextStepDueMs(brewing(WatchStepKind.POUR, index = 1, count = 5, dueInMs = 0L)))
+        assertNull(WatchFormat.nextStepDueMs(WatchSnapshot(WatchState.BREWING, 0f, 0f, 0L, timerRunning = false)))
+    }
+
+    private fun brewing(kind: WatchStepKind, index: Int, count: Int, dueInMs: Long?) = WatchSnapshot(
+        WatchState.BREWING, 0f, 0f, 0L, timerRunning = false,
+        guide = WatchGuide(index = index, count = count, kind = kind, targetGrams = null, dueInMs = dueInMs, paceMs = null),
+    )
 }

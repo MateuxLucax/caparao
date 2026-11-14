@@ -23,10 +23,12 @@ class CoffeeBagRepository(private val dao: CoffeeBagDao) {
 private fun CoffeeBagUsage.toModel() = CoffeeBag(
     id = bag.id, name = bag.name, roaster = bag.roaster, origin = bag.origin, roastedAt = bag.roastedAt,
     weightGrams = bag.weightGrams, notes = bag.notes, finished = bag.finished, createdAt = bag.createdAt,
+    tastingNotes = bag.tastingNotes,
     usedGrams = usedGrams, brewCount = brewCount, lastBrewedAt = lastBrewAt, averageRating = averageRating,
 )
 
 internal fun CoffeeBag.toEntity() = CoffeeBagEntity(
     id = id, name = name, roaster = roaster, origin = origin, roastedAt = roastedAt, weightGrams = weightGrams,
     notes = notes, finished = finished, createdAt = createdAt,
+    tastingNotes = tastingNotes,
 )

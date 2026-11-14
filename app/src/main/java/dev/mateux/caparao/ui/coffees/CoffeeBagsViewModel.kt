@@ -25,8 +25,19 @@ data class BagForm(
     val notes: String = "",
     val finished: Boolean = false,
     val createdAt: Long? = null,
+    val tastingNotes: List<String> = emptyList(),
 ) {
     val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null
+
+    /**
+     * Adds [value] as a tasting note when there is room: trimmed, case-insensitive duplicates ignored,
+     * six notes at most. Returns this form unchanged when the note is not added.
+     */
+    fun withNote(value: String): BagForm {
+        val note = value.trim()
+        if (note.isEmpty() || tastingNotes.size >= 6 || tastingNotes.any { it.equals(note, true) }) return this
+        return copy(tastingNotes = tastingNotes + note)
+    }
 
     fun toModel(now: Long, newId: () -> String) = CoffeeBag(
         id = id ?: newId(),
@@ -38,12 +49,13 @@ data class BagForm(
         notes = notes.trim().ifEmpty { null },
         finished = finished,
         createdAt = createdAt ?: now,
+        tastingNotes = tastingNotes.take(6).map(String::trim).filter(String::isNotEmpty),
     )
 
     companion object {
         fun of(bag: CoffeeBag) = BagForm(
             bag.id, bag.name, bag.roaster.orEmpty(), bag.origin.orEmpty(), bag.roastedAt,
-            RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), bag.notes.orEmpty(), bag.finished, bag.createdAt,
+            RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), bag.notes.orEmpty(), bag.finished, bag.createdAt, bag.tastingNotes,
         )
     }
 }

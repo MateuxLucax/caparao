@@ -1,6 +1,19 @@
 package dev.mateux.caparao.ui.brews
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import dev.mateux.caparao.model.BrewTaste
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,38 +61,75 @@ import kotlinx.coroutines.launch
 
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
-/** Saved brews grouped into filter and espresso, newest first (Brews wireframe), under the upload status. */
+/** Saved brews in one list by date: the ones to rate first, then the rest, under the upload status and a coffee filter (#466). */
 @Composable
 fun BrewsScreen(
     viewModel: BrewsViewModel,
     actions: AppActions,
     onOpen: (Brew) -> Unit,
+    onRate: (Brew) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    if (!state.loading && state.sections.isEmpty()) {
+    if (!state.loading && state.empty) {
         Column(modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
             SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
             EmptyState(R.drawable.ic_receipt_long, stringResource(R.string.brews_empty_title), Modifier.padding(top = 48.dp))
         }
         return
     }
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         item {
-            SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings)
+            Column(Modifier.padding(horizontal = 20.dp)) { SyncStatusLine(state.sync, actions, viewModel::retry, onOpenSettings) }
         }
-        state.sections.forEach { (mode, brews) ->
-            item(key = mode.name) {
-                Text(stringResource(mode.label), Modifier.padding(top = 18.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        if (state.coffees.isNotEmpty()) {
+            item(key = "filter") { CoffeeFilterRow(state.coffees, state.coffee, viewModel::filter) }
+        }
+        if (!state.loading && state.toRate.isEmpty() && state.rated.isEmpty()) {
+            item(key = "filter-empty") {
+                EmptyState(R.drawable.ic_receipt_long, stringResource(R.string.brews_filter_empty), Modifier.padding(top = 24.dp))
             }
-            itemsIndexed(brews, key = { _, brew -> brew.id }) { index, brew ->
-                BrewRow(
-                    brew,
-                    shape = segmentedShape(index, brews.size),
-                    onClick = { onOpen(brew) },
-                )
+        }
+        if (state.toRate.isNotEmpty()) {
+            item(key = "to-rate") { SectionTitle(R.string.brews_to_rate) }
+            itemsIndexed(state.toRate, key = { _, line -> "brew-${line.brew.id}" }) { index, line ->
+                BrewRow(line, segmentedShape(index, state.toRate.size), onClick = { onOpen(line.brew) }, onRate = { onRate(line.brew) })
             }
+            if (state.rated.isNotEmpty()) item(key = "rated") { SectionTitle(R.string.brews_rated) }
+        } else if (state.rated.isNotEmpty()) {
+            item(key = "gap") { Spacer(Modifier.height(16.dp)) }
+        }
+        itemsIndexed(state.rated, key = { _, line -> "brew-${line.brew.id}" }) { index, line ->
+            BrewRow(line, segmentedShape(index, state.rated.size), onClick = { onOpen(line.brew) }, onRate = null)
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(@StringRes title: Int) {
+    Text(
+        stringResource(title),
+        Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp).semantics { heading() },
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+/** "All" and the open bags; it scrolls sideways when the names do not fit. */
+@Composable
+private fun CoffeeFilterRow(coffees: List<CoffeeFilter>, selected: String?, onSelect: (String?) -> Unit) {
+    Row(
+        Modifier.padding(top = 12.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(selected = selected == null, onClick = { onSelect(null) }, label = { Text(stringResource(R.string.filter_all)) })
+        coffees.forEach { coffee ->
+            FilterChip(
+                selected = selected == coffee.bagId,
+                onClick = { onSelect(coffee.bagId) },
+                label = { Text(coffee.name, Modifier.widthIn(max = 180.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            )
         }
     }
 }
@@ -122,31 +171,56 @@ private fun SyncStatusLine(sync: SyncStatus, actions: AppActions, onRetry: () ->
     }
 }
 
-/** Mode icon, dose → yield and ratio, time, date and sync state. */
+/**
+ * Mode icon; coffee and recipe; dose → yield, time and grind; date, taste and sync state. A brew to rate ends in
+ * "Rate" ([onRate]); a rated one in its stars.
+ */
 @Composable
-private fun BrewRow(brew: Brew, shape: Shape, onClick: () -> Unit) {
+private fun BrewRow(line: BrewLine, shape: Shape, onClick: () -> Unit, onRate: (() -> Unit)?) {
+    val brew = line.brew
     val locale = LocalConfiguration.current.locales[0]
     val g = stringResource(R.string.unit_grams)
+    val title = (line.coffee ?: stringResource(R.string.no_bag)) + " · " + (brew.recipeName ?: stringResource(brew.mode.label))
+    val numbers = listOfNotNull(
+        "${Format.grams(brew.doseGrams, locale)} $g → ${Format.grams(brew.yieldGrams, locale)} $g",
+        Format.timer((brew.durationMs / 1000).toInt()),
+        brew.grind?.takeIf(String::isNotBlank)?.let { stringResource(R.string.brew_row_grind, it) },
+    ).joinToString(" · ")
+    val taste = when (brew.taste) {
+        BrewTaste.SOUR -> R.string.brew_taste_sour
+        BrewTaste.BALANCED -> R.string.brew_taste_balanced
+        BrewTaste.BITTER -> R.string.brew_taste_bitter
+        null -> null
+    }
+    val status = listOfNotNull(
+        Format.dateTime(brew.startedAt, locale),
+        taste?.let { stringResource(it) },
+        stringResource(if (brew.syncedAt != null) R.string.synced else R.string.local_only),
+    ).joinToString(" · ")
     Card(
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
+        modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(shape).clickable(onClick = onClick),
         shape = shape,
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(brew.mode.icon), contentDescription = null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
+        Row(Modifier.padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = if (onRate != null) 12.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(brew.mode.icon), contentDescription = stringResource(brew.mode.label), Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                val dose = "${Format.grams(brew.doseGrams, locale)} $g → "
-                Text("$dose${Format.grams(brew.yieldGrams, locale)} $g", style = MaterialTheme.typography.titleMedium.merge(Tabular))
-                Text(
-                    Format.dateTime(brew.startedAt, locale) + " · " +
-                        (brew.syncedAt?.let { stringResource(R.string.synced_at, Format.time(it, locale)) } ?: stringResource(R.string.local_only)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(numbers, style = MaterialTheme.typography.bodyMedium.merge(Tabular))
+                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(Format.timer((brew.durationMs / 1000).toInt()), style = MaterialTheme.typography.titleMedium.merge(Tabular))
-                Text(stringResource(R.string.ratio_value, Format.ratio(brew.ratio, locale)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(12.dp))
+            if (onRate != null) {
+                FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = onRate) { Text(stringResource(R.string.brew_rate)) }
+            } else {
+                brew.rating?.let { rating ->
+                    val stars = stringResource(R.string.rating_stars, rating)
+                    Row(Modifier.clearAndSetSemantics { contentDescription = stars }, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.ic_star), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(2.dp))
+                        Text(rating.toString(), style = MaterialTheme.typography.titleMedium.merge(Tabular))
+                    }
+                }
             }
         }
     }

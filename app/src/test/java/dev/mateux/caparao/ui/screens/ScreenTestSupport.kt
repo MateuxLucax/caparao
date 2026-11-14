@@ -76,6 +76,8 @@ import dev.mateux.caparao.model.ScaleError
 import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -106,6 +108,9 @@ import dev.mateux.caparao.ui.brew.FlowChart
 import dev.mateux.caparao.ui.brew.FlowPoint
 import dev.mateux.caparao.ui.brew.GuidedStep
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.home.HomeViewModel
@@ -159,10 +164,24 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     protected val context = ApplicationProvider.getApplicationContext<Context>()
     protected var bluetoothGranted = true
-    protected val actions = AppActions(requestBluetoothPermissions = { bluetoothGranted = true; true }, bluetoothPermissionGranted = { bluetoothGranted }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
+    protected var notificationsGranted = true
+    protected var notificationPermissionRequestResult = true
+    protected var notificationPermissionRequests = 0
+    protected var launchRatingBrewId: String? = null
+    protected var ratingRequestConsumed = false
+    protected val actions = AppActions(
+        requestBluetoothPermissions = { bluetoothGranted = true; true },
+        bluetoothPermissionGranted = { bluetoothGranted },
+        enableBluetooth = {},
+        openAppSettings = {},
+        requestLocalNetwork = { true },
+        requestNotificationsPermission = { notificationPermissionRequests++; notificationsGranted = notificationPermissionRequestResult; notificationsGranted },
+        notificationsPermissionGranted = { notificationsGranted },
+    )
     protected val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
+    protected val brewSuggestions = BrewSuggestions(recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()))
     protected val settings = SettingsStore(context.getSharedPreferences("screen-tests", Context.MODE_PRIVATE))
     protected var diagnosticsAvailable = true
     protected var diagnosticsSendSucceeds = false
@@ -182,7 +201,12 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     @Before
     fun setUp() {
-        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare"))
+        notificationsGranted = true
+        notificationPermissionRequestResult = true
+        notificationPermissionRequests = 0
+        launchRatingBrewId = null
+        ratingRequestConsumed = false
+        if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare", "smallScreenCoffeeSummary"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         // Brew dates and times read the same wherever this runs.
@@ -197,6 +221,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     }
 
     protected fun text(id: Int) = context.getString(id)
+
+    protected fun text(id: Int, vararg args: Any) = context.getString(id, *args)
 
     /** The rendered text of a TextView [id] in an applied widget's view tree. */
     protected fun widgetText(root: View, id: Int): String {
@@ -245,9 +271,10 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), CoffeeBagRepository(db.coffeeBags()), recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
             initializer {
                 ServerViewModel(
                     settings,
@@ -260,12 +287,23 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
                 BrewViewModel(
                     requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                     clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs }, coffeeBags = CoffeeBagRepository(db.coffeeBags()),
+                    adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()),
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags()), next = brewSuggestions::afterRating) }
+            initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags()), brewSuggestions, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         }
         scale.start()
-        compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME,
+                    ratingBrewId = launchRatingBrewId,
+                    onRatingConsumed = { ratingRequestConsumed = true; launchRatingBrewId = null },
+                )
+            }
+        }
         play(scale, atMs)
         return scale
     }
@@ -308,7 +346,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         val day = 86_400_000L
         val now = System.currentTimeMillis()
         runBlocking {
-            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-1", "Caparaó natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now, tastingNotes = listOf("Chocolate", "Red fruit")))
             CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("bag-2", "Mantiqueira", weightGrams = 10.0, createdAt = now - day))
         }
     }
@@ -321,6 +359,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
         click(R.string.next)
         waitFor(R.string.coffee_step_title)
         compose.onNode(hasText("Caparaó natural") and isSelected()).assertExists()
+        compose.onNodeWithText("Chocolate · Red fruit").assertIsDisplayed()
         compose.onNode(hasText("Mantiqueira") and isNotSelected()).assertExists()
         compose.onNodeWithText(text(R.string.coffee_below_dose)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.no_bag)).performClick()
@@ -350,12 +389,12 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     protected fun clickLast(id: Int) = compose.onAllNodesWithText(text(id)).onLast().performClick()
 
     /** The Coffees tab's add sheet (C3): Save waits for a name and a weight; More details holds origin and notes. */
-    protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null) = runBlocking {
+    protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null, recipeId: String? = null) = runBlocking {
         db.brews().insertWithSamples(
             BrewEntity(
                 id = id, mode = "FILTER", startedAt = System.currentTimeMillis(), durationMs = 60_000, doseGrams = dose,
                 yieldGrams = 250.0, timeToFirstDropMs = null, flowAvg = 1.0, flowPeak = 2.0, interrupted = false,
-                syncedAt = null, coffee = null, rating = rating, bagId = bagId,
+                syncedAt = null, coffee = null, rating = rating, bagId = bagId, recipeId = recipeId,
             ),
             emptyList(),
         )
@@ -388,7 +427,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     /** The top bar's X, which closes the whole brew from the dose, beans and preparation steps (#185). */
     protected fun tapCloseBrew() = compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
 
-    /** Back on the summary saves the typed notes into the saved brew and closes, with no dialog (#181, A1 → A2). */
+    /** Starts an espresso flow before it reaches the saved summary. */
     protected fun espressoDose() {
         open("synthetic-espresso", 0)
         click(R.string.mode_espresso)

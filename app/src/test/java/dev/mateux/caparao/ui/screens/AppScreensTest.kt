@@ -50,6 +50,9 @@ import dev.mateux.caparao.data.scale.ReplayScaleSource
 import dev.mateux.caparao.data.scale.ScaleSource
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
@@ -67,6 +70,8 @@ import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.components.LauncherShortcut
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -137,9 +142,10 @@ class AppScreensTest {
             initializer { CaptureViewModel(diagnostics, settings, available = true) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(coffeeBags) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
+            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus) {} }
             // No server is reached: Test connection fails, saving enqueues nothing.
             initializer {
                 ServerViewModel(
@@ -151,6 +157,8 @@ class AppScreensTest {
             }
             initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags) }
+            initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, coffeeBags, BrewSuggestions(recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())), BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         }
     }
 
@@ -293,12 +301,15 @@ class AppScreensTest {
         compose.onNodeWithTag("weigh-step-next").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.prepare_portafilter_title)), 5_000)
         compose.onNodeWithText(text(R.string.prepare_ready)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.cup_on)), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.espresso_place_cup)), 5_000)
 
         assertEquals(null, replay.reading.value)
         replay.resume()
         replay.stop()
     }
+
+    /** The first line of an espresso brew without a bag or a recipe on the Brews tab. */
+    private val brewRow get() = "${text(R.string.no_bag)} · ${text(R.string.mode_espresso)}"
 
     @Test
     fun aSavedBrewOpensFromTheListAndDeleteRemovesIt() {
@@ -307,9 +318,9 @@ class AppScreensTest {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(text(R.string.local_only), substring = true).assertExists()
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.onNodeWithText(brewRow).performClick()
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.delete)), 5_000)
         compose.onNodeWithText(text(R.string.delete)).performClick()
@@ -330,8 +341,8 @@ class AppScreensTest {
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
+        compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         // Edit the notes, then leave: the ViewModel must not outlive the screen with the form still open.
         compose.onNodeWithText(text(R.string.edit_notes)).performClick()
@@ -340,7 +351,7 @@ class AppScreensTest {
 
         // Opened again: a fresh entry ViewModel, so the notes form is closed.
         compose.waitForIdle()
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         compose.onNodeWithText(text(R.string.save)).assertDoesNotExist()
     }
@@ -655,7 +666,7 @@ class AppScreensTest {
         hold(scale, 36.0, 6.0)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         // The curve on the Done screen pushes Done below the fold.
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.waitForIdle()
@@ -790,13 +801,13 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.save)).performClick()
         compose.onAllNodesWithText(text(R.string.required)).onFirst().assertExists()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).performTextReplacement("Morning shot")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_dose))).performTextReplacement("18")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_ratio))).performTextReplacement("2,4")
-        compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.save)).performClick()
         // Back on the list, which now shows it.
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
         compose.waitUntil(5_000) {

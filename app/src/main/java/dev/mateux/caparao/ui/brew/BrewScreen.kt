@@ -13,6 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,20 +41,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -76,15 +80,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import dev.mateux.caparao.R
 import dev.mateux.caparao.brew.BrewPhase
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.components.BrewChart
-import dev.mateux.caparao.ui.components.BrewNotesFields
-import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.ui.components.BrewNumbers
+import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.components.RatioTarget
 import dev.mateux.caparao.ui.components.ScaleReadout
 import dev.mateux.caparao.ui.components.SystemBack
@@ -97,7 +101,13 @@ import dev.mateux.caparao.ui.theme.animationsOff
 /** One brew: dose, then live with the detector driving it, then the saved result. Keeps the screen on. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
+fun BrewScreen(
+    viewModel: BrewViewModel,
+    onClose: () -> Unit,
+    onRate: (String) -> Unit = {},
+    onEditAdjustment: (bagId: String, recipeId: String) -> Unit = { _, _ -> },
+    actions: AppActions? = null,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val view = LocalView.current
     DisposableEffect(Unit) {
@@ -109,9 +119,67 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     DisposableEffect(feedback) { onDispose { feedback.release() } }
     LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
     // Closing while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
-    // closes, as nothing is recorded yet. On the summary Back saves the notes like Save does (#181).
+    // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    val finish = { if (viewModel.saveNotes()) onClose() }
+    val finish = onClose
+    var remindToRate by rememberSaveable { mutableStateOf(viewModel.remindToRate) }
+    // The Notifications rationale, shown once before the system prompt the first time the reminder needs it (#465).
+    var showReminderPermissionRationale by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val declineReminderPermission = {
+        viewModel.markRatingNotificationsPermissionAsked()
+        remindToRate = false
+        viewModel.setRemindToRate(false)
+    }
+    LaunchedEffect(state.saved?.id) {
+        if (
+            state.saved != null && viewModel.remindToRate && actions != null &&
+            !actions.notificationsPermissionGranted() && !viewModel.ratingNotificationsPermissionAsked
+        ) {
+            showReminderPermissionRationale = true
+        }
+    }
+    if (showReminderPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showReminderPermissionRationale = false; declineReminderPermission() },
+            title = { Text(stringResource(R.string.rating_reminder_permission_title)) },
+            text = { Text(stringResource(R.string.rating_reminder_permission_text)) },
+            confirmButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                    showReminderPermissionRationale = false
+                    scope.launch {
+                        viewModel.markRatingNotificationsPermissionAsked()
+                        if (actions != null && !actions.requestNotificationsPermission()) {
+                            remindToRate = false
+                            viewModel.setRemindToRate(false)
+                        } else if (!remindToRate) {
+                            remindToRate = true
+                            viewModel.setRemindToRate(true)
+                        }
+                    }
+                }) { Text(stringResource(R.string.rating_reminder_allow_notifications)) }
+            },
+            dismissButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showReminderPermissionRationale = false; declineReminderPermission() }) {
+                    Text(stringResource(R.string.rating_reminder_not_now))
+                }
+            },
+        )
+    }
+    val changeReminder: (Boolean) -> Unit = { enabled ->
+        if (!enabled) {
+            remindToRate = false
+            viewModel.setRemindToRate(false)
+        } else if (actions == null || actions.notificationsPermissionGranted()) {
+            remindToRate = true
+            viewModel.setRemindToRate(true)
+        } else if (viewModel.ratingNotificationsPermissionAsked) {
+            // Asked once and not granted: the switch stays off without nagging; App settings is the way (#465).
+            remindToRate = false
+        } else {
+            showReminderPermissionRationale = true
+        }
+    }
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
@@ -234,14 +302,21 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         viewModel::weigh,
                         viewModel::setSteep,
                     )
-                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale)
+                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale, viewModel::setFollowRecipe, onEditAdjustment)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
                         BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
-                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onDone = finish, onDiscard = { viewModel.discard(); onClose() })
+                    BrewStep.SUMMARY -> SummaryStep(
+                        state,
+                        remindToRate = remindToRate,
+                        onRemindToRate = changeReminder,
+                        onRateNow = { brew -> onRate(brew.id) },
+                        onDone = finish,
+                        onDiscard = { viewModel.discard(); onClose() },
+                    )
                 }
             }
         }
@@ -249,6 +324,9 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
 }
 
 private const val PAUSED_RING_ALPHA = 0.45f
+
+/** How long the espresso screen waits for the cup before it offers "Tare now". */
+private const val TARE_LINK_DELAY_MS = 5_000L
 
 @Composable
 private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boolean, onConfirmStop: () -> Unit) {
@@ -294,6 +372,8 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
                 respectMotionSetting = state.mode == BrewMode.FILTER,
                 initialRingAlpha = if (wasPaused) PAUSED_RING_ALPHA else 1f,
                 flowCue = espresso,
+                // The cup and the first drop share one screen (#458): the tare shows where the timer will run.
+                timerText = if (espresso && state.phase == BrewPhase.TARING) stringResource(R.string.taring) else null,
                 timerColor = when (state.window) {
                     BrewUiState.Window.INSIDE -> MaterialTheme.colorScheme.tertiary
                     BrewUiState.Window.PAST -> MaterialTheme.colorScheme.error
@@ -317,8 +397,16 @@ private fun LiveStep(state: BrewUiState, viewModel: BrewViewModel, guided: Boole
             }
         }
         when (state.phase) {
-            BrewPhase.WAITING_FOR_CUP -> OutlinedButton(onClick = viewModel::armNow, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes(), enabled = state.connected) {
-                Text(stringResource(R.string.cup_on), style = MaterialTheme.typography.titleMedium)
+            // No button asks to confirm the cup (#458). A cup that was already on the scale never shows up as a rise,
+            // so after a short wait a quiet link offers the tare by hand.
+            BrewPhase.WAITING_FOR_CUP -> {
+                var offerTare by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { delay(TARE_LINK_DELAY_MS); offerTare = true }
+                Box(Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), contentAlignment = Alignment.Center) {
+                    if (offerTare && espresso) {
+                        TextButton(onClick = viewModel::armNow, shapes = ButtonDefaults.shapes(), enabled = state.connected) { Text(stringResource(R.string.tare_now)) }
+                    }
+                }
             }
             BrewPhase.BREWING -> Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) {
                 Text(
@@ -396,7 +484,14 @@ private fun TareFailed(connected: Boolean, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone: () -> Unit, onDiscard: () -> Unit) {
+private fun SummaryStep(
+    state: BrewUiState,
+    remindToRate: Boolean,
+    onRemindToRate: (Boolean) -> Unit,
+    onRateNow: (Brew) -> Unit,
+    onDone: () -> Unit,
+    onDiscard: () -> Unit,
+) {
     val brew = state.saved ?: return
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
@@ -439,9 +534,23 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone
                 )
             }
         }
-        // Asked after the brew, never before, so the main flow stays a few taps (#105).
-        state.notes?.let { BrewNotesFields(it, state.bags, onNotes) }
+        // Rating waits until the coffee can be tasted (#464): a reminder by default, or right away.
+        Row(
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.large).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = remindToRate, onCheckedChange = onRemindToRate, modifier = Modifier.testTag("remind-to-rate"))
+        }
         Spacer(Modifier.height(8.dp))
+        FilledTonalButton(
+            onClick = { onRateNow(brew) },
+            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(),
+        ) { Text(stringResource(R.string.brew_rate_now), style = MaterialTheme.typography.titleMedium) }
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }
     }

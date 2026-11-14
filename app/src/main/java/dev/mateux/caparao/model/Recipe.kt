@@ -14,8 +14,8 @@ data class Recipe(
     val doseGrams: Double,
     /** The X of 1:X. */
     val targetRatio: Double,
-    /** Free text: grinders have no common scale. */
-    val grind: String? = null,
+    /** Whole grinder number; each grinder has its own scale. */
+    val grind: Int? = null,
     val waterTempCelsius: Int? = null,
     val notes: String? = null,
     /** Espresso shot time from first drop, or filter total time from first pour; null for French press. */

@@ -35,11 +35,24 @@ data class Brew(
     /** 1–5. */
     val rating: Int? = null,
     val notes: String? = null,
+    /** How the coffee tasted; stored on this phone only (#453, #464). */
+    val taste: BrewTaste? = null,
+    /** The bag's tasting notes found in this brew; stored on this phone only (#464). */
+    val tastingNotesFound: List<String> = emptyList(),
+    /** When this brew was rated; null means it has not been rated yet (#464). */
+    val ratedAt: Long? = null,
     /** Changes when a write alters what the server receives; local only, never uploaded (#315). */
     val revision: Int = 0,
 ) {
     /** The X of 1:X. */
     val ratio: Double get() = yieldGrams / doseGrams
+}
+
+/** The taste choices for a saved brew (#464). */
+enum class BrewTaste {
+    SOUR,
+    BALANCED,
+    BITTER,
 }
 
 /** One point of a brew's curve, [atMs] after the brew started. */

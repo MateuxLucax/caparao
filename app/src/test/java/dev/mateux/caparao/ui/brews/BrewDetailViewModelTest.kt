@@ -7,6 +7,7 @@ import dev.mateux.caparao.data.local.CoffeeBagUsage
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewSample
+import dev.mateux.caparao.model.BrewTaste
 import dev.mateux.caparao.ui.FakeBrewDao
 import dev.mateux.caparao.ui.FakeCoffeeBagDao
 import dev.mateux.caparao.ui.MainDispatcherRule
@@ -48,27 +49,55 @@ class BrewDetailViewModelTest {
     fun deleteRemovesTheBrewBeforeCallingBack() = runTest {
         repository.save(brew, curve)
         var goneWhenCalled: Boolean? = null
-        BrewDetailViewModel("b1", repository).delete { goneWhenCalled = true }
+        var cleanupSawDeletedBrew = false
+        BrewDetailViewModel("b1", repository, onBrewDeleted = { id ->
+            cleanupSawDeletedBrew = id == "b1" && repository.get(id) == null
+        }).delete { goneWhenCalled = true }
         assertEquals(true, goneWhenCalled)
+        assertTrue(cleanupSawDeletedBrew)
         assertNull(repository.get("b1"))
         assertTrue(repository.samples("b1").isEmpty())
     }
 
     @Test
-    fun editingNotesSavesThemUnsyncsAndSendsAgain() = runTest {
-        repository.save(brew.copy(syncedAt = 5, coffee = "Caparaó"), curve)
+    fun editingCoffeeNotesCannotOverwriteTheRating() = runTest {
+        repository.save(brew.copy(
+            syncedAt = 5,
+            coffee = "Caparaó",
+            rating = 4,
+            notes = "Sweet",
+            taste = BrewTaste.BALANCED,
+            tastingNotesFound = listOf("cocoa"),
+            ratedAt = 4,
+        ), curve)
         val sent = mutableListOf<String>()
         val vm = BrewDetailViewModel("b1", repository, onEdited = { sent += it })
         vm.editNotes()
         assertEquals("Caparaó", vm.uiState.value.notes!!.coffee)
-        vm.changeNotes(vm.uiState.value.notes!!.copy(rating = 4, notes = " Sweet "))
+        vm.changeNotes(vm.uiState.value.notes!!.copy(grind = "Fine"))
         vm.saveNotes()
         val saved = vm.uiState.value.brew!!
         assertEquals(4, saved.rating)
         assertEquals("Sweet", saved.notes)
+        assertEquals(BrewTaste.BALANCED, saved.taste)
+        assertEquals(listOf("cocoa"), saved.tastingNotesFound)
+        assertEquals(4L, saved.ratedAt)
+        assertEquals("Fine", saved.grind)
         assertNull(saved.syncedAt)
         assertNull(vm.uiState.value.notes)
         assertEquals(listOf("b1"), sent)
+    }
+
+    @Test
+    fun theDetailObservesRatingChangesMadeOnTheRatingScreen() = runTest {
+        repository.save(brew, curve)
+        val vm = BrewDetailViewModel("b1", repository)
+
+        repository.saveRating(brew.copy(rating = 5, notes = "Bright", taste = BrewTaste.SOUR, ratedAt = 8))
+
+        assertEquals(5, vm.uiState.value.brew?.rating)
+        assertEquals("Bright", vm.uiState.value.brew?.notes)
+        assertEquals(BrewTaste.SOUR, vm.uiState.value.brew?.taste)
     }
 
     @Test

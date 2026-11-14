@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,12 +33,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,6 +58,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
+import java.text.DateFormat
+import java.util.Date
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -61,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.data.diagnostics.CaptureIncompleteReason
 import dev.mateux.caparao.data.diagnostics.CaptureWriterState
+import dev.mateux.caparao.data.local.SettingsStore
 import dev.mateux.caparao.data.local.VibrationTarget
 import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.ui.components.AppActions
@@ -80,6 +87,7 @@ import dev.mateux.caparao.ui.format.message
 import dev.mateux.caparao.ui.theme.Motion
 import dev.mateux.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class SettingsDetail { Scale, Server, Diagnostics }
 
@@ -101,6 +109,8 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val noBrowser = stringResource(R.string.settings_no_browser)
+    var ratingReminderDelay by rememberSaveable { mutableIntStateOf(targets.ratingReminderDelayMinutes) }
+    var editRatingReminderDelay by rememberSaveable { mutableStateOf(false) }
     var permissionGranted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
     LifecycleResumeEffect(Unit) {
         permissionGranted = actions.bluetoothPermissionGranted()
@@ -118,6 +128,47 @@ fun SettingsScreen(
             else -> stringResource(scaleState.scale.label)
         }, onClick = { onOpen(SettingsDetail.Scale) })
         GuideAlertsSection(targets)
+        SettingsRow(
+            stringResource(R.string.rating_reminder_settings),
+            stringResource(R.string.rating_reminder_delay_value, ratingReminderDelay),
+            onClick = { editRatingReminderDelay = true },
+            testTag = "rating-reminder-delay",
+        )
+        if (editRatingReminderDelay) {
+            var selectedDelay by rememberSaveable { mutableFloatStateOf(ratingReminderDelay.toFloat()) }
+            AlertDialog(
+                onDismissRequest = { editRatingReminderDelay = false },
+                title = { Text(stringResource(R.string.rating_reminder_delay_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.rating_reminder_delay_value, selectedDelay.roundToInt()))
+                        Slider(
+                            value = selectedDelay,
+                            onValueChange = { selectedDelay = it.roundToInt().toFloat() },
+                            valueRange = SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES.toFloat()..SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES.toFloat(),
+                            steps = SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES - SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES - 1,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stringResource(R.string.rating_reminder_delay_value, SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES))
+                            Text(stringResource(R.string.rating_reminder_delay_value, SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        ratingReminderDelay = selectedDelay.roundToInt().coerceIn(
+                            SettingsStore.MIN_RATING_REMINDER_DELAY_MINUTES,
+                            SettingsStore.MAX_RATING_REMINDER_DELAY_MINUTES,
+                        )
+                        targets.ratingReminderDelayMinutes = ratingReminderDelay
+                        editRatingReminderDelay = false
+                    }) { Text(stringResource(R.string.save)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editRatingReminderDelay = false }) { Text(stringResource(R.string.cancel)) }
+                },
+            )
+        }
         SettingsSection(R.string.settings_your_data)
         SettingsRow(stringResource(R.string.section_server), when {
             !sync.serverConfigured -> stringResource(R.string.settings_only_phone)
@@ -367,6 +418,22 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
     ) {
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.capture_title), style = MaterialTheme.typography.titleMedium)
+            SettingsRow(
+                stringResource(R.string.capture_every_brew),
+                checked = state.captureEveryBrew,
+                onCheckedChange = viewModel::setCaptureEveryBrew,
+                testTag = "capture-every-brew",
+            )
+            Text(
+                stringResource(R.string.capture_every_brew_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val lastSent = state.history.lastSentAtEpochMillis.takeIf { it > 0L }?.let {
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
+            } ?: stringResource(R.string.capture_never_sent)
+            Text(stringResource(R.string.capture_last_sent, lastSent), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.capture_pending_uploads, state.history.pendingUploads), style = MaterialTheme.typography.bodyMedium)
             val status = if (state.starting) R.string.diagnostics_starting else when (capture) {
                 CaptureWriterState.Idle -> null
                 CaptureWriterState.Starting -> R.string.diagnostics_starting
@@ -422,7 +489,7 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
                 Text(stringResource(R.string.diagnostics_stop_failed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (!state.starting) {
+                if (!state.starting && (!state.captureEveryBrew || capture is CaptureWriterState.Recording)) {
                     when (capture) {
                         is CaptureWriterState.Recording -> Button(shapes = ButtonDefaults.shapes(), onClick = viewModel::stop) {
                             Text(stringResource(R.string.capture_stop))
@@ -432,7 +499,6 @@ private fun DiagnosticsSection(viewModel: CaptureViewModel) {
                             Button(
                                 shapes = ButtonDefaults.shapes(),
                                 onClick = viewModel::start,
-                                enabled = capture !is CaptureWriterState.Ready || capture.sent,
                             ) {
                                 Text(stringResource(R.string.capture_start))
                             }

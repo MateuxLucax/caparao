@@ -57,6 +57,23 @@ abstract class WatchTests(private val lang: String) {
         ),
     )
 
+    @Test fun lastStepShowsNoNextCountdown() {
+        val snapshot = WatchSnapshot(
+            WatchState.BREWING, 112f, 0f, 180_000, timerRunning = true,
+            guide = WatchGuide(index = 4, count = 5, kind = WatchStepKind.WAIT, targetGrams = null, dueInMs = 4_200, paceMs = null),
+        )
+        compose.setContent {
+            Box(Modifier.fillMaxSize().background(Color.White).clip(CircleShape)) {
+                WatchScreen(snapshot, onTare = {}, onTimer = {}, onReset = {}, timeSource = FixedTime)
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText(
+            ApplicationProvider.getApplicationContext<android.content.Context>()
+                .getString(R.string.guide_due_in, 5),
+        ).assertDoesNotExist()
+    }
+
     @Test fun disconnected() {
         val snapshot = WatchSnapshot(WatchState.DISCONNECTED, 0f, 0f, 0, timerRunning = false)
         compose.setContent {

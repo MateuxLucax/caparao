@@ -14,6 +14,7 @@ import dev.mateux.caparao.data.diagnostics.removeLegacyDiagnosticCaptures
 import dev.mateux.caparao.data.diagnostics.Diagnostics
 import dev.mateux.caparao.data.diagnostics.FanOutDiagnostics
 import dev.mateux.caparao.data.diagnostics.SentryDiagnostics
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.data.local.BrewDatabase
 import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.CoffeeBagRepository
@@ -29,12 +30,17 @@ import dev.mateux.caparao.sync.UploadRunner
 import dev.mateux.caparao.sync.UploadScheduler
 import dev.mateux.caparao.sync.UploadWorker
 import dev.mateux.caparao.sync.WorkManagerUploadQueue
+import dev.mateux.caparao.ui.RatingReminderScheduler
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -80,6 +86,9 @@ class AppContainer(context: Context) {
         appVersion = BuildConfig.VERSION_NAME,
         phoneModel = Build.MODEL,
         androidVersion = Build.VERSION.RELEASE,
+        captureEveryBrew = { settings.captureEveryBrew },
+        lastSentAt = { settings.lastCaptureSentMs },
+        recordSentAt = { settings.lastCaptureSentMs = it },
     )
 
     init {
@@ -103,6 +112,9 @@ class AppContainer(context: Context) {
 
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
 
+    val bagRecipeAdjustments = BagRecipeAdjustmentRepository(database.bagRecipeAdjustments())
+    val brewSuggestions = BrewSuggestions(recipes, bagRecipeAdjustments)
+
     private val exporter = ExporterClient()
 
     /**
@@ -113,6 +125,7 @@ class AppContainer(context: Context) {
 
     /** Upload jobs, one per brew, only with a server (#100). */
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
+    private val ratingReminders = RatingReminderScheduler(appContext)
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -153,19 +166,50 @@ class AppContainer(context: Context) {
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags) }
-        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
+        initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, bagRecipeAdjustments) }
+        initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, bagRecipeAdjustments) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-        initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
+        initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
-        initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
+        initializer {
+            BrewDetailViewModel(
+                requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags,
+                onBrewDeleted = { id ->
+                    uploads.brewDeleted(id)
+                    ratingReminders.cancelForBrew(id)
+                },
+            )
+        }
+        initializer {
+            BrewRatingViewModel(
+                requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags,
+                onSaved = { id ->
+                    uploads.brewSaved(id)
+                    ratingReminders.cancelForBrew(id)
+                },
+                next = brewSuggestions::afterRating,
+            )
+        }
+        initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, coffeeBags, brewSuggestions, bagRecipeAdjustments) }
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 clock = { scaleClock?.nowMs ?: SystemClock.elapsedRealtime() },
-                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted,
+                onSaved = { id ->
+                    uploads.brewSaved(id)
+                    ratingReminders.update(id, settings.remindToRate, settings.ratingReminderDelayMinutes)
+                },
+                onReminderChanged = { id, enabled ->
+                    ratingReminders.update(id, enabled, settings.ratingReminderDelayMinutes)
+                },
+                onDiscarded = { id ->
+                    uploads.brewDeleted(id)
+                    ratingReminders.cancelForBrew(id)
+                },
                 diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
                 coffeeBags = coffeeBags,
+                adjustments = bagRecipeAdjustments,
             ).also { watch.attach(it.watchBrew, it.watchAlerts) }
         }
     }

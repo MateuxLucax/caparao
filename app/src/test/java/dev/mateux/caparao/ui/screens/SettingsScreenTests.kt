@@ -277,6 +277,24 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     }
 
     @Test
+    fun captureEveryBrewIsOffByDefaultAndTiedToDiagnosticsConsent() {
+        openDiagnosticsCard(optedIn = false)
+        compose.onNodeWithTag("diagnostics-opt-in").performClick()
+        waitFor(R.string.capture_every_brew)
+        compose.onNodeWithTag("capture-every-brew").assert(isOn().not())
+        compose.onNodeWithText(text(R.string.capture_start)).assertIsDisplayed()
+
+        compose.onNodeWithTag("capture-every-brew").performClick()
+        assertTrue(settings.captureEveryBrew)
+        assertTrue(settings.captureEveryBrewConsentMs > 0L)
+        compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
+
+        compose.onNodeWithTag("diagnostics-opt-in").performClick()
+        assertFalse(settings.captureEveryBrew)
+        compose.onNodeWithText(text(R.string.capture_every_brew)).assertDoesNotExist()
+    }
+
+    @Test
     fun diagnosticsSectionIsHiddenWhenUnavailable() {
         openDiagnosticsCard(optedIn = true, available = false)
         compose.onNodeWithText(text(R.string.section_diagnostics)).assertDoesNotExist()
@@ -300,6 +318,8 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
     fun diagnosticsIdle() {
         openDiagnosticsCard()
         compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.capture_last_sent, text(R.string.capture_never_sent))).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.capture_pending_uploads, 0)).assertIsDisplayed()
     }
 
     @Test
@@ -318,7 +338,8 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         waitFor(R.string.capture_running)
         diagnosticsAction(R.string.capture_stop)
         waitFor(R.string.capture_pending)
-        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.capture_start)).performScrollTo().assertIsEnabled().performClick()
+        waitFor(R.string.capture_running)
     }
 
     @Test

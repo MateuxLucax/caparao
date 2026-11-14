@@ -2,6 +2,7 @@ package dev.mateux.caparao.ui.components
 
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
+import dev.mateux.caparao.model.BrewTaste
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.NotesForm
 import org.junit.Assert.assertEquals
@@ -41,13 +42,14 @@ class NotesFormTest {
     }
 
     @Test
-    fun blanksBecomeNullAndTextIsTrimmed() {
-        val applied = NotesForm(coffee = "  ", grind = " 18 ", temp = "", rating = 3, notes = " Bright ").applyTo(brew)
+    fun blanksBecomeNullTextIsTrimmedAndRatingFieldsAreLeftAlone() {
+        val applied = NotesForm(coffee = "  ", grind = " 18 ", temp = "").applyTo(brew.copy(rating = 3, notes = "Bright", taste = BrewTaste.BALANCED))
         assertNull(applied.coffee)
         assertEquals("18", applied.grind)
         assertNull(applied.waterTempCelsius)
         assertEquals(3, applied.rating)
         assertEquals("Bright", applied.notes)
+        assertEquals(BrewTaste.BALANCED, applied.taste)
     }
 
     @Test

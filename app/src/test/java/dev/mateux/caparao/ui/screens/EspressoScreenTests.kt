@@ -85,9 +85,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
@@ -161,7 +159,7 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.waitForIdle()
         playUntilShown(scale, R.string.brew_saved, 60_000)
         compose.waitForIdle()
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
@@ -174,17 +172,25 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.waitForIdle()
     }
 
-    /** The espresso from the synthetic session, stopped on its summary: the notes and the Done button (#181). */
+    /** The espresso summary keeps its numbers and reminder, with rating entry deferred to its own screen (#464). */
     @Test
-    fun summaryBackSavesNotesAndCloses() {
+    fun savedSummaryShowsReminderInsteadOfRatingForm() {
+        settings.remindToRate = true
         espressoSummary()
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_coffee))).performTextReplacement("Kalita")
-        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.brew_coffee)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_rating)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.recipe_notes)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_rate_now)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.brew_remind_to_rate)).assertIsDisplayed()
+        assertTrue(settings.remindToRate)
+        compose.onNode(isToggleable() and isOn()).performClick()
+        assertFalse(settings.remindToRate)
         tapBack()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.discard_brew_title)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.brew_saved)).assertDoesNotExist()
-        assertEquals("Kalita", runBlocking { brews.latest()?.coffee })
+        assertNotNull(runBlocking { brews.latest() })
     }
 
     /** Discard on the summary still asks first, and Cancel keeps the brew (#181, A1). */
@@ -327,19 +333,38 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.prepare_grind)).assertIsDisplayed()
-        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertDoesNotExist()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
             compose.onNodeWithText(text(it)).assertIsDisplayed()
         }
         compose.onNodeWithTag("portafilter-ready").assertIsDisplayed()
         click(R.string.prepare_ready)
         compose.waitForIdle()
-        // The cup lands at 8 s and is tared as soon as it is still.
+        // One screen from the cup to the first drop (#458): it asks for the cup with no button to confirm it.
+        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertIsDisplayed()
+        // The cup lands at 8 s and is tared as soon as it is still; the cup's words stay through the tare.
         playUntilShown(scale, R.string.taring, 15_000)
         compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.espresso_place_cup)).assertIsDisplayed()
         playUntilShown(scale, R.string.espresso_ready, 20_000)
         compose.waitForIdle()
+        compose.onAllNodes(hasText(text(R.string.espresso_place_cup))).assertCountEquals(0)
+        compose.onAllNodes(hasText(text(R.string.taring))).assertCountEquals(0)
+    }
+
+    /** A cup already on the scale never reads as a rise: after a short wait the screen offers the tare by hand (#458). */
+    @Test
+    fun espressoOffersTareNowWhileWaitingForTheCup() {
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        click(R.string.next)
+        click(R.string.next)
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        compose.onAllNodes(hasText(text(R.string.tare_now))).assertCountEquals(0)
+        compose.mainClock.advanceTimeBy(5_100)
+        compose.onNodeWithText(text(R.string.tare_now)).assertIsDisplayed().performClick()
+        playUntilShown(scale, R.string.taring, 5_000)
     }
 
     /**
@@ -432,7 +457,9 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
                 play(scale, scale.nowMs + 100)
                 compose.waitForIdle()
             }
-            assertWeightAndTimerShown()
+            // While it tares, "Taring…" stands where the timer will run (#458); the weight stays.
+            compose.onNode(textMatching(Regex("\\d+[.,]\\d"))).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.taring)).assertIsDisplayed()
             compose.onNodeWithText(text(R.string.label_flow)).assertIsDisplayed()
             compose.onNodeWithText(text(R.string.label_ratio)).assertIsDisplayed()
             playUntilShown(scale, R.string.espresso_ready, 20_000)

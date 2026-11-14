@@ -53,7 +53,13 @@ import dev.mateux.caparao.ui.brew.BrewScreen
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailScreen
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingScreen
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
+import dev.mateux.caparao.ui.brews.BrewSuggestionScreen
+import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
 import dev.mateux.caparao.ui.brews.BrewsScreen
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentScreen
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailScreen
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
@@ -103,6 +109,8 @@ fun App(
     versionName: String,
     shortcut: LauncherShortcut? = null,
     onShortcutConsumed: () -> Unit = {},
+    ratingBrewId: String? = null,
+    onRatingConsumed: () -> Unit = {},
     entryStoreProvider: ViewModelStoreProvider? = null,
 ) {
     LifecycleStartEffect(scale) {
@@ -119,7 +127,7 @@ fun App(
             onboarded = true
         }
     } else {
-        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed, entryStoreProvider)
+        Main(viewModelFactory, actions, versionName, shortcut, onShortcutConsumed, ratingBrewId, onRatingConsumed, entryStoreProvider)
     }
 }
 
@@ -131,6 +139,8 @@ private fun Main(
     versionName: String,
     shortcut: LauncherShortcut?,
     onShortcutConsumed: () -> Unit,
+    ratingBrewId: String?,
+    onRatingConsumed: () -> Unit,
     entryStoreProvider: ViewModelStoreProvider?,
 ) {
     val backStack = rememberNavBackStack(Destination.Tabs)
@@ -185,6 +195,12 @@ private fun Main(
         }
     }
 
+    LaunchedEffect(ratingBrewId) {
+        val id = ratingBrewId ?: return@LaunchedEffect
+        if (backStack.lastOrNull() != Destination.Rating(id)) backStack.add(Destination.Rating(id))
+        onRatingConsumed()
+    }
+
     NavDisplay(
         backStack = backStack,
         onBack = { handleBack() },
@@ -199,6 +215,7 @@ private fun Main(
                     onShortcutTabConsumed = { shortcutTab = null; onShortcutConsumed() },
                     onBrew = { backStack.add(Destination.Brew(it)) },
                     onOpen = { backStack.add(Destination.Detail(it)) },
+                    onRate = { backStack.add(Destination.Rating(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
                     onSettings = { backStack.add(Destination.Settings(it)) },
@@ -227,13 +244,43 @@ private fun Main(
                     onDispose { if (openBrew.value === open) openBrew.value = null }
                 }
                 CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
-                    BrewScreen(brew, onClose = close)
+                    BrewScreen(
+                        brew,
+                        onClose = close,
+                        onRate = { backStack.add(Destination.Rating(it)) },
+                        onEditAdjustment = { bagId, recipeId -> backStack.add(Destination.Adjustment(bagId, recipeId)) },
+                        actions = actions,
+                    )
                 }
             }
             entry<Destination.Detail> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
                 BrewDetailScreen(
                     viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onRate = { backStack.add(Destination.Rating(it)) },
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
+            entry<Destination.Rating> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewRatingViewModel.BREW_ID, shown.id) }
+                BrewRatingScreen(
+                    viewModel(key = "rating-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onClose = { backStack.popEntry(shown) },
+                    // The suggestion takes the rating's place, so Back from it does not return to the form.
+                    onSuggest = {
+                        backStack.add(Destination.Suggestion(shown.id))
+                        backStack.remove(shown)
+                    },
+                )
+            }
+            entry<Destination.Suggestion> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewSuggestionViewModel.BREW_ID, shown.id) }
+                BrewSuggestionScreen(
+                    viewModel(key = "suggestion-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onEditAdjustment = { bagId, recipeId ->
+                        backStack.add(Destination.Adjustment(bagId, recipeId))
+                        backStack.remove(shown)
+                    },
                     onClose = { backStack.popEntry(shown) },
                 )
             }
@@ -243,6 +290,16 @@ private fun Main(
                     viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
                     viewModel(factory = viewModelFactory),
                     onOpenBrew = { backStack.add(Destination.Detail(it)) },
+                    onOpenAdjustment = { backStack.add(Destination.Adjustment(shown.id, it)) },
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
+            entry<Destination.Adjustment> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply {
+                    set(CoffeeAdjustmentViewModel.TARGET, CoffeeAdjustmentViewModel.Target(shown.bagId, shown.recipeId))
+                }
+                CoffeeAdjustmentScreen(
+                    viewModel(key = "adjustment-${shown.bagId}-${shown.recipeId}", factory = viewModelFactory, extras = extras),
                     onClose = { backStack.popEntry(shown) },
                 )
             }
@@ -290,8 +347,11 @@ internal sealed interface Destination : NavKey {
     @Serializable data object Tabs : Destination
     @Serializable data class Brew(val mode: BrewMode) : Destination
     @Serializable data class Detail(val id: String) : Destination
+    @Serializable data class Rating(val id: String) : Destination
+    @Serializable data class Suggestion(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
+    @Serializable data class Adjustment(val bagId: String, val recipeId: String) : Destination
     @Serializable data class Settings(val detail: SettingsDetail) : Destination
 }
 
@@ -308,6 +368,7 @@ private fun Tabs(
     onShortcutTabConsumed: () -> Unit,
     onBrew: (BrewMode) -> Unit,
     onOpen: (String) -> Unit,
+    onRate: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
     onSettings: (SettingsDetail) -> Unit,
@@ -358,7 +419,7 @@ private fun Tabs(
                     modifier,
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
                 Tab.SETTINGS -> SettingsScreen(
                     settingsServer,
                     settingsScale,
