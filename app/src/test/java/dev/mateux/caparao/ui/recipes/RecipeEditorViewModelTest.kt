@@ -142,4 +142,29 @@ class RecipeEditorViewModelTest {
         assertEquals(listOf(0L, 30_000L, 170_000L), timelineMarks(form))
         assertEquals(listOf(0L, 30_000L), timelineMarks(form.copy(maxTime = "")))
     }
+
+    /** A moved step takes the start of the place it lands on, so the list stays in time order (#471). */
+    @Test
+    fun movingAStepKeepsTheStartTimesInPlace() {
+        val vm = editor(Target.New(BrewMode.FILTER))
+        vm.edit {
+            it.copy(steps = listOf(StepForm(StepKind.BLOOM, "40", "0:00"), StepForm(StepKind.POUR, "300", "0:30", "5"), StepForm(StepKind.WAIT, start = "2:00")))
+        }
+        vm.moveStep(2, 1)
+        assertEquals(
+            listOf(StepForm(StepKind.BLOOM, "40", "0:00"), StepForm(StepKind.WAIT, start = "0:30"), StepForm(StepKind.POUR, "300", "2:00", "5")),
+            vm.state.value.form!!.steps,
+        )
+        vm.moveStep(0, 5)
+        assertEquals(StepKind.BLOOM, vm.state.value.form!!.steps.first().kind)
+    }
+
+    /** A new step starts 30 s after the last one and pours at the last pour's flow (#471). */
+    @Test
+    fun aNewStepTakesItsDefaultsFromTheStepsBefore() {
+        val vm = editor(Target.New(BrewMode.FILTER))
+        vm.edit { it.copy(steps = listOf(StepForm(StepKind.BLOOM, "40", "0:00", "4"), StepForm(StepKind.WAIT, start = "0:30"))) }
+        vm.addStep()
+        assertEquals(StepForm(StepKind.POUR, start = "1:00", flowTarget = "4"), vm.state.value.form!!.steps.last())
+    }
 }

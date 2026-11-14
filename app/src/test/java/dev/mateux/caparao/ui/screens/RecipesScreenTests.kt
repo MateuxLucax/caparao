@@ -195,6 +195,30 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(text(R.string.step_sheet_title, 1)).assertIsDisplayed()
     }
 
+    /** A step is added, edited, moved and removed from its sheet (#471). */
+    @Test
+    fun recipeEditorAddsEditsMovesAndRemovesAStep() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("V60 One and Done"), 5_000)
+        compose.onNodeWithText("V60 One and Done").performClick()
+        waitFor(R.string.recipe_name)
+        // Add: the sheet opens on the new fourth step, a pour 30 s after the last one.
+        click(R.string.add_step)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.step_sheet_title, 4)), 5_000)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.step_start))).assertTextContains("1:30")
+        // Edit: the weight typed in the sheet shows on the row behind it.
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.step_weight))).performTextReplacement("300")
+        // Move: one place up, and the sheet follows the step.
+        compose.onNodeWithContentDescription(text(R.string.step_move_up)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.step_sheet_title, 3)), 5_000)
+        compose.onNodeWithContentDescription(text(R.string.step_move_down)).assertIsEnabled()
+        // Remove: back to three steps.
+        click(R.string.remove_step)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.step_sheet_title, 3)).fetchSemanticsNodes().isEmpty() }
+        compose.onAllNodesWithText(text(R.string.step_summary_weight, "300"), substring = true).assertCountEquals(0)
+    }
+
     /** Opens the V60 recipe in its editor, as the recipes list leads to it. */
     @Test
     fun untouchedRecipeEditorBackClosesAtOnce() {

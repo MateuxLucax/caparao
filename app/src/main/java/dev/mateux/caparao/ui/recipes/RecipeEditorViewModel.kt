@@ -73,10 +73,21 @@ class RecipeEditorViewModel(
         state.copy(form = form, errors = if (state.errors.isEmpty()) emptySet() else form.validate(), dirty = form != initial)
     }
 
-    /** Adds a step after the last one: a pour, starting 30 s after it. */
+    /** Adds a step after the last one: a pour, starting 30 s after it, at the flow the last pour asked for. */
     fun addStep() = edit { form ->
         val last = form.steps.lastOrNull()?.let { RecipeForm.clock(it.start) } ?: -30_000
-        form.copy(steps = form.steps + StepForm(StepKind.POUR, start = RecipeForm.clockText(last + 30_000)))
+        val flow = form.steps.lastOrNull { it.kind.pours }?.flowTarget.orEmpty()
+        form.copy(steps = form.steps + StepForm(StepKind.POUR, start = RecipeForm.clockText(last + 30_000), flowTarget = flow))
+    }
+
+    /**
+     * Moves a step to another place in the list. The start times stay where they are, so the list is still in time
+     * order: the step takes the start of the place it lands on.
+     */
+    fun moveStep(from: Int, to: Int) = edit { form ->
+        if (from !in form.steps.indices || to !in form.steps.indices || from == to) return@edit form
+        val moved = form.steps.toMutableList().apply { add(to, removeAt(from)) }
+        form.copy(steps = moved.mapIndexed { i, step -> step.copy(start = form.steps[i].start) })
     }
 
     fun removeStep(index: Int) = edit { it.copy(steps = it.steps.filterIndexed { i, _ -> i != index }) }

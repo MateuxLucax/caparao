@@ -216,6 +216,8 @@
     <string name="recipe_temp_short">Temperature</string>
     <string name="recipe_ideal_time">Ideal time</string>
     <string name="recipe_shot_time">Shot time</string>
+    <string name="step_move_up">Move up</string>
+    <string name="step_move_down">Move down</string>
     <string name="step_sheet_title">Step %1$d</string>
     <string name="recipe_steps_text">Weight is what the scale shows, counted from the tare. Start counts from the first water.</string>
     <string name="step_summary_weight">to %1$s g</string>
