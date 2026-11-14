@@ -35,6 +35,12 @@
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
     <string name="brews_empty_title">You haven\'t brewed yet.</string>
+    <string name="brews_to_rate">To rate</string>
+    <string name="brews_rated">Rated</string>
+    <string name="filter_all">All</string>
+    <string name="brews_filter_empty">No brews with this coffee yet.</string>
+    <string name="brew_row_grind">grind %1$s</string>
+    <string name="synced">Synced</string>
 
     <!-- Settings -->
     <string name="settings_no_browser">No browser available.</string>

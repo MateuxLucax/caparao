@@ -79,7 +79,7 @@ class AppTest {
         initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-        initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+        initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
         // No server is reached: Test connection fails, saving enqueues nothing.
         initializer { ServerViewModel(settings, { _, _ -> error("no server in tests") }, {}, {}) }
         initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes) }

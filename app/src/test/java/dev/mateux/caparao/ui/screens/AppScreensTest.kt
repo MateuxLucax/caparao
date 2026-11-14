@@ -140,7 +140,7 @@ class AppScreensTest {
             initializer { CoffeeBagsViewModel(coffeeBags) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
-            initializer { BrewsViewModel(brews, settings.syncStatus) {} }
+            initializer { BrewsViewModel(brews, coffeeBags.bags, settings.syncStatus) {} }
             // No server is reached: Test connection fails, saving enqueues nothing.
             initializer {
                 ServerViewModel(
@@ -302,6 +302,9 @@ class AppScreensTest {
         replay.stop()
     }
 
+    /** The first line of an espresso brew without a bag or a recipe on the Brews tab. */
+    private val brewRow get() = "${text(R.string.no_bag)} · ${text(R.string.mode_espresso)}"
+
     @Test
     fun aSavedBrewOpensFromTheListAndDeleteRemovesIt() {
         val brew = Brew("b1", BrewMode.ESPRESSO, 1_000, 28_000, 18.0, 36.0, 4_000, 1.3, 2.0, interrupted = false)
@@ -309,9 +312,9 @@ class AppScreensTest {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
+        compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(text(R.string.local_only), substring = true).assertExists()
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.onNodeWithText(brewRow).performClick()
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.delete)), 5_000)
         compose.onNodeWithText(text(R.string.delete)).performClick()
@@ -332,8 +335,8 @@ class AppScreensTest {
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("1:2.0"), 5_000)
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
+        compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         // Edit the notes, then leave: the ViewModel must not outlive the screen with the form still open.
         compose.onNodeWithText(text(R.string.edit_notes)).performClick()
@@ -342,7 +345,7 @@ class AppScreensTest {
 
         // Opened again: a fresh entry ViewModel, so the notes form is closed.
         compose.waitForIdle()
-        compose.onNodeWithText("1:2.0").performClick()
+        compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         compose.onNodeWithText(text(R.string.save)).assertDoesNotExist()
     }
