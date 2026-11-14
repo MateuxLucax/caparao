@@ -5,8 +5,6 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,12 +12,10 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 class BagRecipeAdjustmentMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val schema = File("schemas/dev.mateux.caparao.data.local.BrewDatabase/10.json")
 
     @Before
     fun setUp() {
@@ -34,19 +30,7 @@ class BagRecipeAdjustmentMigrationTest {
     @Test
     fun migration10To11AddsAdjustmentTablesAndKeepsExistingData() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
-            val database = JSONObject(schema.readText()).getJSONObject("database")
-            val entities = database.getJSONArray("entities")
-            for (index in 0 until entities.length()) {
-                val entity = entities.getJSONObject(index)
-                val table = entity.getString("tableName")
-                db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
-                val indices = entity.optJSONArray("indices") ?: JSONArray()
-                for (indexInEntity in 0 until indices.length()) {
-                    db.execSQL(indices.getJSONObject(indexInEntity).getString("createSql").replace("\${TABLE_NAME}", table))
-                }
-            }
-            val setup = database.getJSONArray("setupQueries")
-            for (index in 0 until setup.length()) db.execSQL(setup.getString(index))
+            createSchemaFromJson(db, 10)
             db.execSQL(
                 "INSERT INTO coffee_bags (id, name, weight_grams, finished, created_at, tasting_notes) " +
                     "VALUES ('bag', 'Caparaó', 250.0, 0, 1, '[]')",

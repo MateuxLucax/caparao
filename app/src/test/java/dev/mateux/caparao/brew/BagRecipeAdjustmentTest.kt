@@ -50,6 +50,15 @@ class BagRecipeAdjustmentTest {
     }
 
     @Test
+    fun anUnchangedDoseDoesNotRewriteCustomStepTargets() {
+        // Same dose as the recipe: a no-op override must keep custom steps, not rescale them.
+        val custom = recipe.copy(steps = listOf(RecipeStep(StepKind.POUR, 42.0, 0)))
+        val adjusted = applyBagRecipeAdjustment(custom, BagRecipeAdjustment("bag", "v60", doseGrams = custom.doseGrams))
+
+        assertEquals(custom, adjusted)
+    }
+
+    @Test
     fun rejectsAdjustmentForAnotherRecipe() {
         assertThrows(IllegalArgumentException::class.java) {
             applyBagRecipeAdjustment(recipe, BagRecipeAdjustment("bag", "other"))
