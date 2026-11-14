@@ -105,7 +105,7 @@ interface BrewDao {
 
     /** Brews that have not been rated yet, oldest first. */
     @Query("SELECT * FROM brews WHERE rated_at IS NULL ORDER BY started_at")
-    suspend fun notRatedYet(): List<BrewEntity>
+    fun notRatedYet(): Flow<List<BrewEntity>>
 
     /** Confirms [id] only if its revision is still [revision]; zero rows means it changed during the upload (#315). */
     @Query("UPDATE brews SET synced_at = :at WHERE id = :id AND revision = :revision")
@@ -117,9 +117,19 @@ interface BrewDao {
     /** The notes changed: the server's copy is stale, so the brew is unsynced again and its revision grows (#105, #315). */
     @Query(
         "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
-            "notes = :notes, synced_at = NULL, revision = revision + 1 WHERE id = :id",
+            "notes = :notes, rated_at = CASE WHEN :rating IS NOT NULL OR (:notes IS NOT NULL AND TRIM(:notes) != '') " +
+            "THEN COALESCE(rated_at, :now) ELSE rated_at END, synced_at = NULL, revision = revision + 1 WHERE id = :id",
     )
-    suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
+    suspend fun updateNotes(
+        id: String,
+        coffee: String?,
+        bagId: String?,
+        grind: String?,
+        waterTempCelsius: Int?,
+        rating: Int?,
+        notes: String?,
+        now: Long,
+    )
 
     /** Saves a brew's rating locally and invalidates its previous upload. */
     @Query(
@@ -208,10 +218,7 @@ abstract class BrewDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE brews ADD COLUMN taste TEXT")
                 db.execSQL("ALTER TABLE brews ADD COLUMN tasting_notes_found TEXT NOT NULL DEFAULT '[]'")
                 db.execSQL("ALTER TABLE brews ADD COLUMN rated_at INTEGER")
-                db.execSQL(
-                    "UPDATE brews SET rated_at = started_at WHERE rating IS NOT NULL OR " +
-                        "(notes IS NOT NULL AND TRIM(notes) != '')",
-                )
+                db.execSQL("UPDATE brews SET rated_at = started_at + duration_ms")
             }
         }
     }

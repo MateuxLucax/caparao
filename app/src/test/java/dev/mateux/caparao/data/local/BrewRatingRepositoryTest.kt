@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewTaste
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,14 +41,14 @@ class BrewRatingRepositoryTest {
         assertEquals(2_000L, saved.ratedAt)
         assertEquals(1, saved.revision)
         assertNull(saved.syncedAt)
-        assertEquals(emptyList<Brew>(), repository.notRatedYet())
+        assertEquals(emptyList<Brew>(), repository.notRatedYet().first())
     }
 
     @Test
     fun newBrewWithoutRatingIsReturnedAsNotRated() = runBlocking {
         repository.save(brew("unrated"), emptyList())
 
-        assertEquals(listOf("unrated"), repository.notRatedYet().map { it.id })
+        assertEquals(listOf("unrated"), repository.notRatedYet().first().map { it.id })
     }
 
     private fun brew(id: String) = Brew(

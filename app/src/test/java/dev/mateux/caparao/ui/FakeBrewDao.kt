@@ -4,6 +4,7 @@ import dev.mateux.caparao.data.local.BrewDao
 import dev.mateux.caparao.data.local.BrewEntity
 import dev.mateux.caparao.data.local.BrewSampleEntity
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /** The DAO's behaviour in memory; the real queries are tested on a device (BrewDaoTest). */
@@ -27,7 +28,7 @@ class FakeBrewDao : BrewDao {
     override suspend fun get(id: String) = brews.value.find { it.id == id }
     override suspend fun samples(brewId: String) = samples[brewId].orEmpty()
     override suspend fun unsynced() = brews.value.filter { it.syncedAt == null }.sortedBy { it.startedAt }
-    override suspend fun notRatedYet() = brews.value.filter { it.ratedAt == null }.sortedBy { it.startedAt }
+    override fun notRatedYet(): Flow<List<BrewEntity>> = brews.map { list -> list.filter { it.ratedAt == null }.sortedBy { it.startedAt } }
 
     override suspend fun markSynced(id: String, at: Long, revision: Int): Int {
         var updated = 0
@@ -47,7 +48,7 @@ class FakeBrewDao : BrewDao {
         samples.remove(id)
     }
 
-    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?) {
+    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?, now: Long) {
         brews.value = brews.value.map {
             if (it.id == id) {
                 it.copy(
@@ -57,6 +58,7 @@ class FakeBrewDao : BrewDao {
                     waterTempCelsius = waterTempCelsius,
                     rating = rating,
                     notes = notes,
+                    ratedAt = if (rating != null || !notes.isNullOrBlank()) it.ratedAt ?: now else it.ratedAt,
                     syncedAt = null,
                     revision = it.revision + 1,
                 )

@@ -27,7 +27,7 @@ class BrewRepository(
     suspend fun latest(): Brew? = dao.latest()?.toModel()
 
     /** Brews that have not been rated yet, oldest first. */
-    suspend fun notRatedYet(): List<Brew> = dao.notRatedYet().map { it.toModel() }
+    fun notRatedYet(): Flow<List<Brew>> = dao.notRatedYet().map { rows -> rows.map { it.toModel() } }
 
     suspend fun samples(id: String): List<BrewSample> = dao.samples(id).map { BrewSample(it.atMs, it.weightGrams, it.flow) }
 
@@ -38,7 +38,7 @@ class BrewRepository(
 
     /** Saves [brew]'s notes (coffee and its bag, grind, temperature, rating, notes), marks it unsynced and bumps its revision. */
     suspend fun updateNotes(brew: Brew) =
-        dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes)
+        dao.updateNotes(brew.id, brew.coffee, brew.bagId, brew.grind, brew.waterTempCelsius, brew.rating, brew.notes, System.currentTimeMillis())
 
     /** Saves taste, the notes found, stars and free-text notes, marks the brew rated and bumps its revision. */
     suspend fun saveRating(brew: Brew, ratedAt: Long = System.currentTimeMillis()) {

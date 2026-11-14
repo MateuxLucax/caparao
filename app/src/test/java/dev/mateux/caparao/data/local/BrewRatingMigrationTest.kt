@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -31,7 +32,7 @@ class BrewRatingMigrationTest {
     }
 
     @Test
-    fun migration11To12AddsRatingDataAndMarksExistingRatingsAndNotes() = runBlocking {
+    fun migration11To12AddsRatingDataAndMarksAllExistingBrewsRated() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
             createVersion11(db)
             db.execSQL(
@@ -55,12 +56,12 @@ class BrewRatingMigrationTest {
             .build()
         try {
             assertEquals(12, migrated.openHelper.readableDatabase.version)
-            assertEquals(1_000L, migrated.brews().get("starred")!!.ratedAt)
-            assertEquals(2_000L, migrated.brews().get("noted")!!.ratedAt)
+            assertEquals(61_000L, migrated.brews().get("starred")!!.ratedAt)
+            assertEquals(62_000L, migrated.brews().get("noted")!!.ratedAt)
             val unrated = migrated.brews().get("unrated")!!
-            assertEquals(null, unrated.ratedAt)
+            assertEquals(63_000L, unrated.ratedAt)
             assertEquals(emptyList<String>(), unrated.tastingNotesFound)
-            assertEquals(listOf("unrated"), migrated.brews().notRatedYet().map { it.id })
+            assertEquals(emptyList<BrewEntity>(), migrated.brews().notRatedYet().first())
         } finally {
             migrated.close()
         }
