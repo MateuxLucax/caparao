@@ -41,7 +41,7 @@ data class BrewEntity(
     val rating: Int? = null,
     val notes: String? = null,
     val taste: String? = null,
-    @TypeConverters(CoffeeBagTastingNotesConverter::class)
+    @TypeConverters(TastingNotesConverter::class)
     @ColumnInfo(name = "tasting_notes_found", defaultValue = "'[]'") val tastingNotesFound: List<String> = emptyList(),
     @ColumnInfo(name = "rated_at") val ratedAt: Long? = null,
     /** The coffee bag this brew used; local only, never sent to the server (#288). No foreign key: deleting a bag unlinks its brews. */
@@ -96,6 +96,10 @@ interface BrewDao {
 
     @Query("SELECT * FROM brews WHERE id = :id")
     suspend fun get(id: String): BrewEntity?
+
+    /** One brew by id; null while it does not exist yet. */
+    @Query("SELECT * FROM brews WHERE id = :id")
+    fun observe(id: String): Flow<BrewEntity?>
 
     @Query("SELECT * FROM brew_samples WHERE brew_id = :brewId ORDER BY at_ms")
     suspend fun samples(brewId: String): List<BrewSampleEntity>

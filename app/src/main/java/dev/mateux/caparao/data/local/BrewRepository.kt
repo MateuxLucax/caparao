@@ -14,6 +14,9 @@ class BrewRepository(
 ) {
     val brews: Flow<List<Brew>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
+    /** One brew by id, observed instead of the whole table. */
+    fun observe(id: String): Flow<Brew?> = dao.observe(id).map { it?.toModel() }
+
     /** The brews that used a coffee bag, newest first. */
     fun forBag(bagId: String): Flow<List<Brew>> = dao.observeForBag(bagId).map { rows -> rows.map { it.toModel() } }
 
@@ -48,7 +51,7 @@ class BrewRepository(
             rating = brew.rating,
             notes = brew.notes,
             taste = brew.taste?.name?.lowercase(),
-            tastingNotesFound = CoffeeBagTastingNotesConverter().encode(brew.tastingNotesFound),
+            tastingNotesFound = TastingNotesConverter().encode(brew.tastingNotesFound),
             ratedAt = brew.ratedAt ?: ratedAt ?: if (hasRating) System.currentTimeMillis() else null,
         )
     }

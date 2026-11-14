@@ -13,9 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class BrewDetailUiState(
@@ -43,8 +42,7 @@ class BrewDetailViewModel(
     init {
         viewModelScope.launch {
             val samples = repository.samples(id)
-            repository.brews
-                .map { brews -> brews.firstOrNull { it.id == id } }
+            repository.observe(id)
                 .collect { brew ->
                     _uiState.update { it.copy(brew = brew, samples = samples, loading = false) }
                 }
