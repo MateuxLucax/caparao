@@ -17,7 +17,7 @@ class BrewAdjustmentSuggestionTest {
         method = "V60",
         doseGrams = 15.0,
         targetRatio = 16.0,
-        grind = "10",
+        grind = 10,
         waterTempCelsius = 90,
         targetMinMs = 100_000,
         targetMaxMs = 120_000,
@@ -130,7 +130,7 @@ class BrewAdjustmentSuggestionTest {
             Case(
                 "grind suggestion without a numeric grind",
                 brew = brew(99_000, BrewTaste.SOUR),
-                recipe = recipe.copy(grind = "medium-coarse"),
+                recipe = recipe.copy(grind = null),
                 adjustment = adjustment.copy(grind = null),
             ),
         )
@@ -220,7 +220,7 @@ class BrewAdjustmentSuggestionTest {
     @Test
     fun skipsSuggestionsWhenTheRecipeNoLongerExplainsTheBrew() {
         // The brew recorded 10 and 90 °C; the recipe has since been edited to 12 and 85 °C.
-        val edited = recipe.copy(grind = "12", waterTempCelsius = 85, targetMinMs = 120_000, targetMaxMs = 150_000)
+        val edited = recipe.copy(grind = 12, waterTempCelsius = 85, targetMinMs = 120_000, targetMaxMs = 150_000)
         val old = brew(99_000, BrewTaste.SOUR, grind = "10", waterTempCelsius = 90)
         assertEquals(
             BrewAdjustmentSuggestion.NothingToSuggest,
@@ -230,7 +230,7 @@ class BrewAdjustmentSuggestionTest {
         val oldWithoutGrind = brew(99_000, BrewTaste.SOUR, waterTempCelsius = 90)
         assertEquals(
             BrewAdjustmentSuggestion.NothingToSuggest,
-            suggestBrewAdjustment(edited.copy(grind = "medium"), oldWithoutGrind, BagRecipeAdjustment("bag", "recipe"), 1),
+            suggestBrewAdjustment(edited.copy(grind = null), oldWithoutGrind, BagRecipeAdjustment("bag", "recipe"), 1),
         )
     }
 

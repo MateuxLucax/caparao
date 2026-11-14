@@ -31,6 +31,16 @@ class RecipeFormTest {
     }
 
     @Test
+    fun recipeGrindIsAnOptionalWholeNumber() {
+        val withGrind = filter.copy(grind = "18")
+        assertEquals(emptySet<Field>(), withGrind.validate())
+        assertEquals(18, withGrind.toRecipe("id", 1, 2).grind)
+        assertEquals("18", RecipeForm.of(withGrind.toRecipe("id", 1, 2), Locale.US).grind)
+        assertEquals(setOf(Field.GRIND), withGrind.copy(grind = "18.5").validate())
+        assertNull(filter.toRecipe("id", 1, 2).grind)
+    }
+
+    @Test
     fun filterTimeWindowIsOptionalButMustBeACompleteOrderedPair() {
         assertEquals(emptySet<Field>(), filter.validate())
         assertEquals(setOf(Field.WINDOW), filter.copy(minTime = "120").validate())
@@ -177,6 +187,7 @@ class RecipeFormTest {
     @Test
     fun aRecipeRoundTripsThroughTheForm() {
         for (recipe in BuiltInRecipes.all(5)) {
+            assertNull("built-in grind is personal", recipe.grind)
             val form = RecipeForm.of(recipe, Locale.US)
             assertEquals(emptySet<Field>(), form.validate())
             assertEquals(recipe, form.toRecipe(recipe.id, 5, 5))

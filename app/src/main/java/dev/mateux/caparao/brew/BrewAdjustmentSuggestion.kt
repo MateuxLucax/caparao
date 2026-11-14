@@ -44,7 +44,7 @@ fun suggestBrewAdjustment(
 
     val brewedGrind = brew.grind?.toIntOrNull()
     val brewedTemperature = brew.waterTempCelsius
-    val recipeGrind = recipe.grind?.toIntOrNull()
+    val recipeGrind = recipe.grind
 
     // The recorded values must be explainable by the recipe or the adjustment as they are today; otherwise the recipe
     // changed after the brew and its time cannot be judged against the live window.

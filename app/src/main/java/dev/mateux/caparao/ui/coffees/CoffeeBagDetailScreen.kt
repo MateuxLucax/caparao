@@ -212,8 +212,8 @@ private fun AdjustmentLine(row: RecipeAdjustment, locale: Locale, shape: Rounded
     val adjustment = row.adjustment
     val summary = buildList {
         adjustment?.grind?.let { grind ->
-            val recipeGrind = row.recipe.grind?.trim()?.ifEmpty { null }
-            add(if (recipeGrind == null) stringResource(R.string.adjustment_grind, grind.toString()) else stringResource(R.string.adjustment_grind_recipe, grind.toString(), recipeGrind))
+            val recipeGrind = row.recipe.grind
+            add(if (recipeGrind == null) stringResource(R.string.adjustment_grind, grind.toString()) else stringResource(R.string.adjustment_grind_recipe, grind.toString(), recipeGrind.toString()))
         }
         adjustment?.waterTempCelsius?.let { add("$it ${stringResource(R.string.unit_celsius)}") }
         adjustment?.doseGrams?.let { add("${Format.grams(it, locale)} ${stringResource(R.string.unit_grams)}") }

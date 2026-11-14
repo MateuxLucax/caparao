@@ -156,7 +156,7 @@ interface BrewDao {
         BagRecipeAdjustmentEntity::class,
         BagRecipeAdjustmentHistoryEntity::class,
     ],
-    version = 12,
+    version = 13,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -172,7 +172,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .addCallback(SeedBuiltInRecipes)
             .build()
 
@@ -219,6 +219,44 @@ abstract class BrewDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE brews ADD COLUMN tasting_notes_found TEXT NOT NULL DEFAULT '[]'")
                 db.execSQL("ALTER TABLE brews ADD COLUMN rated_at INTEGER")
                 db.execSQL("UPDATE brews SET rated_at = started_at + duration_ms")
+            }
+        }
+
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Rebuild both linked tables so Room sees INTEGER affinity and recipe_steps keeps its foreign key.
+                db.execSQL("ALTER TABLE recipe_steps RENAME TO recipe_steps_old")
+                db.execSQL("ALTER TABLE recipes RENAME TO recipes_old")
+                db.execSQL(
+                    "CREATE TABLE recipes (id TEXT NOT NULL, name TEXT NOT NULL, mode TEXT NOT NULL, method TEXT NOT NULL, " +
+                        "dose_grams REAL NOT NULL, target_ratio REAL NOT NULL, grind INTEGER, water_temp_celsius INTEGER, notes TEXT, " +
+                        "target_min_ms INTEGER, target_max_ms INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, " +
+                        "PRIMARY KEY(id))",
+                )
+                db.execSQL(
+                    "INSERT INTO recipes (id, name, mode, method, dose_grams, target_ratio, grind, water_temp_celsius, notes, " +
+                        "target_min_ms, target_max_ms, created_at, updated_at) " +
+                        "SELECT id, name, mode, method, dose_grams, target_ratio, " +
+                        "CASE WHEN trim(grind) GLOB '[0-9]*' AND trim(grind) NOT GLOB '*[^0-9]*' " +
+                        "AND CAST(trim(grind) AS INTEGER) <= 2147483647 THEN CAST(trim(grind) AS INTEGER) " +
+                        "WHEN substr(trim(grind), 2) GLOB '[0-9]*' AND substr(trim(grind), 2) NOT GLOB '*[^0-9]*' " +
+                        "AND substr(trim(grind), 1, 1) IN ('-', '+') " +
+                        "AND CAST(trim(grind) AS INTEGER) BETWEEN -2147483648 AND 2147483647 " +
+                        "THEN CAST(trim(grind) AS INTEGER) ELSE NULL END, " +
+                        "water_temp_celsius, notes, target_min_ms, target_max_ms, created_at, updated_at FROM recipes_old",
+                )
+                db.execSQL(
+                    "CREATE TABLE recipe_steps (recipe_id TEXT NOT NULL, position INTEGER NOT NULL, kind TEXT NOT NULL, " +
+                        "target_weight_grams REAL, target_at_ms INTEGER NOT NULL, target_flow_grams_per_second REAL, " +
+                        "PRIMARY KEY(recipe_id, position), " +
+                        "FOREIGN KEY(recipe_id) REFERENCES recipes(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "INSERT INTO recipe_steps (recipe_id, position, kind, target_weight_grams, target_at_ms, target_flow_grams_per_second) " +
+                        "SELECT recipe_id, position, kind, target_weight_grams, target_at_ms, target_flow_grams_per_second FROM recipe_steps_old",
+                )
+                db.execSQL("DROP TABLE recipe_steps_old")
+                db.execSQL("DROP TABLE recipes_old")
             }
         }
     }

@@ -16,7 +16,7 @@ fun applyBagRecipeAdjustment(recipe: Recipe, adjustment: BagRecipeAdjustment): R
         scaleRecipeToWater(recipe, dose * recipe.targetRatio).copy(doseGrams = dose)
     }
     return adjustedRecipe.copy(
-        grind = adjustment.grind?.toString() ?: recipe.grind,
+        grind = adjustment.grind ?: recipe.grind,
         waterTempCelsius = adjustment.waterTempCelsius ?: recipe.waterTempCelsius,
     )
 }

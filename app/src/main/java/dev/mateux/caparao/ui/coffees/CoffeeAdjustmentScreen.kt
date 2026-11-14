@@ -86,12 +86,11 @@ fun CoffeeAdjustmentScreen(viewModel: CoffeeAdjustmentViewModel, onClose: () -> 
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            val recipeGrind = recipe.grind?.trim()?.ifEmpty { null }
             Stepper(
                 R.string.recipe_grind,
-                recipeGrind?.let { stringResource(R.string.adjustment_recipe_value, it) },
+                recipe.grind?.let { stringResource(R.string.adjustment_recipe_value, it.toString()) },
                 state.grind?.toString() ?: "–",
-                changed = state.grind != recipeGrind?.toIntOrNull(),
+                changed = state.grind != recipe.grind,
                 shape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 4.dp),
                 onLess = { viewModel.stepGrind(-1) },
                 onMore = { viewModel.stepGrind(1) },

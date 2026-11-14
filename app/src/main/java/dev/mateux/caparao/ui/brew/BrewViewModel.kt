@@ -615,7 +615,7 @@ class BrewViewModel(
             recipeName = recipe?.name,
             coffee = bag?.name,
             bagId = bag?.id,
-            grind = recipe?.grind,
+            grind = recipe?.grind?.toString(),
             waterTempCelsius = recipe?.waterTempCelsius,
         )
         // Keep the live screen until the timer reaches the saved time, with the curve ready for the summary.

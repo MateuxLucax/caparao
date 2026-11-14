@@ -67,7 +67,7 @@ class CoffeeAdjustmentViewModel(
             val loaded = CoffeeAdjustmentState(
                 recipe = recipe,
                 bagName = bag.name,
-                grind = adjustment?.grind ?: recipe.grind?.trim()?.toIntOrNull(),
+                grind = adjustment?.grind ?: recipe.grind,
                 temp = adjustment?.waterTempCelsius ?: recipe.waterTempCelsius,
                 dose = adjustment?.doseGrams ?: recipe.doseGrams,
                 tuned = adjustment?.tuned ?: false,
@@ -90,14 +90,14 @@ class CoffeeAdjustmentViewModel(
     /** Back to the recipe's own values; nothing is stored until Save. */
     fun reset() = change { state ->
         val recipe = state.recipe ?: return@change state
-        state.copy(grind = recipe.grind?.trim()?.toIntOrNull(), temp = recipe.waterTempCelsius, dose = recipe.doseGrams)
+        state.copy(grind = recipe.grind, temp = recipe.waterTempCelsius, dose = recipe.doseGrams)
     }
 
     private fun change(edit: (CoffeeAdjustmentState) -> CoffeeAdjustmentState) = _state.update { edit(it).checked(saved) }
 
     private fun CoffeeAdjustmentState.checked(saved: CoffeeAdjustmentState?): CoffeeAdjustmentState {
         val recipe = recipe ?: return this
-        val adjusted = grind != recipe.grind?.trim()?.toIntOrNull() || temp != recipe.waterTempCelsius || dose != recipe.doseGrams
+        val adjusted = grind != recipe.grind || temp != recipe.waterTempCelsius || dose != recipe.doseGrams
         return copy(adjusted = adjusted, dirty = saved != null && (grind != saved.grind || temp != saved.temp || dose != saved.dose))
     }
 
@@ -108,7 +108,7 @@ class CoffeeAdjustmentViewModel(
         val adjustment = BagRecipeAdjustment(
             bagId = target.bagId,
             recipeId = target.recipeId,
-            grind = state.grind.takeIf { it != recipe.grind?.trim()?.toIntOrNull() },
+            grind = state.grind.takeIf { it != recipe.grind },
             waterTempCelsius = state.temp.takeIf { it != recipe.waterTempCelsius },
             doseGrams = state.dose.takeIf { it != recipe.doseGrams },
             tuned = state.tuned && !state.dirty,

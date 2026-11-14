@@ -333,8 +333,7 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
         compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.prepare_grind)).assertIsDisplayed()
-        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertDoesNotExist()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
             compose.onNodeWithText(text(it)).assertIsDisplayed()
         }

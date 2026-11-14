@@ -77,13 +77,13 @@ class BrewSuggestionViewModel(
                 // stands in for brews saved before the values were recorded).
                 proposed.grind != null && proposed.grind != (brewedGrind ?: found.current.grind) -> state.copy(
                     field = SuggestedField.GRIND,
-                    from = brewedGrind ?: found.current.grind ?: found.recipe.grind?.toIntOrNull() ?: 0,
-                    to = proposed.grind ?: 0,
+                    from = brewedGrind ?: found.current.grind ?: found.recipe.grind ?: 0,
+                    to = proposed.grind,
                 )
                 proposed.waterTempCelsius != null && proposed.waterTempCelsius != (brewedTemperature ?: found.current.waterTempCelsius) -> state.copy(
                     field = SuggestedField.TEMPERATURE,
                     from = brewedTemperature ?: found.current.waterTempCelsius ?: found.recipe.waterTempCelsius ?: 0,
-                    to = proposed.waterTempCelsius ?: 0,
+                    to = proposed.waterTempCelsius,
                 )
                 else -> state
             }
@@ -108,7 +108,7 @@ class BrewSuggestionViewModel(
         if (state.closed || state.saving) return
         if (state.to == state.from) return
         val adjustment = when (state.field) {
-            SuggestedField.GRIND -> base.copy(grind = state.to.takeIf { it != recipe.grind?.trim()?.toIntOrNull() })
+            SuggestedField.GRIND -> base.copy(grind = state.to.takeIf { it != recipe.grind })
             SuggestedField.TEMPERATURE -> base.copy(waterTempCelsius = state.to.takeIf { it != recipe.waterTempCelsius })
             null -> return
         }

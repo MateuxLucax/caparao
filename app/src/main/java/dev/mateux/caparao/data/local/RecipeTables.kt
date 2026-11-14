@@ -20,7 +20,7 @@ data class RecipeEntity(
     val method: String,
     @ColumnInfo(name = "dose_grams") val doseGrams: Double,
     @ColumnInfo(name = "target_ratio") val targetRatio: Double,
-    val grind: String?,
+    val grind: Int?,
     @ColumnInfo(name = "water_temp_celsius") val waterTempCelsius: Int?,
     val notes: String?,
     @ColumnInfo(name = "target_min_ms") val targetMinMs: Long?,
