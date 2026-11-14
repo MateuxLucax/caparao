@@ -23,6 +23,7 @@ class FakeBrewDao : BrewDao {
 
     override fun observeAll() = brews.map { list -> list.sortedByDescending { it.startedAt } }
     override fun observeForBag(bagId: String) = brews.map { list -> list.filter { it.bagId == bagId }.sortedByDescending { it.startedAt } }
+    override fun observe(id: String): Flow<BrewEntity?> = brews.map { list -> list.firstOrNull { it.id == id } }
     override suspend fun all() = brews.value.sortedBy { it.startedAt }
     override suspend fun latest() = brews.value.maxWithOrNull(compareBy<BrewEntity> { it.startedAt }.thenBy { it.id })
     override suspend fun get(id: String) = brews.value.find { it.id == id }
