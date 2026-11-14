@@ -98,7 +98,12 @@ import dev.mateux.caparao.ui.theme.animationsOff
 /** One brew: dose, then live with the detector driving it, then the saved result. Keeps the screen on. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit, onRate: (String) -> Unit = {}) {
+fun BrewScreen(
+    viewModel: BrewViewModel,
+    onClose: () -> Unit,
+    onRate: (String) -> Unit = {},
+    onEditAdjustment: (bagId: String, recipeId: String) -> Unit = { _, _ -> },
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val view = LocalView.current
     DisposableEffect(Unit) {
@@ -236,7 +241,7 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit, onRate: (String) -
                         viewModel::weigh,
                         viewModel::setSteep,
                     )
-                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale)
+                    BrewStep.COFFEE -> CoffeeStep(state, viewModel::selectBag, viewModel::continueToBeans, viewModel::retryScale, viewModel::setFollowRecipe, onEditAdjustment)
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)

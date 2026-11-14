@@ -180,6 +180,7 @@ class AppContainer(context: Context) {
                 diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
                 coffeeBags = coffeeBags,
+                adjustments = bagRecipeAdjustments,
             ).also { watch.attach(it.watchBrew, it.watchAlerts) }
         }
     }

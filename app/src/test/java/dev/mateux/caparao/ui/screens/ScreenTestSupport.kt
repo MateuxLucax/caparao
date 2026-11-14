@@ -269,6 +269,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
                 BrewViewModel(
                     requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                     clock = { scale.nowMs }, wallClock = { BREWED_AT + scale.nowMs }, coffeeBags = CoffeeBagRepository(db.coffeeBags()),
+                    adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()),
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }

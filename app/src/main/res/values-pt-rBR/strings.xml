@@ -458,4 +458,10 @@
     <string name="suggestion_not_now">Agora não</string>
     <string name="suggestion_edit_adjustment">Editar ajuste</string>
     <string name="suggestion_tuned">Afinado para este café.</string>
+    <string name="coffee_adjusted_for">Ajustado para %1$s</string>
+    <string name="adjustment_use_recipe">Usar a receita</string>
+    <string name="adjustment_use_adjustment">Usar o ajuste</string>
+    <string name="adjustment_following_recipe">Este preparo segue a receita.</string>
+    <string name="weigh_dose_for">Dose para %1$s</string>
+    <string name="brew_strip_grind">moagem %1$s</string>
 </resources>
