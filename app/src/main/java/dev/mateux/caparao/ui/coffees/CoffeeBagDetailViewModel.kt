@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 data class RecipeAdjustment(val recipe: Recipe, val adjustment: BagRecipeAdjustment?)
 
 /** Whether the adjustment changes anything; one put back to the recipe keeps its row, with nothing in it. */
-val BagRecipeAdjustment.overrides: Boolean get() = grind != null || waterTempCelsius != null || doseGrams != null
+val BagRecipeAdjustment.overrides: Boolean get() = grind != null || waterTempCelsius != null || doseGrams != null || tuned
 
 /** One coffee bag: what is left, the brews that used it, and finishing or deleting it (#290, C4 and C5). */
 class CoffeeBagDetailViewModel(
