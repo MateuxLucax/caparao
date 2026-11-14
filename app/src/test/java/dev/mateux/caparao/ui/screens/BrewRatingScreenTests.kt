@@ -238,7 +238,12 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
         )
         compose.setContent { AppTheme { BrewRatingScreen(viewModel) { closed.value = true } } }
 
-        compose.waitUntil(30_000) { closed.value }
+        // The load resumes on the main looper, which Robolectric keeps paused: run it while waiting, or the wait can
+        // time out when the query finishes after Compose last went idle.
+        compose.waitUntil(30_000) {
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            closed.value
+        }
         assertEquals(true, closed.value)
     }
 
