@@ -80,6 +80,9 @@ class AppContainer(context: Context) {
         appVersion = BuildConfig.VERSION_NAME,
         phoneModel = Build.MODEL,
         androidVersion = Build.VERSION.RELEASE,
+        captureEveryBrew = { settings.captureEveryBrew },
+        lastSentAt = { settings.lastCaptureSentMs },
+        recordSentAt = { settings.lastCaptureSentMs = it },
     )
 
     init {

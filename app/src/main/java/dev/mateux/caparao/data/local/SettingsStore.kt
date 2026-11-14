@@ -24,6 +24,7 @@ data class SyncStatus(
  * `target_ratio_` plus a lowercase mode name; `last_steep_ms`; `guide_vibration`, `guide_vibration_on` and
  * `guide_sound`; `remote_diagnostics` and `remote_diagnostics_consent_ms`; `server_url`, `server_token`,
  * `last_sync_ms`, `last_sync_error`, `last_sync_error_detail` and `last_sync_error_brew`.
+ * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472).
  */
 class SettingsStore(private val prefs: SharedPreferences) {
     var onboardingDone: Boolean
@@ -80,12 +81,34 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_REMOTE_DIAGNOSTICS, false)
         set(value) = prefs.edit()
             .putBoolean(KEY_REMOTE_DIAGNOSTICS, value)
-            .also { if (value) it.putLong(KEY_REMOTE_DIAGNOSTICS_CONSENT, System.currentTimeMillis()) }
+            .also {
+                if (value) it.putLong(KEY_REMOTE_DIAGNOSTICS_CONSENT, System.currentTimeMillis())
+                else it.putBoolean(KEY_CAPTURE_EVERY_BREW, false)
+            }
             .apply()
 
     /** When remote diagnostics was last turned on, epoch ms; 0 when never. Older crashes and ANRs are not sent. */
     val remoteDiagnosticsConsentMs: Long
         get() = prefs.getLong(KEY_REMOTE_DIAGNOSTICS_CONSENT, 0L)
+
+    /** Send a bounded Sentry capture for every brew, only while diagnostics are enabled. */
+    var captureEveryBrew: Boolean
+        get() = remoteDiagnostics && prefs.getBoolean(KEY_CAPTURE_EVERY_BREW, false)
+        set(value) {
+            val enabled = value && remoteDiagnostics
+            prefs.edit().putBoolean(KEY_CAPTURE_EVERY_BREW, enabled)
+                .also { if (enabled) it.putLong(KEY_CAPTURE_EVERY_BREW_CONSENT, System.currentTimeMillis()) }
+                .apply()
+        }
+
+    /** When the user last enabled automatic brew captures; 0 when never. */
+    val captureEveryBrewConsentMs: Long
+        get() = prefs.getLong(KEY_CAPTURE_EVERY_BREW_CONSENT, 0L)
+
+    /** Epoch ms of the most recent capture confirmed by Sentry; 0 when none. */
+    var lastCaptureSentMs: Long
+        get() = prefs.getLong(KEY_LAST_CAPTURE_SENT, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_CAPTURE_SENT, value).apply()
 
     /** [remoteDiagnostics] now and after every change, so the SDK starts or stops with the toggle (#334). */
     val remoteDiagnosticsChanges: Flow<Boolean>
@@ -147,6 +170,9 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_GUIDE_SOUND = "guide_sound"
         private const val KEY_REMOTE_DIAGNOSTICS = "remote_diagnostics"
         private const val KEY_REMOTE_DIAGNOSTICS_CONSENT = "remote_diagnostics_consent_ms"
+        private const val KEY_CAPTURE_EVERY_BREW = "capture_every_brew"
+        private const val KEY_CAPTURE_EVERY_BREW_CONSENT = "capture_every_brew_consent_ms"
+        private const val KEY_LAST_CAPTURE_SENT = "last_capture_sent_ms"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_LAST_STEEP = "last_steep_ms"
         const val DEFAULT_STEEP_MS = 4 * 60 * 1000L

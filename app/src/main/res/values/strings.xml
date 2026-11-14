@@ -279,6 +279,11 @@
     <string name="diagnostics_on_text">Diagnostics are on.</string>
     <string name="diagnostics_off_text">Diagnostics are off. Nothing is sent.</string>
     <string name="capture_title">Brew capture</string>
+    <string name="capture_every_brew">Capture every brew</string>
+    <string name="capture_every_brew_text">Start a bounded capture when each brew starts and send it to Sentry when it ends. This stays off unless you turn it on.</string>
+    <string name="capture_never_sent">Never</string>
+    <string name="capture_last_sent">Last capture sent: %1$s</string>
+    <string name="capture_pending_uploads">Pending uploads: %1$d</string>
     <string name="capture_start">Capture next brew</string>
     <string name="capture_running">Capturing…</string>
     <string name="capture_elapsed">Elapsed: %1$d:%2$02d</string>

@@ -374,7 +374,8 @@ class BrewViewModelTest {
     /** Restart in Live drops the brew in progress: nothing is saved or uploaded, and the next Ready starts a fresh brew (#287). */
     @Test
     fun restartMidBrewSavesNothingAndTheNextReadyStartsAFreshBrew() {
-        val vm = viewModel(BrewMode.ESPRESSO)
+        val diagnostics = FakeDiagnostics()
+        val vm = viewModel(BrewMode.ESPRESSO, diagnostics)
         vm.begin()
         vm.setDose(18.0)
         pour(0.0, 320.0, 0.5) // portafilter on the scale
@@ -389,6 +390,7 @@ class BrewViewModelTest {
         assertEquals(BrewPhase.BREWING, vm.uiState.value.phase)
 
         vm.restart()
+        assertTrue(diagnostics.events.contains(DiagnosticEvent.BrewInterrupted))
         val prepare = vm.uiState.value
         assertEquals(BrewStep.PREPARE_PORTAFILTER, prepare.step)
         assertEquals(BrewPhase.WAITING_FOR_CUP, prepare.phase)
