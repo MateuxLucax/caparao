@@ -165,7 +165,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNodeWithTag("filter-prepare-row-0").assert(isOn())
     }
 
-    /** The summary closes through Back, which saves the notes; it has no X (#185, Summary row). */
+    /** The saved summary closes through Back; it has no X (#185, Summary row). */
     @Test
     fun filter() {
         val scale = open("synthetic-filter-lift", 0)
@@ -192,7 +192,7 @@ abstract class ScreenFilterTests(lang: String, theme: String, compactOnly: Boole
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         compose.waitForIdle()
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)

@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
@@ -83,8 +84,6 @@ import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.components.BrewChart
-import dev.mateux.caparao.ui.components.BrewNotesFields
-import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.ui.components.BrewNumbers
 import dev.mateux.caparao.ui.components.RatioTarget
 import dev.mateux.caparao.ui.components.ScaleReadout
@@ -98,7 +97,7 @@ import dev.mateux.caparao.ui.theme.animationsOff
 /** One brew: dose, then live with the detector driving it, then the saved result. Keeps the screen on. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
+fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit, onRate: (String) -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val view = LocalView.current
     DisposableEffect(Unit) {
@@ -110,9 +109,10 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
     DisposableEffect(feedback) { onDispose { feedback.release() } }
     LaunchedEffect(viewModel) { viewModel.alerts.collect(feedback::play) }
     // Closing while brewing asks before stopping (a stray gesture shouldn't end the shot); before the brew starts it just
-    // closes, as nothing is recorded yet. On the summary Back saves the notes like Save does (#181).
+    // closes, as nothing is recorded yet.
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    val finish = { if (viewModel.saveNotes()) onClose() }
+    val finish = onClose
+    var remindToRate by rememberSaveable { mutableStateOf(viewModel.remindToRate) }
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
@@ -242,7 +242,14 @@ fun BrewScreen(viewModel: BrewViewModel, onClose: () -> Unit) {
                         BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
                     }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
-                    BrewStep.SUMMARY -> SummaryStep(state, viewModel::editNotes, onDone = finish, onDiscard = { viewModel.discard(); onClose() })
+                    BrewStep.SUMMARY -> SummaryStep(
+                        state,
+                        remindToRate = remindToRate,
+                        onRemindToRate = { enabled -> remindToRate = enabled; viewModel.setRemindToRate(enabled) },
+                        onRateNow = { brew -> onRate(brew.id) },
+                        onDone = finish,
+                        onDiscard = { viewModel.discard(); onClose() },
+                    )
                 }
             }
         }
@@ -410,7 +417,14 @@ private fun TareFailed(connected: Boolean, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone: () -> Unit, onDiscard: () -> Unit) {
+private fun SummaryStep(
+    state: BrewUiState,
+    remindToRate: Boolean,
+    onRemindToRate: (Boolean) -> Unit,
+    onRateNow: (Brew) -> Unit,
+    onDone: () -> Unit,
+    onDiscard: () -> Unit,
+) {
     val brew = state.saved ?: return
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     if (confirmDiscard) {
@@ -453,8 +467,18 @@ private fun SummaryStep(state: BrewUiState, onNotes: (NotesForm) -> Unit, onDone
                 )
             }
         }
-        // Asked after the brew, never before, so the main flow stays a few taps (#105).
-        state.notes?.let { BrewNotesFields(it, state.bags, onNotes) }
+        Button(
+            onClick = { onRateNow(brew) },
+            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight),
+            shapes = ButtonDefaults.shapes(),
+        ) { Text(stringResource(R.string.brew_rate_now), style = MaterialTheme.typography.titleMedium) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = remindToRate, onCheckedChange = onRemindToRate)
+        }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight), shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.done), style = MaterialTheme.typography.titleMedium) }
         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)) { Text(stringResource(R.string.discard)) }

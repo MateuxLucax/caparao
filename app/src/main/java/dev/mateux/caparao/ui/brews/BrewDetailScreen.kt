@@ -45,6 +45,7 @@ import dev.mateux.caparao.ui.format.Format
 @Composable
 fun BrewDetailScreen(
     viewModel: BrewDetailViewModel,
+    onRate: (String) -> Unit = {},
     onClose: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -59,6 +60,7 @@ fun BrewDetailScreen(
                 },
                 actions = {
                     if (state.brew != null) {
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = { onRate(state.brew!!.id) }) { Text(stringResource(R.string.brew_rate)) }
                         TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                     }
                 },

@@ -30,7 +30,6 @@ import dev.mateux.caparao.ui.FakePreferences
 import dev.mateux.caparao.ui.FakeRecipeDao
 import dev.mateux.caparao.ui.FakeScaleSource
 import dev.mateux.caparao.ui.MainDispatcherRule
-import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.watch.WatchMirror
 import dev.mateux.caparao.watch.WatchState
 import kotlinx.coroutines.launch
@@ -1566,21 +1565,14 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun theSummaryAsksForNotesAndSavesThem() = kotlinx.coroutines.test.runTest {
+    fun theSavedBrewWaitsForItsRating() = kotlinx.coroutines.test.runTest {
         val (vm, _) = guidedFilter(twoPours) { pour(0.0, 40.0, 8.0) }
         vm.stop()
-        val notes = vm.uiState.value.notes!!
-        assertEquals("22", notes.grind)
-
-        vm.editNotes(notes.copy(rating = 5))
-        assertTrue(vm.saveNotes())
         val stored = BrewRepository(dao).get("brew-1")!!
-        assertEquals(5, stored.rating)
-        // Sent after the save and again with the notes.
-        assertEquals(2, uploads.count { it.startsWith("saved brew-1") })
-
-        vm.editNotes(notes.copy(temp = "300"))
-        assertFalse(vm.saveNotes())
+        assertNull(stored.rating)
+        assertNull(stored.notes)
+        assertNull(stored.ratedAt)
+        assertEquals(1, uploads.count { it.startsWith("saved brew-1") })
     }
 
     /** The alerts [vm] raises from now on, the way the screen plays them. */
@@ -1906,20 +1898,19 @@ class BrewViewModelTest {
     }
 
     @Test
-    fun theSummaryArrivesWithTheBagAndCanChangeIt() {
+    fun theCoffeePickedBeforeTheBrewIsSaved() {
         bagDao.usages.value = listOf(bag("a", "Caparaó", createdAt = 2), bag("b", "Mantiqueira", createdAt = 1))
         val vm = viewModel(BrewMode.ESPRESSO)
         vm.begin()
         vm.planDose(18.0)
         vm.weigh()
+        vm.selectBag("b")
         vm.continueToBeans()
         vm.setDose(18.0)
         pullShotFromPreparation(vm)
 
-        assertEquals("a", vm.uiState.value.notes!!.bagId)
+        assertEquals("b", vm.uiState.value.bagId)
         assertEquals(listOf("a", "b"), vm.uiState.value.bags.map { it.id })
-        vm.editNotes(vm.uiState.value.notes!!.withBag(vm.uiState.value.bags[1]))
-        assertTrue(vm.saveNotes())
 
         val changed = dao.brews.value.single()
         assertEquals("b", changed.bagId)

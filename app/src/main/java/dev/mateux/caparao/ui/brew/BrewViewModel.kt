@@ -30,7 +30,6 @@ import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.ScaleReading
 import dev.mateux.caparao.model.ScaleState
-import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.ui.theme.Motion
 import dev.mateux.caparao.watch.WatchBrewState
 import kotlinx.coroutines.Job
@@ -93,6 +92,13 @@ class BrewViewModel(
 
     /** Whether Settings lets the phone vibrate for the guide; the guide's alerts and the beans buzz both follow it. */
     val phoneVibrates: Boolean get() = settings.guideVibration && settings.guideVibrationOn.phone
+
+    /** The Saved screen's local reminder preference; the notification is handled separately (#465). */
+    val remindToRate: Boolean get() = settings.remindToRate
+
+    fun setRemindToRate(enabled: Boolean) {
+        settings.remindToRate = enabled
+    }
 
     /** Counts the steep on the phone's clock while the scale is gone (#221). */
     private var steepClockJob: Job? = null
@@ -365,28 +371,6 @@ class BrewViewModel(
         finish()
     }
 
-    /** The notes on the summary changed. */
-    fun editNotes(form: NotesForm) = _uiState.update { if (it.saved == null) it else it.copy(notes = form) }
-
-    /**
-     * Saves the notes typed on the summary into the brew just saved; it is sent again with them
-     * (#105). Returns false when a field is invalid.
-     */
-    fun saveNotes(): Boolean {
-        val state = _uiState.value
-        val brew = state.saved ?: return true
-        val form = state.notes ?: return true
-        if (!form.valid) return false
-        val updated = form.applyTo(brew)
-        if (updated == brew) return true
-        _uiState.update { it.copy(saved = updated) }
-        viewModelScope.launch {
-            repository.updateNotes(updated)
-            onSaved(updated.id)
-        }
-        return true
-    }
-
     /** Deletes the brew just saved. */
     fun discard() {
         val brew = _uiState.value.saved ?: return
@@ -575,7 +559,6 @@ class BrewViewModel(
             repository.save(brew, summary.curve)
             // After the insert, so the upload job always finds the brew.
             onSaved(brew.id)
-            _uiState.update { if (it.saved?.id == brew.id) it.copy(notes = NotesForm.of(brew)) else it }
         }
     }
 

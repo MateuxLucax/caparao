@@ -32,6 +32,7 @@ import dev.mateux.caparao.sync.UploadWorker
 import dev.mateux.caparao.sync.WorkManagerUploadQueue
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
@@ -164,6 +165,7 @@ class AppContainer(context: Context) {
         initializer { BrewsViewModel(brews, settings.syncStatus, uploads::resendUnsynced) }
         initializer { ServerViewModel(settings, exporter::check, uploads::resendUnsynced, uploads::serverRemoved, localNetworkBlocked) }
         initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews, uploads::brewSaved, coffeeBags) }
+        initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags, uploads::brewSaved) }
         initializer {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,

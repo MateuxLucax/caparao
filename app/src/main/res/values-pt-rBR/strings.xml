@@ -303,6 +303,18 @@
 
     <!-- Brew notes -->
     <string name="brew_coffee">Café</string>
+    <string name="brew_rate">Avaliar</string>
+    <string name="brew_rate_now">Avaliar agora</string>
+    <string name="brew_remind_to_rate">Lembrar de avaliar</string>
+    <string name="brew_rate_reminder_hint">Prove com calma. A gente pergunta depois.</string>
+    <string name="brew_how_was_it">Como ficou?</string>
+    <string name="brew_taste">Sabor</string>
+    <string name="brew_taste_sour">Azedo</string>
+    <string name="brew_taste_balanced">Equilibrado</string>
+    <string name="brew_taste_bitter">Amargo</string>
+    <string name="brew_tasting_notes_found">Sentiu as notas do pacote?</string>
+    <string name="brew_tasting_notes_hint">Toque nas que apareceram na xícara.</string>
+    <string name="brew_save_rating">Salvar avaliação</string>
     <string name="brew_rating">Nota</string>
     <string name="rating_stars">%1$d de 5</string>
     <string name="edit_notes">Editar anotações</string>

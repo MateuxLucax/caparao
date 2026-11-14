@@ -3,7 +3,7 @@ package dev.mateux.caparao.ui.components
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.CoffeeBag
 
-/** A brew's editable notes, shared by its summary and detail screens. */
+/** A brew's coffee, grind and temperature fields, edited from its detail screen. */
 data class NotesForm(
     val coffee: String = "",
     /** The bag the coffee links to; null when the name is free text. */

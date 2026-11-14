@@ -38,11 +38,10 @@ import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.NotesForm
 import dev.mateux.caparao.ui.theme.animationsOff
 
-/** Coffee (the open bags to pick), grind, temperature, a 1–5 rating and notes. */
+/** Coffee (the open bags to pick), grind and temperature. Ratings are edited after the coffee cools (#464). */
 @Composable
 fun BrewNotesFields(form: NotesForm, bags: List<CoffeeBag>, onChange: (NotesForm) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Rating(form.rating) { onChange(form.copy(rating = it)) }
         OutlinedTextField(
             form.coffee, { onChange(form.withCoffee(it.take(80), bags)) }, Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.brew_coffee)) }, singleLine = true,
@@ -76,18 +75,12 @@ fun BrewNotesFields(form: NotesForm, bags: List<CoffeeBag>, onChange: (NotesForm
                 shape = MaterialTheme.shapes.medium,
             )
         }
-        OutlinedTextField(
-            form.notes, { onChange(form.copy(notes = it.take(1000))) }, Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.recipe_notes)) },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            shape = MaterialTheme.shapes.medium,
-        )
     }
 }
 
 /** Five stars; tapping the current rating clears it. */
 @Composable
-private fun Rating(rating: Int?, onRate: (Int?) -> Unit) {
+fun BrewRating(rating: Int?, onRate: (Int?) -> Unit) {
     val still = animationsOff()
     val haptic = LocalHapticFeedback.current
     Row(verticalAlignment = Alignment.CenterVertically) {
