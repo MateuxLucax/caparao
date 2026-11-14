@@ -1,5 +1,6 @@
 package dev.mateux.caparao.brew
 
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.model.BrewLimits
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
@@ -23,6 +24,74 @@ class BrewPlanTest {
         assertEquals(espresso, BrewPlan.preselected(BrewMode.ESPRESSO, recipes, espresso.id, 20.0, 16.0, BrewLimits.DEFAULT_STEEP_MS).recipe)
         assertEquals(espresso, BrewPlan.preselected(BrewMode.ESPRESSO, recipes, null, 20.0, 16.0, BrewLimits.DEFAULT_STEEP_MS).recipe)
         assertNull(BrewPlan.preselected(BrewMode.ESPRESSO, recipes, "deleted", 20.0, 16.0, BrewLimits.DEFAULT_STEEP_MS).recipe)
+    }
+
+    @Test
+    fun anAdjustmentReplacesGrindAndTemperatureAndScalesTheWaterToItsDose() {
+        val saved = filter.copy(
+            doseGrams = 20.0, targetRatio = 15.0, grind = "24", waterTempCelsius = 94,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 300.0, 30_000)),
+        )
+        val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
+            .withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, waterTempCelsius = 93, doseGrams = 21.0))
+
+        assertEquals(21.0, plan.doseGrams, 0.0)
+        assertEquals("23", plan.brewRecipe!!.grind)
+        assertEquals(93, plan.brewRecipe!!.waterTempCelsius)
+        assertEquals(listOf(42.0, 315.0), plan.brewRecipe!!.steps.map { it.targetWeightGrams })
+        // The selected recipe stays as saved, so the adjustment can be dropped again.
+        assertEquals(saved, plan.recipe)
+    }
+
+    @Test
+    fun anAdjustmentKeepsWhatItDoesNotChangeAndAWaterChosenForThisBrew() {
+        val saved = filter.copy(doseGrams = 20.0, targetRatio = 15.0, grind = "24", waterTempCelsius = 94)
+        val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
+
+        val grindOnly = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23))
+        assertEquals(20.0, grindOnly.doseGrams, 0.0)
+        assertEquals(94, grindOnly.brewRecipe!!.waterTempCelsius)
+
+        val edited = plan.withWater(240.0)!!.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, doseGrams = 21.0))
+        assertEquals(16.0, edited.doseGrams, 0.0)
+        assertEquals("23", edited.brewRecipe!!.grind)
+    }
+
+    @Test
+    fun anAdjustmentDoseThatWouldNeedWaterBeyondTheScaleIsLeftOut() {
+        val saved = filter.copy(
+            doseGrams = 20.0, targetRatio = 30.0, grind = "24", waterTempCelsius = 94,
+            steps = listOf(RecipeStep(StepKind.BLOOM, 40.0, 0), RecipeStep(StepKind.POUR, 600.0, 30_000)),
+        )
+        val plan = BrewPlan.create(BrewMode.FILTER, saved, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
+
+        // 67 g × 30 is 2010 g of water, beyond the scale: the brew keeps the recipe's dose and targets, consistently.
+        val kept = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, grind = 23, doseGrams = 67.0))
+        assertEquals(20.0, kept.doseGrams, 0.0)
+        assertEquals("23", kept.brewRecipe!!.grind)
+        assertEquals(listOf(40.0, 600.0), kept.brewRecipe!!.steps.map { it.targetWeightGrams })
+
+        // 66 g × 30 is 1980 g of water: within the scale, so the dose scales the water as usual.
+        val applied = plan.withAdjustment(BagRecipeAdjustment("bag", saved.id, doseGrams = 66.0))
+        assertEquals(66.0, applied.doseGrams, 0.0)
+        assertEquals(listOf(132.0, 1980.0), applied.brewRecipe!!.steps.map { it.targetWeightGrams })
+    }
+
+    @Test
+    fun anAdjustmentIsLeftOutWithoutARecipeForAnotherRecipeAndForFrenchPress() {
+        val free = BrewPlan.create(BrewMode.FILTER, null, 15.0, 16.0, BrewLimits.DEFAULT_STEEP_MS)
+        assertSame(free, free.withAdjustment(BagRecipeAdjustment("bag", "any", grind = 23)))
+
+        val plan = BrewPlan.create(BrewMode.ESPRESSO, espresso, 18.0, 2.0, BrewLimits.DEFAULT_STEEP_MS)
+        assertSame(plan, plan.withAdjustment(null))
+        assertSame(plan, plan.withAdjustment(BagRecipeAdjustment("bag", "other", grind = 9)))
+        val adjusted = plan.withAdjustment(BagRecipeAdjustment("bag", espresso.id, doseGrams = 18.5))
+        assertEquals(18.5, adjusted.doseGrams, 0.0)
+        assertEquals(18.5, adjusted.brewRecipe!!.doseGrams, 0.0)
+
+        val press = recipe("press", BrewMode.FRENCH_PRESS)
+        val pressPlan = BrewPlan.create(BrewMode.FRENCH_PRESS, press, 20.0, 15.0, BrewLimits.DEFAULT_STEEP_MS)
+        assertSame(pressPlan, pressPlan.withAdjustment(BagRecipeAdjustment("bag", press.id, grind = 30)))
     }
 
     @Test

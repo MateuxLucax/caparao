@@ -234,7 +234,12 @@ private fun Main(
                     onDispose { if (openBrew.value === open) openBrew.value = null }
                 }
                 CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
-                    BrewScreen(brew, onClose = close, onRate = { backStack.add(Destination.Rating(it)) })
+                    BrewScreen(
+                        brew,
+                        onClose = close,
+                        onRate = { backStack.add(Destination.Rating(it)) },
+                        onEditAdjustment = { bagId, recipeId -> backStack.add(Destination.Adjustment(bagId, recipeId)) },
+                    )
                 }
             }
             entry<Destination.Detail> { shown ->

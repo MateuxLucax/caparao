@@ -5,6 +5,7 @@ import dev.mateux.caparao.brew.BrewReadingState
 import dev.mateux.caparao.brew.BrewClockState
 import dev.mateux.caparao.brew.DrainWindow
 import dev.mateux.caparao.data.local.SettingsStore
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewSample
@@ -65,7 +66,18 @@ data class BrewUiState(
     val bags: List<CoffeeBag> = emptyList(),
     /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
     val bagId: String? = null,
+    /** The open bags with an adjustment for the chosen recipe (#463). */
+    val adjustedBagIds: Set<String> = emptySet(),
+    /** What the picked bag changes in the chosen recipe; null without a bag, a recipe or an adjustment. */
+    val adjustment: BagRecipeAdjustment? = null,
+    /** "Use the recipe": this brew leaves the picked bag's adjustment out. */
+    val followRecipe: Boolean = false,
+    /** The dose being weighed is the picked bag's adjusted dose. */
+    val adjustedDose: Boolean = false,
 ) {
+    /** The adjustment this brew uses. */
+    val activeAdjustment: BagRecipeAdjustment? get() = adjustment?.takeIf { !followRecipe }
+
     fun withSessionState(state: BrewReadingState, steps: List<RecipeStep>): BrewUiState = copy(
         phase = state.phase,
         tareTimedOut = state.tareTimedOut,

@@ -89,6 +89,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
@@ -603,6 +605,19 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit, 
                     Text(stringResource(R.string.weigh_of, Format.grams(dose, locale)), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            // Whose dose the ring counts to, when it is the coffee's and not the recipe's (#463).
+            state.bags.firstOrNull { it.id == state.bagId }?.takeIf { state.adjustedDose }?.let { bag ->
+                Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape, modifier = Modifier.padding(top = 12.dp).testTag("weigh-dose-source")) {
+                    Text(
+                        stringResource(R.string.weigh_dose_for, bag.name),
+                        Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             GuideHeader(GuideStage.BEANS, Modifier.padding(top = if (compact) 16.dp else 32.dp))
             FilledTonalButton(onClick = onTare, Modifier.padding(top = if (compact) 8.dp else 16.dp).height(56.dp), enabled = state.connected) {
                 Icon(painterResource(R.drawable.ic_tare), null, Modifier.padding(end = 8.dp))
@@ -661,11 +676,11 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
             color = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.small,
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.testTag("portafilter-dose").padding(top = if (compact) 8.dp else 6.dp),
+            modifier = Modifier.padding(top = if (compact) 8.dp else 6.dp),
         ) {
             Text(
-                stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
-                Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                prepareStrip(state, locale),
+                Modifier.testTag("portafilter-dose").padding(horizontal = 14.dp, vertical = 5.dp),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -755,11 +770,11 @@ fun PrepareStep(state: BrewUiState, onCheck: (Int, Boolean) -> Unit, onReady: ()
                 color = MaterialTheme.colorScheme.surface,
                 shape = MaterialTheme.shapes.small,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.testTag(if (press) "press-prepare-dose" else "filter-prepare-dose").padding(top = if (compact) 8.dp else 6.dp),
+                modifier = Modifier.padding(top = if (compact) 8.dp else 6.dp),
             ) {
                 Text(
-                    stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)),
-                    Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                    prepareStrip(state, locale),
+                    Modifier.testTag(if (press) "press-prepare-dose" else "filter-prepare-dose").padding(horizontal = 14.dp, vertical = 5.dp),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -871,4 +886,19 @@ private fun FilterPicture(checkedCount: Int, modifier: Modifier = Modifier) {
             with(DripperArt) { drawDripper(reveal, colors.primary, colors.onPrimaryContainer) }
         }
     }
+}
+
+/**
+ * The line above the checklist: the dose, and with a coffee's adjustment its grind and water temperature too (#463).
+ */
+@Composable
+private fun prepareStrip(state: BrewUiState, locale: Locale): String {
+    val dose = stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale))
+    val recipe = state.recipe
+    if (state.activeAdjustment == null || recipe == null) return dose
+    return listOfNotNull(
+        recipe.grind?.takeIf(String::isNotBlank)?.let { stringResource(R.string.brew_strip_grind, it) },
+        recipe.waterTempCelsius?.let { "$it ${stringResource(R.string.unit_celsius)}" },
+        dose,
+    ).joinToString(" · ")
 }

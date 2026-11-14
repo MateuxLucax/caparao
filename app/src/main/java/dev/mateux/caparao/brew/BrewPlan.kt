@@ -1,5 +1,6 @@
 package dev.mateux.caparao.brew
 
+import dev.mateux.caparao.model.BagRecipeAdjustment
 import dev.mateux.caparao.model.BrewLimits
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
@@ -38,6 +39,33 @@ class BrewPlan private constructor(
         if (waterGrams !in BrewLimits.WATER_GRAMS || waterGrams / base.targetRatio !in BrewLimits.DOSE_GRAMS) return null
         val scaled = scaleRecipeToWater(base, waterGrams)
         return BrewPlan(mode, base, scaled, scaled.doseGrams, scaled.targetRatio, steepMs, freeDoseGrams, freeTargetRatio, true)
+    }
+
+    /**
+     * This brew with a coffee's adjustment for the chosen recipe (#463): its grind and water temperature replace the
+     * recipe's, and its dose scales the water at the recipe's ratio unless the water was already changed for this brew.
+     * The selected [recipe] stays as saved, so the adjustment can be dropped again. French press is left as it is.
+     */
+    fun withAdjustment(adjustment: BagRecipeAdjustment?): BrewPlan {
+        val base = recipe?.takeIf { mode != BrewMode.FRENCH_PRESS } ?: return this
+        if (adjustment == null || adjustment.recipeId != base.id) return this
+        val current = brewRecipe ?: base
+        val tuned = current.copy(
+            grind = adjustment.grind?.toString() ?: current.grind,
+            waterTempCelsius = adjustment.waterTempCelsius ?: current.waterTempCelsius,
+        )
+        // A dose whose water would go beyond the scale's range is left out with the water, so the ring, the strip
+        // and the pour targets all stay the recipe's, consistently (#463 review).
+        val dose = adjustment.doseGrams?.takeIf {
+            !editedForThisBrew && it in BrewLimits.DOSE_GRAMS &&
+                (mode == BrewMode.ESPRESSO || it * tuned.targetRatio in BrewLimits.WATER_GRAMS)
+        }
+        val adjusted = when {
+            dose == null -> tuned
+            mode == BrewMode.ESPRESSO -> tuned.copy(doseGrams = dose)
+            else -> scaleRecipeToWater(tuned, dose * tuned.targetRatio)
+        }
+        return BrewPlan(mode, base, adjusted, dose ?: doseGrams, targetRatio, steepMs, freeDoseGrams, freeTargetRatio, editedForThisBrew)
     }
 
     fun withDose(grams: Double) = BrewPlan(
