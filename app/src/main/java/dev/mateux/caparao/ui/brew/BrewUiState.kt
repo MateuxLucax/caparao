@@ -13,7 +13,6 @@ import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.RecipeStep
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.brew.StepState
-import dev.mateux.caparao.ui.components.NotesForm
 
 /** The brew screen's steps. */
 enum class BrewStep { DOSE, COFFEE, WEIGH, PREPARE_PORTAFILTER, LIVE, SUMMARY }
@@ -62,9 +61,7 @@ data class BrewUiState(
     val steepMs: Long = SettingsStore.DEFAULT_STEEP_MS,
     /** Free French press: the pour and the steep it follows, set once brewing; a recipe carries its own. */
     val freeSteps: List<RecipeStep> = emptyList(),
-    /** On the summary: the saved brew's notes being typed. */
-    val notes: NotesForm? = null,
-    /** The open coffee bags: the coffee step's choices, and the summary's. Empty skips the coffee step (#291). */
+    /** The open coffee bags: the coffee step's choices. Empty skips the coffee step (#291). */
     val bags: List<CoffeeBag> = emptyList(),
     /** The bag this brew uses, picked on the coffee step and preselected to the last one used; null for No bag. */
     val bagId: String? = null,

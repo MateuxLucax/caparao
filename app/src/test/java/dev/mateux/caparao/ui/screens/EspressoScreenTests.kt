@@ -85,9 +85,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
@@ -161,7 +159,7 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.waitForIdle()
         playUntilShown(scale, R.string.brew_saved, 60_000)
         compose.waitForIdle()
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.tab_brews)).performSemanticsAction(SemanticsActions.OnClick)
@@ -174,17 +172,25 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.waitForIdle()
     }
 
-    /** The espresso from the synthetic session, stopped on its summary: the notes and the Done button (#181). */
+    /** The espresso summary keeps its numbers and reminder, with rating entry deferred to its own screen (#464). */
     @Test
-    fun summaryBackSavesNotesAndCloses() {
+    fun savedSummaryShowsReminderInsteadOfRatingForm() {
+        settings.remindToRate = true
         espressoSummary()
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.brew_coffee))).performTextReplacement("Kalita")
-        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.brew_saved)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.brew_coffee)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_rating)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.recipe_notes)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.brew_rate_now)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.brew_remind_to_rate)).assertIsDisplayed()
+        assertTrue(settings.remindToRate)
+        compose.onNode(isToggleable() and isOn()).performClick()
+        assertFalse(settings.remindToRate)
         tapBack()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.onNodeWithText(text(R.string.discard_brew_title)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.brew_saved)).assertDoesNotExist()
-        assertEquals("Kalita", runBlocking { brews.latest()?.coffee })
+        assertNotNull(runBlocking { brews.latest() })
     }
 
     /** Discard on the summary still asks first, and Cancel keeps the brew (#181, A1). */

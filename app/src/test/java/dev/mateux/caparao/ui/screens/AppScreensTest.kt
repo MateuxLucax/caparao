@@ -50,6 +50,7 @@ import dev.mateux.caparao.data.scale.ReplayScaleSource
 import dev.mateux.caparao.data.scale.ScaleSource
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
@@ -151,6 +152,7 @@ class AppScreensTest {
             }
             initializer { BrewViewModel(requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes, clock = clock) }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, coffeeBags) }
         }
     }
 
@@ -655,7 +657,7 @@ class AppScreensTest {
         hold(scale, 36.0, 6.0)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brew_saved)), 5_000)
         // The curve on the Done screen pushes Done below the fold.
-        // By action, not touch: the summary's layout can still shift as the notes load off the main thread.
+        // By action, not touch: the saved summary can still shift while the flow transition settles.
         compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_brews)), 5_000)
         compose.waitForIdle()

@@ -309,6 +309,18 @@
 
     <!-- Brew notes -->
     <string name="brew_coffee">Coffee</string>
+    <string name="brew_rate">Rate</string>
+    <string name="brew_rate_now">Rate now</string>
+    <string name="brew_remind_to_rate">Remind me to rate</string>
+    <string name="brew_rate_reminder_hint">Take your time. We’ll ask later.</string>
+    <string name="brew_how_was_it">How was it?</string>
+    <string name="brew_taste">Taste</string>
+    <string name="brew_taste_sour">Sour</string>
+    <string name="brew_taste_balanced">Balanced</string>
+    <string name="brew_taste_bitter">Bitter</string>
+    <string name="brew_tasting_notes_found">Did the bag\'s notes show up?</string>
+    <string name="brew_tasting_notes_hint">Tap the ones you tasted in the cup.</string>
+    <string name="brew_save_rating">Save rating</string>
     <string name="brew_rating">Rating</string>
     <string name="rating_stars">%1$d of 5</string>
     <string name="edit_notes">Edit notes</string>

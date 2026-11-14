@@ -24,7 +24,8 @@ data class SyncStatus(
  * `target_ratio_` plus a lowercase mode name; `last_steep_ms`; `guide_vibration`, `guide_vibration_on` and
  * `guide_sound`; `remote_diagnostics` and `remote_diagnostics_consent_ms`; `server_url`, `server_token`,
  * `last_sync_ms`, `last_sync_error`, `last_sync_error_detail` and `last_sync_error_brew`.
- * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472).
+ * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472);
+ * `remind_to_rate` (#464).
  */
 class SettingsStore(private val prefs: SharedPreferences) {
     var onboardingDone: Boolean
@@ -57,6 +58,11 @@ class SettingsStore(private val prefs: SharedPreferences) {
     fun lastSteepMs(): Long = prefs.getLong(KEY_LAST_STEEP, DEFAULT_STEEP_MS)
 
     fun setLastSteepMs(ms: Long) = prefs.edit().putLong(KEY_LAST_STEEP, ms).apply()
+
+    /** Whether the Saved screen should show its local rating reminder switch (#464); on by default. */
+    var remindToRate: Boolean
+        get() = prefs.getBoolean(KEY_REMIND_TO_RATE, true)
+        set(value) = prefs.edit().putBoolean(KEY_REMIND_TO_RATE, value).apply()
 
     /** Guided brew alerts (#103): vibration on by default, sound off. */
     var guideVibration: Boolean
@@ -175,6 +181,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_LAST_CAPTURE_SENT = "last_capture_sent_ms"
         private const val KEY_TARGET_RATIO = "target_ratio_"
         private const val KEY_LAST_STEEP = "last_steep_ms"
+        private const val KEY_REMIND_TO_RATE = "remind_to_rate"
         const val DEFAULT_STEEP_MS = 4 * 60 * 1000L
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"

@@ -4,6 +4,7 @@ import dev.mateux.caparao.data.local.BrewDao
 import dev.mateux.caparao.data.local.BrewEntity
 import dev.mateux.caparao.data.local.BrewSampleEntity
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /** The DAO's behaviour in memory; the real queries are tested on a device (BrewDaoTest). */
@@ -22,11 +23,13 @@ class FakeBrewDao : BrewDao {
 
     override fun observeAll() = brews.map { list -> list.sortedByDescending { it.startedAt } }
     override fun observeForBag(bagId: String) = brews.map { list -> list.filter { it.bagId == bagId }.sortedByDescending { it.startedAt } }
+    override fun observe(id: String): Flow<BrewEntity?> = brews.map { list -> list.firstOrNull { it.id == id } }
     override suspend fun all() = brews.value.sortedBy { it.startedAt }
     override suspend fun latest() = brews.value.maxWithOrNull(compareBy<BrewEntity> { it.startedAt }.thenBy { it.id })
     override suspend fun get(id: String) = brews.value.find { it.id == id }
     override suspend fun samples(brewId: String) = samples[brewId].orEmpty()
     override suspend fun unsynced() = brews.value.filter { it.syncedAt == null }.sortedBy { it.startedAt }
+    override fun notRatedYet(): Flow<List<BrewEntity>> = brews.map { list -> list.filter { it.ratedAt == null }.sortedBy { it.startedAt } }
 
     override suspend fun markSynced(id: String, at: Long, revision: Int): Int {
         var updated = 0
@@ -46,7 +49,7 @@ class FakeBrewDao : BrewDao {
         samples.remove(id)
     }
 
-    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?) {
+    override suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?) {
         brews.value = brews.value.map {
             if (it.id == id) {
                 it.copy(
@@ -54,8 +57,27 @@ class FakeBrewDao : BrewDao {
                     bagId = bagId,
                     grind = grind,
                     waterTempCelsius = waterTempCelsius,
+                    syncedAt = null,
+                    revision = it.revision + 1,
+                )
+            } else {
+                it
+            }
+        }
+    }
+
+    override suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long?) {
+        val tastingNotes = org.json.JSONArray(tastingNotesFound).let { array ->
+            List(array.length()) { index -> array.getString(index) }
+        }
+        brews.value = brews.value.map {
+            if (it.id == id) {
+                it.copy(
                     rating = rating,
                     notes = notes,
+                    taste = taste,
+                    tastingNotesFound = tastingNotes,
+                    ratedAt = it.ratedAt ?: ratedAt,
                     syncedAt = null,
                     revision = it.revision + 1,
                 )

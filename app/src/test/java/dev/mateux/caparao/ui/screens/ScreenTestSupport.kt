@@ -106,6 +106,7 @@ import dev.mateux.caparao.ui.brew.FlowChart
 import dev.mateux.caparao.ui.brew.FlowPoint
 import dev.mateux.caparao.ui.brew.GuidedStep
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.home.HomeViewModel
@@ -265,6 +266,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
                 )
             }
             initializer { BrewDetailViewModel(requireNotNull(this[BrewDetailViewModel.BREW_ID]), brews) }
+            initializer { BrewRatingViewModel(requireNotNull(this[BrewRatingViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags())) }
         }
         scale.start()
         compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
@@ -391,7 +393,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     /** The top bar's X, which closes the whole brew from the dose, beans and preparation steps (#185). */
     protected fun tapCloseBrew() = compose.onNodeWithContentDescription(text(R.string.close_brew)).performClick()
 
-    /** Back on the summary saves the typed notes into the saved brew and closes, with no dialog (#181, A1 → A2). */
+    /** Starts an espresso flow before it reaches the saved summary. */
     protected fun espressoDose() {
         open("synthetic-espresso", 0)
         click(R.string.mode_espresso)

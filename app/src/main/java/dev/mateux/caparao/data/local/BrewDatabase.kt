@@ -13,6 +13,7 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
@@ -39,6 +40,10 @@ data class BrewEntity(
     @ColumnInfo(name = "water_temp_celsius") val waterTempCelsius: Int? = null,
     val rating: Int? = null,
     val notes: String? = null,
+    val taste: String? = null,
+    @TypeConverters(TastingNotesConverter::class)
+    @ColumnInfo(name = "tasting_notes_found", defaultValue = "'[]'") val tastingNotesFound: List<String> = emptyList(),
+    @ColumnInfo(name = "rated_at") val ratedAt: Long? = null,
     /** The coffee bag this brew used; local only, never sent to the server (#288). No foreign key: deleting a bag unlinks its brews. */
     @ColumnInfo(name = "bag_id") val bagId: String? = null,
     /** Changes whenever a write alters what the server receives (#315). Local only, never uploaded. */
@@ -92,11 +97,19 @@ interface BrewDao {
     @Query("SELECT * FROM brews WHERE id = :id")
     suspend fun get(id: String): BrewEntity?
 
+    /** One brew by id; null while it does not exist yet. */
+    @Query("SELECT * FROM brews WHERE id = :id")
+    fun observe(id: String): Flow<BrewEntity?>
+
     @Query("SELECT * FROM brew_samples WHERE brew_id = :brewId ORDER BY at_ms")
     suspend fun samples(brewId: String): List<BrewSampleEntity>
 
     @Query("SELECT * FROM brews WHERE synced_at IS NULL ORDER BY started_at")
     suspend fun unsynced(): List<BrewEntity>
+
+    /** Brews that have not been rated yet, oldest first. */
+    @Query("SELECT * FROM brews WHERE rated_at IS NULL ORDER BY started_at")
+    fun notRatedYet(): Flow<List<BrewEntity>>
 
     /** Confirms [id] only if its revision is still [revision]; zero rows means it changed during the upload (#315). */
     @Query("UPDATE brews SET synced_at = :at WHERE id = :id AND revision = :revision")
@@ -105,12 +118,26 @@ interface BrewDao {
     @Query("DELETE FROM brews WHERE id = :id")
     suspend fun delete(id: String)
 
-    /** The notes changed: the server's copy is stale, so the brew is unsynced again and its revision grows (#105, #315). */
+    /** The brew's coffee or recipe notes changed: its upload is stale and its revision grows (#105, #315). */
     @Query(
-        "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, rating = :rating, " +
-            "notes = :notes, synced_at = NULL, revision = revision + 1 WHERE id = :id",
+        "UPDATE brews SET coffee = :coffee, bag_id = :bagId, grind = :grind, water_temp_celsius = :waterTempCelsius, " +
+            "synced_at = NULL, revision = revision + 1 WHERE id = :id",
     )
-    suspend fun updateNotes(id: String, coffee: String?, bagId: String?, grind: String?, waterTempCelsius: Int?, rating: Int?, notes: String?)
+    suspend fun updateNotes(
+        id: String,
+        coffee: String?,
+        bagId: String?,
+        grind: String?,
+        waterTempCelsius: Int?,
+    )
+
+    /** Saves a brew's rating locally and invalidates its previous upload. */
+    @Query(
+        "UPDATE brews SET rating = :rating, notes = :notes, taste = :taste, " +
+            "tasting_notes_found = :tastingNotesFound, rated_at = COALESCE(rated_at, :ratedAt), synced_at = NULL, revision = revision + 1 " +
+            "WHERE id = :id",
+    )
+    suspend fun saveRating(id: String, rating: Int?, notes: String?, taste: String?, tastingNotesFound: String, ratedAt: Long?)
 }
 
 /**
@@ -129,7 +156,7 @@ interface BrewDao {
         BagRecipeAdjustmentEntity::class,
         BagRecipeAdjustmentHistoryEntity::class,
     ],
-    version = 11,
+    version = 12,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -145,7 +172,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .addCallback(SeedBuiltInRecipes)
             .build()
 
@@ -183,6 +210,15 @@ abstract class BrewDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS index_bag_recipe_adjustment_history_bag_id_recipe_id_changed_at " +
                         "ON bag_recipe_adjustment_history (bag_id, recipe_id, changed_at)",
                 )
+            }
+        }
+
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE brews ADD COLUMN taste TEXT")
+                db.execSQL("ALTER TABLE brews ADD COLUMN tasting_notes_found TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE brews ADD COLUMN rated_at INTEGER")
+                db.execSQL("UPDATE brews SET rated_at = started_at + duration_ms")
             }
         }
     }

@@ -53,6 +53,8 @@ import dev.mateux.caparao.ui.brew.BrewScreen
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailScreen
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
+import dev.mateux.caparao.ui.brews.BrewRatingScreen
+import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewsScreen
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailScreen
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
@@ -227,13 +229,21 @@ private fun Main(
                     onDispose { if (openBrew.value === open) openBrew.value = null }
                 }
                 CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
-                    BrewScreen(brew, onClose = close)
+                    BrewScreen(brew, onClose = close, onRate = { backStack.add(Destination.Rating(it)) })
                 }
             }
             entry<Destination.Detail> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewDetailViewModel.BREW_ID, shown.id) }
                 BrewDetailScreen(
                     viewModel(key = "detail-${shown.id}", factory = viewModelFactory, extras = extras),
+                    onRate = { backStack.add(Destination.Rating(it)) },
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
+            entry<Destination.Rating> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(BrewRatingViewModel.BREW_ID, shown.id) }
+                BrewRatingScreen(
+                    viewModel(key = "rating-${shown.id}", factory = viewModelFactory, extras = extras),
                     onClose = { backStack.popEntry(shown) },
                 )
             }
@@ -290,6 +300,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data object Tabs : Destination
     @Serializable data class Brew(val mode: BrewMode) : Destination
     @Serializable data class Detail(val id: String) : Destination
+    @Serializable data class Rating(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
     @Serializable data class Settings(val detail: SettingsDetail) : Destination
