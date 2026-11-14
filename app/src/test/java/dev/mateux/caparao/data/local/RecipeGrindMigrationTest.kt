@@ -30,7 +30,7 @@ class RecipeGrindMigrationTest {
     fun migration12To13KeepsWholeNumbersAndClearsOtherGrindText() = runBlocking {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(BrewDatabase.NAME), null).use { db ->
             createSchemaFromJson(db, 12)
-            listOf("18", "medium-coarse", null).forEachIndexed { index, grind ->
+            listOf("18", "18.0", " 18 ", "18,0", "18.5", "medium-coarse", null).forEachIndexed { index, grind ->
                 val literal = grind?.let { "'$it'" } ?: "NULL"
                 db.execSQL(
                     "INSERT INTO recipes (id, name, mode, method, dose_grams, target_ratio, grind, created_at, updated_at) " +
@@ -47,8 +47,12 @@ class RecipeGrindMigrationTest {
             .build()
         try {
             assertEquals(18, migrated.recipes().get("recipe-0")!!.grind)
-            assertEquals(null, migrated.recipes().get("recipe-1")!!.grind)
-            assertEquals(null, migrated.recipes().get("recipe-2")!!.grind)
+            assertEquals(18, migrated.recipes().get("recipe-1")!!.grind)
+            assertEquals(18, migrated.recipes().get("recipe-2")!!.grind)
+            assertEquals(18, migrated.recipes().get("recipe-3")!!.grind)
+            assertEquals(null, migrated.recipes().get("recipe-4")!!.grind)
+            assertEquals(null, migrated.recipes().get("recipe-5")!!.grind)
+            assertEquals(null, migrated.recipes().get("recipe-6")!!.grind)
             assertEquals(1, migrated.recipes().steps("recipe-0").size)
             assertEquals(13, migrated.openHelper.readableDatabase.version)
         } finally {

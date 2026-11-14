@@ -15,6 +15,7 @@ import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.math.BigDecimal
 import kotlinx.coroutines.flow.Flow
 
 /** A brew row. Column names are the schema (app/schemas); change them only with a migration. */
@@ -237,14 +238,19 @@ abstract class BrewDatabase : RoomDatabase() {
                     "INSERT INTO recipes (id, name, mode, method, dose_grams, target_ratio, grind, water_temp_celsius, notes, " +
                         "target_min_ms, target_max_ms, created_at, updated_at) " +
                         "SELECT id, name, mode, method, dose_grams, target_ratio, " +
-                        "CASE WHEN trim(grind) GLOB '[0-9]*' AND trim(grind) NOT GLOB '*[^0-9]*' " +
-                        "AND CAST(trim(grind) AS INTEGER) <= 2147483647 THEN CAST(trim(grind) AS INTEGER) " +
-                        "WHEN substr(trim(grind), 2) GLOB '[0-9]*' AND substr(trim(grind), 2) NOT GLOB '*[^0-9]*' " +
-                        "AND substr(trim(grind), 1, 1) IN ('-', '+') " +
-                        "AND CAST(trim(grind) AS INTEGER) BETWEEN -2147483648 AND 2147483647 " +
-                        "THEN CAST(trim(grind) AS INTEGER) ELSE NULL END, " +
+                        "grind, " +
                         "water_temp_celsius, notes, target_min_ms, target_max_ms, created_at, updated_at FROM recipes_old",
                 )
+                val recipeGrinds = mutableListOf<Pair<String, Int?>>()
+                db.query("SELECT id, grind FROM recipes").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val grinderNumber = if (cursor.isNull(1)) null else cursor.getString(1).toGrinderNumber()
+                        recipeGrinds += cursor.getString(0) to grinderNumber
+                    }
+                }
+                recipeGrinds.forEach { (id, grinderNumber) ->
+                    db.execSQL("UPDATE recipes SET grind = ? WHERE id = ?", arrayOf(grinderNumber, id))
+                }
                 db.execSQL(
                     "CREATE TABLE recipe_steps (recipe_id TEXT NOT NULL, position INTEGER NOT NULL, kind TEXT NOT NULL, " +
                         "target_weight_grams REAL, target_at_ms INTEGER NOT NULL, target_flow_grams_per_second REAL, " +
@@ -258,6 +264,14 @@ abstract class BrewDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE recipe_steps_old")
                 db.execSQL("DROP TABLE recipes_old")
             }
+        }
+
+        private fun String.toGrinderNumber(): Int? = try {
+            BigDecimal(trim().replace(',', '.')).toBigIntegerExact().intValueExact()
+        } catch (_: ArithmeticException) {
+            null
+        } catch (_: NumberFormatException) {
+            null
         }
     }
 }
