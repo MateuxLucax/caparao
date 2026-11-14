@@ -1,11 +1,8 @@
 package dev.mateux.caparao.ui.coffees
-import dev.mateux.caparao.ui.components.wholeGrams
-
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.semantics
-import dev.mateux.caparao.model.BrewTaste
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -15,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -38,17 +37,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.Brew
+import dev.mateux.caparao.model.BrewTaste
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.icon
 import dev.mateux.caparao.ui.components.label
+import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.format.Format
 import java.util.Locale
 
@@ -62,10 +66,12 @@ fun CoffeeBagDetailScreen(
     viewModel: CoffeeBagDetailViewModel,
     bagsViewModel: CoffeeBagsViewModel,
     onOpenBrew: (String) -> Unit,
+    onOpenAdjustment: (recipeId: String) -> Unit,
     onClose: () -> Unit,
 ) {
     val bag by viewModel.bag.collectAsStateWithLifecycle()
     val brews by viewModel.brews.collectAsStateWithLifecycle()
+    val adjustments by viewModel.recipeAdjustments.collectAsStateWithLifecycle()
     val editing by bagsViewModel.editing.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
@@ -107,6 +113,16 @@ fun CoffeeBagDetailScreen(
                     Text(stringResource(if (current.finished) R.string.coffee_mark_open else R.string.coffee_mark_finished))
                 }
                 OutlinedButton(onClick = { bagsViewModel.edit(current) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
+            }
+            if (adjustments.isNotEmpty()) {
+                Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    adjustments.forEachIndexed { index, row ->
+                        val top = if (index == 0) 16.dp else 4.dp
+                        val bottom = if (index == adjustments.lastIndex) 16.dp else 4.dp
+                        AdjustmentLine(row, locale, RoundedCornerShape(top, top, bottom, bottom)) { onOpenAdjustment(row.recipe.id) }
+                    }
+                }
             }
             Text(stringResource(R.string.tab_brews), style = MaterialTheme.typography.titleMedium)
             if (brews.isEmpty()) {
@@ -186,6 +202,39 @@ private fun Stat(@StringRes label: Int, value: String) {
     Column(Modifier.semantics(mergeDescendants = true) {}) {
         Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+/** A recipe the bag was brewed with: what this coffee changes in it, or that it follows the recipe. Tapping it opens the adjustment. */
+@Composable
+private fun AdjustmentLine(row: RecipeAdjustment, locale: Locale, shape: RoundedCornerShape, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val adjustment = row.adjustment
+    val summary = buildList {
+        adjustment?.grind?.let { grind ->
+            val recipeGrind = row.recipe.grind?.trim()?.ifEmpty { null }
+            add(if (recipeGrind == null) stringResource(R.string.adjustment_grind, grind.toString()) else stringResource(R.string.adjustment_grind_recipe, grind.toString(), recipeGrind))
+        }
+        adjustment?.waterTempCelsius?.let { add("$it ${stringResource(R.string.unit_celsius)}") }
+        adjustment?.doseGrams?.let { add("${Format.grams(it, locale)} ${stringResource(R.string.unit_grams)}") }
+    }.joinToString(" · ").ifEmpty { stringResource(R.string.adjustment_none) }
+    Row(
+        Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainer).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(row.recipe.name, style = MaterialTheme.typography.titleMedium)
+            Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        }
+        if (adjustment?.tuned == true) {
+            Text(
+                stringResource(R.string.adjustment_tuned),
+                Modifier.background(colors.tertiaryContainer, CircleShape).padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.onTertiaryContainer,
+            )
+        }
     }
 }
 

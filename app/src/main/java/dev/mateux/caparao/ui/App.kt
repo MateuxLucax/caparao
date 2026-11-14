@@ -56,6 +56,8 @@ import dev.mateux.caparao.ui.brews.BrewDetailViewModel
 import dev.mateux.caparao.ui.brews.BrewRatingScreen
 import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewsScreen
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentScreen
+import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailScreen
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
@@ -254,6 +256,16 @@ private fun Main(
                     viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
                     viewModel(factory = viewModelFactory),
                     onOpenBrew = { backStack.add(Destination.Detail(it)) },
+                    onOpenAdjustment = { backStack.add(Destination.Adjustment(shown.id, it)) },
+                    onClose = { backStack.popEntry(shown) },
+                )
+            }
+            entry<Destination.Adjustment> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply {
+                    set(CoffeeAdjustmentViewModel.TARGET, CoffeeAdjustmentViewModel.Target(shown.bagId, shown.recipeId))
+                }
+                CoffeeAdjustmentScreen(
+                    viewModel(key = "adjustment-${shown.bagId}-${shown.recipeId}", factory = viewModelFactory, extras = extras),
                     onClose = { backStack.popEntry(shown) },
                 )
             }
@@ -304,6 +316,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data class Rating(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
+    @Serializable data class Adjustment(val bagId: String, val recipeId: String) : Destination
     @Serializable data class Settings(val detail: SettingsDetail) : Destination
 }
 

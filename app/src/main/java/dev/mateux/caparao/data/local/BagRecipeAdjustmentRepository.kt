@@ -14,6 +14,10 @@ class BagRecipeAdjustmentRepository(private val dao: BagRecipeAdjustmentDao) {
     fun observe(bagId: String, recipeId: String): Flow<BagRecipeAdjustment?> =
         dao.observe(bagId, recipeId).map { it?.toModel() }
 
+    /** Every adjustment of one bag, for its detail screen (#462). */
+    fun forBag(bagId: String): Flow<List<BagRecipeAdjustment>> =
+        dao.observeForBag(bagId).map { rows -> rows.map { it.toModel() } }
+
     fun history(bagId: String, recipeId: String): Flow<List<BagRecipeAdjustmentHistory>> =
         dao.observeHistory(bagId, recipeId).map { rows -> rows.map { it.toModel() } }
 

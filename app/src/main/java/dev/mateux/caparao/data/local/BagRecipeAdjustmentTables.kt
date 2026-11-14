@@ -73,6 +73,9 @@ interface BagRecipeAdjustmentDao {
     @Query("SELECT * FROM bag_recipe_adjustments WHERE bag_id = :bagId AND recipe_id = :recipeId")
     fun observe(bagId: String, recipeId: String): Flow<BagRecipeAdjustmentEntity?>
 
+    @Query("SELECT * FROM bag_recipe_adjustments WHERE bag_id = :bagId")
+    fun observeForBag(bagId: String): Flow<List<BagRecipeAdjustmentEntity>>
+
     @Upsert
     suspend fun upsert(adjustment: BagRecipeAdjustmentEntity)
 
