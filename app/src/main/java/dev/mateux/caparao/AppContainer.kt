@@ -30,6 +30,7 @@ import dev.mateux.caparao.sync.UploadRunner
 import dev.mateux.caparao.sync.UploadScheduler
 import dev.mateux.caparao.sync.UploadWorker
 import dev.mateux.caparao.sync.WorkManagerUploadQueue
+import dev.mateux.caparao.ui.RatingReminderScheduler
 import dev.mateux.caparao.ui.brew.BrewViewModel
 import dev.mateux.caparao.ui.brews.BrewDetailViewModel
 import dev.mateux.caparao.ui.brews.BrewRatingViewModel
@@ -124,6 +125,7 @@ class AppContainer(context: Context) {
 
     /** Upload jobs, one per brew, only with a server (#100). */
     val uploads = UploadScheduler(settings, WorkManagerUploadQueue(appContext, UploadWorker::class.java), brews::unsyncedIds)
+    private val ratingReminders = RatingReminderScheduler(appContext)
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -176,7 +178,14 @@ class AppContainer(context: Context) {
             BrewViewModel(
                 requireNotNull(this[BrewViewModel.MODE]), scale, brews, settings, recipes,
                 clock = { scaleClock?.nowMs ?: SystemClock.elapsedRealtime() },
-                onSaved = uploads::brewSaved, onDiscarded = uploads::brewDeleted,
+                onSaved = { id ->
+                    uploads.brewSaved(id)
+                    ratingReminders.update(id, settings.remindToRate, settings.ratingReminderDelayMinutes)
+                },
+                onReminderChanged = { id, enabled ->
+                    ratingReminders.update(id, enabled, settings.ratingReminderDelayMinutes)
+                },
+                onDiscarded = uploads::brewDeleted,
                 diagnostics = diagnostics,
                 animations = ValueAnimator::areAnimatorsEnabled,
                 coffeeBags = coffeeBags,

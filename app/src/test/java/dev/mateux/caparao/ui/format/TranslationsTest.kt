@@ -33,6 +33,7 @@ class TranslationsTest {
             "milestone_and_step",
             "settings_app", "settings_about",
             "tasting_chocolate", "tasting_floral",
+            "rating_reminder_delay_value",
         )
         assertEquals(allowed, same)
     }

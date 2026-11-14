@@ -164,7 +164,20 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     protected val context = ApplicationProvider.getApplicationContext<Context>()
     protected var bluetoothGranted = true
-    protected val actions = AppActions(requestBluetoothPermissions = { bluetoothGranted = true; true }, bluetoothPermissionGranted = { bluetoothGranted }, enableBluetooth = {}, openAppSettings = {}, requestLocalNetwork = { true })
+    protected var notificationsGranted = true
+    protected var notificationPermissionRequestResult = true
+    protected var notificationPermissionRequests = 0
+    protected var launchRatingBrewId: String? = null
+    protected var ratingRequestConsumed = false
+    protected val actions = AppActions(
+        requestBluetoothPermissions = { bluetoothGranted = true; true },
+        bluetoothPermissionGranted = { bluetoothGranted },
+        enableBluetooth = {},
+        openAppSettings = {},
+        requestLocalNetwork = { true },
+        requestNotificationsPermission = { notificationPermissionRequests++; notificationsGranted = notificationPermissionRequestResult; notificationsGranted },
+        notificationsPermissionGranted = { notificationsGranted },
+    )
     protected val db = Room.inMemoryDatabaseBuilder(context, BrewDatabase::class.java).addCallback(SeedBuiltInRecipes).allowMainThreadQueries().build()
     protected val brews = BrewRepository(db.brews())
     protected val recipes = RecipeRepository(db.recipes())
@@ -188,6 +201,11 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     @Before
     fun setUp() {
+        notificationsGranted = true
+        notificationPermissionRequestResult = true
+        notificationPermissionRequests = 0
+        launchRatingBrewId = null
+        ratingRequestConsumed = false
         if (compactOnly) assumeTrue("compact screen variant only", testName.methodName in setOf("smallScreenWeigh", "smallScreenHome", "smallScreenPortafilter", "smallScreenFilterPrepare", "smallScreenCoffeeSummary"))
         // The animations' still frames (the full cup, the guide's pictures), as on an emulator with animations off.
         Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
@@ -277,7 +295,15 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { BrewSuggestionViewModel(requireNotNull(this[BrewSuggestionViewModel.BREW_ID]), brews, CoffeeBagRepository(db.coffeeBags()), brewSuggestions, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
         }
         scale.start()
-        compose.setContent { AppTheme { App(factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME) } }
+        compose.setContent {
+            AppTheme {
+                App(
+                    factory, scale, onboardingDone, actions, BuildConfig.VERSION_NAME,
+                    ratingBrewId = launchRatingBrewId,
+                    onRatingConsumed = { ratingRequestConsumed = true; launchRatingBrewId = null },
+                )
+            }
+        }
         play(scale, atMs)
         return scale
     }

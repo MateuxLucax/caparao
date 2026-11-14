@@ -67,6 +67,8 @@ class BrewViewModel(
     private val newId: () -> String = { UUID.randomUUID().toString() },
     /** Called once a brew is in the database (UploadScheduler.brewSaved). */
     private val onSaved: (String) -> Unit = {},
+    /** Called when the Saved screen turns this brew's reminder on or off (#465). */
+    private val onReminderChanged: (String, Boolean) -> Unit = { _, _ -> },
     /** Called when a saved brew is discarded (UploadScheduler.brewDeleted). */
     private val onDiscarded: (String) -> Unit = {},
     /** Optional local diagnostic sink; it stores only fixed lifecycle and detector events. */
@@ -103,6 +105,13 @@ class BrewViewModel(
 
     fun setRemindToRate(enabled: Boolean) {
         settings.remindToRate = enabled
+        _uiState.value.saved?.let { onReminderChanged(it.id, enabled) }
+    }
+
+    val ratingNotificationsPermissionAsked: Boolean get() = settings.ratingNotificationsPermissionAsked
+
+    fun markRatingNotificationsPermissionAsked() {
+        settings.ratingNotificationsPermissionAsked = true
     }
 
     /** Counts the steep on the phone's clock while the scale is gone (#221). */

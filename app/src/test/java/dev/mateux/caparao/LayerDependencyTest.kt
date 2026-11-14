@@ -32,10 +32,11 @@ class LayerDependencyTest {
         "ui" to setOf("R", "BuildConfig", "WatchMirror"),
     )
 
-    /** The two entry points that reach the app object for their wiring; every other file in their layers may not. */
+    /** Entry points and WorkManager workers that reach the app object for their wiring. */
     private val allowedRootByFile = mapOf(
         "sync/UploadWorker.kt" to setOf("CaparaoApplication"),
         "ui/MainActivity.kt" to setOf("CaparaoApplication"),
+        "ui/RatingReminderScheduler.kt" to setOf("CaparaoApplication"),
     )
 
     /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */

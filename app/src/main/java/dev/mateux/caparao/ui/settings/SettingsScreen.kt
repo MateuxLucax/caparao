@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,12 +33,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -82,6 +86,7 @@ import dev.mateux.caparao.ui.format.message
 import dev.mateux.caparao.ui.theme.Motion
 import dev.mateux.caparao.ui.theme.animationsOff
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class SettingsDetail { Scale, Server, Diagnostics }
 
@@ -103,6 +108,8 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val noBrowser = stringResource(R.string.settings_no_browser)
+    var ratingReminderDelay by rememberSaveable { mutableIntStateOf(targets.ratingReminderDelayMinutes) }
+    var editRatingReminderDelay by rememberSaveable { mutableStateOf(false) }
     var permissionGranted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
     LifecycleResumeEffect(Unit) {
         permissionGranted = actions.bluetoothPermissionGranted()
@@ -120,6 +127,44 @@ fun SettingsScreen(
             else -> stringResource(scaleState.scale.label)
         }, onClick = { onOpen(SettingsDetail.Scale) })
         GuideAlertsSection(targets)
+        SettingsRow(
+            stringResource(R.string.rating_reminder_settings),
+            stringResource(R.string.rating_reminder_delay_value, ratingReminderDelay),
+            onClick = { editRatingReminderDelay = true },
+            testTag = "rating-reminder-delay",
+        )
+        if (editRatingReminderDelay) {
+            var selectedDelay by rememberSaveable { mutableFloatStateOf(ratingReminderDelay.toFloat()) }
+            AlertDialog(
+                onDismissRequest = { editRatingReminderDelay = false },
+                title = { Text(stringResource(R.string.rating_reminder_delay_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.rating_reminder_delay_value, selectedDelay.roundToInt()))
+                        Slider(
+                            value = selectedDelay,
+                            onValueChange = { selectedDelay = it.roundToInt().toFloat() },
+                            valueRange = 5f..15f,
+                            steps = 9,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stringResource(R.string.rating_reminder_delay_value, 5))
+                            Text(stringResource(R.string.rating_reminder_delay_value, 15))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        ratingReminderDelay = selectedDelay.roundToInt().coerceIn(5, 15)
+                        targets.ratingReminderDelayMinutes = ratingReminderDelay
+                        editRatingReminderDelay = false
+                    }) { Text(stringResource(R.string.save)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editRatingReminderDelay = false }) { Text(stringResource(R.string.cancel)) }
+                },
+            )
+        }
         SettingsSection(R.string.settings_your_data)
         SettingsRow(stringResource(R.string.section_server), when {
             !sync.serverConfigured -> stringResource(R.string.settings_only_phone)

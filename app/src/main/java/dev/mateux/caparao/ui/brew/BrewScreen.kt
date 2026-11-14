@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,6 +80,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import dev.mateux.caparao.R
 import dev.mateux.caparao.brew.BrewPhase
 import dev.mateux.caparao.model.Brew
@@ -86,6 +88,7 @@ import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.components.BrewChart
 import dev.mateux.caparao.ui.components.BrewNumbers
+import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.components.RatioTarget
 import dev.mateux.caparao.ui.components.ScaleReadout
 import dev.mateux.caparao.ui.components.SystemBack
@@ -103,6 +106,7 @@ fun BrewScreen(
     onClose: () -> Unit,
     onRate: (String) -> Unit = {},
     onEditAdjustment: (bagId: String, recipeId: String) -> Unit = { _, _ -> },
+    actions: AppActions? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val view = LocalView.current
@@ -119,6 +123,39 @@ fun BrewScreen(
     var confirmStop by rememberSaveable { mutableStateOf(false) }
     val finish = onClose
     var remindToRate by rememberSaveable { mutableStateOf(viewModel.remindToRate) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(state.saved?.id) {
+        if (
+            state.saved != null && viewModel.remindToRate && actions != null &&
+            !actions.notificationsPermissionGranted() && !viewModel.ratingNotificationsPermissionAsked
+        ) {
+            viewModel.markRatingNotificationsPermissionAsked()
+            if (!actions.requestNotificationsPermission()) {
+                remindToRate = false
+                viewModel.setRemindToRate(false)
+            }
+        }
+    }
+    val changeReminder: (Boolean) -> Unit = { enabled ->
+        if (!enabled) {
+            remindToRate = false
+            viewModel.setRemindToRate(false)
+        } else {
+            scope.launch {
+                if (actions != null && !actions.notificationsPermissionGranted()) {
+                    if (viewModel.ratingNotificationsPermissionAsked) return@launch
+                    viewModel.markRatingNotificationsPermissionAsked()
+                    if (!actions.requestNotificationsPermission()) {
+                        remindToRate = false
+                        viewModel.setRemindToRate(false)
+                        return@launch
+                    }
+                }
+                remindToRate = true
+                viewModel.setRemindToRate(true)
+            }
+        }
+    }
     val closeBrew = {
         if (state.step == BrewStep.LIVE && (state.phase == BrewPhase.BREWING || state.phase == BrewPhase.PAUSED)) confirmStop = true else onClose()
     }
@@ -251,7 +288,7 @@ fun BrewScreen(
                     BrewStep.SUMMARY -> SummaryStep(
                         state,
                         remindToRate = remindToRate,
-                        onRemindToRate = { enabled -> remindToRate = enabled; viewModel.setRemindToRate(enabled) },
+                        onRemindToRate = changeReminder,
                         onRateNow = { brew -> onRate(brew.id) },
                         onDone = finish,
                         onDiscard = { viewModel.discard(); onClose() },
@@ -482,7 +519,7 @@ private fun SummaryStep(
                 Text(stringResource(R.string.brew_remind_to_rate), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(R.string.brew_rate_reminder_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = remindToRate, onCheckedChange = onRemindToRate)
+            Switch(checked = remindToRate, onCheckedChange = onRemindToRate, modifier = Modifier.testTag("remind-to-rate"))
         }
         Spacer(Modifier.height(8.dp))
         FilledTonalButton(
