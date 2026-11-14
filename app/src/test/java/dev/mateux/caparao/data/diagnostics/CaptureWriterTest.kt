@@ -541,7 +541,10 @@ class CaptureWriterTest {
 
         recorder.event(DiagnosticEvent.BrewPhaseChanged(DiagnosticBrewMode.FILTER, DiagnosticBrewPhase.BREWING))
         runCurrent() // The session is published with the marker already enqueued.
-        recorder.notification(byteArrayOf(1, 2, 3), DiagnosticFrameClassification(false, false))
+        recorder.notification(
+            byteArrayOf(1, 2, 3),
+            DiagnosticFrameClassification(completedFrames = listOf(DiagnosticFrameType.WEIGHT), hasPartialFrame = false),
+        )
         recorder.event(DiagnosticEvent.BrewResultReady)
         runCurrent()
         val sent = recorder.state.value as CaptureWriterState.Ready
