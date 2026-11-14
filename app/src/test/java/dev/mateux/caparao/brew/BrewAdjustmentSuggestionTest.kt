@@ -6,7 +6,7 @@ import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.BrewTaste
 import dev.mateux.caparao.model.Recipe
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BrewAdjustmentSuggestionTest {
@@ -32,25 +32,25 @@ class BrewAdjustmentSuggestionTest {
             val name: String,
             val durationMs: Long,
             val taste: BrewTaste,
-            val expected: BagRecipeAdjustment,
+            val expected: BrewAdjustmentSuggestion,
             val recipe: Recipe = this@BrewAdjustmentSuggestionTest.recipe,
         )
 
         val cases = listOf(
-            Case("under target and sour", 99_000, BrewTaste.SOUR, adjustment.copy(grind = 9)),
-            Case("under target and balanced", 99_000, BrewTaste.BALANCED, adjustment.copy(grind = 9)),
-            Case("over target and bitter", 121_000, BrewTaste.BITTER, adjustment.copy(grind = 11)),
-            Case("over target and balanced", 121_000, BrewTaste.BALANCED, adjustment.copy(grind = 11)),
-            Case("on target and sour", 110_000, BrewTaste.SOUR, adjustment.copy(waterTempCelsius = 91)),
-            Case("on target and bitter", 110_000, BrewTaste.BITTER, adjustment.copy(waterTempCelsius = 89)),
-            Case("on target and balanced", 110_000, BrewTaste.BALANCED, adjustment.copy(tuned = true)),
-            Case("at lower target boundary", 100_000, BrewTaste.SOUR, adjustment.copy(waterTempCelsius = 91)),
-            Case("at upper target boundary", 120_000, BrewTaste.BITTER, adjustment.copy(waterTempCelsius = 89)),
+            Case("under target and sour", 99_000, BrewTaste.SOUR, suggested(adjustment.copy(grind = 9))),
+            Case("under target and balanced", 99_000, BrewTaste.BALANCED, suggested(adjustment.copy(grind = 9))),
+            Case("over target and bitter", 121_000, BrewTaste.BITTER, suggested(adjustment.copy(grind = 11))),
+            Case("over target and balanced", 121_000, BrewTaste.BALANCED, suggested(adjustment.copy(grind = 11))),
+            Case("on target and sour", 110_000, BrewTaste.SOUR, suggested(adjustment.copy(waterTempCelsius = 91))),
+            Case("on target and bitter", 110_000, BrewTaste.BITTER, suggested(adjustment.copy(waterTempCelsius = 89))),
+            Case("on target and balanced", 110_000, BrewTaste.BALANCED, BrewAdjustmentSuggestion.Tuned),
+            Case("at lower target boundary", 100_000, BrewTaste.SOUR, suggested(adjustment.copy(waterTempCelsius = 91))),
+            Case("at upper target boundary", 120_000, BrewTaste.BITTER, suggested(adjustment.copy(waterTempCelsius = 89))),
             Case(
                 "espresso uses its target window",
                 99_000,
                 BrewTaste.SOUR,
-                adjustment.copy(grind = 9),
+                suggested(adjustment.copy(grind = 9)),
                 recipe.copy(mode = BrewMode.ESPRESSO),
             ),
         )
@@ -77,11 +77,20 @@ class BrewAdjustmentSuggestionTest {
             val recipe: Recipe = this@BrewAdjustmentSuggestionTest.recipe,
             val adjustment: BagRecipeAdjustment = this@BrewAdjustmentSuggestionTest.adjustment,
             val lowestGrindNumber: Int = 1,
+            val expected: BrewAdjustmentSuggestion = BrewAdjustmentSuggestion.NothingToSuggest,
         )
 
         val cases = listOf(
-            Case("fast and bitter", brew(99_000, BrewTaste.BITTER)),
-            Case("slow and sour", brew(121_000, BrewTaste.SOUR)),
+            Case(
+                "fast and bitter",
+                brew(99_000, BrewTaste.BITTER),
+                expected = BrewAdjustmentSuggestion.OppositeSignals,
+            ),
+            Case(
+                "slow and sour",
+                brew(121_000, BrewTaste.SOUR),
+                expected = BrewAdjustmentSuggestion.OppositeSignals,
+            ),
             Case("missing lower time target", brew(110_000, BrewTaste.SOUR), recipe.copy(targetMinMs = null)),
             Case("missing upper time target", brew(110_000, BrewTaste.SOUR), recipe.copy(targetMaxMs = null)),
             Case("reversed time window", brew(110_000, BrewTaste.SOUR), recipe.copy(targetMinMs = 121_000)),
@@ -113,6 +122,12 @@ class BrewAdjustmentSuggestionTest {
                 adjustment = adjustment.copy(grind = 1),
             ),
             Case(
+                "grind below grinder minimum with minimum above one",
+                brew = brew(99_000, BrewTaste.SOUR),
+                adjustment = adjustment.copy(grind = 3),
+                lowestGrindNumber = 5,
+            ),
+            Case(
                 "grind suggestion without a numeric grind",
                 brew = brew(99_000, BrewTaste.SOUR),
                 recipe = recipe.copy(grind = "medium-coarse"),
@@ -121,8 +136,9 @@ class BrewAdjustmentSuggestionTest {
         )
 
         cases.forEach { case ->
-            assertNull(
+            assertEquals(
                 case.name,
+                case.expected,
                 suggestBrewAdjustment(
                     case.recipe,
                     case.brew,
@@ -138,14 +154,23 @@ class BrewAdjustmentSuggestionTest {
         val noOverrides = BagRecipeAdjustment("bag", "recipe")
 
         assertEquals(
-            noOverrides.copy(grind = 9),
+            suggested(noOverrides.copy(grind = 9)),
             suggestBrewAdjustment(recipe, brew(99_000, BrewTaste.SOUR), noOverrides, lowestGrindNumber = 1),
         )
         assertEquals(
-            noOverrides.copy(waterTempCelsius = 91),
+            suggested(noOverrides.copy(waterTempCelsius = 91)),
             suggestBrewAdjustment(recipe, brew(110_000, BrewTaste.SOUR), noOverrides, lowestGrindNumber = 1),
         )
     }
+
+    @Test
+    fun rejectsAdjustmentForAnotherRecipe() {
+        assertThrows(IllegalArgumentException::class.java) {
+            suggestBrewAdjustment(recipe, brew(110_000, BrewTaste.SOUR), adjustment.copy(recipeId = "other"), 1)
+        }
+    }
+
+    private fun suggested(adjustment: BagRecipeAdjustment) = BrewAdjustmentSuggestion.Suggested(adjustment)
 
     private fun brew(
         durationMs: Long,
