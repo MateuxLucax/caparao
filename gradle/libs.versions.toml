@@ -17,7 +17,7 @@ wearRemoteInteractions = "1.2.0"
 fragment = "1.9.1"
 wearOngoing = "1.1.0"
 navigation3 = "1.2.1"
-kotlinxSerialization = "1.11.0"
+kotlinxSerialization = "1.13.0"
 
 androidxTestRunner = "1.7.0"
 espresso = "3.7.0"
