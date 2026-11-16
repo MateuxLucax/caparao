@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.Normalizer
+import java.util.Locale
 import java.util.UUID
 
 /** A bag as typed in the form; [id] is null for a new one. */
@@ -100,3 +102,26 @@ class CoffeeBagsViewModel(
 
     fun now(): Long = clock()
 }
+
+internal fun coffeeFieldSuggestions(
+    bags: List<CoffeeBag>, query: String, excludingId: String?, field: (CoffeeBag) -> String?,
+): List<String> {
+    val match = query.coffeeKey()
+    if (match.isEmpty()) return emptyList()
+    return bags.asSequence().filter { it.id != excludingId }.sortedByDescending(CoffeeBag::createdAt)
+        .mapNotNull(field).map(String::trim).filter { it.isNotEmpty() && it.coffeeKey().contains(match) }
+        .distinctBy(String::coffeeKey).take(3).toList()
+}
+
+internal fun coffeeNoteSuggestions(
+    bags: List<CoffeeBag>, defaults: List<String>, selected: List<String>, excludingId: String?,
+): List<String> {
+    val excluded = selected.mapTo(mutableSetOf(), String::coffeeKey)
+    return (bags.asSequence().filter { it.id != excludingId }.sortedByDescending(CoffeeBag::createdAt)
+        .flatMap { it.tastingNotes.asSequence() } + defaults.asSequence())
+        .map(String::trim).filter(String::isNotEmpty).distinctBy(String::coffeeKey)
+        .filterNot { it.coffeeKey() in excluded }.toList()
+}
+
+private fun String.coffeeKey() = Normalizer.normalize(this.trim(), Normalizer.Form.NFD)
+    .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)

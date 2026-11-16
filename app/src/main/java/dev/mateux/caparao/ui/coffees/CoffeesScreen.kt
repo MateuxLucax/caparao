@@ -146,6 +146,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
+    val bags by viewModel.bags.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf(false) }
     var tastingNote by rememberSaveable(form.id) { mutableStateOf("") }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
@@ -172,14 +173,22 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 modifier = Modifier.padding(bottom = 8.dp),
             )
             Field(form.name, R.string.coffee_name) { viewModel.change(form.copy(name = it.take(80))) }
-            Field(form.roaster, R.string.coffee_roaster) { viewModel.change(form.copy(roaster = it.take(80))) }
+            Field(
+                form.roaster, R.string.coffee_roaster,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.roaster, form.id, CoffeeBag::roaster),
+                onSuggestion = { viewModel.change(form.copy(roaster = it)) },
+            ) { viewModel.change(form.copy(roaster = it.take(80))) }
             OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
             Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
             var moreDetails by rememberSaveable { mutableStateOf(form.origin.isNotEmpty() || form.notes.isNotEmpty() || form.tastingNotes.isNotEmpty()) }
             if (moreDetails) {
-                Field(form.origin, R.string.coffee_origin) { viewModel.change(form.copy(origin = it.take(120))) }
+                Field(
+                    form.origin, R.string.coffee_origin,
+                    suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.origin, form.id, CoffeeBag::origin),
+                    onSuggestion = { viewModel.change(form.copy(origin = it)) },
+                ) { viewModel.change(form.copy(origin = it.take(120))) }
                 Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
                 OutlinedTextField(
                     value = tastingNote,
@@ -218,20 +227,18 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                         }
                     }
                 }
-                val suggestions = listOf(
+                val defaults = listOf(
                     R.string.tasting_caramel, R.string.tasting_chocolate, R.string.tasting_citrus,
                     R.string.tasting_red_fruit, R.string.tasting_floral, R.string.tasting_nuts,
-                )
+                ).map { stringResource(it) }
+                val suggestions = coffeeNoteSuggestions(bags.orEmpty(), defaults, form.tastingNotes, form.id)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    suggestions.forEach { label ->
-                        val value = stringResource(label)
-                        if (form.tastingNotes.none { it.equals(value, true) }) {
-                            FilterChip(
-                                selected = false,
-                                onClick = { viewModel.change(form.withNote(value)) },
-                                label = { Text(value) },
-                            )
-                        }
+                    suggestions.forEach { value ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { viewModel.change(form.withNote(value)) },
+                            label = { Text(value) },
+                        )
                     }
                 }
             } else {
@@ -275,12 +282,25 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
 }
 
 @Composable
-private fun Field(value: String, label: Int, keyboard: KeyboardType = KeyboardType.Text, onChange: (String) -> Unit) =
+private fun Field(
+    value: String,
+    label: Int,
+    keyboard: KeyboardType = KeyboardType.Text,
+    suggestions: List<String> = emptyList(),
+    onSuggestion: (String) -> Unit = {},
+    onChange: (String) -> Unit,
+) {
     OutlinedTextField(
         value, onChange, Modifier.fillMaxWidth(),
         label = { Text(stringResource(label)) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
     )
+    if (suggestions.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        suggestions.forEach { suggestion ->
+            FilterChip(selected = false, onClick = { onSuggestion(suggestion) }, label = { Text(suggestion) })
+        }
+    }
+}
 
 /** Bag grams as the list shows them: whole grams, e.g. "142 of 250 g left". */
 

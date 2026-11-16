@@ -243,6 +243,36 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(profile).assertIsDisplayed()
     }
 
+    @Test
+    fun coffeeBagSuggestsUsedRoasterAndTastingNote() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            val bags = CoffeeBagRepository(db.coffeeBags())
+            bags.save(CoffeeBag("used", "Old coffee", roaster = "Café Aurora", origin = "Catuaí natural", weightGrams = 250.0, finished = true, createdAt = now, tastingNotes = listOf("Jasmim")))
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        waitFor(R.string.coffee_weight)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("New coffee")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("cafe")
+        compose.onNodeWithText("Café Aurora").assertIsDisplayed().performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).assertTextContains("Café Aurora")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_weight))).performTextReplacement("250")
+        click(R.string.coffee_more_details)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_origin))).performTextReplacement("catuai")
+        compose.onNodeWithText("Catuaí natural").assertIsDisplayed().performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_origin))).assertTextContains("Catuaí natural")
+        compose.onNodeWithText("Jasmim").assertIsDisplayed().performClick()
+        click(R.string.save)
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.coffee_weight)).fetchSemanticsNodes().isEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText("New coffee", substring = true), 5_000)
+        compose.onNodeWithText("New coffee", substring = true).performClick()
+        val profile = "${context.getString(R.string.coffee_tasting_profile)}: Jasmim"
+        compose.waitUntilAtLeastOneExists(hasText(profile), 5_000)
+        compose.onNodeWithText(profile).assertIsDisplayed()
+    }
+
     /**
      * A bag's detail (C4): what is left, roast and brews. A brew opens and Back returns here; finishing and reopening
      * move the bag between the states; Edit opens the same sheet, filled.
