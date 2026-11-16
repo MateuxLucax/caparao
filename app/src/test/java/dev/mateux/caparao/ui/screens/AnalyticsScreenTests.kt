@@ -100,6 +100,18 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
         assertTrue(state.bedtimeMg > 50)
     }
 
+    @Test fun bedtimeOver50ShowsWarningOnceAndKeepsEstimateVisible() {
+        val now = System.currentTimeMillis()
+        runBlocking { CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("robusta", "Robusta", weightGrams = 250.0, createdAt = now, caffeineMgPerGram = 20)) }
+        linkBrew("large-caffeine-brew", "robusta", 20.0)
+        open("press-ramp", 38_300)
+        compose.onNode(hasText(text(R.string.tab_analytics)) and isSelectable()).performClick()
+        val warning = text(R.string.analytics_over_50)
+        compose.waitUntilAtLeastOneExists(hasText(warning), 5_000)
+        compose.onAllNodesWithText(warning).assertCountEquals(1)
+        compose.onNode(hasText("At bedtime: about", substring = true)).assertIsDisplayed()
+    }
+
     @Test fun editingCoffeeCaffeineStoresTheChosenRate() {
         val now = System.currentTimeMillis()
         runBlocking { CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("robusta", "Robusta", weightGrams = 250.0, createdAt = now)) }

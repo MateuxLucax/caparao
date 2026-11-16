@@ -51,7 +51,7 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel, modifier: Modifier = Modifier
             val caffeine = state.caffeine
             val lastCoffee = caffeine.lastCoffeeByMinutes?.let { stringResource(R.string.analytics_last_coffee, "%02d:%02d".format(Locale.ROOT, it / 60, it % 60)) }
                 ?: stringResource(R.string.analytics_over_50)
-            Text(if (caffeine.bedtimeMg > 50) stringResource(R.string.analytics_over_50) else stringResource(R.string.analytics_caffeine_left, caffeine.bedtimeMg))
+            Text(stringResource(R.string.analytics_caffeine_left, caffeine.bedtimeMg))
             Text(lastCoffee)
             val chartDescription = stringResource(R.string.analytics_chart_description, caffeine.bedtimeMg, lastCoffee) + " " + stringResource(R.string.analytics_chart_reference)
             Box(Modifier.fillMaxWidth().height(180.dp).semantics { contentDescription = chartDescription }) {
