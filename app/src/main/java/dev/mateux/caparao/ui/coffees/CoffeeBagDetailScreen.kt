@@ -126,6 +126,14 @@ fun CoffeeBagDetailScreen(
                     stringResource(R.string.coffee_left, wholeGrams(current.leftGrams, locale), wholeGrams(current.weightGrams, locale)),
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                estimatedDaysLeft(current.leftGrams, brews, System.currentTimeMillis(), useEntries.map { it.grams to it.createdAt })?.let { days ->
+                    Text(
+                        if (days == 0) stringResource(R.string.coffee_ends_today)
+                        else pluralStringResource(R.plurals.coffee_days_left, days, days),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 CoffeeBagLevelBar(current.leftGrams, current.weightGrams)
                 OutlinedButton(onClick = { gramsInput = ""; logDialog = true }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffee_log_used)) }
             }
