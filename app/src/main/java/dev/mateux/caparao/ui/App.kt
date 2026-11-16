@@ -385,7 +385,7 @@ private fun Tabs(
             TopAppBar(
                 title = {
                     Text(
-                        stringResource(if (tab == Tab.SETTINGS) tab.label else R.string.app_name),
+                        stringResource(if (tab == Tab.HOME) R.string.app_name else tab.label),
                         style = MaterialTheme.typography.titleLargeEmphasized,
                     )
                 },

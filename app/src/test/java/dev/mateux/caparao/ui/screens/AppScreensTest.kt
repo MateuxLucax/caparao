@@ -63,6 +63,7 @@ import dev.mateux.caparao.model.BrewSample
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.ScaleReading
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onFirst
@@ -221,16 +222,20 @@ class AppScreensTest {
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
         compose.onNodeWithText(text(R.string.mode_manual)).assertIsSelected()
         compose.onNodeWithText(text(R.string.mode_espresso)).assertIsEnabled()
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_brews)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.onAllNodesWithText(text(R.string.tab_brews), useUnmergedTree = true).assertCountEquals(2)
 
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onAllNodesWithText(text(R.string.tab_settings), useUnmergedTree = true).assertCountEquals(2)
         compose.onNodeWithText(text(R.string.section_scale)).assertExists()
         compose.onNodeWithText(text(R.string.section_server)).assertExists()
         compose.onNodeWithText("1.0-test", substring = true).assertExists()
 
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
     }
@@ -257,6 +262,15 @@ class AppScreensTest {
 
         scale.state.value = ScaleState.Idle
         compose.onNodeWithTag("scale-battery-low").assertDoesNotExist()
+    fun tabTitlesMatchNavigationLabelsInBothLocales() {
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
+
+        listOf(R.string.tab_recipes, R.string.tab_coffees, R.string.tab_brews).forEach { title ->
+            val label = text(title)
+            compose.onNodeWithText(label).performClick()
+            compose.onAllNodesWithText(label, useUnmergedTree = true).assertCountEquals(2)
+        }
     }
 
     @Test
