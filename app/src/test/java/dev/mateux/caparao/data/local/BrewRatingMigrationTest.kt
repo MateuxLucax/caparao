@@ -47,11 +47,11 @@ class BrewRatingMigrationTest {
         }
 
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13, BrewDatabase.MIGRATION_13_14)
+            .addMigrations(BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13, BrewDatabase.MIGRATION_13_14, BrewDatabase.MIGRATION_14_15)
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(14, migrated.openHelper.readableDatabase.version)
+            assertEquals(15, migrated.openHelper.readableDatabase.version)
             assertEquals(61_000L, migrated.brews().get("starred")!!.ratedAt)
             assertEquals(62_000L, migrated.brews().get("noted")!!.ratedAt)
             val unrated = migrated.brews().get("unrated")!!
