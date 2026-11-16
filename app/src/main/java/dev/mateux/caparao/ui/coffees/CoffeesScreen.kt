@@ -269,6 +269,10 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
             Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
+            Field(form.caffeineMgPerGram, R.string.coffee_caffeine, KeyboardType.Number) {
+                viewModel.change(form.copy(caffeineMgPerGram = it.filter(Char::isDigit).take(2)))
+            }
+            Text(stringResource(R.string.coffee_caffeine_hint), style = MaterialTheme.typography.bodySmall)
             if (form.sourceBagId != null) {
                 if (form.copiedAdjustmentCount > 0) Text(pluralStringResource(R.plurals.coffee_adjustments_copied, form.copiedAdjustmentCount, form.copiedAdjustmentCount))
                 Row(verticalAlignment = Alignment.CenterVertically) {

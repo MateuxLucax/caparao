@@ -4,6 +4,7 @@
     <!-- Navegação -->
     <string name="tab_home">Início</string>
     <string name="tab_brews">Preparos</string>
+    <string name="tab_analytics">Análises</string>
     <string name="tab_settings">Configurações</string>
 
     <!-- Início -->
@@ -196,6 +197,15 @@
 
     <!-- Recipes -->
     <string name="tab_recipes">Receitas</string>
+    <string name="coffee_caffeine">Cafeína (mg por grama)</string>
+    <string name="coffee_caffeine_hint">Estimativa para este café. Use 10 mg/g para arábica e cerca de 20 mg/g para robusta.</string>
+    <string name="analytics_this_week">Esta semana</string>
+    <string name="analytics_last_week">Semana passada</string>
+    <string name="analytics_brews">Preparos</string>
+    <string name="analytics_coffee">Café</string>
+    <string name="analytics_caffeine">Cafeína estimada</string>
+    <string name="analytics_today">Hoje</string>
+    <string name="analytics_about_mg">Cerca de %1$d mg</string>
     <string name="new_recipe">Nova receita</string>
     <string name="edit_recipe">Editar receita</string>
     <string name="no_recipes_title">Nenhuma receita ainda.</string>

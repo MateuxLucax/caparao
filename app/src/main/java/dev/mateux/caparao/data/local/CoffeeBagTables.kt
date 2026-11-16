@@ -26,6 +26,7 @@ data class CoffeeBagEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @androidx.room.TypeConverters(TastingNotesConverter::class)
     @ColumnInfo(name = "tasting_notes", defaultValue = "'[]'") val tastingNotes: List<String> = emptyList(),
+    @ColumnInfo(name = "caffeine_mg_per_gram") val caffeineMgPerGram: Int? = null,
 )
 
 @Entity(

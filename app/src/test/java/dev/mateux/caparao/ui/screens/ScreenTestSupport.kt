@@ -97,6 +97,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import dev.mateux.caparao.data.local.SettingsStore
 import dev.mateux.caparao.ui.App
+import dev.mateux.caparao.ui.analytics.AnalyticsViewModel
 import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.Tab
 import dev.mateux.caparao.brew.StepState
@@ -289,6 +290,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { TargetRatioViewModel(settings) }
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
+            initializer { AnalyticsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()), adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeEditorViewModel(SavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
                 initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
