@@ -498,7 +498,8 @@ abstract class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
         compose.onNodeWithText("Ethiopia").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
-        compose.onNodeWithText("18.0", substring = true).performClick()
+        val dose = "${Format.grams(18.0, context.resources.configuration.locales[0])} ${text(R.string.unit_grams)}"
+        compose.onNodeWithText(dose, substring = true).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         // Leave the notes form open: it lives in the detail's entry ViewModel, so only a retained store restores it.
         compose.onNodeWithText(text(R.string.edit_notes)).performClick()
@@ -875,7 +876,7 @@ abstract class AppScreensTest {
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Morning shot"), 5_000)
         compose.onNode(hasText("Morning shot") and isSelectable()).assertIsSelected()
-        compose.onNodeWithText("18.0 g").assertExists()
+        compose.onNodeWithText("${Format.grams(18.0, context.resources.configuration.locales[0])} ${text(R.string.unit_grams)}").assertExists()
     }
 }
 
