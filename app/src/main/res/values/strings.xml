@@ -62,6 +62,7 @@
     <string name="scale_connecting">Connecting…</string>
     <string name="scale_connected">Scale connected</string>
     <string name="battery_percent">%1$d%%</string>
+    <string name="scale_battery_accessibility">Scale battery %1$d%%</string>
     <string name="timer_start">Start</string>
     <string name="timer_pause">Pause</string>
     <string name="timer_reset">Reset</string>

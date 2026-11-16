@@ -67,6 +67,7 @@ import dev.mateux.caparao.ui.coffees.CoffeesScreen
 import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.components.LocalSystemBack
 import dev.mateux.caparao.ui.components.ScaleStatusIcon
+import dev.mateux.caparao.ui.components.ScaleBatteryStatus
 import dev.mateux.caparao.ui.home.HomeScreen
 import dev.mateux.caparao.ui.home.HomeViewModel
 import dev.mateux.caparao.ui.components.LauncherShortcut
@@ -390,7 +391,9 @@ private fun Tabs(
                 },
                 actions = {
                     if (tab != Tab.SETTINGS) {
-                        ScaleStatusIcon(scale.uiState.collectAsStateWithLifecycle().value.scale, Modifier.padding(end = 12.dp))
+                        val scaleState = scale.uiState.collectAsStateWithLifecycle().value.scale
+                        ScaleBatteryStatus(scaleState)
+                        ScaleStatusIcon(scaleState, Modifier.padding(end = 12.dp))
                     }
                 },
             )

@@ -58,6 +58,7 @@
     <string name="scale_connecting">Conectando…</string>
     <string name="scale_connected">Balança conectada</string>
     <string name="battery_percent">%1$d%%</string>
+    <string name="scale_battery_accessibility">Bateria da balança %1$d%%</string>
     <string name="timer_start">Iniciar</string>
     <string name="timer_pause">Pausar</string>
     <string name="timer_reset">Zerar</string>
