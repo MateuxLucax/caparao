@@ -19,12 +19,25 @@ internal fun brewWidgetViews(
     context: Context,
     latest: Brew?,
     wide: Boolean = false,
+    small: Boolean = false,
     pendingIntent: (String) -> PendingIntent,
 ): RemoteViews {
-    val views = RemoteViews(context.packageName, if (wide) R.layout.widget_brew_wide else R.layout.widget_brew)
+    val layout = when {
+        small -> R.layout.widget_brew_small
+        wide -> R.layout.widget_brew_wide
+        else -> R.layout.widget_brew
+    }
+    val views = RemoteViews(context.packageName, layout)
     val mode = latest?.mode
     val suggestedMode = mode?.let(::suggestedModeAfter)
     val shortcut = shortcutForWidget(mode)
+    val actionLabel = context.getString(actionLabel(suggestedMode))
+    if (small) {
+        views.setImageViewResource(R.id.widget_small_icon, mode?.icon ?: R.drawable.ic_coffee)
+        views.setContentDescription(R.id.widget_action, actionLabel)
+        views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))
+        return views
+    }
     if (latest == null) {
         views.setViewVisibility(R.id.widget_title, View.GONE)
         views.setViewVisibility(R.id.widget_last_brew, View.GONE)
@@ -36,11 +49,18 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_last_brew, View.VISIBLE)
         views.setViewVisibility(R.id.widget_empty_content, View.GONE)
         val method = context.getString(if (latest.mode == BrewMode.FRENCH_PRESS) R.string.mode_french_press_short else latest.mode.label)
-        views.setTextViewText(R.id.widget_method, context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams))
+        views.setTextViewText(
+            R.id.widget_method,
+            if (wide) {
+                context.getString(R.string.widget_brew_short_summary, latest.doseGrams, latest.yieldGrams)
+            } else {
+                context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
+            },
+        )
         views.setTextViewText(R.id.widget_coffee, latest.coffee ?: latest.recipeName ?: context.getString(latest.mode.label))
         views.setTextViewText(R.id.widget_time, timeAgo(context, latest.startedAt))
+        if (wide) views.setViewVisibility(R.id.widget_time, View.GONE)
     }
-    val actionLabel = context.getString(actionLabel(suggestedMode))
     views.setTextViewText(R.id.widget_action_label, actionLabel)
     views.setContentDescription(R.id.widget_action, actionLabel)
     views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))

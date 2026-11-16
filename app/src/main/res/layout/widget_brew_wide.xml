@@ -5,17 +5,18 @@
     android:background="@drawable/widget_brew_background"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:paddingHorizontal="6dp"
+    android:paddingVertical="2dp">
 
     <LinearLayout android:id="@+id/widget_last_brew" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
     <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
+        android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="8sp" />
     <TextView android:id="@+id/widget_coffee" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:maxLines="1" android:textColor="@color/widget_primary_text" android:textSize="16sp" android:textStyle="bold" />
+        android:ellipsize="end" android:maxLines="1" android:includeFontPadding="false" android:textColor="@color/widget_primary_text" android:textSize="9sp" android:textStyle="bold" />
     <TextView android:id="@+id/widget_method" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:maxLines="2" android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
+        android:maxLines="1" android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="8sp" />
     <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
+        android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="8sp" />
     </LinearLayout>
 
     <LinearLayout android:id="@+id/widget_empty_content" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:visibility="gone">
@@ -25,9 +26,9 @@
             android:text="@string/widget_empty_start" android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
     </LinearLayout>
 
-    <FrameLayout android:id="@+id/widget_action" android:layout_width="112dp" android:layout_height="48dp"
-        android:layout_marginStart="8dp" android:background="@drawable/widget_action_background" android:gravity="center">
+    <FrameLayout android:id="@+id/widget_action" android:layout_width="72dp" android:layout_height="24dp"
+        android:layout_marginStart="6dp" android:background="@drawable/widget_action_background" android:gravity="center">
         <TextView android:id="@+id/widget_action_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
-            android:textColor="@color/widget_action_text" android:textSize="13sp" android:textStyle="bold" />
+            android:textColor="@color/widget_action_text" android:textSize="8sp" android:textStyle="bold" />
     </FrameLayout>
 </LinearLayout>

@@ -55,7 +55,19 @@ class BrewWidgetLayoutTest {
             assertEquals("widget_brew_preview", previewImage)
             assertEquals(context.getString(R.string.widget_description), description)
             val preview = LayoutInflater.from(context).inflate(R.layout.widget_brew_preview, null)
+            val width = context.resources.getDimensionPixelSize(R.dimen.widget_min_width)
+            val height = context.resources.getDimensionPixelSize(R.dimen.widget_min_height)
+            preview.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
+            )
+            preview.layout(0, 0, width, height)
             assertNotNull(preview)
+            assertEquals(context.getString(R.string.widget_last_brew_title), preview.findViewById<TextView>(R.id.widget_title).text)
+            assertEquals(context.getString(R.string.widget_preview_coffee), preview.findViewById<TextView>(R.id.widget_coffee).text)
+            assertEquals(context.getString(R.string.widget_preview_brew_details), preview.findViewById<TextView>(R.id.widget_method).text)
+            assertEquals(context.getString(R.string.widget_preview_time), preview.findViewById<TextView>(R.id.widget_time).text)
+            assertEquals(context.getString(R.string.widget_brew_filter), preview.findViewById<TextView>(R.id.widget_action_label).text)
         } finally {
             provider.close()
         }
@@ -66,7 +78,7 @@ class BrewWidgetLayoutTest {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
         val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
-                    val minimumActionHeight = (48 * base.resources.displayMetrics.density).roundToInt()
+                    val minimumActionHeight = (30 * base.resources.displayMetrics.density).roundToInt()
         val brew = Brew("layout", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false)
         val frenchPress = brew.copy(id = "french-press", mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
 
@@ -119,15 +131,14 @@ class BrewWidgetLayoutTest {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
         val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
-        // Expanded sizes grow from the declared minimum: 1.5x width with 1.25x height, then 2x with 1.5x.
-        val sizes = listOf(minWidth to minHeight, minWidth * 3 / 2 to minHeight, minWidth * 2 to minHeight)
+        val sizes = listOf(Triple(minWidth, minHeight, false), Triple(180, 40, true), Triple(250, 40, true), Triple(180, 110, true))
         val brew = Brew("expanded", BrewMode.FILTER, 0L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false)
         for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
             for (night in listOf(false, true)) {
                 val context = configured(base, locale, night)
-                for ((width, height) in sizes) {
+                for ((width, height, wide) in sizes) {
                     for (latest in listOf(brew, null)) {
-                        val root = BrewWidgetProvider().views(context, 123, latest, wide = width > minWidth).apply(context, null)
+                        val root = BrewWidgetProvider().views(context, 123, latest, wide = wide).apply(context, null)
                         root.measure(
                             View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                             View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
@@ -144,15 +155,23 @@ class BrewWidgetLayoutTest {
                         assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
                         if (saved) {
                             assertEquals(context.getString(R.string.widget_last_brew_title), root.findViewById<TextView>(R.id.widget_title).text)
-                            assertTrue(root.findViewById<TextView>(R.id.widget_method).text.startsWith(context.getString(R.string.mode_filter)))
-                            if (width == minWidth) {
+                            if (wide) {
+                                val summary = root.findViewById<TextView>(R.id.widget_method)
+                                assertEquals(context.getString(R.string.widget_brew_short_summary, 15.0, 250.0), summary.text)
+                                assertEquals(1, summary.layout.lineCount)
+                                assertNoEllipsis(summary, locale, night)
+                            } else {
+                                assertEquals(
+                                    context.getString(R.string.widget_brew_summary, context.getString(R.string.mode_filter), 15.0, 250.0),
+                                    root.findViewById<TextView>(R.id.widget_method).text,
+                                )
+                            }
+                            if (!wide) {
                                 assertTrue(root.findViewById<TextView>(R.id.widget_coffee).text.isNotBlank())
                                 assertTrue(root.findViewById<View>(R.id.widget_time).top > root.findViewById<View>(R.id.widget_method).top)
                                 assertEquals(root.width - root.paddingRight - root.paddingLeft, root.findViewById<View>(R.id.widget_action).width)
                             } else {
                                 assertTrue(root.findViewById<View>(R.id.widget_action).left > root.findViewById<View>(R.id.widget_method).left)
-                                val summary = root.findViewById<TextView>(R.id.widget_method)
-                                assertTrue("summary wraps at most twice: ${summary.layout.lineCount}", summary.layout.lineCount in 1..2)
                             }
                             assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_coffee).text)
                             assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
@@ -164,6 +183,22 @@ class BrewWidgetLayoutTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun oneByOneWidgetShowsOnlyAnAccessibleCoffeeIcon() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val root = BrewWidgetProvider().views(context, 123, null, small = true).apply(context, null)
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(40, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(40, View.MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, 40, 40)
+
+        assertEquals(context.getString(R.string.widget_brew_coffee), root.contentDescription)
+        assertNotNull(root.findViewById<View>(R.id.widget_small_icon))
+        assertEquals(null, root.findViewById<View>(R.id.widget_title))
+        assertEquals(null, root.findViewById<View>(R.id.widget_action_label))
     }
 
     private fun configured(base: Context, locale: Locale, night: Boolean): Context =

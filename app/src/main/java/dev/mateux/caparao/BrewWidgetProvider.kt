@@ -55,9 +55,11 @@ class BrewWidgetProvider : AppWidgetProvider() {
                         manager.updateAppWidget(
                             id,
                             RemoteViews(mapOf(
-                                SizeF(180f, 176f) to views(context, id, latest),
-                                SizeF(280f, 176f) to views(context, id, latest, wide = true),
-                                SizeF(380f, 176f) to views(context, id, latest, wide = true),
+                                SizeF(40f, 40f) to views(context, id, latest, small = true),
+                                SizeF(120f, 110f) to views(context, id, latest),
+                                SizeF(180f, 40f) to views(context, id, latest, wide = true),
+                                SizeF(250f, 40f) to views(context, id, latest, wide = true),
+                                SizeF(180f, 110f) to views(context, id, latest, wide = true),
                             )),
                         )
                     }
@@ -94,8 +96,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    internal fun views(context: Context, appWidgetId: Int, latest: Brew?, wide: Boolean = false): RemoteViews =
-        brewWidgetViews(context, latest, wide) { action ->
+    internal fun views(
+        context: Context,
+        appWidgetId: Int,
+        latest: Brew?,
+        wide: Boolean = false,
+        small: Boolean = false,
+    ): RemoteViews = brewWidgetViews(context, latest, wide, small) { action ->
             PendingIntent.getActivity(
                 context,
                 appWidgetId,
