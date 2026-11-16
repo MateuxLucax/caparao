@@ -3,6 +3,8 @@ package dev.mateux.caparao.ui
 import dev.mateux.caparao.data.local.CoffeeBagDao
 import dev.mateux.caparao.data.local.CoffeeBagEntity
 import dev.mateux.caparao.data.local.CoffeeBagUsage
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentEntity
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentHistoryEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
@@ -18,6 +20,12 @@ class FakeCoffeeBagDao : CoffeeBagDao {
         usages.value = usages.value.filterNot { it.bag.id == bag.id } +
             (usage?.copy(bag = bag) ?: CoffeeBagUsage(bag, usedGrams = 0.0, brewCount = 0, lastBrewAt = null, averageRating = null))
     }
+
+    override suspend fun finish(id: String) = Unit
+    override suspend fun adjustments(id: String): List<BagRecipeAdjustmentEntity> = emptyList()
+    override suspend fun copyAdjustment(bagId: String, recipeId: String, grind: Int?, waterTempCelsius: Int?, doseGrams: Double?) = Unit
+    override suspend fun insertCopiedHistory(row: BagRecipeAdjustmentHistoryEntity) = Unit
+    override suspend fun openAnotherBag(bag: CoffeeBagEntity, sourceBagId: String, finishSource: Boolean, changedAt: Long) = upsert(bag)
 
     override fun observeAll() = usages.map { list -> list.sortedWith(compareBy<CoffeeBagUsage> { it.bag.finished }.thenByDescending { it.bag.createdAt }) }
 

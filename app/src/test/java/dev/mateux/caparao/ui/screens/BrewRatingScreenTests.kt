@@ -124,7 +124,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
     @Test
     fun ratingReminderDelayIsASettingsRowWithFiveToFifteenMinuteChoices() {
         open("idle-5min", 0)
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithTag("rating-reminder-delay").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.rating_reminder_delay_value, 10)).assertIsDisplayed()
         compose.onNodeWithTag("rating-reminder-delay").performClick()
@@ -184,6 +184,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
             .performTextReplacement("Fine")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
 
+        compose.waitUntil(5_000) { runBlocking { brews.get("detail-rate")?.grind == "Fine" } }
         val saved = runBlocking { brews.get("detail-rate")!! }
         assertEquals("Fine", saved.grind)
         assertEquals(BrewTaste.BALANCED, saved.taste)

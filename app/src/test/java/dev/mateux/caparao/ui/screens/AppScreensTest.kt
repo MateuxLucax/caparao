@@ -7,6 +7,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasClickAction
@@ -17,6 +19,7 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onFirst
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.onNodeWithTag
@@ -24,6 +27,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -37,6 +43,7 @@ import dev.mateux.caparao.ui.App
 import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.FakeScaleSource
 import dev.mateux.caparao.model.ScaleState
+import dev.mateux.caparao.model.ScaleBattery
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import dev.mateux.caparao.R
@@ -60,6 +67,7 @@ import dev.mateux.caparao.model.BrewSample
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.ScaleReading
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onFirst
@@ -74,6 +82,7 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import dev.mateux.caparao.ui.settings.ScaleStatusViewModel
 import dev.mateux.caparao.ui.server.ServerViewModel
@@ -95,7 +104,7 @@ import org.junit.Test
 @RunWith(AndroidJUnit4::class)
 // A phone-sized screen: Robolectric's default (320x470 px) leaves the guide's buttons off screen.
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
-class AppScreensTest {
+abstract class AppScreensTest {
     @get:Rule
     val compose = createComposeRule()
 
@@ -141,7 +150,7 @@ class AppScreensTest {
             initializer { TargetRatioViewModel(settings) }
             initializer { CaptureViewModel(diagnostics, settings, available = true) }
             initializer { RecipesViewModel(recipes) }
-            initializer { CoffeeBagsViewModel(coffeeBags) }
+            initializer { CoffeeBagsViewModel(coffeeBags, adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
@@ -218,18 +227,65 @@ class AppScreensTest {
         compose.onNodeWithContentDescription(text(R.string.tare)).assertIsEnabled()
         compose.onNodeWithText(text(R.string.mode_manual)).assertIsSelected()
         compose.onNodeWithText(text(R.string.mode_espresso)).assertIsEnabled()
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
+        compose.onAllNodesWithText(text(R.string.tab_brews), useUnmergedTree = true).assertCountEquals(2)
 
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.back)).assertExists()
         compose.onNodeWithText(text(R.string.section_scale)).assertExists()
         compose.onNodeWithText(text(R.string.section_server)).assertExists()
         compose.onNodeWithText("1.0-test", substring = true).assertExists()
 
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
+    }
+
+    @Test
+    fun topBarShowsScaleBatteryOnlyAfterAnswerAndMarksLowBattery() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+
+        compose.onNodeWithTag("scale-battery-normal").assertDoesNotExist()
+        scale.state.value = ScaleState.Connected(ScaleBattery(percent = 82, bars = 4))
+        compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 82))
+            .assertIsDisplayed()
+        compose.onNodeWithTag("scale-battery-normal").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 82)))
+            .assertCountEquals(1)
+
+        scale.state.value = ScaleState.Connected(ScaleBattery(percent = 20, bars = 1))
+        compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 20))
+            .assertIsDisplayed()
+        compose.onNodeWithTag("scale-battery-low").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 20)))
+            .assertCountEquals(1)
+
+        scale.state.value = ScaleState.Idle
+        compose.onNodeWithTag("scale-battery-low").assertDoesNotExist()
+    }
+
+    @Test
+    fun tabTitlesMatchNavigationLabels() {
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+        compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+
+        listOf(R.string.tab_recipes, R.string.tab_coffees, R.string.tab_brews).forEach { title ->
+            val label = text(title)
+            compose.onNodeWithText(label).performClick()
+            compose.onAllNodesWithText(label, useUnmergedTree = true).assertCountEquals(2)
+            compose.onAllNodesWithText(label, useUnmergedTree = true).onFirst()
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        }
     }
 
     @Test
@@ -238,7 +294,7 @@ class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().performClick()
         compose.waitForIdle()
 
@@ -317,7 +373,7 @@ class AppScreensTest {
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(text(R.string.local_only), substring = true).assertExists()
         compose.onNodeWithText(brewRow).performClick()
@@ -340,7 +396,7 @@ class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
@@ -368,7 +424,7 @@ class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.onNode(hasText(text(R.string.tab_coffees)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
         compose.onNodeWithText("Ethiopia").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
@@ -379,7 +435,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.coffee_mark_finished)).assertExists()
 
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.onNodeWithText(text(R.string.tab_coffees)).assertExists()
+        compose.onNode(hasText(text(R.string.tab_coffees)) and isSelectable() and isSelected()).assertExists()
     }
 
     /**
@@ -444,7 +500,8 @@ class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
         compose.onNodeWithText("Ethiopia").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
-        compose.onNodeWithText("18.0", substring = true).performClick()
+        val dose = "${Format.grams(18.0, context.resources.configuration.locales[0])} ${text(R.string.unit_grams)}"
+        compose.onNodeWithText(dose, substring = true).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
         // Leave the notes form open: it lives in the detail's entry ViewModel, so only a retained store restores it.
         compose.onNodeWithText(text(R.string.edit_notes)).performClick()
@@ -458,7 +515,9 @@ class AppScreensTest {
         androidx.test.espresso.Espresso.pressBack()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
         androidx.test.espresso.Espresso.pressBack()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_coffees)), 5_000)
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText(text(R.string.tab_coffees)) and isSelectable() and isSelected()).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     /** The riskiest typed key survives restore: [RecipeEditorViewModel.Target] is a nested sealed type (#352). */
@@ -477,7 +536,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
 
         restoration.emulateSavedInstanceStateRestore()
@@ -491,7 +550,7 @@ class AppScreensTest {
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_server)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")
@@ -604,7 +663,7 @@ class AppScreensTest {
         }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
-        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).assertIsSelected()
     }
 
     @Test
@@ -620,7 +679,7 @@ class AppScreensTest {
                 )
             }
         }
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
 
         shortcut.value = LauncherShortcut.WIDGET_HOME
@@ -789,7 +848,7 @@ class AppScreensTest {
         shortcut.value = LauncherShortcut.BREWS
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).assertIsSelected()
     }
 
     @Test
@@ -800,7 +859,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         compose.onNodeWithText(text(R.string.save)).performClick()
         compose.onAllNodesWithText(text(R.string.required)).onFirst().assertExists()
 
@@ -819,6 +878,14 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Morning shot"), 5_000)
         compose.onNode(hasText("Morning shot") and isSelectable()).assertIsSelected()
-        compose.onNodeWithText("18.0 g").assertExists()
+        compose.onNodeWithText("${Format.grams(18.0, context.resources.configuration.locales[0])} ${text(R.string.unit_grams)}").assertExists()
     }
 }
+
+@RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "en-w411dp-h891dp-notnight-xxhdpi")
+class AppScreenTitlesEnTest : AppScreensTest()
+
+@RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "pt-rBR-w411dp-h891dp-notnight-xxhdpi")
+class AppScreenTitlesPtBrTest : AppScreensTest()

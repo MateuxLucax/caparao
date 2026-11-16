@@ -21,7 +21,7 @@ val RobotoFlex = FontFamily(
     },
 )
 
-/** Roboto Flex for display, headline and title; body and label stay on the default Roboto. */
+/** Roboto Flex throughout the app; emphasized styles carry the stronger hierarchy used for headings. */
 val AppTypography = Typography().run {
     copy(
         displayLarge = displayLarge.copy(fontFamily = RobotoFlex),
@@ -33,11 +33,32 @@ val AppTypography = Typography().run {
         titleLarge = titleLarge.copy(fontFamily = RobotoFlex),
         titleMedium = titleMedium.copy(fontFamily = RobotoFlex),
         titleSmall = titleSmall.copy(fontFamily = RobotoFlex),
+        bodyLarge = bodyLarge.copy(fontFamily = RobotoFlex),
+        bodyMedium = bodyMedium.copy(fontFamily = RobotoFlex),
+        bodySmall = bodySmall.copy(fontFamily = RobotoFlex),
+        labelLarge = labelLarge.copy(fontFamily = RobotoFlex),
+        labelMedium = labelMedium.copy(fontFamily = RobotoFlex),
+        labelSmall = labelSmall.copy(fontFamily = RobotoFlex),
+        titleLargeEmphasized = titleLargeEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.Bold),
+        titleMediumEmphasized = titleMediumEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold),
+        titleSmallEmphasized = titleSmallEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold),
+        labelLargeEmphasized = labelLargeEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold),
+        labelMediumEmphasized = labelMediumEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold),
+        labelSmallEmphasized = labelSmallEmphasized.copy(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold),
     )
 }
 
 /** Tabular figures in Roboto Flex, for the weight and timer readouts. */
 val TabularFlex = TextStyle(fontFamily = RobotoFlex, fontFeatureSettings = "tnum")
+
+/** Semibold first line in recipe, coffee, and brew rows. */
+val RowTitle = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold)
+/** Supporting copy in list and detail rows. */
+val RowDetail = TextStyle(fontFamily = RobotoFlex)
+/** Section labels in detail and list screens. */
+val SectionHeading = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold)
+/** Tabular emphasized values such as ratings, weights, and times. */
+val Figure = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum")
 
 private val flexCache = mutableMapOf<Pair<Int, Int>, FontFamily>()
 

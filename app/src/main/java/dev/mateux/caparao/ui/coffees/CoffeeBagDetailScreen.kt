@@ -54,17 +54,21 @@ import dev.mateux.caparao.ui.components.icon
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.format.Format
+import dev.mateux.caparao.ui.theme.RowTitle
+import dev.mateux.caparao.ui.theme.SectionHeading
+import dev.mateux.caparao.ui.theme.Figure
 import java.util.Locale
 
 /**
  * One coffee bag (#290, C4): what is left, the brews that used it, finishing it, and editing or deleting it. Editing
- * opens the same sheet as Add; deleting asks first (C5), and the brews keep the coffee's name.
+ * opens the same editor as Add; deleting asks first (C5), and the brews keep the coffee's name.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoffeeBagDetailScreen(
+    onEdit: () -> Unit,
+    onOpenAnotherBag: () -> Unit,
     viewModel: CoffeeBagDetailViewModel,
-    bagsViewModel: CoffeeBagsViewModel,
     onOpenBrew: (String) -> Unit,
     onOpenAdjustment: (recipeId: String) -> Unit,
     onClose: () -> Unit,
@@ -72,7 +76,6 @@ fun CoffeeBagDetailScreen(
     val bag by viewModel.bag.collectAsStateWithLifecycle()
     val brews by viewModel.brews.collectAsStateWithLifecycle()
     val adjustments by viewModel.recipeAdjustments.collectAsStateWithLifecycle()
-    val editing by bagsViewModel.editing.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     Scaffold(
@@ -112,10 +115,13 @@ fun CoffeeBagDetailScreen(
                 OutlinedButton(onClick = { viewModel.setFinished(!current.finished) }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(if (current.finished) R.string.coffee_mark_open else R.string.coffee_mark_finished))
                 }
-                OutlinedButton(onClick = { bagsViewModel.edit(current) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
+                OutlinedButton(onClick = onEdit, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
+            }
+            OutlinedButton(onClick = onOpenAnotherBag, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(R.string.coffee_open_another_bag))
             }
             if (adjustments.isNotEmpty()) {
-                Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     adjustments.forEachIndexed { index, row ->
                         val top = if (index == 0) 16.dp else 4.dp
@@ -124,7 +130,7 @@ fun CoffeeBagDetailScreen(
                     }
                 }
             }
-            Text(stringResource(R.string.tab_brews), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.tab_brews), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             if (brews.isEmpty()) {
                 Text(stringResource(R.string.coffee_no_brews), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -134,7 +140,6 @@ fun CoffeeBagDetailScreen(
             }
         }
     }
-    editing?.let { CoffeeBagSheet(it, bagsViewModel) }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -201,7 +206,7 @@ private fun Summary(bag: CoffeeBag, summary: CoffeeSummary, locale: Locale) {
 private fun Stat(@StringRes label: Int, value: String) {
     Column(Modifier.semantics(mergeDescendants = true) {}) {
         Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleLarge)
+        Text(value, style = MaterialTheme.typography.titleLarge.merge(Figure))
     }
 }
 
@@ -224,7 +229,7 @@ private fun AdjustmentLine(row: RecipeAdjustment, locale: Locale, shape: Rounded
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(row.recipe.name, style = MaterialTheme.typography.titleMedium)
+            Text(row.recipe.name, style = MaterialTheme.typography.titleMedium.merge(RowTitle))
             Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         if (adjustment?.tuned == true) {
@@ -263,11 +268,11 @@ private fun BrewLine(brew: Brew, locale: Locale, onClick: () -> Unit) {
                         Format.timer((brew.durationMs / 1000).toInt()),
                         taste?.let { stringResource(it) },
                     ).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            brew.rating?.let { Text(stringResource(R.string.rating_stars, it), style = MaterialTheme.typography.bodySmall) }
+            brew.rating?.let { Text(stringResource(R.string.rating_stars, it), style = MaterialTheme.typography.bodyMedium.merge(Figure)) }
         }
     }
 }

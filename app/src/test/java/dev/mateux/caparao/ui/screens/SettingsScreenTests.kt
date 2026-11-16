@@ -163,7 +163,7 @@ abstract class ScreenSettingsTests(lang: String, theme: String, compactOnly: Boo
         compose.onNodeWithText(text(R.string.capture_start)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.settings_only_phone)).assertExists()
         compose.onNodeWithText(context.getString(R.string.settings_about, BuildConfig.VERSION_NAME)).assertExists()
-        compose.onAllNodesWithText(text(R.string.tab_settings)).assertCountEquals(2)
+        compose.onAllNodesWithText(text(R.string.tab_settings)).assertCountEquals(1)
     }
 
     @Test

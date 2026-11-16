@@ -1,7 +1,7 @@
 # Caparaó
 
-This file records project rules that should survive code and workflow changes. Use the [README](README.md) for current
-project, development and release instructions; use code and KDoc for implementation details; use GitHub Issues for
+This file records project rules that should survive code and workflow changes. Use the [README](README.md) for what the app
+does; use scripts, code and KDoc for development, release and implementation details; use GitHub Issues for
 decisions and work tracking.
 
 ## Public repository and privacy

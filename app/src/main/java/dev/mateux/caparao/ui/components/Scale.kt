@@ -42,6 +42,9 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.ScaleError
@@ -88,6 +91,27 @@ fun ScaleStatusIcon(state: ScaleState, modifier: Modifier = Modifier) {
         ScaleState.Idle -> R.drawable.ic_bluetooth_disabled to MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     }
     Icon(painterResource(icon), stringResource(state.label), modifier, tint = tint)
+}
+
+/** The scale's reported battery, shown only after its first answer while connected. */
+@Composable
+fun ScaleBatteryStatus(state: ScaleState, modifier: Modifier = Modifier) {
+    val battery = (state as? ScaleState.Connected)?.battery ?: return
+    val low = battery.percent <= 20
+    val description = stringResource(R.string.scale_battery_accessibility, battery.percent)
+    Row(
+        modifier.padding(end = 8.dp).testTag(if (low) "scale-battery-low" else "scale-battery-normal").clearAndSetSemantics {
+            contentDescription = description
+        },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(if (low) R.drawable.ic_battery_low else R.drawable.ic_battery_full),
+            null,
+            tint = if (low) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(stringResource(R.string.battery_percent, battery.percent), style = MaterialTheme.typography.labelLarge)
+    }
 }
 
 /** What went wrong, what to do, and the button that does it. [onRetry] restarts the connection. */

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Creates the release signing key once, outside the repository, and optionally uploads it as the four repository
-# secrets the Release workflow needs (README, Release signing). Every release must be signed with this same key, or
+# secrets the Release workflow needs (see the usage below). Every release must be signed with this same key, or
 # updates won't install over the previous version, so back up the keystore and its password.
 #
 #   scripts/release-key.sh [keystore path]            create the key (default ~/.config/caparao/release.jks)

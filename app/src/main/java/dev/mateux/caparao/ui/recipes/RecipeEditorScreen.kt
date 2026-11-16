@@ -343,7 +343,7 @@ private fun StepSheet(
                 Cell(step.flowTarget, { onChange(step.copy(flowTarget = it)) }, R.string.step_flow_target, error, CellShape, cell.weight(1f), suffix = stringResource(R.string.unit_grams_per_second))
             }
         }
-        Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.recipe_steps_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (error) ErrorText(R.string.recipe_error_steps)
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             TextButton(shapes = ButtonDefaults.shapes(), onClick = onRemove, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
@@ -573,7 +573,7 @@ private fun CellInput(
 }
 
 @Composable
-private fun ErrorText(id: Int) = Text(stringResource(id), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+private fun ErrorText(id: Int) = Text(stringResource(id), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
 
 /** The step kinds the editor offers: a French press stirs and steeps; a filter does neither. */
 internal fun stepKindsFor(mode: BrewMode): List<StepKind> =

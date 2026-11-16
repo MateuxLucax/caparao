@@ -1,5 +1,6 @@
 package dev.mateux.caparao.ui.coffees
 
+import androidx.lifecycle.SavedStateHandle
 import dev.mateux.caparao.model.CoffeeBag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +9,34 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BagFormTest {
+    @Test
+    fun fieldSuggestionsIgnoreCaseAndAccentsUseNewestFirstAndStopAtThree() {
+        val bags = listOf(
+            CoffeeBag("old", "x", roaster = "Café antigo", weightGrams = 1.0, createdAt = 1),
+            CoffeeBag("new", "x", roaster = "Café Aurora", finished = true, weightGrams = 1.0, createdAt = 5),
+            CoffeeBag("middle", "x", roaster = "CAFÉ Alto", weightGrams = 1.0, createdAt = 4),
+            CoffeeBag("third", "x", roaster = "cafe do vale", weightGrams = 1.0, createdAt = 3),
+            CoffeeBag("fourth", "x", roaster = "Cafeteria", weightGrams = 1.0, createdAt = 2),
+        )
+        assertEquals(
+            listOf("Café Aurora", "CAFÉ Alto", "cafe do vale"),
+            coffeeFieldSuggestions(bags, "CAFE", null, CoffeeBag::roaster),
+        )
+        assertEquals(emptyList<String>(), coffeeFieldSuggestions(bags, "café aurora", null, CoffeeBag::roaster))
+    }
+
+    @Test
+    fun tastingNotesUseNewestBagsBeforeDefaultsAndOmitDuplicatesAndSelectedNotes() {
+        val bags = listOf(
+            CoffeeBag("old", "x", weightGrams = 1.0, createdAt = 1, tastingNotes = listOf("Chocolate", "Laranja")),
+            CoffeeBag("new", "x", finished = true, weightGrams = 1.0, createdAt = 5, tastingNotes = listOf("Jasmim", "chocolate")),
+        )
+        assertEquals(
+            listOf("Jasmim", "chocolate", "Caramelo", "Cítrico"),
+            coffeeNoteSuggestions(bags, listOf("Caramelo", "Jasmim", "Cítrico"), listOf("LARANJA"), null),
+        )
+    }
+
     @Test
     fun needsANameAndAWeight() {
         assertFalse(BagForm(weight = "250").valid)
@@ -24,6 +53,20 @@ class BagFormTest {
         assertEquals("Bourbon", fresh.name)
         assertNull(fresh.roaster)
         assertEquals(7L, fresh.createdAt)
+    }
+
+    @Test
+    fun editorRestoresItsDraftFromSavedState() {
+        val saved = SavedStateHandle()
+        val original = CoffeeEditorViewModel(saved)
+        original.change(BagForm(name = "Coffee", weight = "250"))
+        original.change(original.form.value.copy(origin = "Carmo de Minas"))
+
+        val restored = CoffeeEditorViewModel(saved)
+
+        assertEquals("Coffee", restored.form.value.name)
+        assertEquals("250", restored.form.value.weight)
+        assertEquals("Carmo de Minas", restored.form.value.origin)
     }
 
     @Test

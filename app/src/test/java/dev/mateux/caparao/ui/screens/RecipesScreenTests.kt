@@ -26,6 +26,7 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -48,6 +49,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
@@ -86,7 +89,9 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
@@ -147,6 +152,26 @@ import java.time.ZoneId
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
     @Test
+    fun navigationBarTracksRecipeListScrollAndSettingsReturnsToRecipes() {
+        repeat(12) { index ->
+            val seed = checkNotNull(runBlocking { recipes.get(BuiltInRecipes.V60_ID) })
+            runBlocking { recipes.save(seed.copy(id = "bar-scroll-$index", name = "Bar scroll $index")) }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("Bar scroll 0"), 5_000)
+        val recipeTab = hasText(text(R.string.tab_recipes)) and isSelectable()
+        compose.onNode(recipeTab).assertExists()
+        compose.onNodeWithTag("recipes-list").performTouchInput { swipeUp() }
+        compose.waitUntil(5_000) { compose.onAllNodes(recipeTab).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("recipes-list").performTouchInput { swipeDown() }
+        compose.onNode(recipeTab).assertExists()
+        click(R.string.tab_settings)
+        tapBack()
+        compose.onNode(recipeTab).assertIsSelected()
+    }
+
+    @Test
     fun recipesModeSelector() {
         open("press-ramp", 38_300)
         click(R.string.tab_recipes)
@@ -160,9 +185,28 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         open("press-ramp", 38_300)
         click(R.string.tab_recipes)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
+    }
+
+    @Test
+    fun lastRecipeRowScrollsAboveAddButton() {
+        runBlocking {
+            val recipe = checkNotNull(recipes.get(BuiltInRecipes.V60_ID))
+            repeat(12) { index ->
+                val name = if (index == 11) "zzzz last recipe" else "Scrollable recipe $index"
+                recipes.save(recipe.copy(id = "scroll-recipe-$index", name = name))
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.onNodeWithTag("recipes-list").performScrollToIndex(16)
+        val lastRecipe = compose.onNodeWithTag("recipe-row-scroll-recipe-11")
+        lastRecipe.assert(hasText("zzzz last recipe"))
+        lastRecipe.assertIsDisplayed()
+        val fabTop = compose.onNodeWithContentDescription(text(R.string.new_recipe)).getUnclippedBoundsInRoot().top
+        assertTrue("Last recipe row overlaps the add button", lastRecipe.getUnclippedBoundsInRoot().bottom <= fabTop)
     }
 
     @Test

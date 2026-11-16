@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso
@@ -80,6 +81,7 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -120,6 +122,8 @@ import dev.mateux.caparao.ui.server.ServerViewModel
 import dev.mateux.caparao.ui.settings.CaptureViewModel
 import dev.mateux.caparao.ui.settings.TargetRatioViewModel
 import dev.mateux.caparao.ui.theme.AppTheme
+import dev.mateux.caparao.ui.theme.AppTypography
+import dev.mateux.caparao.ui.theme.RobotoFlex
 import dev.mateux.caparao.ui.components.ScaleReadout
 import dev.mateux.caparao.ui.components.readableOn
 import dev.mateux.caparao.ui.components.ringStroke
@@ -156,6 +160,19 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenTestSupport(protected val lang: String, protected val theme: String, protected val compactOnly: Boolean = false) {
+
+    @Test
+    fun appTypographyUsesRobotoFlexForEveryStyle() {
+        listOf(
+            AppTypography.displayLarge, AppTypography.displayMedium, AppTypography.displaySmall,
+            AppTypography.headlineLarge, AppTypography.headlineMedium, AppTypography.headlineSmall,
+            AppTypography.titleLarge, AppTypography.titleMedium, AppTypography.titleSmall,
+            AppTypography.bodyLarge, AppTypography.bodyMedium, AppTypography.bodySmall,
+            AppTypography.labelLarge, AppTypography.labelMedium, AppTypography.labelSmall,
+            AppTypography.titleLargeEmphasized, AppTypography.titleMediumEmphasized, AppTypography.titleSmallEmphasized,
+            AppTypography.labelLargeEmphasized, AppTypography.labelMediumEmphasized, AppTypography.labelSmallEmphasized,
+        ).forEach { assertEquals(RobotoFlex, it.fontFamily) }
+    }
     @get:Rule
     val compose = createComposeRule()
 
@@ -245,7 +262,9 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     protected fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
 
-    protected fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
+    protected fun click(id: Int) = if (id == R.string.tab_settings) {
+        compose.onNodeWithContentDescription(text(id)).performClick()
+    } else compose.onNodeWithText(text(id)).performClick()
 
     /** A node whose whole text matches [pattern]: the readout's weight (a decimal) and timer (mm:ss). */
     protected fun textMatching(pattern: Regex) =
@@ -270,8 +289,9 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { TargetRatioViewModel(settings) }
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
-            initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags())) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()), adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeEditorViewModel(SavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
+                initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), CoffeeBagRepository(db.coffeeBags()), recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
@@ -388,7 +408,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     /** The last node with [id]: a dialog's button sits above the screen's, which stays in the tree. */
     protected fun clickLast(id: Int) = compose.onAllNodesWithText(text(id)).onLast().performClick()
 
-    /** The Coffees tab's add sheet (C3): Save waits for a name and a weight; More details holds origin and notes. */
+    /** The Coffees tab's add screen: Save waits for a name and a weight. */
     protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null, recipeId: String? = null) = runBlocking {
         db.brews().insertWithSamples(
             BrewEntity(
