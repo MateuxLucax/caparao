@@ -167,11 +167,17 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (form.sourceBagId != null) R.string.coffee_new_bag else if (form.id == null) R.string.coffee_add else R.string.coffee_edit)) },
+                title = { Text(stringResource(if (form.sourceBagId != null) R.string.coffee_new_bag else if (form.id == null) R.string.coffee_add else R.string.coffee_edit), style = MaterialTheme.typography.titleLargeEmphasized) },
                 navigationIcon = {
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = close) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
                     }
+                },
+                actions = {
+                    TextButton(
+                        onClick = { val saved = form.withNote(tastingNote); viewModel.change(saved); bagsViewModel.save(saved); onClose() },
+                        enabled = form.valid,
+                    ) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -259,11 +265,6 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             }
             Text(stringResource(R.string.coffee_notes_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
-            TextButton(
-                onClick = { val saved = form.withNote(tastingNote); viewModel.change(saved); bagsViewModel.save(saved); onClose() },
-                enabled = form.valid,
-                modifier = Modifier.align(Alignment.End),
-            ) { Text(stringResource(R.string.save)) }
         }
     }
     if (picking) {
