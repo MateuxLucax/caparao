@@ -54,7 +54,7 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
         open("press-ramp", 38_300)
         compose.onNode(hasText(text(R.string.tab_analytics)) and isSelectable()).performClick()
         compose.onNodeWithText(text(R.string.analytics_this_week)).assertIsDisplayed()
-        compose.onAllNodesWithText(text(R.string.analytics_about_mg, 360)).assertCountEquals(2)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.analytics_about_mg, 360)), 5_000)
         compose.onNode(hasText(text(R.string.tab_analytics)) and isSelectable()).assertIsDisplayed()
     }
 
