@@ -281,7 +281,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         }
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
-        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("New coffee")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("cafe")
