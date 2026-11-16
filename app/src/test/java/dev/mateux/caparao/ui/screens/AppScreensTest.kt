@@ -7,6 +7,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasClickAction
@@ -37,6 +39,7 @@ import dev.mateux.caparao.ui.App
 import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.FakeScaleSource
 import dev.mateux.caparao.model.ScaleState
+import dev.mateux.caparao.model.ScaleBattery
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import dev.mateux.caparao.R
@@ -230,6 +233,30 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
         compose.onNodeWithContentDescription(text(R.string.timer_pause)).assertExists()
+    }
+
+    @Test
+    fun topBarShowsScaleBatteryOnlyAfterAnswerAndMarksLowBattery() {
+        val scale = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
+        compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
+
+        compose.onNodeWithTag("scale-battery-normal").assertDoesNotExist()
+        scale.state.value = ScaleState.Connected(ScaleBattery(percent = 82, bars = 4))
+        compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 82))
+            .assertIsDisplayed()
+        compose.onNodeWithTag("scale-battery-normal").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 82)))
+            .assertCountEquals(1)
+
+        scale.state.value = ScaleState.Connected(ScaleBattery(percent = 20, bars = 1))
+        compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 20))
+            .assertIsDisplayed()
+        compose.onNodeWithTag("scale-battery-low").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 20)))
+            .assertCountEquals(1)
+
+        scale.state.value = ScaleState.Idle
+        compose.onNodeWithTag("scale-battery-low").assertDoesNotExist()
     }
 
     @Test
