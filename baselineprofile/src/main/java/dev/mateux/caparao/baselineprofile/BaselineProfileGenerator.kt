@@ -158,7 +158,7 @@ private fun UiDevice.clickTextContains(text: String) {
     throw AssertionError("no fully visible \"$text\" was found")
 }
 
-/** Drives the app's loopback scripted scale, the same API the README documents for captures. */
+/** Drives the app's loopback scripted scale, the same API scripts/capture/capture-scenarios.py drives. */
 private object ScriptedScale {
     // localhost, not 127.0.0.1: the benchmark library's network security config only allows localhost cleartext.
     private const val SCENARIO_URL = "http://localhost:8765/scenario"
