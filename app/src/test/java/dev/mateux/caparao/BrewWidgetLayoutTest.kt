@@ -1,8 +1,10 @@
 package dev.mateux.caparao
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.view.View
+import android.view.LayoutInflater
 import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import androidx.test.core.app.ApplicationProvider
@@ -22,6 +24,43 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @RunWith(RobolectricTestRunner::class)
 class BrewWidgetLayoutTest {
+    @Test
+    fun pickerUsesWidgetNameAndRealLocalizedPreviewResources() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val receiver = context.packageManager.getReceiverInfo(
+            android.content.ComponentName(context, BrewWidgetProvider::class.java),
+            PackageManager.GET_META_DATA,
+        )
+        val metadata = receiver.metaData
+        val provider = context.resources.getXml(metadata.getInt("android.appwidget.provider"))
+        try {
+            var label: String? = null
+            var previewLayout: String? = null
+            var previewImage: String? = null
+            var description: String? = null
+            while (provider.eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                if (provider.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && provider.name == "appwidget-provider") {
+                    val attrs = provider
+                    val android = "http://schemas.android.com/apk/res/android"
+                    label = attrs.getAttributeResourceValue(android, "label", 0).takeIf { it != 0 }?.let(context::getString)
+                    previewLayout = attrs.getAttributeResourceValue(android, "previewLayout", 0).takeIf { it != 0 }?.let { context.resources.getResourceEntryName(it) }
+                    previewImage = attrs.getAttributeResourceValue(android, "previewImage", 0).takeIf { it != 0 }?.let { context.resources.getResourceEntryName(it) }
+                    description = attrs.getAttributeResourceValue(android, "description", 0).takeIf { it != 0 }?.let(context::getString)
+                    break
+                }
+                provider.next()
+            }
+            assertEquals(context.getString(R.string.widget_last_brew_title), label)
+            assertEquals("widget_brew_preview", previewLayout)
+            assertEquals("widget_brew_preview", previewImage)
+            assertEquals(context.getString(R.string.widget_description), description)
+            val preview = LayoutInflater.from(context).inflate(R.layout.widget_brew_preview, null)
+            assertNotNull(preview)
+        } finally {
+            provider.close()
+        }
+    }
+
     @Test
     fun savedAndEmptyStatesFitAtMinimumInBothThemesAndLocales() {
         val base = ApplicationProvider.getApplicationContext<Context>()

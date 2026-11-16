@@ -32,6 +32,9 @@
     <string name="widget_minutes_ago">%1$d min ago</string>
     <string name="widget_hours_ago">%1$d hr ago</string>
     <string name="widget_days_ago">%1$d days ago</string>
+    <string name="widget_preview_coffee">Sítio Boa Vista</string>
+    <string name="widget_preview_brew_details">Espresso · 18 g → 36 g</string>
+    <string name="widget_preview_time">2 min ago</string>
     <string name="widget_brew_espresso">Go</string>
     <string name="widget_brew_filter">Go</string>
     <string name="widget_brew_french_press">Go</string>

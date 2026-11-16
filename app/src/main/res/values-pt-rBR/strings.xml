@@ -28,6 +28,9 @@
     <string name="widget_minutes_ago">há %1$d min</string>
     <string name="widget_hours_ago">há %1$d h</string>
     <string name="widget_days_ago">há %1$d dias</string>
+    <string name="widget_preview_coffee">Fazenda Boa Vista</string>
+    <string name="widget_preview_brew_details">Preparo espresso · 18 g → 36 g</string>
+    <string name="widget_preview_time">há 2 min</string>
     <string name="widget_brew_espresso">Ir</string>
     <string name="widget_brew_filter">Ir</string>
     <string name="widget_brew_french_press">Ir</string>
