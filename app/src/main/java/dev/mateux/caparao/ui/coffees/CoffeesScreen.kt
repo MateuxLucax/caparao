@@ -64,11 +64,7 @@ import dev.mateux.caparao.R
 import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.model.CoffeeBag
-import dev.mateux.caparao.model.BagLabelReader
-import dev.mateux.caparao.model.LabelLine
 import java.io.File
-import java.time.LocalDate
-import java.time.ZoneOffset
 import dev.mateux.caparao.ui.components.EmptyState
 import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.theme.RowTitle
@@ -76,7 +72,6 @@ import dev.mateux.caparao.ui.theme.SectionHeading
 import dev.mateux.caparao.ui.theme.RowDetail
 import java.text.DateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -198,14 +193,27 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
-    assigning?.let { candidate -> AlertDialog(
-        onDismissRequest = { assigning = null },
-        title = { Text(candidate) },
-        text = { Column { listOf(R.string.coffee_name, R.string.coffee_roaster, R.string.coffee_origin, R.string.coffee_tasting_notes).forEachIndexed { index, label ->
-            TextButton(onClick = { viewModel.assignLabelCandidate(candidate, LabelDestination.entries[index]); assigning = null }) { Text(stringResource(label)) }
-        } } },
-        confirmButton = { TextButton(onClick = { assigning = null }) { Text(stringResource(R.string.cancel)) } },
-    ) }
+    assigning?.let { candidate ->
+        val destinations = listOfNotNull(
+            (R.string.coffee_name to LabelDestination.COFFEE).takeIf { form.name.isBlank() },
+            (R.string.coffee_roaster to LabelDestination.ROASTER).takeIf { form.roaster.isBlank() },
+            (R.string.coffee_origin to LabelDestination.ORIGIN).takeIf { form.origin.isBlank() },
+            (R.string.coffee_tasting_notes to LabelDestination.TASTING_NOTE).takeIf {
+                form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(candidate, ignoreCase = true) }
+            },
+        )
+        AlertDialog(
+            onDismissRequest = { assigning = null },
+            title = { Text(candidate) },
+            text = { Column { destinations.forEach { (label, destination) ->
+                TextButton(
+                    onClick = { viewModel.assignLabelCandidate(candidate, destination); assigning = null },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(label), Modifier.fillMaxWidth()) }
+            } } },
+            confirmButton = { TextButton(onClick = { assigning = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -234,7 +242,7 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             }
             labelDraft.message?.let { Text(stringResource(if (it == LabelMessage.NOTHING_NEW) R.string.coffee_label_nothing_new else R.string.coffee_label_could_not_read)) }
             if (labelDraft.candidates.isNotEmpty()) {
-                Text(stringResource(R.string.coffee_label_review), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.coffee_label_review), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { labelDraft.candidates.forEach { candidate ->
                     FilterChip(selected = false, onClick = { assigning = candidate }, label = { Text(candidate) }, modifier = Modifier.testTag("coffee-label-$candidate"))
                 } }

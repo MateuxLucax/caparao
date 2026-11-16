@@ -107,7 +107,7 @@ class CoffeeEditorViewModel(
         val reading = BagLabelReader.read(lines, knownRoasters, knownNotes, now)
         val current = _form.value
         val next = current.copy(
-            weight = current.weight.ifBlank { reading.weightGrams?.toString().orEmpty() },
+            weight = current.weight.ifBlank { reading.weightGrams?.let { RecipeForm.plain(it, Locale.ROOT) }.orEmpty() },
             roastedAt = current.roastedAt ?: reading.roastedAt,
             roaster = current.roaster.ifBlank { reading.roaster.orEmpty() },
             tastingNotes = reading.tastingNotes.fold(current) { form, note -> form.withNote(note) }.tastingNotes,

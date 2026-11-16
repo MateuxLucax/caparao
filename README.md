@@ -68,7 +68,7 @@ coffee in each recipe, and moves them one step at a time from what you tasted.
   such as [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter), and from
   there to Prometheus and Grafana. Coffees, adjustments, taste and tasting notes never leave the phone.
 - **Material 3 Expressive:** Roboto Flex and Material You colors, in light and dark.
-- Coffee label photos and recognized text stay on the phone and are deleted after reading. Google says ML Kit processes inputs and outputs on-device, but may contact Google servers for fixes, model updates and accelerator compatibility, and sends API performance and usage metrics; see [ML Kit privacy terms](https://developers.google.com/ml-kit/terms).
+- **Label reading:** Coffee bag photos and recognized text are processed on-device and deleted after reading. Google says ML Kit does not send inputs or results to its servers, but may contact Google for fixes, model updates and accelerator compatibility, and sends API performance and utilization metrics; see [ML Kit privacy terms](https://developers.google.com/ml-kit/terms).
 
 The screens above are emulator captures with a scripted scale standing in for the Dot.
 

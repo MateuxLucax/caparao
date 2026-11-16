@@ -45,12 +45,16 @@ object BagLabelReader {
             }.sortedBy { it.first }.forEach { notes += it.second }
         }
         val roastFieldLines = lines.indices.filter { index ->
-            val nearby = listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text).joinToString(" ")
-            ROAST_DATE.containsMatchIn(normalize(nearby)) && DATE.containsMatchIn(nearby)
+            ROAST_DATE.containsMatchIn(normalize(lines[index].text)) ||
+                (DATE.containsMatchIn(lines[index].text) &&
+                    listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text)
+                        .joinToString(" ").let { ROAST_DATE.containsMatchIn(normalize(it)) })
         }.toSet()
         val invalidDateLines = lines.indices.filter { index ->
-            val nearby = listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text).joinToString(" ")
-            INVALID_DATE.containsMatchIn(normalize(nearby)) && DATE.containsMatchIn(nearby)
+            INVALID_DATE.containsMatchIn(normalize(lines[index].text)) ||
+                (DATE.containsMatchIn(lines[index].text) &&
+                    listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text)
+                        .joinToString(" ").let { INVALID_DATE.containsMatchIn(normalize(it)) })
         }.toSet()
         val candidates = lines.withIndex().asSequence().filter { (index, line) ->
             val text = line.text.trim()

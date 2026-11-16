@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_brew_background"
@@ -27,7 +27,8 @@
                 android:layout_height="32dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
-                app:tint="@color/widget_icon_foreground" />
+                android:tint="@color/widget_icon_foreground"
+                tools:ignore="UseAppTint" />
         </FrameLayout>
 
         <LinearLayout
@@ -106,7 +107,8 @@
                 android:layout_height="22dp"
                 android:layout_marginEnd="8dp"
                 android:contentDescription="@null"
-                app:tint="@color/widget_action_text" />
+                android:tint="@color/widget_action_text"
+                tools:ignore="UseAppTint" />
 
             <TextView
                 android:id="@+id/widget_action_label"

@@ -36,6 +36,14 @@ class BagLabelReaderTest {
         val candidates: List<String>,
     )
 
+    @Test fun textNextToRoastDateRemainsAnUnrecognizedCandidate() {
+        val result = BagLabelReader.read(
+            listOf(LabelLine("Torrado em 10/11/2026", 30f), LabelLine("Caparaó natural", 20f)),
+            emptyList(), emptyList(), today,
+        )
+        assertEquals(listOf("Caparaó Natural"), result.candidates)
+    }
+
     @Test fun largestWeightAndAccentedCapitalsKeepWords() {
         val result = BagLabelReader.read(
             listOf(LabelLine("SÍTIO BAIXADÃO", 20f), LabelLine("Bourbon amarelo", 15f), LabelLine("250 g 1 kg 0,5 kg", 10f)),
