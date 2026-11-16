@@ -60,6 +60,7 @@ import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.theme.RowTitle
 import dev.mateux.caparao.ui.theme.SectionHeading
 import dev.mateux.caparao.ui.theme.Figure
+import dev.mateux.caparao.ui.theme.TabularFlex
 import kotlinx.coroutines.launch
 
 /** Saved brews in one list by date: the ones to rate first, then the rest, under the upload status and a coffee filter (#466). */
@@ -207,7 +208,7 @@ private fun BrewRow(line: BrewLine, shape: Shape, onClick: () -> Unit, onRate: (
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium.merge(RowTitle), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(numbers, style = MaterialTheme.typography.bodyMedium.merge(Figure))
+                Text(numbers, style = MaterialTheme.typography.bodyMedium.merge(TabularFlex))
                 Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(12.dp))
