@@ -388,9 +388,9 @@
     <string name="coffee_edit">Editar café</string>
     <string name="coffee_read_label">Ler rótulo</string>
     <string name="coffee_label_review">Do rótulo</string>
-    <string name="coffee_label_review_help">Confira os dados preenchidos deste lado do pacote. A foto é apagada após a leitura.</string>
     <string name="coffee_read_another_side">Ler outro lado</string>
-    <string name="coffee_label_use">Usar</string>
+    <string name="coffee_label_nothing_new">Nada novo neste lado.</string>
+    <string name="coffee_label_could_not_read">Não foi possível ler o rótulo.</string>
     <string name="coffee_name">Café</string>
     <string name="coffee_roaster">Torrefação</string>
     <string name="coffee_origin">Origem e processo</string>

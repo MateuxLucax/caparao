@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.model.CoffeeBag
+import dev.mateux.caparao.model.BagLabelReader
+import dev.mateux.caparao.model.LabelLine
 import dev.mateux.caparao.ui.components.RecipeForm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,15 +75,84 @@ data class BagForm(
 }
 
 /** The full-screen editor draft is saved with its navigation entry across process death. */
-class CoffeeEditorViewModel(private val savedState: SavedStateHandle, target: BagForm = BagForm()) : ViewModel() {
+data class LabelDraft(val candidates: List<String> = emptyList(), val message: LabelMessage? = null, val hasRead: Boolean = false, val assigned: List<String> = emptyList())
+enum class LabelMessage { NOTHING_NEW, COULD_NOT_READ }
+
+class CoffeeEditorViewModel(
+    private val savedState: SavedStateHandle,
+    target: BagForm = BagForm(),
+    private val labelRecognizer: LabelRecognizer = LabelRecognizer { emptyList() },
+) : ViewModel() {
     private val _form = MutableStateFlow(savedState.get<String>("form")?.let { Json.decodeFromString<BagForm>(it) } ?: target)
     val form: StateFlow<BagForm> = _form.asStateFlow()
+    private val _labelDraft = MutableStateFlow(savedState.get<String>("labelCandidates")?.let { Json.decodeFromString<List<String>>(it) }.orEmpty().let {
+        LabelDraft(it, hasRead = savedState.get<Boolean>("labelHasRead") ?: false,
+            assigned = savedState.get<String>("labelAssigned")?.let { value -> Json.decodeFromString<List<String>>(value) }.orEmpty())
+    })
+    val labelDraft: StateFlow<LabelDraft> = _labelDraft.asStateFlow()
     private var opened = _form.value
     val dirty: Boolean get() = _form.value != opened
     fun change(form: BagForm) { _form.value = form; savedState["form"] = Json.encodeToString(form) }
     fun reset(form: BagForm) { opened = form; change(form) }
+
+    suspend fun readLabel(photo: java.io.File, knownRoasters: List<String>, knownNotes: List<String>, now: java.time.LocalDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC)) {
+        val lines = runCatching { labelRecognizer.recognize(photo) }.getOrElse {
+            updateLabelDraft(_labelDraft.value.copy(message = LabelMessage.COULD_NOT_READ, hasRead = true))
+            return
+        }
+        if (lines.isEmpty()) {
+            updateLabelDraft(_labelDraft.value.copy(message = LabelMessage.COULD_NOT_READ, hasRead = true))
+            return
+        }
+        val reading = BagLabelReader.read(lines, knownRoasters, knownNotes, now)
+        val current = _form.value
+        val next = current.copy(
+            weight = current.weight.ifBlank { reading.weightGrams?.toString().orEmpty() },
+            roastedAt = current.roastedAt ?: reading.roastedAt,
+            roaster = current.roaster.ifBlank { reading.roaster.orEmpty() },
+            tastingNotes = reading.tastingNotes.fold(current) { form, note -> form.withNote(note) }.tastingNotes,
+        )
+        val oldCandidates = _labelDraft.value.candidates
+        val candidates = (oldCandidates + reading.candidates).distinctBy(String::labelKey)
+            .filterNot { candidate -> _labelDraft.value.assigned.any { it.labelKey() == candidate.labelKey() } }
+        if (next != current) change(next)
+        val newCandidates = candidates - oldCandidates.toSet()
+        val message = if (next == current && newCandidates.isEmpty()) LabelMessage.NOTHING_NEW else null
+        updateLabelDraft(LabelDraft(candidates, message, hasRead = true, assigned = _labelDraft.value.assigned))
+    }
+
+    fun assignLabelCandidate(candidate: String, destination: LabelDestination) {
+        if (candidate !in _labelDraft.value.candidates) return
+        val current = _form.value
+        val updated = when (destination) {
+            LabelDestination.COFFEE -> current.copy(name = current.name.ifBlank { candidate })
+            LabelDestination.ROASTER -> current.copy(roaster = current.roaster.ifBlank { candidate })
+            LabelDestination.ORIGIN -> current.copy(origin = current.origin.ifBlank { candidate })
+            LabelDestination.TASTING_NOTE -> current.withNote(candidate)
+        }
+        if (updated == current) return
+        change(updated)
+        updateLabelDraft(_labelDraft.value.copy(
+            candidates = _labelDraft.value.candidates - candidate,
+            assigned = (_labelDraft.value.assigned + candidate).distinctBy(String::labelKey),
+            message = null,
+        ))
+    }
+
+    fun clearLabelMessage() = updateLabelDraft(_labelDraft.value.copy(message = null))
+    private fun updateLabelDraft(value: LabelDraft) {
+        _labelDraft.value = value
+        savedState["labelCandidates"] = Json.encodeToString(value.candidates)
+        savedState["labelHasRead"] = value.hasRead
+        savedState["labelAssigned"] = Json.encodeToString(value.assigned)
+    }
     companion object { val TARGET = object : CreationExtras.Key<BagForm> {} }
 }
+
+enum class LabelDestination { COFFEE, ROASTER, ORIGIN, TASTING_NOTE }
+
+private fun String.labelKey() = Normalizer.normalize(trim(), Normalizer.Form.NFD)
+    .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)
 
 /** The coffee bags list and persistence operations. */
 class CoffeeBagsViewModel(

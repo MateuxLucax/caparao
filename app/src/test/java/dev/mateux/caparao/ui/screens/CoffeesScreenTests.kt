@@ -40,6 +40,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -83,6 +84,7 @@ import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -231,23 +233,85 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
     @Test
     fun recognizedLabelTextFillsOnlyMissingSupportedFields() {
         val today = LocalDate.of(2026, 11, 16)
-        val form = dev.mateux.caparao.ui.coffees.BagForm(name = "Typed name", weight = "340", roaster = "")
-        val filled = dev.mateux.caparao.ui.coffees.applyLabelText(
-            form,
-            listOf(
-                dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
-                dev.mateux.caparao.model.LabelLine("Torrado em 12/11/2026", 30f),
-                dev.mateux.caparao.model.LabelLine("250 g", 28f),
-                dev.mateux.caparao.model.LabelLine("Chocolate", 18f),
-                dev.mateux.caparao.model.LabelLine("Validade 12/11/2027", 12f),
-            ),
-            listOf("Torra Alta"), listOf("Chocolate"), today,
+        val lines = listOf(
+            dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
+            dev.mateux.caparao.model.LabelLine("Torrado em 12/11/2026", 30f),
+            dev.mateux.caparao.model.LabelLine("250 g", 28f),
+            dev.mateux.caparao.model.LabelLine("Chocolate", 18f),
+            dev.mateux.caparao.model.LabelLine("Validade 12/11/2027", 12f),
         )
-        assertEquals("Typed name", filled.name)
-        assertEquals("340", filled.weight)
-        assertEquals("Torra Alta", filled.roaster)
-        assertEquals(today.minusDays(4).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(), filled.roastedAt)
-        assertEquals(listOf("Chocolate"), filled.tastingNotes)
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed name", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        runBlocking { editor.readLabel(java.io.File("fake.jpg"), listOf("Torra Alta"), listOf("Chocolate"), today) }
+        assertEquals("Typed name", editor.form.value.name)
+        assertEquals("340", editor.form.value.weight)
+        assertEquals("Torra Alta", editor.form.value.roaster)
+        assertEquals(today.minusDays(4).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(), editor.form.value.roastedAt)
+        assertEquals(listOf("Chocolate"), editor.form.value.tastingNotes)
+    }
+
+    @Test
+    fun labelReadingKeepsExistingValuesAndAssignedChipsDoNotReturn() {
+        var lines = listOf(
+            dev.mateux.caparao.model.LabelLine("250 g", 20f),
+            dev.mateux.caparao.model.LabelLine("Blueberry", 10f),
+        )
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed coffee", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            compose.onNodeWithText(text(R.string.coffee_label_review)).assertIsDisplayed()
+            compose.onNodeWithText("Blueberry").performClick()
+            compose.onAllNodes(hasText(text(R.string.coffee_origin)) and hasClickAction()).onLast().performClick()
+            compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+            assertEquals("Blueberry", editor.form.value.origin)
+            lines = listOf(
+                dev.mateux.caparao.model.LabelLine("100 g", 20f),
+                dev.mateux.caparao.model.LabelLine("Blueberry", 10f),
+                dev.mateux.caparao.model.LabelLine("Cherry", 8f),
+            )
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
+            compose.onNodeWithTag("coffee-label-Cherry").assertIsDisplayed()
+            assertEquals("340", editor.form.value.weight)
+            assertEquals("Blueberry", editor.form.value.origin)
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.NOTHING_NEW, editor.labelDraft.value.message)
+        } finally { photo.delete() }
+    }
+
+    @Test
+    fun emptyOrFailedLabelRecognitionLeavesTheFormUnchanged() {
+        var fail = false
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed coffee", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { if (fail) error("recognition failed") else emptyList() },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.COULD_NOT_READ, editor.labelDraft.value.message)
+            compose.onNodeWithText(text(R.string.coffee_label_could_not_read)).assertIsDisplayed()
+            fail = true
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.COULD_NOT_READ, editor.labelDraft.value.message)
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+        } finally { photo.delete() }
     }
 
     @Test

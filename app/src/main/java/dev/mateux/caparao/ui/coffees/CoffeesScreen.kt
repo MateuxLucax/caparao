@@ -1,7 +1,5 @@
 package dev.mateux.caparao.ui.coffees
 
-import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
@@ -46,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -60,15 +59,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import dev.mateux.caparao.R
 import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.model.BagLabelReader
 import dev.mateux.caparao.model.LabelLine
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -165,33 +162,29 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
     var picking by remember { mutableStateOf(false) }
     var tastingNote by rememberSaveable(form.id) { mutableStateOf("") }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    var scanned by rememberSaveable { mutableStateOf(false) }
-    var labelReview by rememberSaveable { mutableStateOf(false) }
-    var labelCandidates by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val labelDraft by viewModel.labelDraft.collectAsStateWithLifecycle()
+    var assigning by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val photo = remember { File(context.cacheDir, "label-photos/${System.nanoTime()}.jpg").apply { parentFile?.mkdirs() } }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val image = InputImage.fromFilePath(context, Uri.fromFile(photo))
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-            recognizer.process(image).addOnSuccessListener { text ->
-                val lines = text.textBlocks.flatMap { block -> block.lines.map { line ->
-                    LabelLine(line.text, line.boundingBox?.height()?.toFloat() ?: 0f)
-                } }
+    var photoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val photo = remember(photoPath) { photoPath?.let(::File) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val captured = photo
+        if (success && captured != null) scope.launch {
+            try {
                 val defaults = listOf(R.string.tasting_caramel, R.string.tasting_chocolate, R.string.tasting_citrus,
                     R.string.tasting_red_fruit, R.string.tasting_floral, R.string.tasting_nuts).map(context::getString)
-                val reading = BagLabelReader.read(lines, bags.orEmpty().mapNotNull(CoffeeBag::roaster), defaults, LocalDate.now())
-                val current = viewModel.form.value
-                labelCandidates = reading.candidates
-                viewModel.change(applyLabelText(current, lines, bags.orEmpty().mapNotNull(CoffeeBag::roaster), defaults))
-                photo.delete()
-                labelReview = true
-                recognizer.close()
-            }.addOnFailureListener {
-                photo.delete()
-                recognizer.close()
+                viewModel.readLabel(captured, bags.orEmpty().mapNotNull(CoffeeBag::roaster), defaults)
+            } finally {
+                captured.delete()
+                photoPath = null
             }
-        } else photo.delete()
+        } else { captured?.delete(); photoPath = null }
+    }
+    fun takeLabelPhoto() {
+        val file = File(context.cacheDir, "label-photos/${System.nanoTime()}.jpg").apply { parentFile?.mkdirs() }
+        photoPath = file.absolutePath
+        camera.launch(FileProvider.getUriForFile(context, "${context.packageName}.label-photo", file))
     }
     val close = { if (viewModel.dirty) confirmDiscard = true else onClose() }
     SystemBack(close)
@@ -205,33 +198,14 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
-    if (labelReview) AlertDialog(
-        onDismissRequest = { labelReview = false },
-        title = { Text(stringResource(R.string.coffee_label_review)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.coffee_label_review_help))
-                labelCandidates.forEach { candidate ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(candidate, Modifier.weight(1f))
-                        TextButton(onClick = {
-                            val current = viewModel.form.value
-                            val name = if (current.name.isBlank()) candidate else current.name
-                            val origin = if (current.origin.isBlank()) candidate else current.origin
-                            val note = if (current.notes.isBlank()) candidate else current.notes
-                            viewModel.change(current.copy(name = name, origin = origin, notes = note.take(500)))
-                        }) { Text(stringResource(R.string.coffee_label_use)) }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { labelReview = false }) { Text(stringResource(R.string.save)) } },
-        dismissButton = { if (!scanned) TextButton(onClick = {
-            scanned = true
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.label-photo", photo)
-            camera.launch(Intent("android.media.action.IMAGE_CAPTURE").putExtra("output", uri).addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
-        }) { Text(stringResource(R.string.coffee_read_another_side)) } },
-    )
+    assigning?.let { candidate -> AlertDialog(
+        onDismissRequest = { assigning = null },
+        title = { Text(candidate) },
+        text = { Column { listOf(R.string.coffee_name, R.string.coffee_roaster, R.string.coffee_origin, R.string.coffee_tasting_notes).forEachIndexed { index, label ->
+            TextButton(onClick = { viewModel.assignLabelCandidate(candidate, LabelDestination.entries[index]); assigning = null }) { Text(stringResource(label)) }
+        } } },
+        confirmButton = { TextButton(onClick = { assigning = null }) { Text(stringResource(R.string.cancel)) } },
+    ) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -255,12 +229,15 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(onClick = {
-                scanned = false
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.label-photo", photo)
-                camera.launch(Intent("android.media.action.IMAGE_CAPTURE").putExtra("output", uri).addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
-            }, modifier = Modifier.fillMaxWidth().testTag("coffee-label-camera"), shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(R.string.coffee_read_label))
+            OutlinedButton(onClick = { takeLabelPhoto() }, modifier = Modifier.fillMaxWidth().testTag("coffee-label-camera"), shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(if (labelDraft.hasRead) R.string.coffee_read_another_side else R.string.coffee_read_label))
+            }
+            labelDraft.message?.let { Text(stringResource(if (it == LabelMessage.NOTHING_NEW) R.string.coffee_label_nothing_new else R.string.coffee_label_could_not_read)) }
+            if (labelDraft.candidates.isNotEmpty()) {
+                Text(stringResource(R.string.coffee_label_review), style = MaterialTheme.typography.titleMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { labelDraft.candidates.forEach { candidate ->
+                    FilterChip(selected = false, onClick = { assigning = candidate }, label = { Text(candidate) }, modifier = Modifier.testTag("coffee-label-$candidate"))
+                } }
             }
             Text(stringResource(R.string.coffee_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             Field(form.name, R.string.coffee_name) { viewModel.change(form.copy(name = it.take(80))) }
@@ -357,22 +334,6 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
         ) { DatePicker(state) }
     }
     }
-}
-
-internal fun applyLabelText(
-    form: BagForm,
-    lines: List<LabelLine>,
-    knownRoasters: List<String>,
-    knownNotes: List<String>,
-    now: LocalDate = LocalDate.now(),
-): BagForm {
-    val reading = BagLabelReader.read(lines, knownRoasters, knownNotes, now)
-    return form.copy(
-        weight = form.weight.ifBlank { reading.weightGrams?.toString().orEmpty() },
-        roastedAt = form.roastedAt ?: reading.roastedAt,
-        roaster = form.roaster.ifBlank { reading.roaster.orEmpty() },
-        tastingNotes = (form.tastingNotes + reading.tastingNotes).distinct().take(6),
-    )
 }
 
 @Composable

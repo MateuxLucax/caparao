@@ -394,9 +394,9 @@
     <string name="coffee_edit">Edit coffee</string>
     <string name="coffee_read_label">Read label</string>
     <string name="coffee_label_review">From the label</string>
-    <string name="coffee_label_review_help">Check the details filled from this side of the bag. The photo is deleted after reading.</string>
     <string name="coffee_read_another_side">Read another side</string>
-    <string name="coffee_label_use">Use</string>
+    <string name="coffee_label_nothing_new">Nothing new on this side.</string>
+    <string name="coffee_label_could_not_read">Couldn\'t read the label.</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>
     <string name="coffee_origin">Origin and process</string>

@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import dev.mateux.caparao.data.scale.ReplayScaleSource
 import dev.mateux.caparao.data.scale.ScaleSource
+import dev.mateux.caparao.ui.coffees.DebugLabelRecognizer
+import dev.mateux.caparao.ui.coffees.LabelRecognizer
 import dev.mateux.caparao.data.scale.ScriptedScaleHttpServer
 import dev.mateux.caparao.data.scale.ScriptedScaleSource
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +20,9 @@ class DebugScaleHooks : DebugHooks {
         this.intent = intent
         fresh = savedInstanceState == null
     }
+
+    override fun createLabelRecognizer(context: Context): LabelRecognizer? =
+        DebugLabelRecognizer().takeIf { intent?.getBooleanExtra(EXTRA_SCRIPTED_API, false) == true }
 
     override fun createScale(context: Context, scope: CoroutineScope): ScaleSource? {
         val intent = intent ?: return null
