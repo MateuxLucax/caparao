@@ -156,8 +156,9 @@ interface BrewDao {
         CoffeeBagEntity::class,
         BagRecipeAdjustmentEntity::class,
         BagRecipeAdjustmentHistoryEntity::class,
+        CoffeeUseEntryEntity::class,
     ],
-    version = 13,
+    version = 14,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -173,7 +174,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
             .addCallback(SeedBuiltInRecipes)
             .build()
 
@@ -263,6 +264,13 @@ abstract class BrewDatabase : RoomDatabase() {
                 )
                 db.execSQL("DROP TABLE recipe_steps_old")
                 db.execSQL("DROP TABLE recipes_old")
+            }
+        }
+
+        val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS coffee_use_entries (id TEXT NOT NULL, bag_id TEXT NOT NULL, grams INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(id), FOREIGN KEY(bag_id) REFERENCES coffee_bags(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_coffee_use_entries_bag_id ON coffee_use_entries (bag_id)")
             }
         }
 

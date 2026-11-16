@@ -65,6 +65,17 @@ class CoffeeBagRepositoryTest {
         assertEquals(15.0, brew.doseGrams, 0.0)
     }
 
+    @Test
+    fun loggedUseAddsToBrewUsageAndCascadesWhenBagIsDeleted() = runBlocking {
+        bags.save(bag("bag", "Caparaó"))
+        db.brews().insertWithSamples(brew("brew", 1, 18.0, null, "bag"), emptyList())
+        bags.logUsed("bag", 18, 2)
+        assertEquals(36.0, bags.get("bag")!!.usedGrams, 0.0)
+        assertEquals(listOf(18), bags.useEntries("bag").first().map { it.grams })
+        bags.delete("bag")
+        assertEquals(emptyList<CoffeeUseEntry>(), bags.useEntries("bag").first())
+    }
+
     private fun bag(id: String, name: String) = CoffeeBag(
         id, name, weightGrams = 250.0, createdAt = 0, tastingNotes = listOf("cocoa", "red fruit"),
     )

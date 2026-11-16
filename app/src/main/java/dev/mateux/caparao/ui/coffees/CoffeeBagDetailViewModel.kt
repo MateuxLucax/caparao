@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.combine
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.CoffeeBag
+import dev.mateux.caparao.data.local.CoffeeUseEntry
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +37,21 @@ class CoffeeBagDetailViewModel(
     val bag: StateFlow<CoffeeBag?> = bags.observe(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val brews: StateFlow<List<Brew>> = brews.forBag(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val useEntries: StateFlow<List<CoffeeUseEntry>> = bags.useEntries(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun logUsed(grams: Int) {
+        if (grams !in 1..(bag.value?.leftGrams?.toInt() ?: 0)) return
+        viewModelScope.launch { bags.logUsed(id, grams, System.currentTimeMillis()) }
+    }
+
+    fun removeUseEntry(entry: CoffeeUseEntry) {
+        viewModelScope.launch { bags.removeUseEntry(id, entry.id) }
+    }
+
+    fun restoreUseEntry(entry: CoffeeUseEntry) {
+        viewModelScope.launch { bags.restoreUseEntry(id, entry) }
+    }
 
     /** The recipes this bag has been brewed with, newest brew first, each with its adjustment if it has one (#462). */
     val recipeAdjustments: StateFlow<List<RecipeAdjustment>> =

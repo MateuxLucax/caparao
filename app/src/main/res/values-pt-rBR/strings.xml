@@ -393,6 +393,13 @@
     <string name="coffee_roast_date">Data de torra</string>
     <string name="coffee_roasted_on">Torrado em %1$s</string>
     <string name="coffee_left">Restam %1$s de %2$s g</string>
+    <string name="coffee_log_used">Registrar café usado</string>
+    <string name="coffee_log_used_hint">Informe os gramas inteiros usados, até %1$s g.</string>
+    <string name="coffee_used_outside_app">Usado fora do app</string>
+    <string name="coffee_remove_use_title">Remover este registro?</string>
+    <string name="coffee_remove_use">Remover</string>
+    <string name="coffee_use_undo">Desfazer</string>
+    <string name="coffee_use_removed">Uso de café removido</string>
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>
