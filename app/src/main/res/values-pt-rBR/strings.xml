@@ -399,6 +399,11 @@
     <string name="coffee_roast_date">Data de torra</string>
     <string name="coffee_roasted_on">Torrado em %1$s</string>
     <string name="coffee_left">Restam %1$s de %2$s g</string>
+    <string name="coffee_ends_today">Acaba hoje</string>
+    <plurals name="coffee_days_left">
+        <item quantity="one">Dura mais uns %1$d dias</item>
+        <item quantity="other">Dura mais uns %1$d dias</item>
+    </plurals>
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>

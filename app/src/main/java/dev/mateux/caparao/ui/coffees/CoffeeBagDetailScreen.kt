@@ -107,6 +107,14 @@ fun CoffeeBagDetailScreen(
                     stringResource(R.string.coffee_left, wholeGrams(current.leftGrams, locale), wholeGrams(current.weightGrams, locale)),
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                estimatedDaysLeft(current.leftGrams, brews, System.currentTimeMillis())?.let { days ->
+                    Text(
+                        if (days == 0) stringResource(R.string.coffee_ends_today)
+                        else pluralStringResource(R.plurals.coffee_days_left, days, days),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 CoffeeBagLevelBar(current.leftGrams, current.weightGrams)
             }
             if (current.brewCount > 0) Summary(current, remember(current.tastingNotes, brews) { CoffeeSummary.of(current.tastingNotes, brews) }, locale)

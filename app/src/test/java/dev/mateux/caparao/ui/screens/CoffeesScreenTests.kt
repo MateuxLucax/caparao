@@ -83,6 +83,7 @@ import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
+import dev.mateux.caparao.ui.coffees.estimatedDaysLeft
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
@@ -135,6 +136,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -154,6 +156,22 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
+    @Test
+    fun estimatedDaysLeftRequiresRecentUsesAndRemainingCoffee() {
+        val day = 86_400_000L
+        val now = 14 * day
+        fun brew(id: String, daysAgo: Int, dose: Double = 10.0) = Brew(
+            id = id, mode = BrewMode.FILTER, startedAt = now - daysAgo * day, durationMs = 60_000,
+            doseGrams = dose, yieldGrams = 150.0, timeToFirstDropMs = null, flowAvgGramsPerSecond = 1.0,
+            flowPeakGramsPerSecond = 2.0, interrupted = false,
+        )
+        assertNull(estimatedDaysLeft(100.0, listOf(brew("one", 1), brew("two", 2)), now))
+        assertEquals(1, estimatedDaysLeft(30.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertNull(estimatedDaysLeft(0.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertNull(estimatedDaysLeft(100.0, listOf(brew("old-a", 16), brew("old-b", 17), brew("old-c", 18)), now))
+        assertEquals(0, estimatedDaysLeft(1.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+    }
+
     /**
      * Back rows with the coffee step (#291): Beans goes back to Coffee with its pick kept, Coffee goes back to Dose, and the
      * X closes the brew from Coffee.
@@ -539,6 +557,35 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         click(R.string.edit)
         waitFor(R.string.coffee_edit)
         compose.onNode(hasSetTextAction() and hasText("Caparaó natural")).assertIsDisplayed()
+    }
+
+    @Test
+    fun coffeeBagDetailShowsEstimateOnlyWithEnoughRecentUse() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("estimate-bag", "Estimate coffee", weightGrams = 250.0, createdAt = now))
+        }
+        repeat(3) { index ->
+            runBlocking {
+                db.brews().insertWithSamples(
+                    BrewEntity(
+                        id = "estimate-$index", mode = "FILTER", startedAt = now - (13 - index * 6) * 86_400_000L,
+                        durationMs = 60_000, doseGrams = 10.0, yieldGrams = 150.0, timeToFirstDropMs = null,
+                        flowAvg = 1.0, flowPeak = 2.0, interrupted = false, syncedAt = null, coffee = null,
+                        rating = null, bagId = "estimate-bag",
+                    ), emptyList(),
+                )
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Estimate coffee", substring = true), 5_000)
+        compose.onNodeWithText("Estimate coffee", substring = true).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "220", "250")), 5_000)
+        val estimateText = context.resources.getQuantityString(R.plurals.coffee_days_left, 1, 1)
+        compose.waitUntilAtLeastOneExists(hasText(estimateText.substringBefore("1"), substring = true), 5_000)
+        compose.onNodeWithText(estimateText.substringBefore("1"), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_ends_today)).assertDoesNotExist()
     }
 
     /**
