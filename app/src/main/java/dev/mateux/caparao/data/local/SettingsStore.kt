@@ -26,8 +26,13 @@ data class SyncStatus(
  * `last_sync_ms`, `last_sync_error`, `last_sync_error_detail` and `last_sync_error_brew`.
  * Added after the first upload: `capture_every_brew`, `capture_every_brew_consent_ms` and `last_capture_sent_ms` (#472);
  * `remind_to_rate` (#464), `rating_reminder_delay_minutes` and `rating_notifications_permission_asked` (#465).
+ * `bedtime_minutes` stores bedtime as minutes after midnight (#525).
  */
 class SettingsStore(private val prefs: SharedPreferences) {
+    var bedtimeMinutes: Int
+        get() = prefs.getInt(KEY_BEDTIME, DEFAULT_BEDTIME_MINUTES).let { it.takeIf { value -> value in 0..1439 } ?: DEFAULT_BEDTIME_MINUTES }
+        set(value) = prefs.edit().putInt(KEY_BEDTIME, value.coerceIn(0, 1439)).apply()
+
     var onboardingDone: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
@@ -198,10 +203,12 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_REMIND_TO_RATE = "remind_to_rate"
         private const val KEY_RATING_REMINDER_DELAY = "rating_reminder_delay_minutes"
         private const val KEY_RATING_NOTIFICATIONS_PERMISSION_ASKED = "rating_notifications_permission_asked"
+        private const val KEY_BEDTIME = "bedtime_minutes"
         const val DEFAULT_RATING_REMINDER_DELAY_MINUTES = 10
         const val MIN_RATING_REMINDER_DELAY_MINUTES = 5
         const val MAX_RATING_REMINDER_DELAY_MINUTES = 15
         const val DEFAULT_STEEP_MS = 4 * 60 * 1000L
+        const val DEFAULT_BEDTIME_MINUTES = 23 * 60
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_TOKEN = "server_token"
         private const val KEY_LAST_SYNC = "last_sync_ms"

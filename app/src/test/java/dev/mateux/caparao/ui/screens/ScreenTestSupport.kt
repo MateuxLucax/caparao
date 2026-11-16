@@ -290,7 +290,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { TargetRatioViewModel(settings) }
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
-            initializer { AnalyticsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags) }
+            initializer { AnalyticsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()), adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeEditorViewModel(SavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
                 initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }

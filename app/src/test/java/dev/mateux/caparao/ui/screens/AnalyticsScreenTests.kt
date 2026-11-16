@@ -4,12 +4,14 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performScrollTo
 import dev.mateux.caparao.R
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
@@ -18,6 +20,7 @@ import dev.mateux.caparao.ui.analytics.AnalyticsViewModel
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.time.ZoneId
@@ -56,6 +59,41 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
         compose.onNodeWithText(text(R.string.analytics_this_week)).assertIsDisplayed()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.analytics_about_mg, 360)), 5_000)
         compose.onNode(hasText(text(R.string.tab_analytics)) and isSelectable()).assertIsDisplayed()
+    }
+
+    @Test fun bedtimeEstimateShowsValuesAndOverLimitAndHidesChartWithoutBrews() {
+        open("press-ramp", 38_300)
+        compose.onNode(hasText(text(R.string.tab_analytics)) and isSelectable()).performClick()
+        compose.onNodeWithText(text(R.string.analytics_nothing_today)).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Caffeine through the day").assertDoesNotExist()
+    }
+
+    @Test fun bedtimeSettingUsesTimePickerAndPersistsChoice() {
+        open("press-ramp", 38_300)
+        click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.analytics_bedtime)).performScrollTo().performClick()
+        assertEquals(23 * 60, settings.bedtimeMinutes)
+    }
+
+    @Test fun bedtimeModelIncludesYesterdayAndFindsPeakAndLastCoffeeTime() {
+        val zone = ZoneId.of("UTC")
+        val today = Instant.parse("2026-11-16T12:00:00Z")
+        fun brew(id: String, at: Instant, dose: Double) = Brew(id, BrewMode.FILTER, at.toEpochMilli(), 60_000, dose, 250.0, null, 1.0, 2.0, false)
+        val state = AnalyticsViewModel.summarize(
+            listOf(brew("yesterday", today.minusSeconds(20 * 3600), 10.0), brew("today", today.minusSeconds(3600), 10.0)),
+            emptyList(), today, zone, 23 * 60,
+        ).caffeine
+        assertEquals(1, state.todayBrews)
+        assertTrue(state.bedtimeMg > 0)
+        assertTrue(state.points.maxOf { it.mg } > state.points.first().mg)
+        assertTrue(state.lastCoffeeByMinutes != null)
+    }
+
+    @Test fun bedtimeOver50IsReportedForLargeDose() {
+        val now = Instant.parse("2026-11-16T12:00:00Z")
+        val brew = Brew("today", BrewMode.FILTER, now.minusSeconds(3600).toEpochMilli(), 60_000, 100.0, 250.0, null, 1.0, 2.0, false)
+        val state = AnalyticsViewModel.summarize(listOf(brew), emptyList(), now, ZoneId.of("UTC"), 23 * 60).caffeine
+        assertTrue(state.bedtimeMg > 50)
     }
 
     @Test fun editingCoffeeCaffeineStoresTheChosenRate() {

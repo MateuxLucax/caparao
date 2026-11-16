@@ -210,6 +210,14 @@
     <string name="analytics_caffeine">Estimated caffeine</string>
     <string name="analytics_today">Today</string>
     <string name="analytics_about_mg">About %1$d mg</string>
+    <string name="analytics_bedtime">Bedtime</string>
+    <string name="analytics_caffeine_left">At bedtime: about %1$d mg</string>
+    <string name="analytics_last_coffee">Last coffee by %1$s</string>
+    <string name="analytics_over_50">Over 50 mg at bedtime</string>
+    <string name="analytics_nothing_today">Nothing today yet</string>
+    <string name="analytics_estimate_note">Caffeine amounts are estimates, not medical advice.</string>
+    <string name="analytics_chart_description">Caffeine through the day. At bedtime: about %1$d mg. %2$s.</string>
+    <string name="analytics_chart_reference">Dashed line: bedtime. Solid line: 50 mg.</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet.</string>
