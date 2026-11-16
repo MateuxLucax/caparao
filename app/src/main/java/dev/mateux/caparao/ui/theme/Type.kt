@@ -51,9 +51,13 @@ val AppTypography = Typography().run {
 /** Tabular figures in Roboto Flex, for the weight and timer readouts. */
 val TabularFlex = TextStyle(fontFamily = RobotoFlex, fontFeatureSettings = "tnum")
 
+/** Semibold first line in recipe, coffee, and brew rows. */
 val RowTitle = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold)
+/** Supporting copy in list and detail rows. */
 val RowDetail = TextStyle(fontFamily = RobotoFlex)
+/** Section labels in detail and list screens. */
 val SectionHeading = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.SemiBold)
+/** Tabular emphasized values such as ratings, weights, and times. */
 val Figure = TextStyle(fontFamily = RobotoFlex, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum")
 
 private val flexCache = mutableMapOf<Pair<Int, Int>, FontFamily>()
