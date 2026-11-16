@@ -260,7 +260,9 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
 
     protected fun waitFor(id: Int) = compose.waitUntilAtLeastOneExists(hasText(text(id)), 5_000)
 
-    protected fun click(id: Int) = compose.onNodeWithText(text(id)).performClick()
+    protected fun click(id: Int) = if (id == R.string.tab_settings) {
+        compose.onNodeWithContentDescription(text(id)).performClick()
+    } else compose.onNodeWithText(text(id)).performClick()
 
     /** A node whose whole text matches [pattern]: the readout's weight (a decimal) and timer (mm:ss). */
     protected fun textMatching(pattern: Regex) =

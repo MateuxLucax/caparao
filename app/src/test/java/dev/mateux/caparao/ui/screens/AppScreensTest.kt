@@ -232,12 +232,13 @@ abstract class AppScreensTest {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.onAllNodesWithText(text(R.string.tab_brews), useUnmergedTree = true).assertCountEquals(2)
 
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
-        compose.onAllNodesWithText(text(R.string.tab_settings), useUnmergedTree = true).assertCountEquals(2)
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.back)).assertExists()
         compose.onNodeWithText(text(R.string.section_scale)).assertExists()
         compose.onNodeWithText(text(R.string.section_server)).assertExists()
         compose.onNodeWithText("1.0-test", substring = true).assertExists()
 
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.onNodeWithText(text(R.string.tab_home)).performClick()
         compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription(text(R.string.timer_start)).performClick()
@@ -292,7 +293,7 @@ abstract class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().performClick()
         compose.waitForIdle()
 
@@ -548,7 +549,7 @@ abstract class AppScreensTest {
     @Test
     fun settingsRefusesPublicHttpAndSavesALocalServer() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithText(text(R.string.section_server)).performClick()
 
         compose.onNode(hasSetTextAction() and hasText(text(R.string.server_url))).performScrollTo().performTextReplacement("http://coffee.example.com")

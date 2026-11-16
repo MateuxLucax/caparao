@@ -178,6 +178,7 @@ abstract class ScreenOnboardingTests(lang: String, theme: String, compactOnly: B
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.section_diagnostics)), 5_000)
         compose.onNodeWithText(text(R.string.section_diagnostics)).performScrollTo().assertIsDisplayed()
         // The built-in V60 recipe in the editor: its name, then its method on the card.
+        tapBack()
         click(R.string.tab_recipes)
         compose.onAllNodesWithText("V60").onFirst().performClick()
         // The recipe loads from the database off the main thread; wait until the form is there.

@@ -1,10 +1,12 @@
 package dev.mateux.caparao.ui
 
+import android.view.accessibility.AccessibilityManager
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,9 +25,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.heading
@@ -95,7 +103,6 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
     RECIPES(R.string.tab_recipes, R.drawable.ic_menu_book),
     COFFEES(R.string.tab_coffees, R.drawable.ic_coffee),
     BREWS(R.string.tab_brews, R.drawable.ic_receipt_long),
-    SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
 }
 
 /**
@@ -223,7 +230,7 @@ private fun Main(
                     onRate = { backStack.add(Destination.Rating(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
-                    onSettings = { backStack.add(Destination.Settings(it)) },
+                    onSettingsHome = { backStack.add(Destination.SettingsHome) },
                 )
             }
             entry<Destination.Brew> { shown ->
@@ -324,6 +331,13 @@ private fun Main(
                     onClose = { backStack.popEntry(shown) },
                 )
             }
+            entry<Destination.SettingsHome> {
+                SettingsHome(
+                    viewModelFactory, settingsServer, settingsScale, settingsDiagnostics, actions, versionName,
+                    onClose = { backStack.popEntry(Destination.SettingsHome) },
+                    onOpen = { backStack.add(Destination.Settings(it)) },
+                )
+            }
         },
         transitionSpec = { Motion.sharedAxisX(forward = true, density) },
         popTransitionSpec = { Motion.sharedAxisX(forward = false, density) },
@@ -357,6 +371,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
     @Serializable data class Adjustment(val bagId: String, val recipeId: String) : Destination
+    @Serializable data object SettingsHome : Destination
     @Serializable data class Settings(val detail: SettingsDetail) : Destination
 }
 
@@ -376,15 +391,34 @@ private fun Tabs(
     onRate: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
-    onSettings: (SettingsDetail) -> Unit,
+    onSettingsHome: () -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    var bottomBarVisible by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(tab) { bottomBarVisible = true }
+    val touchExploration = LocalContext.current.getSystemService(AccessibilityManager::class.java).isTouchExplorationEnabled
+    LaunchedEffect(touchExploration) { if (touchExploration) bottomBarVisible = true }
+    val onScroll = rememberUpdatedState<(Float) -> Unit> { delta ->
+        if (!touchExploration) when {
+            delta < -0.5f -> bottomBarVisible = false
+            delta > 0.5f -> bottomBarVisible = true
+        }
+    }
+    val scrollConnection = remember(tab, touchExploration) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (tab == Tab.RECIPES || tab == Tab.COFFEES || tab == Tab.BREWS) onScroll.value(available.y)
+                return Offset.Zero
+            }
+        }
+    }
     LaunchedEffect(shortcutTab) {
         shortcutTab?.let { tab = it; onShortcutTabConsumed() }
     }
     // The Home one, so the bar and the screen share a connection state.
     val scale: HomeViewModel = viewModel(factory = viewModelFactory)
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -398,23 +432,26 @@ private fun Tabs(
                     )
                 },
                 actions = {
-                    if (tab != Tab.SETTINGS) {
-                        val scaleState = scale.uiState.collectAsStateWithLifecycle().value.scale
-                        ScaleBatteryStatus(scaleState)
-                        ScaleStatusIcon(scaleState, Modifier.padding(end = 12.dp))
+                    val scaleState = scale.uiState.collectAsStateWithLifecycle().value.scale
+                    ScaleBatteryStatus(scaleState)
+                    ScaleStatusIcon(scaleState, Modifier.padding(end = 12.dp))
+                    IconButton(onClick = onSettingsHome) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.tab_settings))
                     }
                 },
             )
         },
         bottomBar = {
-            ShortNavigationBar {
-                Tab.entries.forEach { entry ->
-                    ShortNavigationBarItem(
-                        selected = tab == entry,
-                        onClick = { tab = entry },
-                        icon = { Icon(painterResource(entry.icon), contentDescription = null) },
-                        label = { Text(stringResource(entry.label)) },
-                    )
+            if (bottomBarVisible) {
+                ShortNavigationBar {
+                    Tab.entries.forEach { entry ->
+                        ShortNavigationBarItem(
+                            selected = tab == entry,
+                            onClick = { tab = entry },
+                            icon = { Icon(painterResource(entry.icon), contentDescription = null) },
+                            label = { Text(stringResource(entry.label)) },
+                        )
+                    }
                 }
             }
         },
@@ -430,19 +467,44 @@ private fun Tabs(
                     modifier,
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
-                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = { tab = Tab.SETTINGS }, modifier = modifier)
-                Tab.SETTINGS -> SettingsScreen(
-                    settingsServer,
-                    settingsScale,
-                    viewModel(factory = viewModelFactory),
-                    settingsDiagnostics,
-                    actions,
-                    versionName,
-                    onSettings,
-                    modifier,
-                )
+                Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = onSettingsHome, modifier = modifier)
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsHome(
+    viewModelFactory: ViewModelProvider.Factory,
+    server: ServerViewModel,
+    scale: ScaleStatusViewModel,
+    diagnostics: CaptureViewModel,
+    actions: AppActions,
+    versionName: String,
+    onClose: () -> Unit,
+    onOpen: (SettingsDetail) -> Unit,
+) {
+    Scaffold(topBar = {
+        TopAppBar(
+            title = {
+                Text(
+                    stringResource(R.string.tab_settings),
+                    modifier = Modifier.semantics {
+                        heading()
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onClose) {
+                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
+                }
+            },
+        )
+    }) { padding ->
+        SettingsScreen(server, scale, viewModel(factory = viewModelFactory), diagnostics, actions, versionName, onOpen, Modifier.padding(padding))
     }
 }
 
