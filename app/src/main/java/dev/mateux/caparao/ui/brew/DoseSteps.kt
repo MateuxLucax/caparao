@@ -638,10 +638,11 @@ fun WeighStep(state: BrewUiState, onTare: () -> Unit, onNext: (Double) -> Unit, 
 
 /** Espresso puck preparation; checks are local to this visit and never affect the Ready action. */
 @Composable
-fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
+fun PortafilterStep(state: BrewUiState, onReady: () -> Unit, onEditAdjustment: () -> Unit = {}) {
     val locale = LocalConfiguration.current.locales[0]
     var checked by remember { mutableStateOf(setOf<Int>()) }
-    val grind = state.recipe?.grind?.toString()
+    val grind = state.recipe?.grind?.let { recipeGrind -> (state.activeAdjustment?.grind ?: recipeGrind).toString() }
+    val temp = state.recipe?.waterTempCelsius?.let { recipeTemp -> "${state.activeAdjustment?.waterTempCelsius ?: recipeTemp} ${stringResource(R.string.unit_celsius)}" }
     val items = listOf(
         PrepRowData(stringResource(R.string.prepare_rdt)),
         PrepRowData(stringResource(R.string.prepare_grind), grind),
@@ -679,12 +680,14 @@ fun PortafilterStep(state: BrewUiState, onReady: () -> Unit) {
             modifier = Modifier.padding(top = if (compact) 8.dp else 6.dp),
         ) {
             Text(
-                prepareStrip(state, locale),
+                listOfNotNull(prepareStrip(state, locale).let { if (state.activeAdjustment?.grind != null) stringResource(R.string.prepare_dose, Format.grams(state.dose ?: 0.0, locale)) else it },
+                    state.activeAdjustment?.grind?.let { stringResource(R.string.brew_strip_grind, it) }, temp).joinToString(" · "),
                 Modifier.testTag("portafilter-dose").padding(horizontal = 14.dp, vertical = 5.dp),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (state.bagId != null) TextButton(onClick = onEditAdjustment, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.adjustment_edit)) }
         Column(
             Modifier.weight(1f).fillMaxWidth().padding(top = if (compact) 12.dp else 16.dp).testTag("portafilter-list"),
             verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),

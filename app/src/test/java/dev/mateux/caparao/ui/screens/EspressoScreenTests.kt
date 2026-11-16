@@ -69,8 +69,8 @@ import dev.mateux.caparao.data.local.RecipeRepository
 import dev.mateux.caparao.data.local.SeedBuiltInRecipes
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
-import dev.mateux.caparao.model.BrewSample
 import dev.mateux.caparao.model.CoffeeBag
+import dev.mateux.caparao.model.BrewSample
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.model.RecipeStep
 import dev.mateux.caparao.model.ScaleError
@@ -331,7 +331,7 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         // The localized counter's own prefix ("Step " or "Etapa "), so the check means something in pt-BR too.
         val counterPrefix = context.getString(R.string.step_of_named, 1, 8, "").substringBefore("1")
         compose.onAllNodes(hasText(counterPrefix, substring = true)).assertCountEquals(0)
-        compose.onNodeWithText(context.getString(R.string.prepare_dose, Format.grams(19.0, context.resources.configuration.locales[0]))).assertIsDisplayed()
+        compose.onNodeWithTag("portafilter-dose").assertExists()
         compose.onNodeWithText(text(R.string.prepare_grind)).assertIsDisplayed()
         compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertDoesNotExist()
         listOf(R.string.prepare_rdt, R.string.prepare_wdt, R.string.prepare_tamp, R.string.prepare_puck_screen).forEach {
@@ -350,6 +350,59 @@ abstract class ScreenEspressoTests(lang: String, theme: String, compactOnly: Boo
         compose.waitForIdle()
         compose.onAllNodes(hasText(text(R.string.espresso_place_cup))).assertCountEquals(0)
         compose.onAllNodes(hasText(text(R.string.taring))).assertCountEquals(0)
+    }
+
+    @Test
+    fun adjustmentFromPreparationUpdatesShotAndCoffeeDetail() {
+        seedCoffeeBags()
+        runBlocking {
+            recipes.get(BuiltInRecipes.ESPRESSO_ID)?.let { recipes.save(it.copy(grind = 10)) }
+            linkBrew("prior-espresso", "bag-1", 19.0, recipeId = BuiltInRecipes.ESPRESSO_ID)
+        }
+        val scale = open("synthetic-espresso-guide", 0)
+        click(R.string.mode_espresso)
+        compose.waitUntilAtLeastOneExists(hasText("Espresso Oster") and isSelectable(), 5_000)
+        compose.onNode(hasText("Espresso Oster") and isSelectable()).performClick()
+        click(R.string.next)
+        waitFor(R.string.coffee_step_title)
+        compose.onNodeWithTag("coffee-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("weigh-step-next"), 5_000)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        compose.onNodeWithText(text(R.string.adjustment_edit)).assertIsDisplayed().performClick()
+        waitFor(R.string.adjustment_title)
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(text(R.string.adjustment_more, text(R.string.recipe_grind)) )).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription(text(R.string.adjustment_more, text(R.string.recipe_grind)), useUnmergedTree = true).performClick()
+        click(R.string.save)
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        compose.onNodeWithTag("portafilter-dose").assertTextContains(text(R.string.brew_strip_grind, "11"), substring = true)
+        compose.onNodeWithText(text(R.string.prepare_grind)).assertExists()
+        compose.onNodeWithTag("portafilter-grind-setting", useUnmergedTree = true).assertTextContains("11")
+        click(R.string.prepare_ready)
+        compose.waitForIdle()
+        playUntilShown(scale, R.string.brewing_espresso, 60_000)
+        compose.onNodeWithText(text(R.string.brewing_espresso)).assertIsDisplayed()
+        tapCloseBrew()
+        waitFor(R.string.stop_brew_title)
+        clickLast(R.string.stop)
+        waitFor(R.string.brew_saved)
+        compose.onNode(hasText(text(R.string.done)) and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_home)), 5_000)
+        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onNodeWithText("Caparaó natural", substring = true).performClick()
+        waitFor(R.string.adjustments_title)
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.adjustment_grind_recipe, "11", "10"), substring = true), 5_000)
+        compose.onNodeWithText("Espresso Oster").assertExists()
+    }
+
+    @Test
+    fun preparationHidesAdjustmentWithoutCoffee() {
+        espressoDose()
+        click(R.string.next)
+        compose.onNodeWithTag("weigh-step-next").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("portafilter-ready"), 5_000)
+        compose.onNodeWithText(text(R.string.adjustment_edit)).assertDoesNotExist()
     }
 
     /** A cup already on the scale never reads as a rise: after a short wait the screen offers the tare by hand (#458). */

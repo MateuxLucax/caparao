@@ -8,6 +8,7 @@
     <!-- Navigation -->
     <string name="tab_home">Home</string>
     <string name="tab_brews">Brews</string>
+    <string name="tab_analytics">Analytics</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Home -->
@@ -55,6 +56,7 @@
     <string name="settings_no_browser">No browser available.</string>
     <string name="settings_allow_nearby">Allow Nearby devices</string>
     <string name="settings_brewing">Brewing</string>
+    <string name="settings_analytics">Analytics</string>
     <string name="settings_your_data">Your data</string>
     <string name="settings_app">App</string>
     <string name="settings_only_phone">Only on this phone</string>
@@ -209,6 +211,23 @@
 
     <!-- Recipes -->
     <string name="tab_recipes">Recipes</string>
+    <string name="coffee_caffeine">Caffeine (mg per gram)</string>
+    <string name="coffee_caffeine_hint">Estimate for this coffee. Use 10 mg/g for arabica and about 20 mg/g for robusta.</string>
+    <string name="analytics_this_week">This week</string>
+    <string name="analytics_last_week">Last week</string>
+    <string name="analytics_brews">Brews</string>
+    <string name="analytics_coffee">Coffee</string>
+    <string name="analytics_caffeine">Estimated caffeine</string>
+    <string name="analytics_today">Today</string>
+    <string name="analytics_about_mg">About %1$d mg</string>
+    <string name="analytics_bedtime">Bedtime</string>
+    <string name="analytics_caffeine_left">At bedtime: about %1$d mg</string>
+    <string name="analytics_last_coffee">Last coffee by %1$s</string>
+    <string name="analytics_over_50">Over 50 mg at bedtime</string>
+    <string name="analytics_nothing_today">Nothing today yet</string>
+    <string name="analytics_estimate_note">Caffeine amounts are estimates, not medical advice.</string>
+    <string name="analytics_chart_description">Caffeine through the day. At bedtime: about %1$d mg. %2$s.</string>
+    <string name="analytics_chart_reference">Dashed line: bedtime. Solid line: 50 mg.</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet.</string>
@@ -401,6 +420,12 @@
     <string name="coffee_tasting_notes_section">Tasting notes</string>
     <string name="coffee_notes_section">Notes</string>
     <string name="coffee_edit">Edit coffee</string>
+    <string name="coffee_read_label">Read label</string>
+    <string name="coffee_label_review">From the label</string>
+    <string name="coffee_read_another_side">Read another side</string>
+    <string name="coffee_label_nothing_new">Nothing new on this side.</string>
+    <string name="coffee_label_could_not_read">Couldn\'t read the label.</string>
+    <string name="coffee_label_model_unavailable">Couldn\'t read the label. Try again in a moment.</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>
     <string name="coffee_origin">Origin and process</string>
@@ -408,6 +433,19 @@
     <string name="coffee_roast_date">Roast date</string>
     <string name="coffee_roasted_on">Roasted on %1$s</string>
     <string name="coffee_left">%1$s of %2$s g left</string>
+    <string name="coffee_ends_today">Ends today</string>
+    <plurals name="coffee_days_left">
+        <item quantity="one">Lasts about %1$d more day</item>
+        <item quantity="other">Lasts about %1$d more days</item>
+    </plurals>
+    <string name="coffee_log_used">Log coffee used</string>
+    <string name="coffee_log_used_hint">Up to %1$s g left in this bag.</string>
+    <string name="coffee_log_used_field">Grams used</string>
+    <string name="coffee_used_outside_app">Used outside the app</string>
+    <string name="coffee_remove_use_title">Remove this entry?</string>
+    <string name="coffee_remove_use">Remove</string>
+    <string name="coffee_use_undo">Undo</string>
+    <string name="coffee_use_removed">Coffee use removed</string>
     <string name="coffee_finished">Finished</string>
     <string name="coffee_mark_finished">Mark as finished</string>
     <string name="coffee_mark_open">Mark as open</string>
@@ -418,6 +456,7 @@
     <string name="adjustment_grind">Grind %1$s</string>
     <string name="adjustment_grind_recipe">Grind %1$s (recipe %2$s)</string>
     <string name="adjustment_title">Adjustment</string>
+    <string name="adjustment_edit">Adjust</string>
     <string name="adjustment_recipe_value">recipe %1$s</string>
     <string name="adjustment_water">water %1$s g</string>
     <string name="adjustment_yield">yield %1$s g</string>

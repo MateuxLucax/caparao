@@ -184,6 +184,7 @@ dependencies {
     // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))
     implementation(libs.play.services.wearable)
+    implementation(libs.mlkit.text.recognition)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.wear.remote.interactions)
     // play-services-wearable pulls Fragment 1.0, whose activity results lint rejects for MainActivity.

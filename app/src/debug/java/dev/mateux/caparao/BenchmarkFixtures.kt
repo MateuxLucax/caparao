@@ -15,18 +15,19 @@ import java.util.UUID
  * [DebugScaleHooks.EXTRA_BENCHMARK_SEED_BREWS]; the debug hook seeds the fixture before the first frame.
  */
 object BenchmarkFixtures {
-    private const val FILTER_BREWS = 12
-    private const val ESPRESSO_BREWS = 12
+    private const val BREWS_PER_DAY = 2
+    private const val DAYS = 14
     private const val SAMPLES = 120
     private const val SAMPLE_PERIOD_MS = 250L
     private const val HOUR_MS = 60L * 60L * 1000L
+    private const val DAY_MS = 24L * HOUR_MS
 
     @JvmStatic
     fun seed(container: AppContainer) = runBlocking(Dispatchers.IO) {
         // A repeated benchmark launch (WARM/HOT startup) must not duplicate the list.
         if (container.brews.latest() != null) return@runBlocking
         val now = System.currentTimeMillis()
-        repeat(FILTER_BREWS + ESPRESSO_BREWS) { index ->
+        repeat(BREWS_PER_DAY * DAYS) { index ->
             val mode = if (index % 2 == 0) BrewMode.FILTER else BrewMode.ESPRESSO
             val filter = mode == BrewMode.FILTER
             val dose = if (filter) 20.0 else 18.0
@@ -44,7 +45,7 @@ object BenchmarkFixtures {
                 Brew(
                     id = UUID.randomUUID().toString(),
                     mode = mode,
-                    startedAt = now - index * HOUR_MS,
+                    startedAt = now - (index / BREWS_PER_DAY) * DAY_MS - (if (index % BREWS_PER_DAY == 0) 8 else 2) * HOUR_MS,
                     durationMs = durationMs,
                     doseGrams = dose,
                     yieldGrams = yield,

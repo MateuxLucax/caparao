@@ -43,11 +43,11 @@ class BagRecipeAdjustmentMigrationTest {
         }
 
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_10_11, BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13)
+            .addMigrations(BrewDatabase.MIGRATION_10_11, BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13, BrewDatabase.MIGRATION_13_14, BrewDatabase.MIGRATION_14_15)
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(13, migrated.openHelper.readableDatabase.version)
+            assertEquals(15, migrated.openHelper.readableDatabase.version)
             val tables = mutableSetOf<String>()
             migrated.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
                 while (cursor.moveToNext()) tables += cursor.getString(0)

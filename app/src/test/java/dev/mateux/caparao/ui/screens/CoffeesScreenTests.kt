@@ -40,6 +40,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -82,7 +83,9 @@ import dev.mateux.caparao.model.ScaleState
 import dev.mateux.caparao.model.StepKind
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
+import dev.mateux.caparao.ui.coffees.estimatedDaysLeft
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -133,6 +136,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -152,6 +156,23 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
+    @Test
+    fun estimatedDaysLeftRequiresRecentUsesAndRemainingCoffee() {
+        val day = 86_400_000L
+        val now = 14 * day
+        fun brew(id: String, daysAgo: Int, dose: Double = 10.0) = Brew(
+            id = id, mode = BrewMode.FILTER, startedAt = now - daysAgo * day, durationMs = 60_000,
+            doseGrams = dose, yieldGrams = 150.0, timeToFirstDropMs = null, flowAvgGramsPerSecond = 1.0,
+            flowPeakGramsPerSecond = 2.0, interrupted = false,
+        )
+        assertNull(estimatedDaysLeft(100.0, listOf(brew("one", 1), brew("two", 2)), now))
+        assertEquals(1, estimatedDaysLeft(30.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertNull(estimatedDaysLeft(0.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertNull(estimatedDaysLeft(100.0, listOf(brew("old-a", 16), brew("old-b", 17), brew("old-c", 18)), now))
+        assertEquals(0, estimatedDaysLeft(1.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertEquals(1, estimatedDaysLeft(30.0, emptyList(), now, listOf(10 to now - day, 10 to now - day, 10 to now)))
+    }
+
     /**
      * Back rows with the coffee step (#291): Beans goes back to Coffee with its pick kept, Coffee goes back to Dose, and the
      * X closes the brew from Coffee.
@@ -205,6 +226,8 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNodeWithTag("coffee-bag-editor").assertIsDisplayed()
+        compose.onNodeWithTag("coffee-label-camera").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_read_label)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.tab_home)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
         compose.onNodeWithContentDescription(text(R.string.tab_settings)).assertDoesNotExist()
@@ -224,6 +247,127 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         clickLast(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Mantiqueira", substring = true), 5_000)
         compose.onNodeWithText("Mantiqueira", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun recognizedLabelTextFillsOnlyMissingSupportedFields() {
+        val today = LocalDate.of(2026, 11, 16)
+        val lines = listOf(
+            dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
+            dev.mateux.caparao.model.LabelLine("Torrado em 12/11/2026", 30f),
+            dev.mateux.caparao.model.LabelLine("250 g", 28f),
+            dev.mateux.caparao.model.LabelLine("Chocolate", 18f),
+            dev.mateux.caparao.model.LabelLine("Validade 12/11/2027", 12f),
+        )
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed name", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        runBlocking { editor.readLabel(java.io.File("fake.jpg"), listOf("Torra Alta"), listOf("Chocolate"), today) }
+        assertEquals("Typed name", editor.form.value.name)
+        assertEquals("340", editor.form.value.weight)
+        assertEquals("Torra Alta", editor.form.value.roaster)
+        assertEquals(today.minusDays(4).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(), editor.form.value.roastedAt)
+        assertEquals(listOf("Chocolate"), editor.form.value.tastingNotes)
+    }
+
+    @Test
+    fun unrecognizedTorraLineAppearsAsAChip() {
+        val lines = listOf(
+            dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
+            dev.mateux.caparao.model.LabelLine("250 g", 36f),
+            dev.mateux.caparao.model.LabelLine("Torrado em 10/11/2026", 32f),
+            dev.mateux.caparao.model.LabelLine("Caparaó natural", 28f),
+            dev.mateux.caparao.model.LabelLine("Jasmim", 24f),
+        )
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            assertEquals("", editor.form.value.roaster)
+            compose.onNodeWithTag("coffee-label-Torra Alta").assertIsDisplayed()
+        } finally { photo.delete() }
+    }
+
+    @Test
+    fun labelReadingKeepsExistingValuesAndAssignedChipsDoNotReturn() {
+        var lines = listOf(
+            dev.mateux.caparao.model.LabelLine("250 g", 20f),
+            dev.mateux.caparao.model.LabelLine("Blueberry", 10f),
+        )
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed coffee", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            compose.onNodeWithText(text(R.string.coffee_label_review)).assertIsDisplayed()
+            compose.onNodeWithText("Blueberry").performClick()
+            compose.onAllNodes(hasText(text(R.string.coffee_origin)) and hasClickAction()).onLast().performClick()
+            compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+            assertEquals("Blueberry", editor.form.value.origin)
+            lines = listOf(
+                dev.mateux.caparao.model.LabelLine("100 g", 20f),
+                dev.mateux.caparao.model.LabelLine("Blueberry", 10f),
+                dev.mateux.caparao.model.LabelLine("Cherry", 8f),
+            )
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
+            compose.onNodeWithTag("coffee-label-Cherry").assertIsDisplayed()
+            assertEquals("340", editor.form.value.weight)
+            assertEquals("Blueberry", editor.form.value.origin)
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.NOTHING_NEW, editor.labelDraft.value.message)
+        } finally { photo.delete() }
+    }
+
+    @Test
+    fun emptyOrFailedLabelRecognitionLeavesTheFormUnchanged() {
+        var fail = false
+        var modelUnavailable = false
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(name = "Typed coffee", weight = "340"),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer {
+                when {
+                    modelUnavailable -> throw dev.mateux.caparao.ui.coffees.LabelModelUnavailableException(IllegalStateException())
+                    fail -> error("recognition failed")
+                    else -> emptyList()
+                }
+            },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.COULD_NOT_READ, editor.labelDraft.value.message)
+            compose.onNodeWithText(text(R.string.coffee_label_could_not_read)).assertIsDisplayed()
+            fail = true
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.COULD_NOT_READ, editor.labelDraft.value.message)
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+            modelUnavailable = true
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.MODEL_UNAVAILABLE, editor.labelDraft.value.message)
+            compose.onNodeWithText(text(R.string.coffee_label_model_unavailable)).assertIsDisplayed()
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+        } finally { photo.delete() }
     }
 
     @Test
@@ -416,6 +560,54 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNode(hasSetTextAction() and hasText("Caparaó natural")).assertIsDisplayed()
     }
 
+    @Test
+    fun coffeeBagDetailShowsEstimateOnlyWithEnoughRecentUse() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag("estimate-bag", "Estimate coffee", weightGrams = 250.0, createdAt = now))
+        }
+        repeat(3) { index ->
+            runBlocking {
+                db.brews().insertWithSamples(
+                    BrewEntity(
+                        id = "estimate-$index", mode = "FILTER", startedAt = now - (13 - index * 6) * 86_400_000L,
+                        durationMs = 60_000, doseGrams = 10.0, yieldGrams = 150.0, timeToFirstDropMs = null,
+                        flowAvg = 1.0, flowPeak = 2.0, interrupted = false, syncedAt = null, coffee = null,
+                        rating = null, bagId = "estimate-bag",
+                    ), emptyList(),
+                )
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Estimate coffee", substring = true), 5_000)
+        compose.onNodeWithText("Estimate coffee", substring = true).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "220", "250")), 5_000)
+        val estimateText = context.resources.getQuantityString(R.plurals.coffee_days_left, 1, 1)
+        compose.waitUntilAtLeastOneExists(hasText(estimateText.substringBefore("1"), substring = true), 5_000)
+        compose.onNodeWithText(estimateText.substringBefore("1"), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_ends_today)).assertDoesNotExist()
+    }
+
+    @Test
+    fun coffeeUsedOutsideAppCanBeLoggedRemovedAndUndoneWithinRemainingWeight() {
+        openCoffeeBag()
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        compose.onNodeWithText(text(R.string.save)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_used_outside_app)).performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.coffee_remove_use_title)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_use_undo)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("233")
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+    }
+
     /**
      * The adjustments per recipe (#462): a recipe the bag was brewed with follows the recipe until it is adjusted; the
      * adjustment is edited, shows on the detail with its history, and goes back to the recipe after a confirmation.
@@ -587,6 +779,25 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText("Bourbon amarelo", substring = true).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.coffees_finished_count, 1)).performScrollTo().performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Bourbon amarelo", substring = true).fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test
+    fun halfUsedCoffeeBarAppearsOnListAndDetail() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(
+                CoffeeBag("half-used", "Half-used coffee", weightGrams = 250.0, createdAt = now),
+            )
+        }
+        linkBrew("half-used-brew", "half-used", 125.0)
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Half-used coffee"), 5_000)
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "125", "250")).assertIsDisplayed()
+        compose.onNodeWithTag("coffee-bag-level").assertIsDisplayed()
+        compose.onNodeWithText("Half-used coffee").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "125", "250")), 5_000)
+        compose.onNodeWithTag("coffee-bag-level").assertIsDisplayed()
     }
 
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
