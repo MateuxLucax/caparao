@@ -40,8 +40,9 @@ data class BagForm(
     val sourceBagId: String? = null,
     val finishSource: Boolean = true,
     val copiedAdjustmentCount: Int = 0,
+    val caffeineMgPerGram: String = "10",
 ) {
-    val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null
+    val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null && caffeineMgPerGram.toIntOrNull() in 1..40
 
     /**
      * Adds [value] as a tasting note when there is room: trimmed, case-insensitive duplicates ignored,
@@ -64,12 +65,14 @@ data class BagForm(
         finished = finished,
         createdAt = createdAt ?: now,
         tastingNotes = tastingNotes.take(6).map(String::trim).filter(String::isNotEmpty),
+        caffeineMgPerGram = caffeineMgPerGram.toIntOrNull()?.takeUnless { it == 10 },
     )
 
     companion object {
         fun of(bag: CoffeeBag) = BagForm(
             bag.id, bag.name, bag.roaster.orEmpty(), bag.origin.orEmpty(), bag.roastedAt,
             RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), bag.notes.orEmpty(), bag.finished, bag.createdAt, bag.tastingNotes,
+            caffeineMgPerGram = bag.caffeineMgPerGram?.toString() ?: "10",
         )
     }
 }

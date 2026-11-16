@@ -25,6 +25,8 @@ data class CoffeeBag(
     val averageRating: Double? = null,
     /** Ordered tasting profile; at most six short notes, stored on this phone only. */
     val tastingNotes: List<String> = emptyList(),
+    /** Estimated caffeine in milligrams per gram; null uses the 10 mg/g default. */
+    val caffeineMgPerGram: Int? = null,
 ) {
     val leftGrams: Double get() = (weightGrams - usedGrams).coerceAtLeast(0.0)
 

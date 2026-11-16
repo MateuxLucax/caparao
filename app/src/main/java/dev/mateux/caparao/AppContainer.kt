@@ -38,6 +38,7 @@ import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
 import dev.mateux.caparao.ui.brews.BrewSuggestions
 import dev.mateux.caparao.ui.brews.BrewsViewModel
 import dev.mateux.caparao.ui.home.HomeViewModel
+import dev.mateux.caparao.ui.analytics.AnalyticsViewModel
 import dev.mateux.caparao.ui.onboarding.OnboardingViewModel
 import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
@@ -170,6 +171,7 @@ class AppContainer(context: Context) {
         initializer { TargetRatioViewModel(settings) }
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
+        initializer { AnalyticsViewModel(brews, coffeeBags.bags) }
         initializer { CoffeeBagsViewModel(coffeeBags, adjustments = bagRecipeAdjustments) }
         initializer { CoffeeEditorViewModel(createSavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET]), labelRecognizer) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, bagRecipeAdjustments) }

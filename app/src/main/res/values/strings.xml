@@ -8,6 +8,7 @@
     <!-- Navigation -->
     <string name="tab_home">Home</string>
     <string name="tab_brews">Brews</string>
+    <string name="tab_analytics">Analytics</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Home -->
@@ -200,6 +201,15 @@
 
     <!-- Recipes -->
     <string name="tab_recipes">Recipes</string>
+    <string name="coffee_caffeine">Caffeine (mg per gram)</string>
+    <string name="coffee_caffeine_hint">Estimate for this coffee. Use 10 mg/g for arabica and about 20 mg/g for robusta.</string>
+    <string name="analytics_this_week">This week</string>
+    <string name="analytics_last_week">Last week</string>
+    <string name="analytics_brews">Brews</string>
+    <string name="analytics_coffee">Coffee</string>
+    <string name="analytics_caffeine">Estimated caffeine</string>
+    <string name="analytics_today">Today</string>
+    <string name="analytics_about_mg">About %1$d mg</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet.</string>
