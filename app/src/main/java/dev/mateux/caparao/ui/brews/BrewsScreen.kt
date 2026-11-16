@@ -57,9 +57,10 @@ import dev.mateux.caparao.ui.components.icon
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.components.segmentedShape
 import dev.mateux.caparao.ui.format.Format
+import dev.mateux.caparao.ui.theme.RowTitle
+import dev.mateux.caparao.ui.theme.SectionHeading
+import dev.mateux.caparao.ui.theme.Figure
 import kotlinx.coroutines.launch
-
-private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
 /** Saved brews in one list by date: the ones to rate first, then the rest, under the upload status and a coffee filter (#466). */
 @Composable
@@ -111,7 +112,7 @@ private fun SectionTitle(@StringRes title: Int) {
     Text(
         stringResource(title),
         Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp).semantics { heading() },
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleMedium.merge(SectionHeading),
         color = MaterialTheme.colorScheme.primary,
     )
 }
@@ -205,9 +206,9 @@ private fun BrewRow(line: BrewLine, shape: Shape, onClick: () -> Unit, onRate: (
             Icon(painterResource(brew.mode.icon), contentDescription = stringResource(brew.mode.label), Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(numbers, style = MaterialTheme.typography.bodyMedium.merge(Tabular))
-                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, style = MaterialTheme.typography.titleMedium.merge(RowTitle), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(numbers, style = MaterialTheme.typography.bodyMedium.merge(Figure))
+                Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(12.dp))
             if (onRate != null) {
@@ -218,7 +219,7 @@ private fun BrewRow(line: BrewLine, shape: Shape, onClick: () -> Unit, onRate: (
                     Row(Modifier.clearAndSetSemantics { contentDescription = stars }, verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(R.drawable.ic_star), contentDescription = null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(2.dp))
-                        Text(rating.toString(), style = MaterialTheme.typography.titleMedium.merge(Tabular))
+                        Text(rating.toString(), style = MaterialTheme.typography.titleMedium.merge(Figure))
                     }
                 }
             }

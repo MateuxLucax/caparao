@@ -120,6 +120,8 @@ import dev.mateux.caparao.ui.server.ServerViewModel
 import dev.mateux.caparao.ui.settings.CaptureViewModel
 import dev.mateux.caparao.ui.settings.TargetRatioViewModel
 import dev.mateux.caparao.ui.theme.AppTheme
+import dev.mateux.caparao.ui.theme.AppTypography
+import dev.mateux.caparao.ui.theme.RobotoFlex
 import dev.mateux.caparao.ui.components.ScaleReadout
 import dev.mateux.caparao.ui.components.readableOn
 import dev.mateux.caparao.ui.components.ringStroke
@@ -156,6 +158,19 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenTestSupport(protected val lang: String, protected val theme: String, protected val compactOnly: Boolean = false) {
+
+    @Test
+    fun appTypographyUsesRobotoFlexForEveryStyle() {
+        listOf(
+            AppTypography.displayLarge, AppTypography.displayMedium, AppTypography.displaySmall,
+            AppTypography.headlineLarge, AppTypography.headlineMedium, AppTypography.headlineSmall,
+            AppTypography.titleLarge, AppTypography.titleMedium, AppTypography.titleSmall,
+            AppTypography.bodyLarge, AppTypography.bodyMedium, AppTypography.bodySmall,
+            AppTypography.labelLarge, AppTypography.labelMedium, AppTypography.labelSmall,
+            AppTypography.titleLargeEmphasized, AppTypography.titleMediumEmphasized, AppTypography.titleSmallEmphasized,
+            AppTypography.labelLargeEmphasized, AppTypography.labelMediumEmphasized, AppTypography.labelSmallEmphasized,
+        ).forEach { assertEquals(RobotoFlex, it.fontFamily) }
+    }
     @get:Rule
     val compose = createComposeRule()
 
