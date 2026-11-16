@@ -8,13 +8,15 @@ import kotlin.math.roundToInt
 data class NoteFound(val note: String, val found: Int)
 
 /** Whole days left at the bag's average daily dose over its recent brews, or null without enough recent use. */
-fun estimatedDaysLeft(leftGrams: Double, brews: List<Brew>, now: Long): Int? {
+fun estimatedDaysLeft(leftGrams: Double, brews: List<Brew>, now: Long, loggedUse: List<Pair<Int, Long>> = emptyList()): Int? {
     if (leftGrams <= 0.0) return null
-    val recent = brews.filter { now - it.startedAt in 0..(14 * DAY_MS) }
-    if (recent.size < 3) return null
-    val firstUse = recent.minOf { it.startedAt }
+    val recentBrews = brews.filter { now - it.startedAt in 0..(14 * DAY_MS) }
+    val recentLoggedUse = loggedUse.filter { (_, at) -> now - at in 0..(14 * DAY_MS) }
+    if (recentBrews.size + recentLoggedUse.size < 3) return null
+    val uses = recentBrews.map { it.startedAt to it.doseGrams } + recentLoggedUse.map { (grams, at) -> at to grams.toDouble() }
+    val firstUse = uses.minOf { it.first }
     val days = ((now - firstUse) / DAY_MS).coerceIn(1, 14)
-    val gramsPerDay = recent.sumOf { it.doseGrams } / days
+    val gramsPerDay = uses.sumOf { it.second } / days
     if (gramsPerDay <= 0.0) return null
     val remaining = leftGrams / gramsPerDay
     return if (remaining < 1.0) 0 else remaining.roundToInt().coerceAtLeast(1)

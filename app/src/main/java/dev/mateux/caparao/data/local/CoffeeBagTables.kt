@@ -3,6 +3,8 @@ package dev.mateux.caparao.data.local
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
@@ -26,6 +28,20 @@ data class CoffeeBagEntity(
     @ColumnInfo(name = "tasting_notes", defaultValue = "'[]'") val tastingNotes: List<String> = emptyList(),
 )
 
+@Entity(
+    tableName = "coffee_use_entries",
+    foreignKeys = [ForeignKey(CoffeeBagEntity::class, ["id"], ["bag_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("bag_id")],
+)
+data class CoffeeUseEntryEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "bag_id") val bagId: String,
+    @ColumnInfo(name = "grams") val grams: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+data class CoffeeUseEntry(@ColumnInfo(name = "id") val id: String, val grams: Int, @ColumnInfo(name = "created_at") val createdAt: Long)
+
 /** A bag with what its linked brews add up to (#288). */
 data class CoffeeBagUsage(
     @androidx.room.Embedded val bag: CoffeeBagEntity,
@@ -40,6 +56,15 @@ data class CoffeeBagUsage(
 interface CoffeeBagDao {
     @Upsert
     suspend fun upsert(bag: CoffeeBagEntity)
+
+    @Insert
+    suspend fun insertUseEntry(entry: CoffeeUseEntryEntity)
+
+    @Query("DELETE FROM coffee_use_entries WHERE id = :entryId AND bag_id = :bagId")
+    suspend fun deleteUseEntry(bagId: String, entryId: String)
+
+    @Query("SELECT id, grams, created_at FROM coffee_use_entries WHERE bag_id = :bagId ORDER BY created_at DESC")
+    fun observeUseEntries(bagId: String): Flow<List<CoffeeUseEntry>>
 
     @Query("UPDATE coffee_bags SET finished = 1 WHERE id = :id")
     suspend fun finish(id: String)
@@ -103,6 +128,7 @@ class TastingNotesConverter {
     }
 }
 
-private const val USAGE_QUERY = "SELECT coffee_bags.*, COALESCE(SUM(brews.dose_grams), 0) AS used_grams, " +
+private const val USAGE_QUERY = "SELECT coffee_bags.*, COALESCE(SUM(brews.dose_grams), 0) + " +
+    "COALESCE((SELECT SUM(grams) FROM coffee_use_entries WHERE bag_id = coffee_bags.id), 0) AS used_grams, " +
     "COUNT(brews.id) AS brew_count, MAX(brews.started_at) AS last_brew_at, AVG(brews.rating) AS average_rating " +
     "FROM coffee_bags LEFT JOIN brews ON brews.bag_id = coffee_bags.id"

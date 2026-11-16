@@ -170,6 +170,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         assertNull(estimatedDaysLeft(0.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
         assertNull(estimatedDaysLeft(100.0, listOf(brew("old-a", 16), brew("old-b", 17), brew("old-c", 18)), now))
         assertEquals(0, estimatedDaysLeft(1.0, listOf(brew("a", 1), brew("b", 1), brew("c", 1)), now))
+        assertEquals(1, estimatedDaysLeft(30.0, emptyList(), now, listOf(10 to now - day, 10 to now - day, 10 to now)))
     }
 
     /**
@@ -586,6 +587,25 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.waitUntilAtLeastOneExists(hasText(estimateText.substringBefore("1"), substring = true), 5_000)
         compose.onNodeWithText(estimateText.substringBefore("1"), substring = true).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.coffee_ends_today)).assertDoesNotExist()
+    }
+
+    @Test
+    fun coffeeUsedOutsideAppCanBeLoggedRemovedAndUndoneWithinRemainingWeight() {
+        openCoffeeBag()
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        compose.onNodeWithText(text(R.string.save)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_used_outside_app)).performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.coffee_remove_use_title)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_use_undo)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("233")
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
     }
 
     /**

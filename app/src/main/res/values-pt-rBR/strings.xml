@@ -404,6 +404,14 @@
         <item quantity="one">Dura mais uns %1$d dias</item>
         <item quantity="other">Dura mais uns %1$d dias</item>
     </plurals>
+    <string name="coffee_log_used">Registrar café usado</string>
+    <string name="coffee_log_used_hint">Restam até %1$s g neste pacote.</string>
+    <string name="coffee_log_used_field">Gramas usados</string>
+    <string name="coffee_used_outside_app">Usado fora do app</string>
+    <string name="coffee_remove_use_title">Remover este registro?</string>
+    <string name="coffee_remove_use">Remover</string>
+    <string name="coffee_use_undo">Desfazer</string>
+    <string name="coffee_use_removed">Uso de café removido</string>
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>

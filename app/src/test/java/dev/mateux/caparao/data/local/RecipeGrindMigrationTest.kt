@@ -42,7 +42,7 @@ class RecipeGrindMigrationTest {
         }
 
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_12_13)
+            .addMigrations(BrewDatabase.MIGRATION_12_13, BrewDatabase.MIGRATION_13_14)
             .allowMainThreadQueries()
             .build()
         try {
@@ -54,7 +54,7 @@ class RecipeGrindMigrationTest {
             assertEquals(null, migrated.recipes().get("recipe-5")!!.grind)
             assertEquals(null, migrated.recipes().get("recipe-6")!!.grind)
             assertEquals(1, migrated.recipes().steps("recipe-0").size)
-            assertEquals(13, migrated.openHelper.readableDatabase.version)
+            assertEquals(14, migrated.openHelper.readableDatabase.version)
         } finally {
             migrated.close()
         }
