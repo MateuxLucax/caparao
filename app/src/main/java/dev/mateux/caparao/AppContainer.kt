@@ -44,6 +44,7 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
+import dev.mateux.caparao.ui.coffees.MlKitLabelRecognizer
 import androidx.lifecycle.createSavedStateHandle
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import dev.mateux.caparao.ui.settings.ScaleStatusViewModel
@@ -113,6 +114,8 @@ class AppContainer(context: Context) {
     val recipes = RecipeRepository(database.recipes())
 
     val coffeeBags = CoffeeBagRepository(database.coffeeBags())
+    private val labelRecognizer = (appContext as CaparaoApplication).debugHooks.createLabelRecognizer(appContext)
+        ?: MlKitLabelRecognizer(appContext)
 
     val bagRecipeAdjustments = BagRecipeAdjustmentRepository(database.bagRecipeAdjustments())
     val brewSuggestions = BrewSuggestions(recipes, bagRecipeAdjustments)
@@ -168,7 +171,7 @@ class AppContainer(context: Context) {
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags, adjustments = bagRecipeAdjustments) }
-        initializer { CoffeeEditorViewModel(createSavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
+        initializer { CoffeeEditorViewModel(createSavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET]), labelRecognizer) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, bagRecipeAdjustments) }
         initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, bagRecipeAdjustments) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
