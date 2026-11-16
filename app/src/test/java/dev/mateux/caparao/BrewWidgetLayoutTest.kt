@@ -100,6 +100,7 @@ class BrewWidgetLayoutTest {
                         assertTrue("empty chooser action remains visible", emptyActionLabel.width > 0)
                         assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
                     } else {
+                        assertEquals(root.paddingTop, root.findViewById<View>(R.id.widget_title).top)
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
@@ -150,6 +151,8 @@ class BrewWidgetLayoutTest {
                                 assertEquals(root.width - root.paddingRight - root.paddingLeft, root.findViewById<View>(R.id.widget_action).width)
                             } else {
                                 assertTrue(root.findViewById<View>(R.id.widget_action).left > root.findViewById<View>(R.id.widget_method).left)
+                                val summary = root.findViewById<TextView>(R.id.widget_method)
+                                assertTrue("summary wraps at most twice: ${summary.layout.lineCount}", summary.layout.lineCount in 1..2)
                             }
                             assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_coffee).text)
                             assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
