@@ -124,7 +124,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
     @Test
     fun ratingReminderDelayIsASettingsRowWithFiveToFifteenMinuteChoices() {
         open("idle-5min", 0)
-        compose.onNodeWithText(text(R.string.tab_settings)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).performClick()
         compose.onNodeWithTag("rating-reminder-delay").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.rating_reminder_delay_value, 10)).assertIsDisplayed()
         compose.onNodeWithTag("rating-reminder-delay").performClick()

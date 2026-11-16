@@ -26,6 +26,7 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -48,6 +49,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
@@ -148,6 +151,26 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Boolean = false) : ScreenTestSupport(lang, theme, compactOnly) {
+    @Test
+    fun navigationBarTracksRecipeListScrollAndSettingsReturnsToRecipes() {
+        repeat(12) { index ->
+            val seed = checkNotNull(runBlocking { recipes.get(BuiltInRecipes.V60_ID) })
+            runBlocking { recipes.save(seed.copy(id = "bar-scroll-$index", name = "Bar scroll $index")) }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.waitUntilAtLeastOneExists(hasText("Bar scroll 0"), 5_000)
+        val recipeTab = hasText(text(R.string.tab_recipes)) and isSelectable()
+        compose.onNode(recipeTab).assertExists()
+        compose.onNodeWithTag("recipes-list").performTouchInput { swipeUp() }
+        compose.waitUntil(5_000) { compose.onAllNodes(recipeTab).fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithTag("recipes-list").performTouchInput { swipeDown() }
+        compose.onNode(recipeTab).assertExists()
+        click(R.string.tab_settings)
+        tapBack()
+        compose.onNode(recipeTab).assertIsSelected()
+    }
+
     @Test
     fun recipesModeSelector() {
         open("press-ramp", 38_300)
