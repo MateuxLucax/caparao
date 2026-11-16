@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasClickAction
@@ -244,11 +245,15 @@ class AppScreensTest {
         compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 82))
             .assertIsDisplayed()
         compose.onNodeWithTag("scale-battery-normal").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 82)))
+            .assertCountEquals(1)
 
         scale.state.value = ScaleState.Connected(ScaleBattery(percent = 20, bars = 1))
         compose.onNodeWithContentDescription(context.getString(R.string.scale_battery_accessibility, 20))
             .assertIsDisplayed()
         compose.onNodeWithTag("scale-battery-low").assertIsDisplayed()
+        compose.onAllNodes(hasContentDescription(context.getString(R.string.scale_battery_accessibility, 20)))
+            .assertCountEquals(1)
 
         scale.state.value = ScaleState.Idle
         compose.onNodeWithTag("scale-battery-low").assertDoesNotExist()
