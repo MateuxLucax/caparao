@@ -224,7 +224,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.mode_espresso)).assertIsEnabled()
         compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true).assertExists()
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.onAllNodesWithText(text(R.string.tab_brews), useUnmergedTree = true).assertCountEquals(2)
 
@@ -358,7 +358,7 @@ class AppScreensTest {
         runBlocking { brews.save(brew, listOf(BrewSample(0, 0.0, 0.0), BrewSample(100, 0.4, 4.0))) }
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(text(R.string.local_only), substring = true).assertExists()
         compose.onNodeWithText(brewRow).performClick()
@@ -381,7 +381,7 @@ class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(brewRow), 5_000)
         compose.onNodeWithText(brewRow).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.edit_notes)), 5_000)
@@ -409,7 +409,7 @@ class AppScreensTest {
         val idle = FakeScaleSource().apply { state.value = ScaleState.Connected(battery = null) }
         compose.setContent { AppTheme { App(factory(idle), idle, onboardingDone = true, actions, "1.0-test") } }
 
-        compose.onNodeWithText(text(R.string.tab_coffees)).performClick()
+        compose.onNode(hasText(text(R.string.tab_coffees)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("Ethiopia"), 5_000)
         compose.onNodeWithText("Ethiopia").performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
@@ -420,7 +420,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.coffee_mark_finished)).assertExists()
 
         compose.onNodeWithContentDescription(text(R.string.close)).performClick()
-        compose.onNodeWithText(text(R.string.tab_coffees)).assertExists()
+        compose.onNode(hasText(text(R.string.tab_coffees)) and isSelectable() and isSelected()).assertExists()
     }
 
     /**
@@ -499,7 +499,9 @@ class AppScreensTest {
         androidx.test.espresso.Espresso.pressBack()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_mark_finished)), 5_000)
         androidx.test.espresso.Espresso.pressBack()
-        compose.waitUntilAtLeastOneExists(hasText(text(R.string.tab_coffees)), 5_000)
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText(text(R.string.tab_coffees)) and isSelectable() and isSelected()).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     /** The riskiest typed key survives restore: [RecipeEditorViewModel.Target] is a nested sealed type (#352). */
@@ -645,7 +647,7 @@ class AppScreensTest {
         }
 
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
-        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).assertIsSelected()
     }
 
     @Test
@@ -661,7 +663,7 @@ class AppScreensTest {
                 )
             }
         }
-        compose.onNodeWithText(text(R.string.tab_brews)).performClick()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
 
         shortcut.value = LauncherShortcut.WIDGET_HOME
@@ -830,7 +832,7 @@ class AppScreensTest {
         shortcut.value = LauncherShortcut.BREWS
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.brews_empty_title)), 5_000)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.tab_brews)).assertIsSelected()
+        compose.onNode(hasText(text(R.string.tab_brews)) and isSelectable()).assertIsSelected()
     }
 
     @Test
