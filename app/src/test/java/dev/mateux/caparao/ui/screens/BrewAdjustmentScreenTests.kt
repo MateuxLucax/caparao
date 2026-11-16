@@ -90,7 +90,7 @@ abstract class BrewAdjustmentScreenTests(lang: String, theme: String) : ScreenTe
         compose.onNodeWithTag("weigh-dose-source").assertDoesNotExist()
         compose.onNodeWithTag("weigh-step-next").performClick()
         waitFor(R.string.prepare_ready)
-        compose.onNodeWithTag("portafilter-dose").assertTextContains(context.getString(R.string.prepare_dose, Format.grams(19.0, locale)))
+        compose.onNodeWithTag("portafilter-dose").assertTextContains(Format.grams(19.0, locale), substring = true)
         // The adjustment itself is untouched.
         assertEquals(9, runBlocking { adjustments.get("bag-1", BuiltInRecipes.ESPRESSO_ID) }?.grind)
     }

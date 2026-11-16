@@ -242,14 +242,20 @@ class BrewViewModel(
             _uiState.update { it.copy(adjustedBagIds = emptySet(), adjustment = null) }
             return
         }
+        val bagIds = state.bags.map { it.id }
         adjustmentsJob = viewModelScope.launch {
-            combine(state.bags.map { adjustments.forBag(it.id) }) { perBag ->
+            combine(bagIds.map { adjustments.forBag(it) }) { perBag ->
                 perBag.flatMap { it.toList() }
                     .filter { it.recipeId == recipeId && (it.grind != null || it.waterTempCelsius != null || it.doseGrams != null) }
                     .associateBy { it.bagId }
             }.collect { found ->
                 bagAdjustments = found
-                _uiState.update { it.copy(adjustedBagIds = found.keys, adjustment = found[it.bagId]) }
+                val current = _uiState.value
+                val adjustment = found[current.bagId]
+                if (current.step == BrewStep.PREPARE_PORTAFILTER && current.activeAdjustment != adjustment) {
+                    usePlan((basePlan ?: brewPlan).withAdjustment(adjustment))
+                }
+                _uiState.update { it.copy(adjustedBagIds = found.keys, adjustment = adjustment) }
             }
         }
     }

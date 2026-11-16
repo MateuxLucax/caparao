@@ -417,6 +417,7 @@
     <string name="adjustment_grind">Moagem %1$s</string>
     <string name="adjustment_grind_recipe">Moagem %1$s (receita %2$s)</string>
     <string name="adjustment_title">Ajuste</string>
+    <string name="adjustment_edit">Ajustar</string>
     <string name="adjustment_recipe_value">receita %1$s</string>
     <string name="adjustment_water">água %1$s g</string>
     <string name="adjustment_yield">bebida %1$s g</string>

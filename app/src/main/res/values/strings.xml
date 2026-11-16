@@ -423,6 +423,7 @@
     <string name="adjustment_grind">Grind %1$s</string>
     <string name="adjustment_grind_recipe">Grind %1$s (recipe %2$s)</string>
     <string name="adjustment_title">Adjustment</string>
+    <string name="adjustment_edit">Adjust</string>
     <string name="adjustment_recipe_value">recipe %1$s</string>
     <string name="adjustment_water">water %1$s g</string>
     <string name="adjustment_yield">yield %1$s g</string>
