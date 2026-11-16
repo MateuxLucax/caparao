@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Card
-import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,19 +53,17 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
             if (recipes.isEmpty()) {
                 EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), Modifier.padding(top = 48.dp))
             } else {
-                LazyColumn(contentPadding = PaddingValues(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                LazyColumn(Modifier.testTag("recipes-list"), contentPadding = PaddingValues(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     itemsIndexed(recipes, key = { _, recipe -> recipe.id }) { index, recipe ->
                         RecipeRow(recipe, segmentedShape(index, recipes.size)) { onOpen(recipe) }
                     }
                 }
             }
         }
-        MediumExtendedFloatingActionButton(
+        FloatingActionButton(
             onClick = { onNew(mode) },
-            icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-            text = { Text(stringResource(R.string.new_recipe)) },
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        )
+        ) { Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.new_recipe)) }
     }
 }
 
@@ -74,7 +73,7 @@ private fun RecipeRow(recipe: Recipe, shape: Shape, onClick: () -> Unit) {
         headlineContent = { Text(recipe.name, style = MaterialTheme.typography.titleMedium) },
         supportingContent = { Text(recipeSummary(recipe)) },
         trailingContent = { Text(recipe.method, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick).testTag("recipe-row-${recipe.id}"),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
     )
 }

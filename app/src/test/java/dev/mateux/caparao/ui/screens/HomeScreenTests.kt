@@ -173,7 +173,7 @@ abstract class ScreenHomeTests(lang: String, theme: String, compactOnly: Boolean
         waitFor(R.string.coffees_empty)
         compose.onNodeWithText(text(R.string.coffees_empty)).assertIsDisplayed()
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription(text(R.string.coffee_add)).assertIsDisplayed()
     }
 
     @Test

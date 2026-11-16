@@ -504,7 +504,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.recipe_name))).assertExists()
 
         restoration.emulateSavedInstanceStateRestore()
@@ -827,7 +827,7 @@ class AppScreensTest {
         compose.onNodeWithText(text(R.string.tab_recipes)).performClick()
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.no_recipes_title)), 5_000)
         compose.onNodeWithText(text(R.string.mode_espresso)).performClick()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         compose.onNodeWithText(text(R.string.save)).performClick()
         compose.onAllNodesWithText(text(R.string.required)).onFirst().assertExists()
 

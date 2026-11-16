@@ -28,7 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -80,7 +81,7 @@ fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onOpen: (String) -> Unit, modi
             val open = all.filter { !it.finished }
             val finished = all.filter { it.finished }
             LazyColumn(
-                Modifier.fillMaxSize(),
+                Modifier.fillMaxSize().testTag("coffees-list"),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -98,12 +99,10 @@ fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onOpen: (String) -> Unit, modi
                 }
             }
         }
-        MediumExtendedFloatingActionButton(
+        FloatingActionButton(
             onClick = viewModel::new,
-            icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-            text = { Text(stringResource(R.string.coffee_add)) },
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        )
+        ) { Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.coffee_add)) }
     }
     editing?.let { CoffeeBagSheet(it, viewModel) }
 }
@@ -112,7 +111,7 @@ fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onOpen: (String) -> Unit, modi
 private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val dim = MaterialTheme.colorScheme.onSurfaceVariant
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag("coffee-row-${bag.id}"), shape = MaterialTheme.shapes.large) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 listOfNotNull(bag.name, bag.roaster).joinToString(" · "),

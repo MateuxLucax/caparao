@@ -87,9 +87,10 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
@@ -199,7 +200,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
         waitFor(R.string.coffees_empty)
-        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
         compose.onAllNodesWithText(text(R.string.coffee_origin)).assertCountEquals(0)
@@ -219,6 +220,33 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         val profile = "${context.getString(R.string.coffee_tasting_profile)}: ${context.getString(R.string.tasting_chocolate)}"
         compose.waitUntilAtLeastOneExists(hasText(profile), 5_000)
         compose.onNodeWithText(profile).assertIsDisplayed()
+    }
+
+    @Test
+    fun lastCoffeeRowScrollsAboveAddButton() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            val bags = CoffeeBagRepository(db.coffeeBags())
+            repeat(12) { index ->
+                val last = index == 11
+                bags.save(
+                    CoffeeBag(
+                        id = "scroll-coffee-$index",
+                        name = if (last) "Last coffee" else "Scrollable coffee $index",
+                        weightGrams = 250.0,
+                        createdAt = if (last) now - 86_400_000 else now + index,
+                    ),
+                )
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.onNodeWithTag("coffees-list").performScrollToIndex(11)
+        val lastCoffee = compose.onNodeWithTag("coffee-row-scroll-coffee-11")
+        lastCoffee.assert(hasText("Last coffee"))
+        lastCoffee.assertIsDisplayed()
+        val fabTop = compose.onNodeWithContentDescription(text(R.string.coffee_add)).getUnclippedBoundsInRoot().top
+        assertTrue("Last coffee row overlaps the add button", lastCoffee.getUnclippedBoundsInRoot().bottom <= fabTop)
     }
 
 
@@ -253,7 +281,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         }
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
-        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("New coffee")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("cafe")
