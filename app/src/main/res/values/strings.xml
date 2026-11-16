@@ -387,6 +387,9 @@
     <string name="tab_coffees">Coffees</string>
     <string name="coffees_empty">No coffee on the shelf.</string>
     <string name="coffee_add">Add coffee</string>
+    <string name="coffee_section">Coffee</string>
+    <string name="coffee_package_section">Bag</string>
+    <string name="coffee_notes_section">Notes</string>
     <string name="coffee_edit">Edit coffee</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>

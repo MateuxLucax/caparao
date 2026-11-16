@@ -29,19 +29,18 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
 import dev.mateux.caparao.ui.components.wholeGrams
+import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.EmptyState
 import dev.mateux.caparao.ui.format.Format
@@ -142,8 +142,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
 }
 
 /**
- * Add or edit a bag (C3, and the edit from C4). Quick add shows the name, roaster, roast date and weight; origin and
- * notes sit under More details. Closing with other edits asks first, like the recipe editor (#181).
+ * Add or edit a bag. Closing with other edits asks first, like the recipe editor (#181).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -152,34 +151,47 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
     var picking by remember { mutableStateOf(false) }
     var tastingNote by rememberSaveable(form.id) { mutableStateOf("") }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    val dirty = rememberUpdatedState(viewModel.dirty(form))
-    // Swiping down, the scrim and back all hide the sheet through here; with other edits it stays and asks.
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = remember {
-            { target: SheetValue ->
-                if (target == SheetValue.Hidden && dirty.value) confirmDiscard = true
-                target != SheetValue.Hidden || !dirty.value
-            }
-        },
-    )
     val close = { if (viewModel.dirty(form)) confirmDiscard = true else viewModel.cancel() }
-    ModalBottomSheet(onDismissRequest = viewModel::cancel, sheetState = sheetState) {
+    SystemBack(close)
+    Box(Modifier.fillMaxSize().testTag("coffee-bag-editor")) {
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; viewModel.cancel() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(if (form.sourceBagId != null) R.string.coffee_new_bag else if (form.id == null) R.string.coffee_add else R.string.coffee_edit)) },
+                navigationIcon = {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = close) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.close))
+                    }
+                },
+            )
+        },
+    ) { padding ->
         Column(
-            Modifier.imePadding().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                stringResource(if (form.sourceBagId != null) R.string.coffee_new_bag else if (form.id == null) R.string.coffee_add else R.string.coffee_edit),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
+            Text(stringResource(R.string.coffee_section), style = MaterialTheme.typography.titleMedium)
             Field(form.name, R.string.coffee_name) { viewModel.change(form.copy(name = it.take(80))) }
             Field(
                 form.roaster, R.string.coffee_roaster,
                 suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.roaster, form.id, CoffeeBag::roaster),
                 onSuggestion = { viewModel.change(form.copy(roaster = it)) },
             ) { viewModel.change(form.copy(roaster = it.take(80))) }
+            Field(form.origin, R.string.coffee_origin,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.origin, form.id, CoffeeBag::origin),
+                onSuggestion = { viewModel.change(form.copy(origin = it)) },
+            ) { viewModel.change(form.copy(origin = it.take(120))) }
+            Text(stringResource(R.string.coffee_package_section), style = MaterialTheme.typography.titleMedium)
             OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
@@ -191,14 +203,8 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                     Text(stringResource(R.string.coffee_finish_old_bag))
                 }
             }
-            var moreDetails by rememberSaveable { mutableStateOf(form.origin.isNotEmpty() || form.notes.isNotEmpty() || form.tastingNotes.isNotEmpty()) }
-            if (moreDetails) {
-                Field(
-                    form.origin, R.string.coffee_origin,
-                    suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.origin, form.id, CoffeeBag::origin),
-                    onSuggestion = { viewModel.change(form.copy(origin = it)) },
-                ) { viewModel.change(form.copy(origin = it.take(120))) }
-                Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
+            Text(stringResource(R.string.coffee_tasting_notes), style = MaterialTheme.typography.titleMedium)
+            run {
                 OutlinedTextField(
                     value = tastingNote,
                     onValueChange = { tastingNote = it.take(40) },
@@ -250,30 +256,15 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                         )
                     }
                 }
-            } else {
-                TextButton(onClick = { moreDetails = true }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffee_more_details)) }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = close, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) }
-                TextButton(
-                    onClick = {
-                        viewModel.change(form.withNote(tastingNote))
-                        viewModel.save()
-                    },
-                    enabled = form.valid,
-                    shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(R.string.save)) }
-            }
+            Text(stringResource(R.string.coffee_notes_section), style = MaterialTheme.typography.titleMedium)
+            Field(form.notes, R.string.brew_notes) { viewModel.change(form.copy(notes = it.take(500))) }
+            TextButton(
+                onClick = { viewModel.change(form.withNote(tastingNote)); viewModel.save() },
+                enabled = form.valid,
+                modifier = Modifier.align(Alignment.End),
+            ) { Text(stringResource(R.string.save)) }
         }
-    }
-    if (confirmDiscard) {
-        AlertDialog(
-            onDismissRequest = { confirmDiscard = false },
-            icon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
-            title = { Text(stringResource(R.string.discard_changes_title)) },
-            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; viewModel.cancel() }) { Text(stringResource(R.string.discard)) } },
-            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
-        )
     }
     if (picking) {
         val state = rememberDatePickerState(initialSelectedDateMillis = form.roastedAt ?: viewModel.now())
@@ -287,6 +278,7 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
             },
             dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.cancel)) } },
         ) { DatePicker(state) }
+    }
     }
 }
 
