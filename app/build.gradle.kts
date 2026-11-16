@@ -156,6 +156,7 @@ dependencies {
     implementation(libs.navigation3.ui)
     implementation(libs.lifecycle.viewmodel.navigation3)
     implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
     // androidx.core: URI helpers for the watch transport.
     implementation(libs.core.ktx)
     implementation(platform(libs.compose.bom))
@@ -163,6 +164,7 @@ dependencies {
     implementation(libs.compose.material3)
     // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (#95).
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.viewmodel.savedstate)
     implementation(libs.lifecycle.runtime.compose)
     // Brews and their curves (#87, #88).
     implementation(libs.room.runtime)

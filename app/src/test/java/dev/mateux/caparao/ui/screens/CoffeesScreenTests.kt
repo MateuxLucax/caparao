@@ -200,15 +200,17 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
     @Test
     fun coffeeBagAddScreen() {
         open("press-ramp", 38_300)
-        click(R.string.tab_coffees)
+        clickLast(R.string.tab_coffees)
         waitFor(R.string.coffees_empty)
         compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNodeWithTag("coffee-bag-editor").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.tab_home)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(text(R.string.tab_settings)).assertDoesNotExist()
         compose.onAllNodesWithText(text(R.string.coffee_section)).onFirst().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.coffee_package_section)).assertIsDisplayed()
         compose.onAllNodesWithText(text(R.string.coffee_notes_section)).onFirst().assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.coffee_more_details)).assertDoesNotExist()
         compose.onAllNodesWithText(text(R.string.save)).onLast().assertIsNotEnabled()
         compose.onAllNodesWithText(text(R.string.coffee_origin)).onFirst().assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("Mantiqueira")
@@ -219,7 +221,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(text(R.string.tasting_chocolate)).performClick()
         compose.onAllNodesWithText(text(R.string.save)).onFirst().performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("coffee-bag-editor").fetchSemanticsNodes().isEmpty() }
-        click(R.string.tab_coffees)
+        clickLast(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Mantiqueira", substring = true), 5_000)
         compose.onNodeWithText("Mantiqueira", substring = true).assertIsDisplayed()
     }
@@ -517,14 +519,14 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Caparaó natural", substring = true).fetchSemanticsNodes().isEmpty() }
     }
 
-    /** Closing the sheet with other edits asks first (#181): Cancel keeps editing, Discard closes it. */
+    /** The full-screen editor asks before system back or its close button discards edits (#181). */
     @Test
-    fun coffeeBagSheetAsksBeforeDiscarding() {
+    fun coffeeEditorAsksBeforeDiscarding() {
         openCoffeeBag()
         click(R.string.edit)
         waitFor(R.string.coffee_edit)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("Outra torra")
-        compose.onAllNodes(hasContentDescription(text(R.string.close))).onLast().performClick()
+        Espresso.pressBack()
         waitFor(R.string.discard_changes_title)
         clickLast(R.string.cancel)
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.discard_changes_title)).fetchSemanticsNodes().isEmpty() }
@@ -538,7 +540,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
 
     /** Back and a clean sheet: Back with other edits asks first; a clean sheet closes without asking. */
     @Test
-    fun coffeeBagSheetBackAsksOnlyWithEdits() {
+    fun coffeeEditorBackAsksOnlyWithEdits() {
         openCoffeeBag()
         click(R.string.edit)
         waitFor(R.string.coffee_edit)

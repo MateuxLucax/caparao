@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 /** A recipe the bag was brewed with and what this coffee changes in it; null when it follows the recipe. */
 data class RecipeAdjustment(val recipe: Recipe, val adjustment: BagRecipeAdjustment?)
@@ -29,7 +30,7 @@ class CoffeeBagDetailViewModel(
     private val bags: CoffeeBagRepository,
     brews: BrewRepository,
     recipes: RecipeRepository,
-    adjustments: BagRecipeAdjustmentRepository,
+    private val adjustments: BagRecipeAdjustmentRepository,
 ) : ViewModel() {
     /** Null while loading, and once the bag is deleted. */
     val bag: StateFlow<CoffeeBag?> = bags.observe(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -49,6 +50,10 @@ class CoffeeBagDetailViewModel(
     fun setFinished(finished: Boolean) {
         val current = bag.value ?: return
         viewModelScope.launch { bags.save(current.copy(finished = finished)) }
+    }
+
+    suspend fun copiedAdjustmentCount() = adjustments.forBag(id).first().count {
+        it.grind != null || it.waterTempCelsius != null || it.doseGrams != null
     }
 
     /** The brews keep their coffee name; the screen closes once this is called. */

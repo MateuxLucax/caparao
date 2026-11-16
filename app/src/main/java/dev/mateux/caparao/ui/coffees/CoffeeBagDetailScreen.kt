@@ -61,13 +61,14 @@ import java.util.Locale
 
 /**
  * One coffee bag (#290, C4): what is left, the brews that used it, finishing it, and editing or deleting it. Editing
- * opens the same sheet as Add; deleting asks first (C5), and the brews keep the coffee's name.
+ * opens the same editor as Add; deleting asks first (C5), and the brews keep the coffee's name.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoffeeBagDetailScreen(
+    onEdit: () -> Unit,
+    onOpenAnotherBag: () -> Unit,
     viewModel: CoffeeBagDetailViewModel,
-    bagsViewModel: CoffeeBagsViewModel,
     onOpenBrew: (String) -> Unit,
     onOpenAdjustment: (recipeId: String) -> Unit,
     onClose: () -> Unit,
@@ -75,7 +76,6 @@ fun CoffeeBagDetailScreen(
     val bag by viewModel.bag.collectAsStateWithLifecycle()
     val brews by viewModel.brews.collectAsStateWithLifecycle()
     val adjustments by viewModel.recipeAdjustments.collectAsStateWithLifecycle()
-    val editing by bagsViewModel.editing.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     Scaffold(
@@ -115,9 +115,9 @@ fun CoffeeBagDetailScreen(
                 OutlinedButton(onClick = { viewModel.setFinished(!current.finished) }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(if (current.finished) R.string.coffee_mark_open else R.string.coffee_mark_finished))
                 }
-                OutlinedButton(onClick = { bagsViewModel.edit(current) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
+                OutlinedButton(onClick = onEdit, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
             }
-            OutlinedButton(onClick = { bagsViewModel.openAnotherBag(current) }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
+            OutlinedButton(onClick = onOpenAnotherBag, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(R.string.coffee_open_another_bag))
             }
             if (adjustments.isNotEmpty()) {
@@ -140,7 +140,6 @@ fun CoffeeBagDetailScreen(
             }
         }
     }
-    editing?.let { CoffeeBagSheet(it, bagsViewModel) }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },

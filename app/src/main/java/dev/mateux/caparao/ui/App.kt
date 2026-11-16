@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -59,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.ViewModelStoreNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import kotlinx.coroutines.launch
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -82,6 +84,9 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailScreen
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorScreen
+import dev.mateux.caparao.ui.coffees.BagForm
 import dev.mateux.caparao.ui.coffees.CoffeesScreen
 import dev.mateux.caparao.ui.components.AppActions
 import dev.mateux.caparao.ui.components.LocalSystemBack
@@ -238,6 +243,7 @@ private fun Main(
                     onRate = { backStack.add(Destination.Rating(it)) },
                     onRecipe = { backStack.add(Destination.Recipe(it)) },
                     onCoffee = { backStack.add(Destination.Coffee(it)) },
+                    onCoffeeAdd = { backStack.add(Destination.CoffeeEditor(BagForm())) },
                     onSettingsHome = { backStack.add(Destination.SettingsHome) },
                 )
             }
@@ -306,13 +312,29 @@ private fun Main(
             }
             entry<Destination.Coffee> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeBagDetailViewModel.BAG_ID, shown.id) }
+                val detail: CoffeeBagDetailViewModel = viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras)
+                val current by detail.bag.collectAsStateWithLifecycle()
+                val scope = rememberCoroutineScope()
                 CoffeeBagDetailScreen(
-                    viewModel(key = "coffee-${shown.id}", factory = viewModelFactory, extras = extras),
-                    viewModel(factory = viewModelFactory),
+                    viewModel = detail,
                     onOpenBrew = { backStack.add(Destination.Detail(it)) },
                     onOpenAdjustment = { backStack.add(Destination.Adjustment(shown.id, it)) },
+                    onEdit = { current?.let { backStack.add(Destination.CoffeeEditor(BagForm.of(it))) } },
+                    onOpenAnotherBag = { current?.let { bag -> scope.launch {
+                        backStack.add(Destination.CoffeeEditor(BagForm.of(bag).copy(
+                            id = null, createdAt = null, roastedAt = null, sourceBagId = shown.id,
+                            copiedAdjustmentCount = detail.copiedAdjustmentCount(),
+                        )))
+                    } } },
                     onClose = { backStack.popEntry(shown) },
                 )
+            }
+            entry<Destination.CoffeeEditor> { shown ->
+                val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply { set(CoffeeEditorViewModel.TARGET, shown.form) }
+                val bags: CoffeeBagsViewModel = viewModel(factory = viewModelFactory)
+                CompositionLocalProvider(LocalSystemBack provides rememberSystemBack(shown, backActions)) {
+                    CoffeeEditorScreen(viewModel(key = "coffee-editor-${shown.hashCode()}", factory = viewModelFactory, extras = extras), bags) { backStack.popEntry(shown) }
+                }
             }
             entry<Destination.Adjustment> { shown ->
                 val extras = MutableCreationExtras(LocalViewModelStoreOwner.current.defaultCreationExtras()).apply {
@@ -378,6 +400,7 @@ internal sealed interface Destination : NavKey {
     @Serializable data class Suggestion(val id: String) : Destination
     @Serializable data class Recipe(val target: RecipeEditorViewModel.Target) : Destination
     @Serializable data class Coffee(val id: String) : Destination
+    @Serializable data class CoffeeEditor(val form: BagForm) : Destination
     @Serializable data class Adjustment(val bagId: String, val recipeId: String) : Destination
     @Serializable data object SettingsHome : Destination
     @Serializable data class Settings(val detail: SettingsDetail) : Destination
@@ -399,6 +422,7 @@ private fun Tabs(
     onRate: (String) -> Unit,
     onRecipe: (RecipeEditorViewModel.Target) -> Unit,
     onCoffee: (String) -> Unit,
+    onCoffeeAdd: () -> Unit,
     onSettingsHome: () -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
@@ -481,7 +505,7 @@ private fun Tabs(
                     onNew = { onRecipe(RecipeEditorViewModel.Target.New(it)) },
                     modifier,
                 )
-                Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, modifier = modifier)
+                Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, onAdd = onCoffeeAdd, modifier = modifier)
                 Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = onSettingsHome, modifier = modifier)
             }
         }

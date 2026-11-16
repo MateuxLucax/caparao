@@ -389,6 +389,7 @@
     <string name="coffee_add">Add coffee</string>
     <string name="coffee_section">Coffee</string>
     <string name="coffee_package_section">Bag</string>
+    <string name="coffee_tasting_notes_section">Tasting notes</string>
     <string name="coffee_notes_section">Notes</string>
     <string name="coffee_edit">Edit coffee</string>
     <string name="coffee_name">Coffee</string>
@@ -401,7 +402,6 @@
     <string name="coffee_finished">Finished</string>
     <string name="coffee_mark_finished">Mark as finished</string>
     <string name="coffee_mark_open">Mark as open</string>
-    <string name="coffee_more_details">More details</string>
     <string name="coffee_tasting_notes">Tasting notes</string>
     <string name="adjustments_title">Adjustments per recipe</string>
     <string name="adjustment_none">No adjustment · follows the recipe</string>
