@@ -589,6 +589,25 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Bourbon amarelo", substring = true).fetchSemanticsNodes().isEmpty() }
     }
 
+    @Test
+    fun halfUsedCoffeeBarAppearsOnListAndDetail() {
+        val now = System.currentTimeMillis()
+        runBlocking {
+            CoffeeBagRepository(db.coffeeBags()).save(
+                CoffeeBag("half-used", "Half-used coffee", weightGrams = 250.0, createdAt = now),
+            )
+        }
+        linkBrew("half-used-brew", "half-used", 125.0)
+        open("press-ramp", 38_300)
+        click(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Half-used coffee"), 5_000)
+        compose.onNodeWithText(context.getString(R.string.coffee_left, "125", "250")).assertIsDisplayed()
+        compose.onNodeWithTag("coffee-bag-level").assertIsDisplayed()
+        compose.onNodeWithText("Half-used coffee").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "125", "250")), 5_000)
+        compose.onNodeWithTag("coffee-bag-level").assertIsDisplayed()
+    }
+
     /** The home-screen widget: saved and empty at the declared 180x176 dp minimum, rendered and asserted. */
     @Test
     fun coffees() {
