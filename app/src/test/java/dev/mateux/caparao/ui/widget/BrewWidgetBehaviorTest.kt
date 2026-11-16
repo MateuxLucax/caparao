@@ -41,10 +41,12 @@ class BrewWidgetBehaviorTest {
         val english = localized(base, Locale.US)
         val portuguese = localized(base, Locale.forLanguageTag("pt-BR"))
 
-        assertEquals("You haven't made coffee yet", english.getString(R.string.widget_empty_title))
-        assertEquals("Você ainda não fez café", portuguese.getString(R.string.widget_empty_title))
-        assertEquals("Brew a coffee", english.getString(R.string.widget_brew_coffee))
-        assertEquals("Preparar um café", portuguese.getString(R.string.widget_brew_coffee))
+        assertEquals("No brews", english.getString(R.string.widget_empty_title))
+        assertEquals("Sem café", portuguese.getString(R.string.widget_empty_title))
+        assertEquals("Start a brew", english.getString(R.string.widget_empty_start))
+        assertEquals("Iniciar", portuguese.getString(R.string.widget_empty_start))
+        assertEquals("Start", english.getString(R.string.widget_brew_coffee))
+        assertEquals("Iniciar", portuguese.getString(R.string.widget_brew_coffee))
     }
 
     private fun localized(context: Context, locale: Locale): Context =

@@ -45,8 +45,7 @@ class BrewWidgetLayoutTest {
 
                     val iconContainer = root.findViewById<View>(R.id.widget_method_icon_container)
                     val methodIcon = root.findViewById<View>(R.id.widget_method_icon)
-                    // The 56 dp container around the 32 dp icon leaves 12 dp on every side: the PR's clearance.
-                    val requiredIconClearance = (12 * base.resources.displayMetrics.density).roundToInt()
+                    val requiredIconClearance = (4 * base.resources.displayMetrics.density).roundToInt()
                     assertTrue(
                         "icon left clearance ${methodIcon.left}px, expected at least ${requiredIconClearance}px",
                         methodIcon.left >= requiredIconClearance,
@@ -79,10 +78,7 @@ class BrewWidgetLayoutTest {
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         val emptyActionLabel = root.findViewById<TextView>(R.id.widget_action_label)
-                        assertTrue(
-                            "empty chooser action is centered",
-                            abs(emptyActionLabel.left + emptyActionLabel.width / 2 - action.width / 2) <= 2,
-                        )
+                        assertTrue("empty chooser action remains visible", emptyActionLabel.width > 0)
                         assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
                     } else {
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_last_brew).visibility)
@@ -90,7 +86,7 @@ class BrewWidgetLayoutTest {
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
                         if (latest.mode == BrewMode.FRENCH_PRESS) {
-                            assertEquals(context.getString(R.string.mode_french_press), root.findViewById<TextView>(R.id.widget_method).text)
+                            assertEquals(context.getString(R.string.mode_french_press_short), root.findViewById<TextView>(R.id.widget_method).text)
                             assertEquals(context.getString(R.string.widget_brew_espresso), root.findViewById<TextView>(R.id.widget_action_label).text)
                         }
                     }

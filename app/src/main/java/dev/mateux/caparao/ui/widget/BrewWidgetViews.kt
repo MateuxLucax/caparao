@@ -36,7 +36,14 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_title, View.VISIBLE)
         views.setViewVisibility(R.id.widget_last_brew, View.VISIBLE)
         views.setViewVisibility(R.id.widget_empty_content, View.GONE)
-        views.setTextViewText(R.id.widget_method, context.getString(latest.mode.label))
+        views.setTextViewText(
+            R.id.widget_method,
+            context.getString(if (latest.mode == BrewMode.FRENCH_PRESS) R.string.mode_french_press_short else latest.mode.label),
+        )
+        views.setTextViewText(
+            R.id.widget_details,
+            context.getString(R.string.widget_brew_details, latest.doseGrams, latest.ratio, timeAgo(context, latest.startedAt)),
+        )
     }
     val actionLabel = context.getString(actionLabel(suggestedMode))
     views.setTextViewText(R.id.widget_action_label, actionLabel)
@@ -50,6 +57,16 @@ internal fun brewWidgetViews(
     }
     views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))
     return views
+}
+
+internal fun timeAgo(context: Context, startedAt: Long, now: Long = System.currentTimeMillis()): String {
+    val minutes = ((now - startedAt).coerceAtLeast(0) / 60_000).toInt()
+    return when {
+        minutes < 1 -> context.getString(R.string.widget_just_now)
+        minutes < 60 -> context.getString(R.string.widget_minutes_ago, minutes)
+        minutes < 1_440 -> context.getString(R.string.widget_hours_ago, minutes / 60)
+        else -> context.getString(R.string.widget_days_ago, minutes / 1_440)
+    }
 }
 
 private fun actionLabel(mode: BrewMode?): Int = when (mode) {

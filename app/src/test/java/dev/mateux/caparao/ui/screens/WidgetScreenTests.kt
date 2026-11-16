@@ -149,7 +149,7 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
     @Test
     fun widget() {
         var latest by mutableStateOf<Brew?>(
-            Brew("screen-test-widget", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false),
+            Brew("screen-test-widget", BrewMode.ESPRESSO, System.currentTimeMillis() - 300_000L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false),
         )
         // A neutral home screen behind the widget, so its rounded shape reads in both themes.
         val wallpaper = if (theme == "dark") Color(0xFF2B3038) else Color(0xFFDDE4ED)
@@ -175,6 +175,7 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         assertWidgetVisibility(saved, R.id.widget_last_brew, View.VISIBLE)
         assertWidgetVisibility(saved, R.id.widget_empty_content, View.GONE)
         assertWidgetText(saved, R.id.widget_method, text(R.string.mode_espresso))
+        assertWidgetText(saved, R.id.widget_details, text(R.string.widget_brew_details, 18.0, 2.0, text(R.string.widget_minutes_ago, 5)))
         assertWidgetText(saved, R.id.widget_action_label, text(R.string.widget_brew_filter))
 
         latest = null
@@ -188,6 +189,7 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         assertWidgetVisibility(empty, R.id.widget_last_brew, View.GONE)
         assertWidgetVisibility(empty, R.id.widget_empty_content, View.VISIBLE)
         assertWidgetText(empty, R.id.widget_empty_title, text(R.string.widget_empty_title))
+        assertWidgetText(empty, R.id.widget_empty_start, text(R.string.widget_empty_start))
         assertWidgetText(empty, R.id.widget_action_label, text(R.string.widget_brew_coffee))
     }
 

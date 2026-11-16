@@ -5,25 +5,26 @@
     android:background="@drawable/widget_brew_background"
     android:gravity="center_vertical"
     android:minHeight="@dimen/widget_min_height"
-    android:orientation="vertical"
+    android:orientation="horizontal"
     android:padding="12dp">
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <FrameLayout
             android:id="@+id/widget_method_icon_container"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:background="@drawable/widget_icon_container">
 
             <ImageView
                 android:id="@+id/widget_method_icon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
                 android:tint="@color/widget_icon_foreground" />
@@ -56,10 +57,19 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:maxLines="2"
+                    android:maxLines="1"
                     android:textColor="@color/widget_primary_text"
-                    android:textSize="20sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_secondary_text"
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -74,10 +84,19 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:maxLines="2"
+                    android:maxLines="1"
                     android:textColor="@color/widget_primary_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_empty_start"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="@string/widget_empty_start"
+                    android:textColor="@color/widget_secondary_text"
+                    android:textSize="12sp" />
 
             </LinearLayout>
         </LinearLayout>
@@ -85,25 +104,24 @@
 
     <FrameLayout
         android:id="@+id/widget_action"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginTop="8dp"
+        android:layout_width="64dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
         android:background="@drawable/widget_action_background"
         android:gravity="center"
-        android:minHeight="52dp">
+        android:minHeight="48dp">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingHorizontal="8dp">
+                android:paddingHorizontal="6dp">
 
             <ImageView
                 android:id="@+id/widget_action_icon"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:contentDescription="@null"
                 android:tint="@color/widget_action_text" />
 
@@ -114,7 +132,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_action_text"
-                android:textSize="13sp"
+                android:textSize="10sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </FrameLayout>
