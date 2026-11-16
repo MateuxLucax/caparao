@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.RemoteViews
+import android.util.SizeF
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.ui.MainActivity
 import dev.mateux.caparao.ui.widget.BrewWidgetRefresh
@@ -50,7 +51,16 @@ class BrewWidgetProvider : AppWidgetProvider() {
             refreshBounded(
                 read = { (context.applicationContext as CaparaoApplication).container.brews.latest() },
                 publish = { latest ->
-                    appWidgetIds.forEach { id -> manager.updateAppWidget(id, views(context, id, latest)) }
+                    appWidgetIds.forEach { id ->
+                        manager.updateAppWidget(
+                            id,
+                            RemoteViews(mapOf(
+                                SizeF(180f, 176f) to views(context, id, latest),
+                                SizeF(280f, 176f) to views(context, id, latest, wide = true),
+                                SizeF(380f, 176f) to views(context, id, latest, wide = true),
+                            )),
+                        )
+                    }
                 },
                 finish = finish,
             )
@@ -84,8 +94,8 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    internal fun views(context: Context, appWidgetId: Int, latest: Brew?): RemoteViews =
-        brewWidgetViews(context, latest) { action ->
+    internal fun views(context: Context, appWidgetId: Int, latest: Brew?, wide: Boolean = false): RemoteViews =
+        brewWidgetViews(context, latest, wide) { action ->
             PendingIntent.getActivity(
                 context,
                 appWidgetId,

@@ -10,7 +10,7 @@
     android:minResizeWidth="@dimen/widget_min_width"
     android:minWidth="@dimen/widget_min_width"
     android:resizeMode="horizontal|vertical"
-    android:targetCellHeight="1"
+    android:targetCellHeight="2"
     android:targetCellWidth="2"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />

@@ -66,7 +66,7 @@ class BrewWidgetLayoutTest {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
         val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
-        val minimumActionHeight = (48 * base.resources.displayMetrics.density).roundToInt()
+                    val minimumActionHeight = (48 * base.resources.displayMetrics.density).roundToInt()
         val brew = Brew("layout", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false)
         val frenchPress = brew.copy(id = "french-press", mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
 
@@ -82,50 +82,29 @@ class BrewWidgetLayoutTest {
                     )
                     root.layout(0, 0, minWidth, minHeight)
 
-                    val iconContainer = root.findViewById<View>(R.id.widget_method_icon_container)
-                    val methodIcon = root.findViewById<View>(R.id.widget_method_icon)
-                    val requiredIconClearance = (4 * base.resources.displayMetrics.density).roundToInt()
-                    assertTrue(
-                        "icon left clearance ${methodIcon.left}px, expected at least ${requiredIconClearance}px",
-                        methodIcon.left >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon top clearance: container=${iconContainer.height}, icon=${methodIcon.height}, " +
-                            "top=${methodIcon.top}, min=$requiredIconClearance",
-                        methodIcon.top >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon right clearance ${iconContainer.width - methodIcon.right}px, " +
-                            "expected at least ${requiredIconClearance}px",
-                        iconContainer.width - methodIcon.right >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon bottom clearance ${iconContainer.height - methodIcon.bottom}px, " +
-                            "expected at least ${requiredIconClearance}px",
-                        iconContainer.height - methodIcon.bottom >= requiredIconClearance,
-                    )
-                    assertEquals("icon centered horizontally", methodIcon.left, iconContainer.width - methodIcon.right)
-                    assertEquals("icon centered vertically", methodIcon.top, iconContainer.height - methodIcon.bottom)
-
                     val action = root.findViewById<View>(R.id.widget_action)
                     assertTrue("$locale night=$night action height ${action.height}", action.height >= minimumActionHeight)
-                    assertTrue("$locale night=$night action bottom ${action.bottom}", action.bottom <= minHeight - root.paddingBottom)
+                    assertEquals(minWidth - root.paddingLeft - root.paddingRight, action.width)
+                    assertTrue(
+                        "$locale night=$night bottom=${action.bottom}, height=$minHeight, " +
+                            "title=${root.findViewById<View>(R.id.widget_title).height}, " +
+                            "brew=${root.findViewById<View>(R.id.widget_last_brew).height}, time=${root.findViewById<View>(R.id.widget_time).height}",
+                        action.bottom <= minHeight - root.paddingBottom,
+                    )
                     assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
 
                     if (latest == null) {
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         val emptyActionLabel = root.findViewById<TextView>(R.id.widget_action_label)
                         assertTrue("empty chooser action remains visible", emptyActionLabel.width > 0)
                         assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
                     } else {
                         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
                         if (latest.mode == BrewMode.FRENCH_PRESS) {
-                            assertEquals(context.getString(R.string.mode_french_press_short), root.findViewById<TextView>(R.id.widget_method).text)
+                            assertTrue(root.findViewById<TextView>(R.id.widget_method).text.startsWith(context.getString(R.string.mode_french_press_short)))
                             assertEquals(context.getString(R.string.widget_brew_espresso), root.findViewById<TextView>(R.id.widget_action_label).text)
                         }
                     }
@@ -140,14 +119,14 @@ class BrewWidgetLayoutTest {
         val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
         val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
         // Expanded sizes grow from the declared minimum: 1.5x width with 1.25x height, then 2x with 1.5x.
-        val sizes = listOf(minWidth * 3 / 2 to minHeight * 5 / 4, minWidth * 2 to minHeight * 3 / 2)
+        val sizes = listOf(minWidth to minHeight, minWidth * 3 / 2 to minHeight, minWidth * 2 to minHeight)
         val brew = Brew("expanded", BrewMode.FILTER, 0L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false)
         for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
             for (night in listOf(false, true)) {
                 val context = configured(base, locale, night)
                 for ((width, height) in sizes) {
                     for (latest in listOf(brew, null)) {
-                        val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
+                        val root = BrewWidgetProvider().views(context, 123, latest, wide = width > minWidth).apply(context, null)
                         root.measure(
                             View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                             View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
@@ -157,7 +136,6 @@ class BrewWidgetLayoutTest {
                         assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_title).visibility)
                         assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
                         assertEquals(if (saved) View.GONE else View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
                         assertEquals(
                             context.getString(if (saved) R.string.widget_brew_espresso else R.string.widget_brew_coffee),
                             root.findViewById<TextView>(R.id.widget_action_label).text,
@@ -165,7 +143,15 @@ class BrewWidgetLayoutTest {
                         assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
                         if (saved) {
                             assertEquals(context.getString(R.string.widget_last_brew_title), root.findViewById<TextView>(R.id.widget_title).text)
-                            assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_method).text)
+                            assertTrue(root.findViewById<TextView>(R.id.widget_method).text.startsWith(context.getString(R.string.mode_filter)))
+                            if (width == minWidth) {
+                                assertTrue(root.findViewById<TextView>(R.id.widget_coffee).text.isNotBlank())
+                                assertTrue(root.findViewById<View>(R.id.widget_time).top > root.findViewById<View>(R.id.widget_method).top)
+                                assertEquals(root.width - root.paddingRight - root.paddingLeft, root.findViewById<View>(R.id.widget_action).width)
+                            } else {
+                                assertTrue(root.findViewById<View>(R.id.widget_action).left > root.findViewById<View>(R.id.widget_method).left)
+                            }
+                            assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_coffee).text)
                             assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
                         } else {
                             assertEquals(context.getString(R.string.widget_empty_title), root.findViewById<TextView>(R.id.widget_empty_title).text)

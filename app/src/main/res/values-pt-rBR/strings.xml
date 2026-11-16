@@ -23,18 +23,18 @@
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Sem café</string>
     <string name="widget_empty_start">Iniciar</string>
-    <string name="widget_brew_details">%1$.0f g · proporção 1:%2$.1f · %3$s</string>
+    <string name="widget_brew_summary">%1$s · dose %2$.0f g → saída %3$.0f g</string>
     <string name="widget_just_now">Agora mesmo</string>
     <string name="widget_minutes_ago">há %1$d min</string>
     <string name="widget_hours_ago">há %1$d h</string>
     <string name="widget_days_ago">há %1$d dias</string>
-    <string name="widget_preview_coffee">Fazenda Boa Vista</string>
-    <string name="widget_preview_brew_details">Preparo espresso · 18 g → 36 g</string>
+    <string name="widget_preview_coffee">Sítio Boa Vista</string>
+    <string name="widget_preview_brew_details">Espresso · dose 18 g → saída 36 g</string>
     <string name="widget_preview_time">há 2 min</string>
-    <string name="widget_brew_espresso">Ir</string>
-    <string name="widget_brew_filter">Ir</string>
-    <string name="widget_brew_french_press">Ir</string>
-    <string name="widget_brew_coffee">Iniciar</string>
+    <string name="widget_brew_espresso">Preparar novamente</string>
+    <string name="widget_brew_filter">Preparar novamente</string>
+    <string name="widget_brew_french_press">Preparar novamente</string>
+    <string name="widget_brew_coffee">Iniciar preparo</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>

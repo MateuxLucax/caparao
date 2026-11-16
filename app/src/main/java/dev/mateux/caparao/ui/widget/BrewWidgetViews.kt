@@ -18,13 +18,12 @@ import dev.mateux.caparao.ui.components.label
 internal fun brewWidgetViews(
     context: Context,
     latest: Brew?,
+    wide: Boolean = false,
     pendingIntent: (String) -> PendingIntent,
 ): RemoteViews {
-    val views = RemoteViews(context.packageName, R.layout.widget_brew)
+    val views = RemoteViews(context.packageName, if (wide) R.layout.widget_brew_wide else R.layout.widget_brew)
     val mode = latest?.mode
     val suggestedMode = mode?.let(::suggestedModeAfter)
-    val icon = mode?.icon ?: R.drawable.ic_coffee
-    views.setImageViewResource(R.id.widget_method_icon, icon)
     val shortcut = shortcutForWidget(mode)
     if (latest == null) {
         views.setViewVisibility(R.id.widget_title, View.GONE)
@@ -36,25 +35,14 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_title, View.VISIBLE)
         views.setViewVisibility(R.id.widget_last_brew, View.VISIBLE)
         views.setViewVisibility(R.id.widget_empty_content, View.GONE)
-        views.setTextViewText(
-            R.id.widget_method,
-            context.getString(if (latest.mode == BrewMode.FRENCH_PRESS) R.string.mode_french_press_short else latest.mode.label),
-        )
-        views.setTextViewText(
-            R.id.widget_details,
-            context.getString(R.string.widget_brew_details, latest.doseGrams, latest.ratio, timeAgo(context, latest.startedAt)),
-        )
+        val method = context.getString(if (latest.mode == BrewMode.FRENCH_PRESS) R.string.mode_french_press_short else latest.mode.label)
+        views.setTextViewText(R.id.widget_method, context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams))
+        views.setTextViewText(R.id.widget_coffee, latest.coffee ?: latest.recipeName ?: context.getString(latest.mode.label))
+        views.setTextViewText(R.id.widget_time, timeAgo(context, latest.startedAt))
     }
     val actionLabel = context.getString(actionLabel(suggestedMode))
     views.setTextViewText(R.id.widget_action_label, actionLabel)
     views.setContentDescription(R.id.widget_action, actionLabel)
-    val actionIcon = actionIconForWidget(mode)
-    if (actionIcon == null) {
-        views.setViewVisibility(R.id.widget_action_icon, View.GONE)
-    } else {
-        views.setImageViewResource(R.id.widget_action_icon, actionIcon)
-        views.setViewVisibility(R.id.widget_action_icon, View.VISIBLE)
-    }
     views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))
     return views
 }

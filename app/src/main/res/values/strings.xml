@@ -27,18 +27,18 @@
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">No brews</string>
     <string name="widget_empty_start">Start a brew</string>
-    <string name="widget_brew_details">%1$.0f g · 1:%2$.1f · %3$s</string>
+    <string name="widget_brew_summary">%1$s · dose %2$.0f g → yield %3$.0f g</string>
     <string name="widget_just_now">Just now</string>
     <string name="widget_minutes_ago">%1$d min ago</string>
     <string name="widget_hours_ago">%1$d hr ago</string>
     <string name="widget_days_ago">%1$d days ago</string>
     <string name="widget_preview_coffee">Sítio Boa Vista</string>
-    <string name="widget_preview_brew_details">Espresso · 18 g → 36 g</string>
+    <string name="widget_preview_brew_details">Espresso · dose 18 g → yield 36 g</string>
     <string name="widget_preview_time">2 min ago</string>
-    <string name="widget_brew_espresso">Go</string>
-    <string name="widget_brew_filter">Go</string>
-    <string name="widget_brew_french_press">Go</string>
-    <string name="widget_brew_coffee">Start</string>
+    <string name="widget_brew_espresso">Brew again</string>
+    <string name="widget_brew_filter">Brew again</string>
+    <string name="widget_brew_french_press">Brew again</string>
+    <string name="widget_brew_coffee">Start a brew</string>
 
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
