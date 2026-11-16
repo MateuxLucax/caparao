@@ -160,7 +160,7 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         open("press-ramp", 38_300)
         click(R.string.tab_recipes)
         compose.waitForIdle()
-        compose.onNodeWithText(text(R.string.new_recipe), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
     }

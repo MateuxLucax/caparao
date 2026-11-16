@@ -28,7 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -98,12 +98,10 @@ fun CoffeesScreen(viewModel: CoffeeBagsViewModel, onOpen: (String) -> Unit, modi
                 }
             }
         }
-        MediumExtendedFloatingActionButton(
+        FloatingActionButton(
             onClick = viewModel::new,
-            icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
-            text = { Text(stringResource(R.string.coffee_add)) },
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        )
+        ) { Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.coffee_add)) }
     }
     editing?.let { CoffeeBagSheet(it, viewModel) }
 }

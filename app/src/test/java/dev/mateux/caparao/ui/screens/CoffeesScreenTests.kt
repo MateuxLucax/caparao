@@ -199,7 +199,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
         waitFor(R.string.coffees_empty)
-        compose.onNodeWithText(text(R.string.coffee_add), useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
         compose.onAllNodesWithText(text(R.string.coffee_origin)).assertCountEquals(0)
