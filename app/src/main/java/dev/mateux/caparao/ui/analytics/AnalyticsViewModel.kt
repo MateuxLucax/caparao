@@ -23,7 +23,7 @@ data class AnalyticsState(
 
 data class CaffeinePoint(val hour: Double, val mg: Double)
 data class CaffeineEstimate(
-    val todayBrews: Int = 0, val bedtimeMg: Int = 0, val lastCoffeeByMinutes: Int? = null,
+    val todayBrews: Int = 0, val nowMg: Int = 0, val bedtimeMg: Int = 0, val lastCoffeeByMinutes: Int? = null,
     val points: List<CaffeinePoint> = emptyList(), val brewHours: List<Double> = emptyList(),
 )
 
@@ -87,6 +87,7 @@ class AnalyticsViewModel(repository: BrewRepository, bags: kotlinx.coroutines.fl
             }
             return CaffeineEstimate(
                 todayBrews = relevant.count { Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == today },
+                nowMg = amount(now).toInt(),
                 bedtimeMg = bedtimeMg, lastCoffeeByMinutes = cutoff,
                 points = points,
                 brewHours = relevant.filter { Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == today }.map { Instant.ofEpochMilli(it.startedAt).atZone(zone).let { local -> local.hour + local.minute / 60.0 } },

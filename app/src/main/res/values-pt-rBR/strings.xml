@@ -27,6 +27,15 @@
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_french_press">Preparar prensa francesa</string>
     <string name="widget_brew_coffee">Preparar um café</string>
+    <string name="analytics_widget_name">Análises</string>
+    <string name="analytics_widget_description">Resumo semanal de café e cafeína</string>
+    <string name="analytics_widget_empty">Você ainda não fez café</string>
+    <string name="analytics_widget_now">Cerca de %1$d mg de cafeína agora</string>
+    <string name="analytics_widget_bedtime">Ao dormir: cerca de %1$d mg</string>
+    <string name="analytics_widget_week">Esta semana: %1$d g · %2$d preparos\nSemana passada: %3$d g · %4$d preparos</string>
+    <string name="analytics_widget_curve_description">Curva estimada de cafeína de hoje</string>
+    <string name="analytics_widget_preview_caffeine">Cerca de 80 mg de cafeína agora</string>
+    <string name="analytics_widget_preview_week">Esta semana: 36 g · 2 preparos</string>
 
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>

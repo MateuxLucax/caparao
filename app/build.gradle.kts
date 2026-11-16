@@ -35,6 +35,7 @@ android {
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["applicationClass"] = ".CaparaoApplication"
+        manifestPlaceholders["widgetProviderEnabled"] = "true"
         // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
         buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
     }
@@ -74,6 +75,7 @@ android {
             isShrinkResources = false
             isProfileable = true
             manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
+            manifestPlaceholders["widgetProviderEnabled"] = "false"
             signingConfig = signingConfigs.getByName("debug")
         }
         create("benchmarkRelease") {
@@ -84,6 +86,7 @@ android {
             isDebuggable = false
             isProfileable = true
             manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
+            manifestPlaceholders["widgetProviderEnabled"] = "false"
             signingConfig = signingConfigs.getByName("debug")
         }
     }

@@ -82,6 +82,18 @@
         </receiver>
 
         <receiver
+            android:name=".AnalyticsWidgetProvider"
+            android:enabled="${widgetProviderEnabled}"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/analytics_widget_info" />
+        </receiver>
+
+        <receiver
             android:name=".ui.RatingReminderActionReceiver"
             android:exported="false" />
     </application>

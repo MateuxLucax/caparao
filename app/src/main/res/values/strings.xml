@@ -31,6 +31,15 @@
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_french_press">Brew French press</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
+    <string name="analytics_widget_name">Analytics</string>
+    <string name="analytics_widget_description">Weekly coffee and caffeine summary</string>
+    <string name="analytics_widget_empty">You haven\'t brewed yet</string>
+    <string name="analytics_widget_now">About %1$d mg caffeine now</string>
+    <string name="analytics_widget_bedtime">At bedtime: about %1$d mg</string>
+    <string name="analytics_widget_week">This week: %1$d g · %2$d brews\nLast week: %3$d g · %4$d brews</string>
+    <string name="analytics_widget_curve_description">Today\'s estimated caffeine curve</string>
+    <string name="analytics_widget_preview_caffeine">About 80 mg caffeine now</string>
+    <string name="analytics_widget_preview_week">This week: 36 g · 2 brews</string>
 
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>

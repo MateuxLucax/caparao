@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/analytics_widget_description"
+    android:initialLayout="@layout/widget_analytics"
+    android:label="@string/analytics_widget_name"
+    android:minHeight="176dp"
+    android:minResizeHeight="176dp"
+    android:minResizeWidth="250dp"
+    android:minWidth="250dp"
+    android:previewLayout="@layout/widget_analytics_preview"
+    android:resizeMode="vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="4"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

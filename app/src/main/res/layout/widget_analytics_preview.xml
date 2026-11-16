@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_brew_background"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_name" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_preview_caffeine" android:textColor="@color/widget_primary_text" android:textSize="21sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_preview_week" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+</LinearLayout>
