@@ -163,7 +163,7 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         val recipeTab = hasText(text(R.string.tab_recipes)) and isSelectable()
         compose.onNode(recipeTab).assertExists()
         compose.onNodeWithTag("recipes-list").performTouchInput { swipeUp() }
-        compose.onNode(recipeTab).assertDoesNotExist()
+        compose.waitUntil(5_000) { compose.onAllNodes(recipeTab).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithTag("recipes-list").performTouchInput { swipeDown() }
         compose.onNode(recipeTab).assertExists()
         click(R.string.tab_settings)

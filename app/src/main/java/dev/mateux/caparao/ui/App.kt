@@ -4,6 +4,11 @@ import android.view.accessibility.AccessibilityManager
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.IconButton
@@ -41,6 +46,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.ViewModelProvider
@@ -95,6 +102,7 @@ import dev.mateux.caparao.ui.server.ServerViewModel
 import dev.mateux.caparao.ui.settings.SettingsDetail
 import dev.mateux.caparao.ui.settings.SettingsDetailScreen
 import dev.mateux.caparao.ui.theme.Motion
+import dev.mateux.caparao.ui.theme.animationsOff
 import kotlinx.serialization.Serializable
 
 /** The bottom-bar tabs, in order. */
@@ -398,6 +406,7 @@ private fun Tabs(
     LaunchedEffect(tab) { bottomBarVisible = true }
     val touchExploration = LocalContext.current.getSystemService(AccessibilityManager::class.java).isTouchExplorationEnabled
     LaunchedEffect(touchExploration) { if (touchExploration) bottomBarVisible = true }
+    val reducedMotion = animationsOff()
     val onScroll = rememberUpdatedState<(Float) -> Unit> { delta ->
         if (!touchExploration) when {
             delta < -0.5f -> bottomBarVisible = false
@@ -442,7 +451,13 @@ private fun Tabs(
             )
         },
         bottomBar = {
-            if (bottomBarVisible) {
+            AnimatedVisibility(
+                visible = bottomBarVisible,
+                enter = slideInVertically(Motion.standardOrSnap<IntOffset>(reducedMotion)) { it } +
+                    expandVertically(Motion.standardOrSnap<IntSize>(reducedMotion)),
+                exit = slideOutVertically(Motion.standardOrSnap<IntOffset>(reducedMotion)) { it } +
+                    shrinkVertically(Motion.standardOrSnap<IntSize>(reducedMotion)),
+            ) {
                 ShortNavigationBar {
                     Tab.entries.forEach { entry ->
                         ShortNavigationBarItem(
