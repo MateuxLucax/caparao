@@ -82,6 +82,7 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import dev.mateux.caparao.ui.settings.ScaleStatusViewModel
 import dev.mateux.caparao.ui.server.ServerViewModel

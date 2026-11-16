@@ -43,6 +43,8 @@ import dev.mateux.caparao.ui.recipes.RecipeEditorViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
+import androidx.lifecycle.createSavedStateHandle
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import dev.mateux.caparao.ui.settings.ScaleStatusViewModel
 import dev.mateux.caparao.ui.server.ServerViewModel
@@ -166,6 +168,7 @@ class AppContainer(context: Context) {
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
         initializer { CoffeeBagsViewModel(coffeeBags, adjustments = bagRecipeAdjustments) }
+        initializer { CoffeeEditorViewModel(createSavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, bagRecipeAdjustments) }
         initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, bagRecipeAdjustments) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }

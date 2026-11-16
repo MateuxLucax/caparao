@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso
@@ -80,6 +81,7 @@ import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagsViewModel
+import dev.mateux.caparao.ui.coffees.CoffeeEditorViewModel
 import dev.mateux.caparao.ui.recipes.RecipesViewModel
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -288,7 +290,8 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
             initializer { CaptureViewModel(diagnostics, settings, available = diagnosticsAvailable) }
             initializer { RecipesViewModel(recipes) }
             initializer { CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()), adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
-            initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
+            initializer { CoffeeEditorViewModel(SavedStateHandle(), requireNotNull(this[CoffeeEditorViewModel.TARGET])) }
+                initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), CoffeeBagRepository(db.coffeeBags()), brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), CoffeeBagRepository(db.coffeeBags()), recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
             initializer { BrewsViewModel(brews, CoffeeBagRepository(db.coffeeBags()).bags, settings.syncStatus) {} }
@@ -405,7 +408,7 @@ abstract class ScreenTestSupport(protected val lang: String, protected val theme
     /** The last node with [id]: a dialog's button sits above the screen's, which stays in the tree. */
     protected fun clickLast(id: Int) = compose.onAllNodesWithText(text(id)).onLast().performClick()
 
-    /** The Coffees tab's add sheet (C3): Save waits for a name and a weight; More details holds origin and notes. */
+    /** The Coffees tab's add screen: Save waits for a name and a weight. */
     protected fun linkBrew(id: String, bagId: String, dose: Double, rating: Int? = null, recipeId: String? = null) = runBlocking {
         db.brews().insertWithSamples(
             BrewEntity(

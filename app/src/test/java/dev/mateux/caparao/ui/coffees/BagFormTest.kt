@@ -1,5 +1,6 @@
 package dev.mateux.caparao.ui.coffees
 
+import androidx.lifecycle.SavedStateHandle
 import dev.mateux.caparao.model.CoffeeBag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -52,6 +53,20 @@ class BagFormTest {
         assertEquals("Bourbon", fresh.name)
         assertNull(fresh.roaster)
         assertEquals(7L, fresh.createdAt)
+    }
+
+    @Test
+    fun editorRestoresItsDraftFromSavedState() {
+        val saved = SavedStateHandle()
+        val original = CoffeeEditorViewModel(saved)
+        original.change(BagForm(name = "Coffee", weight = "250"))
+        original.change(original.form.value.copy(origin = "Carmo de Minas"))
+
+        val restored = CoffeeEditorViewModel(saved)
+
+        assertEquals("Coffee", restored.form.value.name)
+        assertEquals("250", restored.form.value.weight)
+        assertEquals("Carmo de Minas", restored.form.value.origin)
     }
 
     @Test

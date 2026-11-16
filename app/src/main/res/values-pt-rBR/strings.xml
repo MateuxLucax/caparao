@@ -381,6 +381,10 @@
     <string name="tab_coffees">Cafés</string>
     <string name="coffees_empty">Nenhum café na prateleira.</string>
     <string name="coffee_add">Adicionar café</string>
+    <string name="coffee_section">Café</string>
+    <string name="coffee_package_section">Pacote</string>
+    <string name="coffee_tasting_notes_section">Notas sensoriais</string>
+    <string name="coffee_notes_section">Anotações</string>
     <string name="coffee_edit">Editar café</string>
     <string name="coffee_name">Café</string>
     <string name="coffee_roaster">Torrefação</string>
@@ -392,7 +396,6 @@
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>
-    <string name="coffee_more_details">Mais detalhes</string>
     <string name="coffee_tasting_notes">Notas sensoriais</string>
     <string name="adjustments_title">Ajustes por receita</string>
     <string name="adjustment_none">Sem ajuste · segue a receita</string>

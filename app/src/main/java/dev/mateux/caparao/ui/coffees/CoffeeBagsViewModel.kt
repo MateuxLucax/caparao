@@ -1,24 +1,29 @@
 package dev.mateux.caparao.ui.coffees
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewModelScope
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.RecipeForm
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.Normalizer
 import java.util.Locale
 import java.util.UUID
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 /** A bag as typed in the form; [id] is null for a new one. */
+@Serializable
 data class BagForm(
     val id: String? = null,
     val name: String = "",
@@ -67,7 +72,18 @@ data class BagForm(
     }
 }
 
-/** The coffee bags: the list and the bag being added or edited in the sheet, if any. */
+/** The full-screen editor draft is saved with its navigation entry across process death. */
+class CoffeeEditorViewModel(private val savedState: SavedStateHandle, target: BagForm = BagForm()) : ViewModel() {
+    private val _form = MutableStateFlow(savedState.get<String>("form")?.let { Json.decodeFromString<BagForm>(it) } ?: target)
+    val form: StateFlow<BagForm> = _form.asStateFlow()
+    private var opened = _form.value
+    val dirty: Boolean get() = _form.value != opened
+    fun change(form: BagForm) { _form.value = form; savedState["form"] = Json.encodeToString(form) }
+    fun reset(form: BagForm) { opened = form; change(form) }
+    companion object { val TARGET = object : CreationExtras.Key<BagForm> {} }
+}
+
+/** The coffee bags list and persistence operations. */
 class CoffeeBagsViewModel(
     private val repository: CoffeeBagRepository,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -76,44 +92,8 @@ class CoffeeBagsViewModel(
 ) : ViewModel() {
     val bags: StateFlow<List<CoffeeBag>?> = repository.bags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private val _editing = MutableStateFlow<BagForm?>(null)
-    val editing: StateFlow<BagForm?> = _editing.asStateFlow()
-
-    /** The form as it opened; the sheet asks before closing with other edits (#181). */
-    private var opened: BagForm? = null
-
-    /** Whether [form] differs from how the sheet opened. */
-    fun dirty(form: BagForm): Boolean = form != opened
-
-    fun new() = open(BagForm())
-
-    fun edit(bag: CoffeeBag) = open(BagForm.of(bag))
-
-    fun openAnotherBag(bag: CoffeeBag) {
-        viewModelScope.launch {
-            val count = adjustments?.forBag(bag.id)?.first()?.count { it.grind != null || it.waterTempCelsius != null || it.doseGrams != null } ?: 0
-            open(BagForm(
-                name = bag.name, roaster = bag.roaster.orEmpty(), origin = bag.origin.orEmpty(),
-                weight = RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), notes = bag.notes.orEmpty(),
-                tastingNotes = bag.tastingNotes, sourceBagId = bag.id, copiedAdjustmentCount = count,
-            ))
-        }
-    }
-
-    private fun open(form: BagForm) {
-        opened = form
-        _editing.value = form
-    }
-
-    fun change(form: BagForm) = _editing.update { if (it == null) null else form }
-
-    fun cancel() {
-        _editing.value = null
-    }
-
-    fun save() {
-        val form = _editing.value?.takeIf { it.valid } ?: return
-        _editing.value = null
+    fun save(form: BagForm) {
+        if (!form.valid) return
         viewModelScope.launch {
             val bag = form.toModel(clock(), newId)
             if (form.sourceBagId == null) repository.save(bag)
