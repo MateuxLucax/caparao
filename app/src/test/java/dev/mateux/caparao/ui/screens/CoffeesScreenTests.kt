@@ -205,6 +205,8 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
         waitFor(R.string.coffee_weight)
         compose.onNodeWithTag("coffee-bag-editor").assertIsDisplayed()
+        compose.onNodeWithTag("coffee-label-camera").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.coffee_read_label)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.tab_home)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.tab_brews)).assertDoesNotExist()
         compose.onNodeWithContentDescription(text(R.string.tab_settings)).assertDoesNotExist()
@@ -224,6 +226,28 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         clickLast(R.string.tab_coffees)
         compose.waitUntilAtLeastOneExists(hasText("Mantiqueira", substring = true), 5_000)
         compose.onNodeWithText("Mantiqueira", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun recognizedLabelTextFillsOnlyMissingSupportedFields() {
+        val today = LocalDate.of(2026, 11, 16)
+        val form = dev.mateux.caparao.ui.coffees.BagForm(name = "Typed name", weight = "340", roaster = "")
+        val filled = dev.mateux.caparao.ui.coffees.applyLabelText(
+            form,
+            listOf(
+                dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
+                dev.mateux.caparao.model.LabelLine("Torrado em 12/11/2026", 30f),
+                dev.mateux.caparao.model.LabelLine("250 g", 28f),
+                dev.mateux.caparao.model.LabelLine("Chocolate", 18f),
+                dev.mateux.caparao.model.LabelLine("Validade 12/11/2027", 12f),
+            ),
+            listOf("Torra Alta"), listOf("Chocolate"), today,
+        )
+        assertEquals("Typed name", filled.name)
+        assertEquals("340", filled.weight)
+        assertEquals("Torra Alta", filled.roaster)
+        assertEquals(today.minusDays(4).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(), filled.roastedAt)
+        assertEquals(listOf("Chocolate"), filled.tastingNotes)
     }
 
     @Test

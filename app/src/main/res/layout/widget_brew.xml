@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_brew_background"
@@ -26,7 +27,7 @@
                 android:layout_height="32dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
-                android:tint="@color/widget_icon_foreground" />
+                app:tint="@color/widget_icon_foreground" />
         </FrameLayout>
 
         <LinearLayout
@@ -105,7 +106,7 @@
                 android:layout_height="22dp"
                 android:layout_marginEnd="8dp"
                 android:contentDescription="@null"
-                android:tint="@color/widget_action_text" />
+                app:tint="@color/widget_action_text" />
 
             <TextView
                 android:id="@+id/widget_action_label"

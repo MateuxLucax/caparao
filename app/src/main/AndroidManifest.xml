@@ -57,6 +57,14 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.label-photo"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/label_photo_paths" />
+        </provider>
+
         <!-- The last-brew home-screen widget is backed by Room and uses the launcher shortcut route for its action. -->
         <receiver
             android:name=".BrewWidgetProvider"
