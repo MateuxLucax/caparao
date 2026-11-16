@@ -109,7 +109,7 @@ internal fun coffeeFieldSuggestions(
     val match = query.coffeeKey()
     if (match.isEmpty()) return emptyList()
     return bags.asSequence().filter { it.id != excludingId }.sortedByDescending(CoffeeBag::createdAt)
-        .mapNotNull(field).map(String::trim).filter { it.isNotEmpty() && it.coffeeKey().contains(match) }
+        .mapNotNull(field).map(String::trim).filter { it.isNotEmpty() && it.coffeeKey() != match && it.coffeeKey().contains(match) }
         .distinctBy(String::coffeeKey).take(3).toList()
 }
 

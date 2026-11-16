@@ -21,6 +21,7 @@ class BagFormTest {
             listOf("Café Aurora", "CAFÉ Alto", "cafe do vale"),
             coffeeFieldSuggestions(bags, "CAFE", null, CoffeeBag::roaster),
         )
+        assertEquals(emptyList<String>(), coffeeFieldSuggestions(bags, "café aurora", null, CoffeeBag::roaster))
     }
 
     @Test

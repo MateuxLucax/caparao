@@ -25,6 +25,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
@@ -256,8 +257,10 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         waitFor(R.string.coffee_weight)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("New coffee")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("cafe")
-        compose.onNodeWithText("Café Aurora").assertIsDisplayed().performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).assertIsFocused()
+        compose.onNode(hasText("Café Aurora") and isSelectable()).assertIsDisplayed().performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).assertTextContains("Café Aurora")
+        compose.onNode(hasText("Café Aurora") and isSelectable()).assertDoesNotExist()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_weight))).performTextReplacement("250")
         click(R.string.coffee_more_details)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_origin))).performTextReplacement("catuai")
