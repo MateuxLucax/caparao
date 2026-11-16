@@ -71,6 +71,14 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
     @Test fun bedtimeSettingUsesTimePickerAndPersistsChoice() {
         open("press-ramp", 38_300)
         click(R.string.tab_settings)
+        compose.onNodeWithText(text(R.string.settings_brewing)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.settings_analytics)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.settings_your_data)).assertIsDisplayed()
+        assertTrue(compose.onNodeWithText(text(R.string.settings_brewing)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.settings_analytics)).fetchSemanticsNode().boundsInRoot.top)
+        assertTrue(compose.onNodeWithText(text(R.string.settings_analytics)).fetchSemanticsNode().boundsInRoot.top <
+            compose.onNodeWithText(text(R.string.settings_your_data)).fetchSemanticsNode().boundsInRoot.top)
+        compose.onNodeWithText(text(R.string.rating_reminder_settings)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.analytics_bedtime)).performScrollTo().performClick()
         assertEquals(23 * 60, settings.bedtimeMinutes)
     }

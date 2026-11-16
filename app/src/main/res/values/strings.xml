@@ -47,6 +47,7 @@
     <string name="settings_no_browser">No browser available.</string>
     <string name="settings_allow_nearby">Allow Nearby devices</string>
     <string name="settings_brewing">Brewing</string>
+    <string name="settings_analytics">Analytics</string>
     <string name="settings_your_data">Your data</string>
     <string name="settings_app">App</string>
     <string name="settings_only_phone">Only on this phone</string>

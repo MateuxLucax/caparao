@@ -131,16 +131,6 @@ fun SettingsScreen(
         }, onClick = { onOpen(SettingsDetail.Scale) })
         GuideAlertsSection(targets)
         SettingsRow(
-            stringResource(R.string.analytics_bedtime), "%02d:%02d".format(bedtimeMinutes / 60, bedtimeMinutes % 60),
-            onClick = {
-                TimePickerDialog(context, { _, hour, minute ->
-                    bedtimeMinutes = hour * 60 + minute
-                    targets.bedtimeMinutes = bedtimeMinutes
-                }, bedtimeMinutes / 60, bedtimeMinutes % 60, true).show()
-            },
-            testTag = "bedtime",
-        )
-        SettingsRow(
             stringResource(R.string.rating_reminder_settings),
             stringResource(R.string.rating_reminder_delay_value, ratingReminderDelay),
             onClick = { editRatingReminderDelay = true },
@@ -181,6 +171,17 @@ fun SettingsScreen(
                 },
             )
         }
+        SettingsSection(R.string.settings_analytics)
+        SettingsRow(
+            stringResource(R.string.analytics_bedtime), "%02d:%02d".format(bedtimeMinutes / 60, bedtimeMinutes % 60),
+            onClick = {
+                TimePickerDialog(context, { _, hour, minute ->
+                    bedtimeMinutes = hour * 60 + minute
+                    targets.bedtimeMinutes = bedtimeMinutes
+                }, bedtimeMinutes / 60, bedtimeMinutes % 60, true).show()
+            },
+            testTag = "bedtime",
+        )
         SettingsSection(R.string.settings_your_data)
         SettingsRow(stringResource(R.string.section_server), when {
             !sync.serverConfigured -> stringResource(R.string.settings_only_phone)
