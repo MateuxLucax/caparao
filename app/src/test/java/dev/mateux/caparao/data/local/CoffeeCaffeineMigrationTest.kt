@@ -27,11 +27,11 @@ class CoffeeCaffeineMigrationTest {
             db.version = 14
         }
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_14_15).allowMainThreadQueries().build()
+            .addMigrations(BrewDatabase.MIGRATION_14_15, BrewDatabase.MIGRATION_15_16).allowMainThreadQueries().build()
         try {
             assertEquals("Arabica", migrated.coffeeBags().get("bag")!!.bag.name)
             assertEquals(null, migrated.coffeeBags().get("bag")!!.bag.caffeineMgPerGram)
-            assertEquals(15, migrated.openHelper.readableDatabase.version)
+            assertEquals(16, migrated.openHelper.readableDatabase.version)
         } finally { migrated.close() }
     }
 }

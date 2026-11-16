@@ -18,7 +18,6 @@ data class CoffeeBagEntity(
     @PrimaryKey val id: String,
     val name: String,
     val roaster: String?,
-    val origin: String?,
     @ColumnInfo(name = "roasted_at") val roastedAt: Long?,
     @ColumnInfo(name = "weight_grams") val weightGrams: Double,
     val notes: String?,
@@ -27,6 +26,12 @@ data class CoffeeBagEntity(
     @androidx.room.TypeConverters(TastingNotesConverter::class)
     @ColumnInfo(name = "tasting_notes", defaultValue = "'[]'") val tastingNotes: List<String> = emptyList(),
     @ColumnInfo(name = "caffeine_mg_per_gram") val caffeineMgPerGram: Int? = null,
+    val country: String? = null,
+    val region: String? = null,
+    val farm: String? = null,
+    val variety: String? = null,
+    val process: String? = null,
+    @ColumnInfo(name = "altitude_meters") val altitudeMeters: Int? = null,
 )
 
 @Entity(

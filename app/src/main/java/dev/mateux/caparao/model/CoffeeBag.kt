@@ -8,8 +8,12 @@ data class CoffeeBag(
     val id: String,
     val name: String,
     val roaster: String? = null,
-    /** Free text: origin, variety, process. */
-    val origin: String? = null,
+    val country: String? = null,
+    val region: String? = null,
+    val farm: String? = null,
+    val variety: String? = null,
+    val process: String? = null,
+    val altitudeMeters: Int? = null,
     /** Epoch millis of the roast day; null when unknown. */
     val roastedAt: Long? = null,
     val weightGrams: Double,

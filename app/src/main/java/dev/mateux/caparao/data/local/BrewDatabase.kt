@@ -158,7 +158,7 @@ interface BrewDao {
         BagRecipeAdjustmentHistoryEntity::class,
         CoffeeUseEntryEntity::class,
     ],
-    version = 15,
+    version = 16,
 )
 abstract class BrewDatabase : RoomDatabase() {
     abstract fun brews(): BrewDao
@@ -174,7 +174,7 @@ abstract class BrewDatabase : RoomDatabase() {
         const val NAME = "caparao.db"
 
         fun open(context: Context): BrewDatabase = Room.databaseBuilder(context, BrewDatabase::class.java, NAME)
-            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+            .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
             .addCallback(SeedBuiltInRecipes)
             .build()
 
@@ -277,6 +277,19 @@ abstract class BrewDatabase : RoomDatabase() {
         val MIGRATION_14_15 = object : androidx.room.migration.Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE coffee_bags ADD COLUMN caffeine_mg_per_gram INTEGER")
+            }
+        }
+
+        val MIGRATION_15_16 = object : androidx.room.migration.Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN country TEXT")
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN region TEXT")
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN farm TEXT")
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN variety TEXT")
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN process TEXT")
+                db.execSQL("ALTER TABLE coffee_bags ADD COLUMN altitude_meters INTEGER")
+                db.execSQL("UPDATE coffee_bags SET region = origin WHERE origin IS NOT NULL")
+                db.execSQL("ALTER TABLE coffee_bags DROP COLUMN origin")
             }
         }
 

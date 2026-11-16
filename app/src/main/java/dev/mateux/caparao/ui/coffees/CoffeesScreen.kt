@@ -134,6 +134,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
                 CoffeeBagLevelBar(bag.leftGrams, bag.weightGrams)
             }
             val details = buildList {
+                listOfNotNull(bag.region, bag.variety, bag.process).joinToString(" · ").takeIf(String::isNotEmpty)?.let(::add)
                 bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
                 // No "0 brews": pt-BR counts 0 as one, and a new bag says nothing by having none.
                 if (bag.brewCount > 0) add(pluralStringResource(R.plurals.coffee_brew_count, bag.brewCount, bag.brewCount))
@@ -196,7 +197,11 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
         val destinations = listOfNotNull(
             (R.string.coffee_name to LabelDestination.COFFEE).takeIf { form.name.isBlank() },
             (R.string.coffee_roaster to LabelDestination.ROASTER).takeIf { form.roaster.isBlank() },
-            (R.string.coffee_origin to LabelDestination.ORIGIN).takeIf { form.origin.isBlank() },
+            (R.string.coffee_country to LabelDestination.COUNTRY).takeIf { form.country.isBlank() },
+            (R.string.coffee_region to LabelDestination.REGION).takeIf { form.region.isBlank() },
+            (R.string.coffee_farm to LabelDestination.FARM).takeIf { form.farm.isBlank() },
+            (R.string.coffee_variety to LabelDestination.VARIETY).takeIf { form.variety.isBlank() },
+            (R.string.coffee_process to LabelDestination.PROCESS).takeIf { form.process.isBlank() },
             (R.string.coffee_tasting_notes to LabelDestination.TASTING_NOTE).takeIf {
                 form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(candidate, ignoreCase = true) }
             },
@@ -255,15 +260,42 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             }
             Text(stringResource(R.string.coffee_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             Field(form.name, R.string.coffee_name) { viewModel.change(form.copy(name = it.take(80))) }
+            Text(stringResource(R.string.coffee_origin_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
+            Field(form.country, R.string.coffee_country,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.country, form.id, CoffeeBag::country) +
+                    listOf(stringResource(R.string.coffee_country_brazil)).filterNot { form.country.equals(it, true) },
+                onSuggestion = { viewModel.change(form.copy(country = it)) },
+            ) { viewModel.change(form.copy(country = it.take(80))) }
+            Field(form.region, R.string.coffee_region,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.region, form.id, CoffeeBag::region),
+                onSuggestion = { viewModel.change(form.copy(region = it)) },
+            ) { viewModel.change(form.copy(region = it.take(120))) }
+            Field(form.farm, R.string.coffee_farm,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.farm, form.id, CoffeeBag::farm),
+                onSuggestion = { viewModel.change(form.copy(farm = it)) },
+            ) { viewModel.change(form.copy(farm = it.take(120))) }
+            Field(form.variety, R.string.coffee_variety,
+                suggestions = (coffeeFieldSuggestions(bags.orEmpty(), form.variety, form.id, CoffeeBag::variety) +
+                    listOf(R.string.coffee_variety_topazio, R.string.coffee_variety_catuai, R.string.coffee_variety_bourbon, R.string.coffee_variety_geisha).map { stringResource(it) }
+                        .filterNot { it.equals(form.variety, true) }).distinct().take(6),
+                onSuggestion = { viewModel.change(form.copy(variety = it)) },
+            ) { viewModel.change(form.copy(variety = it.take(80))) }
+            Field(form.process, R.string.coffee_process,
+                suggestions = (coffeeFieldSuggestions(bags.orEmpty(), form.process, form.id, CoffeeBag::process) +
+                    listOf(R.string.coffee_process_natural, R.string.coffee_process_pulped, R.string.coffee_process_washed, R.string.coffee_process_fermented, R.string.coffee_process_honey).map { stringResource(it) }
+                        .filterNot { it.equals(form.process, true) }).distinct().take(6),
+                onSuggestion = { viewModel.change(form.copy(process = it)) },
+            ) { viewModel.change(form.copy(process = it.take(80))) }
+            Field(form.altitudeMeters, R.string.coffee_altitude, KeyboardType.Number) {
+                val digits = it.filter(Char::isDigit).take(4)
+                viewModel.change(form.copy(altitudeMeters = digits.takeIf { value -> value.toIntOrNull() in 0..3000 }.orEmpty()))
+            }
+            Text(stringResource(R.string.coffee_altitude_hint), style = MaterialTheme.typography.bodySmall)
             Field(
                 form.roaster, R.string.coffee_roaster,
                 suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.roaster, form.id, CoffeeBag::roaster),
                 onSuggestion = { viewModel.change(form.copy(roaster = it)) },
             ) { viewModel.change(form.copy(roaster = it.take(80))) }
-            Field(form.origin, R.string.coffee_origin,
-                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.origin, form.id, CoffeeBag::origin),
-                onSuggestion = { viewModel.change(form.copy(origin = it)) },
-            ) { viewModel.change(form.copy(origin = it.take(120))) }
             Text(stringResource(R.string.coffee_package_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))

@@ -419,7 +419,25 @@
     <string name="coffee_label_model_unavailable">Couldn\'t read the label. Try again in a moment.</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>
-    <string name="coffee_origin">Origin and process</string>
+    <string name="coffee_origin_section">Origin</string>
+    <string name="coffee_country">Country</string>
+    <string name="coffee_country_brazil">Brazil</string>
+    <string name="coffee_region">Region</string>
+    <string name="coffee_farm">Farm</string>
+    <string name="coffee_variety">Variety</string>
+    <string name="coffee_process">Process</string>
+    <string name="coffee_altitude">Elevation (m)</string>
+    <string name="coffee_altitude_hint">Whole metres, from 0 to 3,000.</string>
+    <string name="coffee_altitude_value">%1$s metres</string>
+    <string name="coffee_variety_topazio" translatable="false">Topázio</string>
+    <string name="coffee_variety_catuai" translatable="false">Catuaí Amarelo</string>
+    <string name="coffee_variety_bourbon" translatable="false">Bourbon Amarelo</string>
+    <string name="coffee_variety_geisha" translatable="false">Geisha</string>
+    <string name="coffee_process_natural" translatable="false">Natural</string>
+    <string name="coffee_process_pulped">Pulped natural</string>
+    <string name="coffee_process_washed">Washed</string>
+    <string name="coffee_process_fermented">Fermented</string>
+    <string name="coffee_process_honey" translatable="false">Honey</string>
     <string name="coffee_weight">Bag weight (g)</string>
     <string name="coffee_roast_date">Roast date</string>
     <string name="coffee_roasted_on">Roasted on %1$s</string>
