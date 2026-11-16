@@ -47,6 +47,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,6 +92,8 @@ fun CoffeeBagDetailScreen(
     var removedEntry by remember { mutableStateOf<dev.mateux.caparao.data.local.CoffeeUseEntry?>(null) }
     var confirmRemove by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
+    val gramsFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     val locale = LocalConfiguration.current.locales[0]
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -180,11 +185,23 @@ fun CoffeeBagDetailScreen(
         title = { Text(stringResource(R.string.coffee_log_used)) },
         text = { Column {
             Text(stringResource(R.string.coffee_log_used_hint, wholeGrams(bag?.leftGrams ?: 0.0, locale)))
-            OutlinedTextField(gramsInput, { gramsInput = it.filter(Char::isDigit) }, label = { Text(stringResource(R.string.unit_grams)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+            OutlinedTextField(
+                gramsInput,
+                { gramsInput = it.filter(Char::isDigit) },
+                modifier = Modifier.focusRequester(gramsFocus),
+                label = { Text(stringResource(R.string.coffee_log_used_field)) },
+                trailingIcon = { Text(stringResource(R.string.unit_grams)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+            )
         } },
         confirmButton = { TextButton(enabled = gramsInput.toIntOrNull() in 1..(bag?.leftGrams?.toInt() ?: 0), onClick = { viewModel.logUsed(gramsInput.toInt()); logDialog = false }) { Text(stringResource(R.string.save)) } },
         dismissButton = { TextButton(onClick = { logDialog = false }) { Text(stringResource(R.string.cancel)) } },
     )
+    if (logDialog) androidx.compose.runtime.LaunchedEffect(Unit) {
+        gramsFocus.requestFocus()
+        keyboard?.show()
+    }
     confirmRemove?.let { entryId -> AlertDialog(
         onDismissRequest = { confirmRemove = null }, title = { Text(stringResource(R.string.coffee_remove_use_title)) },
         confirmButton = { TextButton(onClick = { removedEntry = useEntries.firstOrNull { it.id == entryId }; removedEntry?.let(viewModel::removeUseEntry); confirmRemove = null }) { Text(stringResource(R.string.coffee_remove_use)) } },

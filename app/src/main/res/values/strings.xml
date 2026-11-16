@@ -400,7 +400,8 @@
     <string name="coffee_roasted_on">Roasted on %1$s</string>
     <string name="coffee_left">%1$s of %2$s g left</string>
     <string name="coffee_log_used">Log coffee used</string>
-    <string name="coffee_log_used_hint">Enter whole grams used, up to %1$s g.</string>
+    <string name="coffee_log_used_hint">Up to %1$s g left in this bag.</string>
+    <string name="coffee_log_used_field">Grams used</string>
     <string name="coffee_used_outside_app">Used outside the app</string>
     <string name="coffee_remove_use_title">Remove this entry?</string>
     <string name="coffee_remove_use">Remove</string>
