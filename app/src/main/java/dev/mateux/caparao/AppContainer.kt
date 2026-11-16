@@ -165,7 +165,7 @@ class AppContainer(context: Context) {
         initializer { TargetRatioViewModel(settings) }
         initializer { CaptureViewModel(captureWriter, settings, BuildConfig.SENTRY_DSN.isNotBlank()) }
         initializer { RecipesViewModel(recipes) }
-        initializer { CoffeeBagsViewModel(coffeeBags) }
+        initializer { CoffeeBagsViewModel(coffeeBags, adjustments = bagRecipeAdjustments) }
         initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, bagRecipeAdjustments) }
         initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, bagRecipeAdjustments) }
         initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }

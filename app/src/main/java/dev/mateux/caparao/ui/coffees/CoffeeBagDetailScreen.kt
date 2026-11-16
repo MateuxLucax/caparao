@@ -114,6 +114,9 @@ fun CoffeeBagDetailScreen(
                 }
                 OutlinedButton(onClick = { bagsViewModel.edit(current) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.edit)) }
             }
+            OutlinedButton(onClick = { bagsViewModel.openAnotherBag(current) }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(R.string.coffee_open_another_bag))
+            }
             if (adjustments.isNotEmpty()) {
                 Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

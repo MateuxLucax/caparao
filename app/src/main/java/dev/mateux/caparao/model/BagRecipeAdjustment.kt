@@ -15,6 +15,7 @@ data class BagRecipeAdjustment(
 enum class BagRecipeAdjustmentReason {
     MANUAL,
     SUGGESTION,
+    COPIED_FROM_ANOTHER_BAG,
 }
 
 /** A local record of the previous and new values for one adjustment change. */

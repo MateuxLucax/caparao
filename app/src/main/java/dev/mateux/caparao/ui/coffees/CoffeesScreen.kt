@@ -169,7 +169,7 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                stringResource(if (form.id == null) R.string.coffee_add else R.string.coffee_edit),
+                stringResource(if (form.sourceBagId != null) R.string.coffee_new_bag else if (form.id == null) R.string.coffee_add else R.string.coffee_edit),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -183,6 +183,13 @@ fun CoffeeBagSheet(form: BagForm, viewModel: CoffeeBagsViewModel) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
             Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
+            if (form.sourceBagId != null) {
+                if (form.copiedAdjustmentCount > 0) Text(pluralStringResource(R.plurals.coffee_adjustments_copied, form.copiedAdjustmentCount, form.copiedAdjustmentCount))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Switch(checked = form.finishSource, onCheckedChange = { viewModel.change(form.copy(finishSource = it)) })
+                    Text(stringResource(R.string.coffee_finish_old_bag))
+                }
+            }
             var moreDetails by rememberSaveable { mutableStateOf(form.origin.isNotEmpty() || form.notes.isNotEmpty() || form.tastingNotes.isNotEmpty()) }
             if (moreDetails) {
                 Field(

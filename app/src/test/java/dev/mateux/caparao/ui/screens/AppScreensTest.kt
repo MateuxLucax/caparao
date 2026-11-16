@@ -144,7 +144,7 @@ class AppScreensTest {
             initializer { TargetRatioViewModel(settings) }
             initializer { CaptureViewModel(diagnostics, settings, available = true) }
             initializer { RecipesViewModel(recipes) }
-            initializer { CoffeeBagsViewModel(coffeeBags) }
+            initializer { CoffeeBagsViewModel(coffeeBags, adjustments = BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeBagDetailViewModel(requireNotNull(this[CoffeeBagDetailViewModel.BAG_ID]), coffeeBags, brews, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { CoffeeAdjustmentViewModel(requireNotNull(this[CoffeeAdjustmentViewModel.TARGET]), coffeeBags, recipes, BagRecipeAdjustmentRepository(db.bagRecipeAdjustments())) }
             initializer { RecipeEditorViewModel(requireNotNull(this[RecipeEditorViewModel.TARGET]), recipes) }
