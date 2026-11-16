@@ -19,6 +19,7 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onFirst
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,6 +27,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -99,7 +103,7 @@ import org.junit.Test
 @RunWith(AndroidJUnit4::class)
 // A phone-sized screen: Robolectric's default (320x470 px) leaves the guide's buttons off screen.
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
-class AppScreensTest {
+abstract class AppScreensTest {
     @get:Rule
     val compose = createComposeRule()
 
@@ -262,14 +266,23 @@ class AppScreensTest {
 
         scale.state.value = ScaleState.Idle
         compose.onNodeWithTag("scale-battery-low").assertDoesNotExist()
-    fun tabTitlesMatchNavigationLabelsInBothLocales() {
+    }
+
+    @Test
+    fun tabTitlesMatchNavigationLabels() {
         compose.setContent { AppTheme { App(factory(scale), scale, onboardingDone = true, actions, "1.0-test") } }
         compose.waitUntilAtLeastOneExists(hasContentDescription(text(R.string.scale_connected)), 5_000)
+        compose.onNodeWithText(text(R.string.app_name), useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
 
         listOf(R.string.tab_recipes, R.string.tab_coffees, R.string.tab_brews).forEach { title ->
             val label = text(title)
             compose.onNodeWithText(label).performClick()
             compose.onAllNodesWithText(label, useUnmergedTree = true).assertCountEquals(2)
+            compose.onAllNodesWithText(label, useUnmergedTree = true).onFirst()
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         }
     }
 
@@ -865,3 +878,11 @@ class AppScreensTest {
         compose.onNodeWithText("18.0 g").assertExists()
     }
 }
+
+@RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "en-w411dp-h891dp-notnight-xxhdpi")
+class AppScreenTitlesEnTest : AppScreensTest()
+
+@RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "pt-rBR-w411dp-h891dp-notnight-xxhdpi")
+class AppScreenTitlesPtBrTest : AppScreensTest()
