@@ -86,7 +86,9 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CompletableDeferred
@@ -163,6 +165,25 @@ abstract class ScreenRecipesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithContentDescription(text(R.string.new_recipe)).performClick()
         waitFor(R.string.mode_espresso)
         compose.waitForIdle()
+    }
+
+    @Test
+    fun lastRecipeRowScrollsAboveAddButton() {
+        runBlocking {
+            val recipe = checkNotNull(recipes.get(BuiltInRecipes.V60_ID))
+            repeat(12) { index ->
+                val name = if (index == 11) "zzzz last recipe" else "Scrollable recipe $index"
+                recipes.save(recipe.copy(id = "scroll-recipe-$index", name = name))
+            }
+        }
+        open("press-ramp", 38_300)
+        click(R.string.tab_recipes)
+        compose.onNodeWithTag("recipes-list").performScrollToIndex(16)
+        val lastRecipe = compose.onNodeWithTag("recipe-row-scroll-recipe-11")
+        lastRecipe.assert(hasText("zzzz last recipe"))
+        lastRecipe.assertIsDisplayed()
+        val fabTop = compose.onNodeWithContentDescription(text(R.string.new_recipe)).getUnclippedBoundsInRoot().top
+        assertTrue("Last recipe row overlaps the add button", lastRecipe.getUnclippedBoundsInRoot().bottom <= fabTop)
     }
 
     @Test

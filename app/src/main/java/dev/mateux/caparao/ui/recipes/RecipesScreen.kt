@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,7 +53,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
             if (recipes.isEmpty()) {
                 EmptyState(R.drawable.ic_menu_book, stringResource(R.string.no_recipes_title), Modifier.padding(top = 48.dp))
             } else {
-                LazyColumn(contentPadding = PaddingValues(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                LazyColumn(Modifier.testTag("recipes-list"), contentPadding = PaddingValues(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     itemsIndexed(recipes, key = { _, recipe -> recipe.id }) { index, recipe ->
                         RecipeRow(recipe, segmentedShape(index, recipes.size)) { onOpen(recipe) }
                     }
@@ -72,7 +73,7 @@ private fun RecipeRow(recipe: Recipe, shape: Shape, onClick: () -> Unit) {
         headlineContent = { Text(recipe.name, style = MaterialTheme.typography.titleMedium) },
         supportingContent = { Text(recipeSummary(recipe)) },
         trailingContent = { Text(recipe.method, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick).testTag("recipe-row-${recipe.id}"),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
     )
 }
