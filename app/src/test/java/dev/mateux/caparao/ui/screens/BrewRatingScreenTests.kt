@@ -184,6 +184,7 @@ abstract class BrewRatingScreenTests(lang: String, theme: String) : ScreenTestSu
             .performTextReplacement("Fine")
         compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
 
+        compose.waitUntil(5_000) { runBlocking { brews.get("detail-rate")?.grind == "Fine" } }
         val saved = runBlocking { brews.get("detail-rate")!! }
         assertEquals("Fine", saved.grind)
         assertEquals(BrewTaste.BALANCED, saved.taste)
