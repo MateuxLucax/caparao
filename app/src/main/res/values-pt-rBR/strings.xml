@@ -404,7 +404,25 @@
     <string name="coffee_label_model_unavailable">Não foi possível ler o rótulo. Tente novamente em instantes.</string>
     <string name="coffee_name">Café</string>
     <string name="coffee_roaster">Torrefação</string>
-    <string name="coffee_origin">Origem e processo</string>
+    <string name="coffee_origin_section">Origem</string>
+    <string name="coffee_country">País</string>
+    <string name="coffee_country_brazil">Brasil</string>
+    <string name="coffee_region">Região</string>
+    <string name="coffee_farm">Fazenda</string>
+    <string name="coffee_variety">Variedade</string>
+    <string name="coffee_process">Processo</string>
+    <string name="coffee_altitude">Altitude (m)</string>
+    <string name="coffee_altitude_hint">Metros inteiros, de 0 a 3.000.</string>
+    <string name="coffee_altitude_value">%1$s m</string>
+    <string name="coffee_variety_topazio" translatable="false">Topázio</string>
+    <string name="coffee_variety_catuai" translatable="false">Catuaí Amarelo</string>
+    <string name="coffee_variety_bourbon" translatable="false">Bourbon Amarelo</string>
+    <string name="coffee_variety_geisha" translatable="false">Geisha</string>
+    <string name="coffee_process_natural" translatable="false">Natural</string>
+    <string name="coffee_process_pulped">Cereja descascado</string>
+    <string name="coffee_process_washed">Lavado</string>
+    <string name="coffee_process_fermented">Fermentado</string>
+    <string name="coffee_process_honey" translatable="false">Honey</string>
     <string name="coffee_weight">Peso do pacote (g)</string>
     <string name="coffee_roast_date">Data de torra</string>
     <string name="coffee_roasted_on">Torrado em %1$s</string>

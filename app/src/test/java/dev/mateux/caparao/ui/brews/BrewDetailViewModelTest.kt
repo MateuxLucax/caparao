@@ -119,8 +119,8 @@ class BrewDetailViewModelTest {
         repository.save(brew, curve)
         val bagDao = FakeCoffeeBagDao().apply {
             usages.value = listOf(
-                CoffeeBagUsage(CoffeeBagEntity("open", "Caparaó", null, null, null, 250.0, null, finished = false, createdAt = 2), 0.0, 0, null, null),
-                CoffeeBagUsage(CoffeeBagEntity("done", "Mantiqueira", null, null, null, 250.0, null, finished = true, createdAt = 1), 0.0, 0, null, null),
+                CoffeeBagUsage(CoffeeBagEntity("open", "Caparaó", null, null, 250.0, null, finished = false, createdAt = 2), 0.0, 0, null, null),
+                CoffeeBagUsage(CoffeeBagEntity("done", "Mantiqueira", null, null, 250.0, null, finished = true, createdAt = 1), 0.0, 0, null, null),
             )
         }
         val vm = BrewDetailViewModel("b1", repository, coffeeBags = CoffeeBagRepository(bagDao))

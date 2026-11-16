@@ -1767,7 +1767,7 @@ class BrewViewModelTest {
 
     /** An open or finished bag as the bag DAO reports it; [lastBrewedAt] is the newest brew linked to it. */
     private fun bag(id: String, name: String, createdAt: Long = 0, finished: Boolean = false, lastBrewedAt: Long? = null) = CoffeeBagUsage(
-        CoffeeBagEntity(id, name, roaster = null, origin = null, roastedAt = null, weightGrams = 250.0, notes = null, finished = finished, createdAt = createdAt),
+        CoffeeBagEntity(id, name, roaster = null, roastedAt = null, weightGrams = 250.0, notes = null, finished = finished, createdAt = createdAt),
         usedGrams = 0.0, brewCount = if (lastBrewedAt == null) 0 else 1, lastBrewAt = lastBrewedAt, averageRating = null,
     )
 

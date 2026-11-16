@@ -217,6 +217,30 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithContentDescription(text(R.string.mode_french_press)).performClick()
     }
 
+    @Test
+    fun coffeeOriginFieldsSaveRenderAndRejectAltitudeOutsideRange() {
+        val now = System.currentTimeMillis()
+        runBlocking { CoffeeBagRepository(db.coffeeBags()).save(CoffeeBag(
+            "origin-coffee", "Origin coffee", country = "Brazil", region = "Alta Mogiana", farm = "Fazenda X",
+            variety = "Topázio", process = "Natural", altitudeMeters = 1100, weightGrams = 250.0, createdAt = now,
+        )) }
+        open("press-ramp", 38_300)
+        clickLast(R.string.tab_coffees)
+        compose.waitUntilAtLeastOneExists(hasText("Origin coffee", substring = true), 5_000)
+        compose.onNodeWithText("Origin coffee", substring = true).performClick()
+        waitFor(R.string.coffee_open_another_bag)
+        compose.onNodeWithText(text(R.string.coffee_country) + ":", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Fazenda X", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Fazenda X", substring = true).assertIsDisplayed()
+        click(R.string.edit)
+        waitFor(R.string.coffee_edit)
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).assertIsDisplayed()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_region))).performTextReplacement("Alta")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_region))).assertTextContains("Alta")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_altitude))).performTextReplacement("3001")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_altitude))).assertTextContains("")
+    }
+
     /** Seeds one open bag, roasted 12 days ago, and opens its detail from the Coffees tab. */
     @Test
     fun coffeeBagAddScreen() {
@@ -224,6 +248,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         clickLast(R.string.tab_coffees)
         waitFor(R.string.coffees_empty)
         compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
+        waitFor(R.string.coffee_add)
         waitFor(R.string.coffee_weight)
         compose.onNodeWithTag("coffee-bag-editor").assertIsDisplayed()
         compose.onNodeWithTag("coffee-label-camera").assertIsDisplayed()
@@ -235,7 +260,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNodeWithText(text(R.string.coffee_package_section)).assertIsDisplayed()
         compose.onAllNodesWithText(text(R.string.coffee_notes_section)).onFirst().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
-        compose.onAllNodesWithText(text(R.string.coffee_origin)).onFirst().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_country)).onFirst().assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("Mantiqueira")
         compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_weight))).performTextReplacement("250")
@@ -314,11 +339,11 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
             runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
             compose.onNodeWithText(text(R.string.coffee_label_review)).assertIsDisplayed()
             compose.onNodeWithText("Blueberry").performClick()
-            compose.onAllNodes(hasText(text(R.string.coffee_origin)) and hasClickAction()).onLast().performClick()
+            compose.onAllNodes(hasText(text(R.string.coffee_region)) and hasClickAction()).onLast().performClick()
             compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
             assertEquals("Typed coffee", editor.form.value.name)
             assertEquals("340", editor.form.value.weight)
-            assertEquals("Blueberry", editor.form.value.origin)
+            assertEquals("Blueberry", editor.form.value.region)
             lines = listOf(
                 dev.mateux.caparao.model.LabelLine("100 g", 20f),
                 dev.mateux.caparao.model.LabelLine("Blueberry", 10f),
@@ -328,7 +353,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
             compose.onNodeWithTag("coffee-label-Blueberry").assertDoesNotExist()
             compose.onNodeWithTag("coffee-label-Cherry").assertIsDisplayed()
             assertEquals("340", editor.form.value.weight)
-            assertEquals("Blueberry", editor.form.value.origin)
+            assertEquals("Blueberry", editor.form.value.region)
             runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
             assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.NOTHING_NEW, editor.labelDraft.value.message)
         } finally { photo.delete() }
@@ -425,11 +450,12 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         val now = System.currentTimeMillis()
         runBlocking {
             val bags = CoffeeBagRepository(db.coffeeBags())
-            bags.save(CoffeeBag("used", "Old coffee", roaster = "Café Aurora", origin = "Catuaí natural", weightGrams = 250.0, finished = true, createdAt = now, tastingNotes = listOf("Jasmim")))
+            bags.save(CoffeeBag("used", "Old coffee", roaster = "Café Aurora", variety = "Catuaí", process = "Natural", weightGrams = 250.0, finished = true, createdAt = now, tastingNotes = listOf("Jasmim")))
         }
         open("press-ramp", 38_300)
         click(R.string.tab_coffees)
         compose.onNodeWithContentDescription(text(R.string.coffee_add)).performClick()
+        waitFor(R.string.coffee_add)
         waitFor(R.string.coffee_weight)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_name))).performTextReplacement("New coffee")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).performTextReplacement("cafe")
@@ -438,10 +464,9 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_roaster))).assertTextContains("Café Aurora")
         compose.onNode(hasText("Café Aurora") and isSelectable()).assertDoesNotExist()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_weight))).performTextReplacement("250")
-        // Origin and tasting notes are part of the full-screen form.
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_origin))).performTextReplacement("catuai")
-        compose.onNodeWithText("Catuaí natural").assertIsDisplayed().performClick()
-        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_origin))).assertTextContains("Catuaí natural")
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_variety))).performTextReplacement("catuai")
+        compose.onNodeWithText("Catuaí").assertIsDisplayed().performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_variety))).assertTextContains("Catuaí")
         compose.onNodeWithText("Jasmim").assertIsDisplayed().performClick()
         click(R.string.save)
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("coffee-bag-editor").fetchSemanticsNodes().isEmpty() }
@@ -807,7 +832,7 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         val now = System.currentTimeMillis()
         kotlinx.coroutines.runBlocking {
             val bags = CoffeeBagRepository(db.coffeeBags())
-            bags.save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", origin = "Catuaí amarelo, natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
+            bags.save(CoffeeBag("bag-1", "Caparaó natural", roaster = "Torra Alta", region = "Sul de Minas", variety = "Catuaí amarelo", process = "Natural", roastedAt = now - 12 * day, weightGrams = 250.0, createdAt = now))
             bags.save(CoffeeBag("bag-2", "Mantiqueira", roaster = "Sul de Minas", roastedAt = now - 40 * day, weightGrams = 500.0, finished = true, createdAt = now - 30 * day))
         }
         open("press-ramp", 38_300)

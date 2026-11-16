@@ -60,13 +60,13 @@ class BagFormTest {
         val saved = SavedStateHandle()
         val original = CoffeeEditorViewModel(saved)
         original.change(BagForm(name = "Coffee", weight = "250"))
-        original.change(original.form.value.copy(origin = "Carmo de Minas"))
+        original.change(original.form.value.copy(region = "Carmo de Minas"))
 
         val restored = CoffeeEditorViewModel(saved)
 
         assertEquals("Coffee", restored.form.value.name)
         assertEquals("250", restored.form.value.weight)
-        assertEquals("Carmo de Minas", restored.form.value.origin)
+        assertEquals("Carmo de Minas", restored.form.value.region)
     }
 
     @Test

@@ -230,10 +230,16 @@ fun CoffeeBagDetailScreen(
 /** Where and when it was roasted, and how long ago. */
 @Composable
 private fun Roast(bag: CoffeeBag) {
+    val locale = LocalConfiguration.current.locales[0]
     val now = remember { System.currentTimeMillis() }
     val dim = MaterialTheme.colorScheme.onSurfaceVariant
     val details = buildList {
-        bag.origin?.let { add(it) }
+        bag.country?.let { add("${stringResource(R.string.coffee_country)}: $it") }
+        bag.region?.let { add("${stringResource(R.string.coffee_region)}: $it") }
+        bag.farm?.let { add("${stringResource(R.string.coffee_farm)}: $it") }
+        bag.variety?.let { add("${stringResource(R.string.coffee_variety)}: $it") }
+        bag.process?.let { add("${stringResource(R.string.coffee_process)}: $it") }
+        bag.altitudeMeters?.let { add(stringResource(R.string.coffee_altitude_value, java.text.NumberFormat.getIntegerInstance(locale).format(it))) }
         bag.roastedAt?.let { add(stringResource(R.string.coffee_roasted_on, roastDay(it))) }
         bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
     }

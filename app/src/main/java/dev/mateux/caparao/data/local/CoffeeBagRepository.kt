@@ -35,7 +35,8 @@ class CoffeeBagRepository(private val dao: CoffeeBagDao) {
 }
 
 private fun CoffeeBagUsage.toModel() = CoffeeBag(
-    id = bag.id, name = bag.name, roaster = bag.roaster, origin = bag.origin, roastedAt = bag.roastedAt,
+    id = bag.id, name = bag.name, roaster = bag.roaster, country = bag.country, region = bag.region, farm = bag.farm,
+    variety = bag.variety, process = bag.process, altitudeMeters = bag.altitudeMeters, roastedAt = bag.roastedAt,
     weightGrams = bag.weightGrams, notes = bag.notes, finished = bag.finished, createdAt = bag.createdAt,
     tastingNotes = bag.tastingNotes,
     caffeineMgPerGram = bag.caffeineMgPerGram,
@@ -43,8 +44,9 @@ private fun CoffeeBagUsage.toModel() = CoffeeBag(
 )
 
 internal fun CoffeeBag.toEntity() = CoffeeBagEntity(
-    id = id, name = name, roaster = roaster, origin = origin, roastedAt = roastedAt, weightGrams = weightGrams,
+    id = id, name = name, roaster = roaster, roastedAt = roastedAt, weightGrams = weightGrams,
     notes = notes, finished = finished, createdAt = createdAt,
     tastingNotes = tastingNotes,
     caffeineMgPerGram = caffeineMgPerGram,
+    country = country, region = region, farm = farm, variety = variety, process = process, altitudeMeters = altitudeMeters,
 )

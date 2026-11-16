@@ -30,7 +30,12 @@ data class BagForm(
     val id: String? = null,
     val name: String = "",
     val roaster: String = "",
-    val origin: String = "",
+    val country: String = "",
+    val region: String = "",
+    val farm: String = "",
+    val variety: String = "",
+    val process: String = "",
+    val altitudeMeters: String = "",
     val roastedAt: Long? = null,
     val weight: String = "",
     val notes: String = "",
@@ -58,7 +63,9 @@ data class BagForm(
         id = id ?: newId(),
         name = name.trim(),
         roaster = roaster.trim().ifEmpty { null },
-        origin = origin.trim().ifEmpty { null },
+        country = country.trim().ifEmpty { null }, region = region.trim().ifEmpty { null },
+        farm = farm.trim().ifEmpty { null }, variety = variety.trim().ifEmpty { null }, process = process.trim().ifEmpty { null },
+        altitudeMeters = altitudeMeters.toIntOrNull()?.takeIf { it in 0..3000 },
         roastedAt = roastedAt,
         weightGrams = requireNotNull(RecipeForm.number(weight)),
         notes = notes.trim().ifEmpty { null },
@@ -70,7 +77,9 @@ data class BagForm(
 
     companion object {
         fun of(bag: CoffeeBag) = BagForm(
-            bag.id, bag.name, bag.roaster.orEmpty(), bag.origin.orEmpty(), bag.roastedAt,
+            id = bag.id, name = bag.name, roaster = bag.roaster.orEmpty(), country = bag.country.orEmpty(),
+            region = bag.region.orEmpty(), farm = bag.farm.orEmpty(), variety = bag.variety.orEmpty(), process = bag.process.orEmpty(),
+            altitudeMeters = bag.altitudeMeters?.toString().orEmpty(), roastedAt = bag.roastedAt,
             RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), bag.notes.orEmpty(), bag.finished, bag.createdAt, bag.tastingNotes,
             caffeineMgPerGram = bag.caffeineMgPerGram?.toString() ?: "10",
         )
@@ -133,7 +142,11 @@ class CoffeeEditorViewModel(
         val updated = when (destination) {
             LabelDestination.COFFEE -> current.copy(name = current.name.ifBlank { candidate })
             LabelDestination.ROASTER -> current.copy(roaster = current.roaster.ifBlank { candidate })
-            LabelDestination.ORIGIN -> current.copy(origin = current.origin.ifBlank { candidate })
+            LabelDestination.COUNTRY -> current.copy(country = current.country.ifBlank { candidate })
+            LabelDestination.REGION -> current.copy(region = current.region.ifBlank { candidate })
+            LabelDestination.FARM -> current.copy(farm = current.farm.ifBlank { candidate })
+            LabelDestination.VARIETY -> current.copy(variety = current.variety.ifBlank { candidate })
+            LabelDestination.PROCESS -> current.copy(process = current.process.ifBlank { candidate })
             LabelDestination.TASTING_NOTE -> current.withNote(candidate)
         }
         if (updated == current) return
@@ -155,7 +168,7 @@ class CoffeeEditorViewModel(
     companion object { val TARGET = object : CreationExtras.Key<BagForm> {} }
 }
 
-enum class LabelDestination { COFFEE, ROASTER, ORIGIN, TASTING_NOTE }
+enum class LabelDestination { COFFEE, ROASTER, COUNTRY, REGION, FARM, VARIETY, PROCESS, TASTING_NOTE }
 
 private fun String.labelKey() = Normalizer.normalize(trim(), Normalizer.Form.NFD)
     .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)
