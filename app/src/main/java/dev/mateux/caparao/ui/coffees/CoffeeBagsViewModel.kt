@@ -3,12 +3,14 @@ package dev.mateux.caparao.ui.coffees
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.mateux.caparao.data.local.CoffeeBagRepository
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.RecipeForm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,6 +30,9 @@ data class BagForm(
     val finished: Boolean = false,
     val createdAt: Long? = null,
     val tastingNotes: List<String> = emptyList(),
+    val sourceBagId: String? = null,
+    val finishSource: Boolean = true,
+    val copiedAdjustmentCount: Int = 0,
 ) {
     val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null
 
@@ -67,6 +72,7 @@ class CoffeeBagsViewModel(
     private val repository: CoffeeBagRepository,
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val adjustments: BagRecipeAdjustmentRepository? = null,
 ) : ViewModel() {
     val bags: StateFlow<List<CoffeeBag>?> = repository.bags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -83,6 +89,17 @@ class CoffeeBagsViewModel(
 
     fun edit(bag: CoffeeBag) = open(BagForm.of(bag))
 
+    fun openAnotherBag(bag: CoffeeBag) {
+        viewModelScope.launch {
+            val count = adjustments?.forBag(bag.id)?.first()?.count { it.grind != null || it.waterTempCelsius != null || it.doseGrams != null } ?: 0
+            open(BagForm(
+                name = bag.name, roaster = bag.roaster.orEmpty(), origin = bag.origin.orEmpty(),
+                weight = RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), notes = bag.notes.orEmpty(),
+                tastingNotes = bag.tastingNotes, sourceBagId = bag.id, copiedAdjustmentCount = count,
+            ))
+        }
+    }
+
     private fun open(form: BagForm) {
         opened = form
         _editing.value = form
@@ -97,7 +114,11 @@ class CoffeeBagsViewModel(
     fun save() {
         val form = _editing.value?.takeIf { it.valid } ?: return
         _editing.value = null
-        viewModelScope.launch { repository.save(form.toModel(clock(), newId)) }
+        viewModelScope.launch {
+            val bag = form.toModel(clock(), newId)
+            if (form.sourceBagId == null) repository.save(bag)
+            else repository.openAnotherBag(bag, form.sourceBagId, form.finishSource, clock())
+        }
     }
 
     fun now(): Long = clock()

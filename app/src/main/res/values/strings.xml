@@ -417,6 +417,7 @@
     <string name="adjustment_history">History</string>
     <string name="adjustment_manual">Changed by hand</string>
     <string name="adjustment_from_suggestion">Suggestion accepted</string>
+    <string name="adjustment_copied_from_another_bag">Copied from another bag</string>
     <string name="adjustment_as_recipe">recipe</string>
     <string name="adjustment_change_grind">grind %1$s → %2$s</string>
     <string name="adjustment_change_temp">temperature %1$s → %2$s</string>
@@ -479,9 +480,16 @@
     <string name="suggestion_edit_adjustment">Edit adjustment</string>
     <string name="suggestion_tuned">Tuned for this coffee.</string>
     <string name="coffee_adjusted_for">Adjusted for %1$s</string>
+    <string name="coffee_open_another_bag">Open another bag</string>
+    <string name="coffee_new_bag">New bag</string>
+    <string name="coffee_finish_old_bag">Mark the old bag as finished</string>
     <string name="adjustment_use_recipe">Use the recipe</string>
     <string name="adjustment_use_adjustment">Use the adjustment</string>
     <string name="adjustment_following_recipe">This brew follows the recipe.</string>
     <string name="weigh_dose_for">Dose for %1$s</string>
     <string name="brew_strip_grind">grind %1$s</string>
+    <plurals name="coffee_adjustments_copied">
+        <item quantity="one">Adjustments for %1$d recipe come along</item>
+        <item quantity="other">Adjustments for %1$d recipes come along</item>
+    </plurals>
 </resources>

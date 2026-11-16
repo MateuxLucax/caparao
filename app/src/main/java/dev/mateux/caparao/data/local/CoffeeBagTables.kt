@@ -3,6 +3,7 @@ package dev.mateux.caparao.data.local
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
@@ -39,6 +40,35 @@ data class CoffeeBagUsage(
 interface CoffeeBagDao {
     @Upsert
     suspend fun upsert(bag: CoffeeBagEntity)
+
+    @Query("UPDATE coffee_bags SET finished = 1 WHERE id = :id")
+    suspend fun finish(id: String)
+
+    @Query("SELECT * FROM bag_recipe_adjustments WHERE bag_id = :id AND (grind IS NOT NULL OR water_temp_celsius IS NOT NULL OR dose_grams IS NOT NULL)")
+    suspend fun adjustments(id: String): List<BagRecipeAdjustmentEntity>
+
+    @Query("INSERT OR REPLACE INTO bag_recipe_adjustments (bag_id, recipe_id, grind, water_temp_celsius, dose_grams, tuned) VALUES (:bagId, :recipeId, :grind, :waterTempCelsius, :doseGrams, 0)")
+    suspend fun copyAdjustment(bagId: String, recipeId: String, grind: Int?, waterTempCelsius: Int?, doseGrams: Double?)
+
+    @Insert
+    suspend fun insertCopiedHistory(row: BagRecipeAdjustmentHistoryEntity)
+
+    @Transaction
+    suspend fun openAnotherBag(bag: CoffeeBagEntity, sourceBagId: String, finishSource: Boolean, changedAt: Long) {
+        val source = adjustments(sourceBagId)
+        upsert(bag)
+        source.forEach { old ->
+            copyAdjustment(bag.id, old.recipeId, old.grind, old.waterTempCelsius, old.doseGrams)
+            insertCopiedHistory(BagRecipeAdjustmentHistoryEntity(
+                bagId = bag.id, recipeId = old.recipeId, changedAt = changedAt,
+                oldGrind = null, newGrind = old.grind, oldWaterTempCelsius = null,
+                newWaterTempCelsius = old.waterTempCelsius, oldDoseGrams = null,
+                newDoseGrams = old.doseGrams, oldTuned = false, newTuned = false,
+                reason = "copied_from_another_bag", brewId = null,
+            ))
+        }
+        if (finishSource) finish(sourceBagId)
+    }
 
     /** Open bags first, newest first. */
     @Query(USAGE_QUERY + " GROUP BY coffee_bags.id ORDER BY coffee_bags.finished, coffee_bags.created_at DESC")

@@ -16,6 +16,9 @@ class CoffeeBagRepository(private val dao: CoffeeBagDao) {
 
     suspend fun save(bag: CoffeeBag) = dao.upsert(bag.toEntity())
 
+    suspend fun openAnotherBag(bag: CoffeeBag, sourceBagId: String, finishSource: Boolean, changedAt: Long) =
+        dao.openAnotherBag(bag.toEntity(), sourceBagId, finishSource, changedAt)
+
     /** Brews keep their coffee name but lose their bag. */
     suspend fun delete(id: String) = dao.delete(id)
 }

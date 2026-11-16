@@ -39,7 +39,7 @@ class CoffeeBagDetailViewModel(
     /** The recipes this bag has been brewed with, newest brew first, each with its adjustment if it has one (#462). */
     val recipeAdjustments: StateFlow<List<RecipeAdjustment>> =
         combine(brews.forBag(id), recipes.recipes, adjustments.forBag(id)) { brewed, all, adjusted ->
-            brewed.mapNotNull { it.recipeId }.distinct().mapNotNull { recipeId ->
+            (brewed.mapNotNull { it.recipeId } + adjusted.map { it.recipeId }).distinct().mapNotNull { recipeId ->
                 all.firstOrNull { it.id == recipeId }?.let { recipe ->
                     RecipeAdjustment(recipe, adjusted.firstOrNull { it.recipeId == recipeId }?.takeIf { it.overrides })
                 }

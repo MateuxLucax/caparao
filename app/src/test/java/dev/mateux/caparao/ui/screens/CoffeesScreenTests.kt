@@ -66,6 +66,7 @@ import dev.mateux.caparao.data.local.BrewDatabase
 import dev.mateux.caparao.data.local.BrewEntity
 import dev.mateux.caparao.data.local.BrewRepository
 import dev.mateux.caparao.data.local.BuiltInRecipes
+import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.RecipeRepository
 import dev.mateux.caparao.data.local.SeedBuiltInRecipes
@@ -93,6 +94,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -473,6 +475,35 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         openCoffeeBag(withBrew = false)
         compose.onNodeWithText(context.getString(R.string.coffee_left, "250", "250")).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.coffee_no_brews)).assertIsDisplayed()
+        click(R.string.coffee_open_another_bag)
+        waitFor(R.string.coffee_new_bag)
+        compose.onNodeWithText(if (context.resources.configuration.locales[0].language == "pt") "ajuste" else "adjustment", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun openingAnotherBagCopiesAdjustmentsAndShowsThemBeforeFirstBrew() {
+        openCoffeeBag(withBrew = false)
+        val recipe = BuiltInRecipes.all(System.currentTimeMillis()).first()
+        runBlocking {
+            recipes.save(recipe)
+            BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()).save(
+                dev.mateux.caparao.model.BagRecipeAdjustment("bag-1", recipe.id, grind = 18, tuned = true), 100,
+            )
+        }
+        click(R.string.coffee_open_another_bag)
+        waitFor(R.string.coffee_new_bag)
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.coffee_adjustments_copied, 1, 1)).assertIsDisplayed()
+        clickLast(R.string.save)
+        waitFor(R.string.coffee_open_another_bag)
+        val newBag = runBlocking { CoffeeBagRepository(db.coffeeBags()).bags.first().single { it.id != "bag-1" } }
+        val copied = runBlocking { BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()).get(newBag.id, recipe.id) }
+        assertEquals(18, copied?.grind)
+        assertFalse(copied?.tuned ?: true)
+        assertEquals(true, runBlocking { BagRecipeAdjustmentRepository(db.bagRecipeAdjustments()).get("bag-1", recipe.id) }?.tuned)
+        compose.onNodeWithContentDescription(text(R.string.close)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Caparaó natural", substring = true), 5_000)
+        compose.onAllNodesWithText("Caparaó natural", substring = true).onFirst().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(text(R.string.adjustment_grind, "18")), 5_000)
     }
 
     /** The coffee bag's Delete asks first; Cancel keeps the bag, Delete removes it and keeps the brews' names (#181, C5). */

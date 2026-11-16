@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -86,6 +87,36 @@ class BagRecipeAdjustmentRepositoryTest {
 
         assertNull(adjustments.get("other-bag", "other-recipe"))
         assertEquals(emptyList<Any>(), adjustments.history("other-bag", "other-recipe").first())
+    }
+
+    @Test
+    fun openingAnotherBagCopiesValuesWithoutTunedAndFinishesSourceAtomically() = runBlocking {
+        bags.save(CoffeeBag("bag", "Caparaó", weightGrams = 250.0, createdAt = 1))
+        recipes.save(recipe())
+        val original = BagRecipeAdjustment("bag", "recipe", grind = 18, waterTempCelsius = 92, doseGrams = 15.0, tuned = true)
+        adjustments.save(original, changedAt = 100)
+
+        bags.openAnotherBag(CoffeeBag("new", "Caparaó", weightGrams = 250.0, createdAt = 2), "bag", true, 200)
+
+        assertEquals(original, adjustments.get("bag", "recipe"))
+        assertEquals(original.copy(bagId = "new", tuned = false), adjustments.get("new", "recipe"))
+        assertEquals(BagRecipeAdjustmentReason.COPIED_FROM_ANOTHER_BAG, adjustments.history("new", "recipe").first().single().reason)
+        assertTrue(bags.get("bag")!!.finished)
+    }
+
+    @Test
+    fun failedFinishRollsBackNewBagCopiedAdjustmentsAndHistory() = runBlocking {
+        bags.save(CoffeeBag("bag", "Caparaó", weightGrams = 250.0, createdAt = 1))
+        recipes.save(recipe())
+        adjustments.save(BagRecipeAdjustment("bag", "recipe", grind = 18), changedAt = 100)
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER fail_finish BEFORE UPDATE OF finished ON coffee_bags BEGIN SELECT RAISE(ABORT, 'failure'); END")
+
+        runCatching { bags.openAnotherBag(CoffeeBag("new", "Caparaó", weightGrams = 250.0, createdAt = 2), "bag", true, 200) }
+
+        assertNull(bags.get("new"))
+        assertEquals(BagRecipeAdjustment("bag", "recipe", grind = 18), adjustments.get("bag", "recipe"))
+        assertNull(adjustments.get("new", "recipe"))
+        assertEquals(false, bags.get("bag")!!.finished)
     }
 
     private fun recipe(id: String = "recipe") = Recipe(

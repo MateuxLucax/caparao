@@ -194,7 +194,11 @@ private fun HistoryLine(entry: BagRecipeAdjustmentHistory, locale: Locale) {
     Column {
         Text(Format.dateTime(entry.changedAt, locale) + " · " + changes.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
         Text(
-            stringResource(if (entry.reason == BagRecipeAdjustmentReason.SUGGESTION) R.string.adjustment_from_suggestion else R.string.adjustment_manual),
+            stringResource(when (entry.reason) {
+                BagRecipeAdjustmentReason.SUGGESTION -> R.string.adjustment_from_suggestion
+                BagRecipeAdjustmentReason.COPIED_FROM_ANOTHER_BAG -> R.string.adjustment_copied_from_another_bag
+                BagRecipeAdjustmentReason.MANUAL -> R.string.adjustment_manual
+            }),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

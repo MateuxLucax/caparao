@@ -411,6 +411,7 @@
     <string name="adjustment_history">Histórico</string>
     <string name="adjustment_manual">Ajuste manual</string>
     <string name="adjustment_from_suggestion">Sugestão aceita</string>
+    <string name="adjustment_copied_from_another_bag">Copiado de outro pacote</string>
     <string name="adjustment_as_recipe">receita</string>
     <string name="adjustment_change_grind">moagem %1$s → %2$s</string>
     <string name="adjustment_change_temp">temperatura %1$s → %2$s</string>
@@ -475,9 +476,16 @@
     <string name="suggestion_edit_adjustment">Editar ajuste</string>
     <string name="suggestion_tuned">Afinado para este café.</string>
     <string name="coffee_adjusted_for">Ajustado para %1$s</string>
+    <string name="coffee_open_another_bag">Abrir outro pacote</string>
+    <string name="coffee_new_bag">Novo pacote</string>
+    <string name="coffee_finish_old_bag">Marcar o pacote antigo como acabado</string>
     <string name="adjustment_use_recipe">Usar a receita</string>
     <string name="adjustment_use_adjustment">Usar o ajuste</string>
     <string name="adjustment_following_recipe">Este preparo segue a receita.</string>
     <string name="weigh_dose_for">Dose para %1$s</string>
     <string name="brew_strip_grind">moagem %1$s</string>
+    <plurals name="coffee_adjustments_copied">
+        <item quantity="one">O ajuste de %1$d receita vem junto</item>
+        <item quantity="other">Os ajustes de %1$d receitas vêm junto</item>
+    </plurals>
 </resources>
