@@ -45,13 +45,13 @@ object BagLabelReader {
             }.sortedBy { it.first }.forEach { notes += it.second }
         }
         val roastFieldLines = lines.indices.filter { index ->
-            ROAST_DATE.containsMatchIn(normalize(lines[index].text)) ||
+            isDateLabel(lines[index].text, ROAST_DATE_LABEL) ||
                 (DATE.containsMatchIn(lines[index].text) &&
                     listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text)
                         .joinToString(" ").let { ROAST_DATE.containsMatchIn(normalize(it)) })
         }.toSet()
         val invalidDateLines = lines.indices.filter { index ->
-            INVALID_DATE.containsMatchIn(normalize(lines[index].text)) ||
+            isDateLabel(lines[index].text, INVALID_DATE_LABEL) ||
                 (DATE.containsMatchIn(lines[index].text) &&
                     listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text)
                         .joinToString(" ").let { INVALID_DATE.containsMatchIn(normalize(it)) })
@@ -89,8 +89,12 @@ object BagLabelReader {
     private fun normalize(value: String) = Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "")
 
+    private fun isDateLabel(text: String, label: Regex) = label.matches(normalize(text.trim()))
+
     private val ROAST_DATE = Regex("\\b(torra|torrado em|roast|roasted on)\\b")
     private val INVALID_DATE = Regex("\\b(validade|val\\.?|best before|fabricacao)\\b")
+    private val ROAST_DATE_LABEL = Regex("(torra|torrado em|roast|roasted on)[: ]*")
+    private val INVALID_DATE_LABEL = Regex("(validade|val\\.?|best before|fabricacao)[: ]*")
     private val DATE = Regex("\\b(?:\\d{1,2}[/.\\-]\\d{1,2}[/.\\-]\\d{4}|\\d{4}-\\d{1,2}-\\d{1,2})\\b")
     private val DATE_FORMATS = listOf(DateTimeFormatter.ofPattern("d/M/uuuu"), DateTimeFormatter.ofPattern("d.M.uuuu"), DateTimeFormatter.ofPattern("d-M-uuuu"), DateTimeFormatter.ISO_LOCAL_DATE)
     private val WEIGHT = Regex("(?i)(\\d+(?:[.,]\\d+)?)\\s*(kg|g)\\b")

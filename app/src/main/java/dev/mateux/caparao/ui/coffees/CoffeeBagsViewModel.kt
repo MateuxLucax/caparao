@@ -76,7 +76,7 @@ data class BagForm(
 
 /** The full-screen editor draft is saved with its navigation entry across process death. */
 data class LabelDraft(val candidates: List<String> = emptyList(), val message: LabelMessage? = null, val hasRead: Boolean = false, val assigned: List<String> = emptyList())
-enum class LabelMessage { NOTHING_NEW, COULD_NOT_READ }
+enum class LabelMessage { NOTHING_NEW, COULD_NOT_READ, MODEL_UNAVAILABLE }
 
 class CoffeeEditorViewModel(
     private val savedState: SavedStateHandle,
@@ -97,7 +97,10 @@ class CoffeeEditorViewModel(
 
     suspend fun readLabel(photo: java.io.File, knownRoasters: List<String>, knownNotes: List<String>, now: java.time.LocalDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC)) {
         val lines = runCatching { labelRecognizer.recognize(photo) }.getOrElse {
-            updateLabelDraft(_labelDraft.value.copy(message = LabelMessage.COULD_NOT_READ, hasRead = true))
+            updateLabelDraft(_labelDraft.value.copy(
+                message = if (it is LabelModelUnavailableException) LabelMessage.MODEL_UNAVAILABLE else LabelMessage.COULD_NOT_READ,
+                hasRead = true,
+            ))
             return
         }
         if (lines.isEmpty()) {

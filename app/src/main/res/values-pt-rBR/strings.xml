@@ -391,6 +391,7 @@
     <string name="coffee_read_another_side">Ler outro lado</string>
     <string name="coffee_label_nothing_new">Nada novo neste lado.</string>
     <string name="coffee_label_could_not_read">Não foi possível ler o rótulo.</string>
+    <string name="coffee_label_model_unavailable">Não foi possível ler o rótulo. Tente novamente em instantes.</string>
     <string name="coffee_name">Café</string>
     <string name="coffee_roaster">Torrefação</string>
     <string name="coffee_origin">Origem e processo</string>

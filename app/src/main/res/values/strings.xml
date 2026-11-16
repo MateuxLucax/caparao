@@ -397,6 +397,7 @@
     <string name="coffee_read_another_side">Read another side</string>
     <string name="coffee_label_nothing_new">Nothing new on this side.</string>
     <string name="coffee_label_could_not_read">Couldn\'t read the label.</string>
+    <string name="coffee_label_model_unavailable">Couldn\'t read the label. Try again in a moment.</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>
     <string name="coffee_origin">Origin and process</string>

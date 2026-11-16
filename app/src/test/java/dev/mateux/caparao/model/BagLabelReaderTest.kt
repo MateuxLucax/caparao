@@ -44,6 +44,17 @@ class BagLabelReaderTest {
         assertEquals(listOf("Caparaó Natural"), result.candidates)
     }
 
+    @Test fun roasterNameStartingWithTorraRemainsAnUnrecognizedCandidate() {
+        val result = BagLabelReader.read(
+            listOf(
+                LabelLine("Torra Alta", 40f), LabelLine("250 g", 36f),
+                LabelLine("Torrado em 10/11/2026", 32f), LabelLine("Caparaó natural", 28f), LabelLine("Jasmim", 24f),
+            ),
+            emptyList(), emptyList(), today,
+        )
+        assertEquals(listOf("Torra Alta", "Caparaó Natural", "Jasmim"), result.candidates)
+    }
+
     @Test fun largestWeightAndAccentedCapitalsKeepWords() {
         val result = BagLabelReader.read(
             listOf(LabelLine("SÍTIO BAIXADÃO", 20f), LabelLine("Bourbon amarelo", 15f), LabelLine("250 g 1 kg 0,5 kg", 10f)),

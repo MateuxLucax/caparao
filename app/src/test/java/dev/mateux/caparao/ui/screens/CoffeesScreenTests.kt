@@ -254,6 +254,30 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
     }
 
     @Test
+    fun unrecognizedTorraLineAppearsAsAChip() {
+        val lines = listOf(
+            dev.mateux.caparao.model.LabelLine("Torra Alta", 40f),
+            dev.mateux.caparao.model.LabelLine("250 g", 36f),
+            dev.mateux.caparao.model.LabelLine("Torrado em 10/11/2026", 32f),
+            dev.mateux.caparao.model.LabelLine("Caparaó natural", 28f),
+            dev.mateux.caparao.model.LabelLine("Jasmim", 24f),
+        )
+        val editor = CoffeeEditorViewModel(
+            androidx.lifecycle.SavedStateHandle(),
+            dev.mateux.caparao.ui.coffees.BagForm(),
+            dev.mateux.caparao.ui.coffees.LabelRecognizer { lines },
+        )
+        val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
+        compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
+        val photo = java.io.File.createTempFile("label", ".jpg")
+        try {
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList(), LocalDate.of(2026, 11, 16)) }
+            assertEquals("", editor.form.value.roaster)
+            compose.onNodeWithTag("coffee-label-Torra Alta").assertIsDisplayed()
+        } finally { photo.delete() }
+    }
+
+    @Test
     fun labelReadingKeepsExistingValuesAndAssignedChipsDoNotReturn() {
         var lines = listOf(
             dev.mateux.caparao.model.LabelLine("250 g", 20f),
@@ -294,10 +318,17 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
     @Test
     fun emptyOrFailedLabelRecognitionLeavesTheFormUnchanged() {
         var fail = false
+        var modelUnavailable = false
         val editor = CoffeeEditorViewModel(
             androidx.lifecycle.SavedStateHandle(),
             dev.mateux.caparao.ui.coffees.BagForm(name = "Typed coffee", weight = "340"),
-            dev.mateux.caparao.ui.coffees.LabelRecognizer { if (fail) error("recognition failed") else emptyList() },
+            dev.mateux.caparao.ui.coffees.LabelRecognizer {
+                when {
+                    modelUnavailable -> throw dev.mateux.caparao.ui.coffees.LabelModelUnavailableException(IllegalStateException())
+                    fail -> error("recognition failed")
+                    else -> emptyList()
+                }
+            },
         )
         val bags = CoffeeBagsViewModel(CoffeeBagRepository(db.coffeeBags()))
         compose.setContent { AppTheme { dev.mateux.caparao.ui.coffees.CoffeeEditorScreen(editor, bags) {} } }
@@ -309,6 +340,12 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
             fail = true
             runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
             assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.COULD_NOT_READ, editor.labelDraft.value.message)
+            assertEquals("Typed coffee", editor.form.value.name)
+            assertEquals("340", editor.form.value.weight)
+            modelUnavailable = true
+            runBlocking { editor.readLabel(photo, emptyList(), emptyList()) }
+            assertEquals(dev.mateux.caparao.ui.coffees.LabelMessage.MODEL_UNAVAILABLE, editor.labelDraft.value.message)
+            compose.onNodeWithText(text(R.string.coffee_label_model_unavailable)).assertIsDisplayed()
             assertEquals("Typed coffee", editor.form.value.name)
             assertEquals("340", editor.form.value.weight)
         } finally { photo.delete() }

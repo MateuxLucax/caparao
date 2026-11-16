@@ -1,6 +1,7 @@
 package dev.mateux.caparao.ui.coffees
 
 import android.content.Context
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -13,13 +14,20 @@ fun interface LabelRecognizer {
     suspend fun recognize(photo: File): List<LabelLine>
 }
 
+class LabelModelUnavailableException(cause: Throwable) : Exception(cause)
+
 class MlKitLabelRecognizer(context: Context) : LabelRecognizer {
     private val appContext = context.applicationContext
 
     override suspend fun recognize(photo: File): List<LabelLine> {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         return try {
-            val result = recognizer.process(InputImage.fromFilePath(appContext, android.net.Uri.fromFile(photo))).await()
+            val result = try {
+                recognizer.process(InputImage.fromFilePath(appContext, android.net.Uri.fromFile(photo))).await()
+            } catch (error: MlKitException) {
+                if (error.errorCode == MlKitException.UNAVAILABLE) throw LabelModelUnavailableException(error)
+                throw error
+            }
             result.textBlocks.flatMap { block -> block.lines.map { line ->
                 LabelLine(line.text, line.boundingBox?.height()?.toFloat() ?: 0f)
             } }

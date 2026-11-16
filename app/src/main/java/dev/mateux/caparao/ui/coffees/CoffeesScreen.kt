@@ -240,7 +240,14 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             OutlinedButton(onClick = { takeLabelPhoto() }, modifier = Modifier.fillMaxWidth().testTag("coffee-label-camera"), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(if (labelDraft.hasRead) R.string.coffee_read_another_side else R.string.coffee_read_label))
             }
-            labelDraft.message?.let { Text(stringResource(if (it == LabelMessage.NOTHING_NEW) R.string.coffee_label_nothing_new else R.string.coffee_label_could_not_read)) }
+            labelDraft.message?.let {
+                val message = when (it) {
+                    LabelMessage.NOTHING_NEW -> R.string.coffee_label_nothing_new
+                    LabelMessage.MODEL_UNAVAILABLE -> R.string.coffee_label_model_unavailable
+                    LabelMessage.COULD_NOT_READ -> R.string.coffee_label_could_not_read
+                }
+                Text(stringResource(message))
+            }
             if (labelDraft.candidates.isNotEmpty()) {
                 Text(stringResource(R.string.coffee_label_review), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { labelDraft.candidates.forEach { candidate ->

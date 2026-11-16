@@ -35,6 +35,10 @@
         android:theme="@style/Theme.App"
         android:usesCleartextTraffic="true">
 
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
         <!-- #333: Sentry starts only from AppContainer while the Settings opt-in is on and a DSN exists. -->
         <meta-data
             android:name="io.sentry.auto-init"
