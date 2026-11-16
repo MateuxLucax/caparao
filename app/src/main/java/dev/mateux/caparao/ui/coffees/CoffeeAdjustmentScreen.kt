@@ -199,7 +199,7 @@ private fun HistoryLine(entry: BagRecipeAdjustmentHistory, locale: Locale) {
                 BagRecipeAdjustmentReason.COPIED_FROM_ANOTHER_BAG -> R.string.adjustment_copied_from_another_bag
                 BagRecipeAdjustmentReason.MANUAL -> R.string.adjustment_manual
             }),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

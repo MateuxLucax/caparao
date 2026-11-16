@@ -91,7 +91,7 @@ fun BrewDetailScreen(
                     // The curve starts at the first drop, not at the tare; the wait is the first-drop metric above.
                     Text(
                         stringResource(R.string.brew_chart_origin),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.mateux.caparao.R
+import dev.mateux.caparao.ui.theme.RowTitle
 import dev.mateux.caparao.model.BrewMode
 import dev.mateux.caparao.model.Recipe
 import dev.mateux.caparao.ui.components.BrewModeGroup
@@ -70,7 +71,7 @@ fun RecipesScreen(viewModel: RecipesViewModel, onOpen: (Recipe) -> Unit, onNew: 
 @Composable
 private fun RecipeRow(recipe: Recipe, shape: Shape, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(recipe.name, style = MaterialTheme.typography.titleMedium) },
+        headlineContent = { Text(recipe.name, style = MaterialTheme.typography.titleMedium.merge(RowTitle)) },
         supportingContent = { Text(recipeSummary(recipe)) },
         trailingContent = { Text(recipe.method, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
         modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick).testTag("recipe-row-${recipe.id}"),

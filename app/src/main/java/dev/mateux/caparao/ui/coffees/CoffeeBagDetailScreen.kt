@@ -54,6 +54,9 @@ import dev.mateux.caparao.ui.components.icon
 import dev.mateux.caparao.ui.components.label
 import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.format.Format
+import dev.mateux.caparao.ui.theme.RowTitle
+import dev.mateux.caparao.ui.theme.SectionHeading
+import dev.mateux.caparao.ui.theme.Figure
 import java.util.Locale
 
 /**
@@ -118,7 +121,7 @@ fun CoffeeBagDetailScreen(
                 Text(stringResource(R.string.coffee_open_another_bag))
             }
             if (adjustments.isNotEmpty()) {
-                Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.adjustments_title), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     adjustments.forEachIndexed { index, row ->
                         val top = if (index == 0) 16.dp else 4.dp
@@ -127,7 +130,7 @@ fun CoffeeBagDetailScreen(
                     }
                 }
             }
-            Text(stringResource(R.string.tab_brews), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.tab_brews), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             if (brews.isEmpty()) {
                 Text(stringResource(R.string.coffee_no_brews), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -204,7 +207,7 @@ private fun Summary(bag: CoffeeBag, summary: CoffeeSummary, locale: Locale) {
 private fun Stat(@StringRes label: Int, value: String) {
     Column(Modifier.semantics(mergeDescendants = true) {}) {
         Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleLarge)
+        Text(value, style = MaterialTheme.typography.titleLarge.merge(Figure))
     }
 }
 
@@ -227,7 +230,7 @@ private fun AdjustmentLine(row: RecipeAdjustment, locale: Locale, shape: Rounded
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(row.recipe.name, style = MaterialTheme.typography.titleMedium)
+            Text(row.recipe.name, style = MaterialTheme.typography.titleMedium.merge(RowTitle))
             Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         if (adjustment?.tuned == true) {
@@ -266,11 +269,11 @@ private fun BrewLine(brew: Brew, locale: Locale, onClick: () -> Unit) {
                         Format.timer((brew.durationMs / 1000).toInt()),
                         taste?.let { stringResource(it) },
                     ).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            brew.rating?.let { Text(stringResource(R.string.rating_stars, it), style = MaterialTheme.typography.bodySmall) }
+            brew.rating?.let { Text(stringResource(R.string.rating_stars, it), style = MaterialTheme.typography.bodyMedium.merge(Figure)) }
         }
     }
 }

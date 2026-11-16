@@ -60,6 +60,8 @@ import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.model.CoffeeBag
 import dev.mateux.caparao.ui.components.EmptyState
 import dev.mateux.caparao.ui.format.Format
+import dev.mateux.caparao.ui.theme.RowTitle
+import dev.mateux.caparao.ui.theme.RowDetail
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -115,7 +117,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 listOfNotNull(bag.name, bag.roaster).joinToString(" · "),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.merge(RowTitle),
                 color = if (bag.finished) dim else MaterialTheme.colorScheme.onSurface,
             )
             if (bag.finished) {
@@ -134,7 +136,7 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
                 bag.lastBrewedAt?.let { add(stringResource(R.string.coffee_last_brew, Format.dateTime(it, locale))) }
                 bag.averageRating?.let { add(stringResource(R.string.coffee_average_rating, Format.ratio(it, locale))) }
             }
-            Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = dim)
+            Text(details.joinToString(" · "), style = MaterialTheme.typography.bodyMedium.merge(RowDetail), color = dim)
         }
     }
 }
