@@ -541,6 +541,25 @@ abstract class ScreenCoffeesTests(lang: String, theme: String, compactOnly: Bool
         compose.onNode(hasSetTextAction() and hasText("Caparaó natural")).assertIsDisplayed()
     }
 
+    @Test
+    fun coffeeUsedOutsideAppCanBeLoggedRemovedAndUndoneWithinRemainingWeight() {
+        openCoffeeBag()
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("18")
+        compose.onNodeWithText(text(R.string.save)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_used_outside_app)).performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.coffee_remove_use_title)).assertIsDisplayed()
+        compose.onAllNodesWithText(text(R.string.coffee_remove_use)).onLast().performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "232", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_use_undo)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(context.getString(R.string.coffee_left, "214", "250")), 5_000)
+        compose.onNodeWithText(text(R.string.coffee_log_used)).performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("233")
+        compose.onNodeWithText(text(R.string.save)).assertIsNotEnabled()
+    }
+
     /**
      * The adjustments per recipe (#462): a recipe the bag was brewed with follows the recipe until it is adjusted; the
      * adjustment is edited, shows on the detail with its history, and goes back to the recipe after a confirmation.

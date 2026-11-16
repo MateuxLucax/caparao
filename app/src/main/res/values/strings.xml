@@ -405,6 +405,14 @@
     <string name="coffee_roast_date">Roast date</string>
     <string name="coffee_roasted_on">Roasted on %1$s</string>
     <string name="coffee_left">%1$s of %2$s g left</string>
+    <string name="coffee_log_used">Log coffee used</string>
+    <string name="coffee_log_used_hint">Up to %1$s g left in this bag.</string>
+    <string name="coffee_log_used_field">Grams used</string>
+    <string name="coffee_used_outside_app">Used outside the app</string>
+    <string name="coffee_remove_use_title">Remove this entry?</string>
+    <string name="coffee_remove_use">Remove</string>
+    <string name="coffee_use_undo">Undo</string>
+    <string name="coffee_use_removed">Coffee use removed</string>
     <string name="coffee_finished">Finished</string>
     <string name="coffee_mark_finished">Mark as finished</string>
     <string name="coffee_mark_open">Mark as open</string>

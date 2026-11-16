@@ -27,6 +27,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +45,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +65,8 @@ import dev.mateux.caparao.ui.theme.RowTitle
 import dev.mateux.caparao.ui.theme.SectionHeading
 import dev.mateux.caparao.ui.theme.Figure
 import java.util.Locale
+import java.util.Date
+import java.text.DateFormat
 
 /**
  * One coffee bag (#290, C4): what is left, the brews that used it, finishing it, and editing or deleting it. Editing
@@ -75,9 +85,18 @@ fun CoffeeBagDetailScreen(
     val bag by viewModel.bag.collectAsStateWithLifecycle()
     val brews by viewModel.brews.collectAsStateWithLifecycle()
     val adjustments by viewModel.recipeAdjustments.collectAsStateWithLifecycle()
+    val useEntries by viewModel.useEntries.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var logDialog by rememberSaveable { mutableStateOf(false) }
+    var gramsInput by rememberSaveable { mutableStateOf("") }
+    var removedEntry by remember { mutableStateOf<dev.mateux.caparao.data.local.CoffeeUseEntry?>(null) }
+    var confirmRemove by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val gramsFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     val locale = LocalConfiguration.current.locales[0]
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { bag?.let { Text(listOfNotNull(it.name, it.roaster).joinToString(" · "), style = MaterialTheme.typography.titleLargeEmphasized) } },
@@ -108,6 +127,16 @@ fun CoffeeBagDetailScreen(
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 CoffeeBagLevelBar(current.leftGrams, current.weightGrams)
+                OutlinedButton(onClick = { gramsInput = ""; logDialog = true }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.coffee_log_used)) }
+            }
+            if (useEntries.isNotEmpty()) {
+                Text(stringResource(R.string.coffee_used_outside_app), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
+                useEntries.forEach { entry ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(Date(entry.createdAt))} · ${entry.grams} ${stringResource(R.string.unit_grams)}", Modifier.weight(1f))
+                        TextButton(onClick = { confirmRemove = entry.id }) { Text(stringResource(R.string.coffee_remove_use)) }
+                    }
+                }
             }
             if (current.brewCount > 0) Summary(current, remember(current.tastingNotes, brews) { CoffeeSummary.of(current.tastingNotes, brews) }, locale)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -150,6 +179,43 @@ fun CoffeeBagDetailScreen(
             },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+    if (logDialog) AlertDialog(
+        onDismissRequest = { logDialog = false },
+        title = { Text(stringResource(R.string.coffee_log_used)) },
+        text = { Column {
+            Text(stringResource(R.string.coffee_log_used_hint, wholeGrams(bag?.leftGrams ?: 0.0, locale)))
+            OutlinedTextField(
+                gramsInput,
+                { gramsInput = it.filter(Char::isDigit) },
+                modifier = Modifier.focusRequester(gramsFocus),
+                label = { Text(stringResource(R.string.coffee_log_used_field)) },
+                trailingIcon = { Text(stringResource(R.string.unit_grams)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+            )
+        } },
+        confirmButton = { TextButton(enabled = gramsInput.toIntOrNull() in 1..(bag?.leftGrams?.toInt() ?: 0), onClick = { viewModel.logUsed(gramsInput.toInt()); logDialog = false }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = { logDialog = false }) { Text(stringResource(R.string.cancel)) } },
+    )
+    if (logDialog) androidx.compose.runtime.LaunchedEffect(Unit) {
+        gramsFocus.requestFocus()
+        keyboard?.show()
+    }
+    confirmRemove?.let { entryId -> AlertDialog(
+        onDismissRequest = { confirmRemove = null }, title = { Text(stringResource(R.string.coffee_remove_use_title)) },
+        confirmButton = { TextButton(onClick = { removedEntry = useEntries.firstOrNull { it.id == entryId }; removedEntry?.let(viewModel::removeUseEntry); confirmRemove = null }) { Text(stringResource(R.string.coffee_remove_use)) } },
+        dismissButton = { TextButton(onClick = { confirmRemove = null }) { Text(stringResource(R.string.cancel)) } },
+    ) }
+    removedEntry?.let { entry ->
+        val removedMessage = stringResource(R.string.coffee_use_removed)
+        val undoLabel = stringResource(R.string.coffee_use_undo)
+        androidx.compose.runtime.LaunchedEffect(entry) {
+            if (snackbar.showSnackbar(message = removedMessage, actionLabel = undoLabel) == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.restoreUseEntry(entry)
+            }
+            removedEntry = null
+        }
     }
 }
 
