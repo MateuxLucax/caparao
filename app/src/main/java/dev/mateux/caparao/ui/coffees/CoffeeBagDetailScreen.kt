@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -108,7 +107,7 @@ fun CoffeeBagDetailScreen(
                     stringResource(R.string.coffee_left, wholeGrams(current.leftGrams, locale), wholeGrams(current.weightGrams, locale)),
                     style = MaterialTheme.typography.bodyLarge,
                 )
-                LinearProgressIndicator(progress = { (current.leftGrams / current.weightGrams).toFloat() }, modifier = Modifier.fillMaxWidth())
+                CoffeeBagLevelBar(current.leftGrams, current.weightGrams)
             }
             if (current.brewCount > 0) Summary(current, remember(current.tastingNotes, brews) { CoffeeSummary.of(current.tastingNotes, brews) }, locale)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
