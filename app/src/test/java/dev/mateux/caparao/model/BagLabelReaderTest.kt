@@ -1,8 +1,8 @@
 package dev.mateux.caparao.model
 
 import java.time.LocalDate
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class BagLabelReaderTest {
@@ -10,29 +10,40 @@ class BagLabelReaderTest {
     private val notes = listOf("Caramel", "Caramelo", "Red fruit", "Frutas vermelhas", "Chocolate", "Cítrico", "Citrus")
 
     @Test fun portugueseAndEnglishLabelFixtures() {
+        fun roastDate(value: String) = LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val fixtures = listOf(
-            listOf("TORRADO EM 10/11/2026", "250 g", "CHOCOLATE E CARAMELO") to listOf("Chocolate", "Caramelo"),
-            listOf("Roasted on 2026-11-12", "1 kg", "Red fruit") to listOf("Red fruit"),
-            listOf("Torra", "09/11/2026", "Frutas vermelhas") to listOf("Frutas vermelhas"),
-            listOf("Roast 11.11.2026", "250g", "Citrus") to listOf("Citrus"),
-            listOf("Roasted on 20/11/2026", "500 g", "Chocolate") to listOf("Chocolate"),
-            listOf("Validade 10/12/2026", "Best before 2027-01-01", "250 g") to emptyList(),
+            Fixture(listOf("TORRADO EM 10/11/2026", "250 g", "CHOCOLATE E CARAMELO", "SÍTIO BAIXADÃO"), 250.0, roastDate("2026-11-10"), listOf("Chocolate", "Caramelo"), listOf("Sítio Baixadão")),
+            Fixture(listOf("Roasted on 2026-11-12", "1 kg", "Red fruit", "Fazenda Alta"), 1000.0, roastDate("2026-11-12"), listOf("Red fruit"), listOf("Fazenda Alta")),
+            Fixture(listOf("Torra", "09/11/2026", "Frutas vermelhas"), null, roastDate("2026-11-09"), listOf("Frutas vermelhas"), emptyList()),
+            Fixture(listOf("Roast 11.11.2026", "250g", "Citrus"), 250.0, roastDate("2026-11-11"), listOf("Citrus"), emptyList()),
+            Fixture(listOf("Roasted on 20/11/2026", "500 g", "Chocolate"), 500.0, null, listOf("Chocolate"), emptyList()),
+            Fixture(listOf("Validade 10/12/2026", "Best before 2027-01-01", "250 g"), 250.0, null, emptyList(), emptyList()),
         )
-        fixtures.forEach { (texts, expectedNotes) ->
-            val result = BagLabelReader.read(texts.mapIndexed { index, text -> LabelLine(text, 10f + index) }, emptyList(), notes, today)
-            assertEquals(expectedNotes, result.tastingNotes)
-            if (texts.first().contains("Validade") || texts.first().contains("Best")) assertNull(result.roastedAt)
+        fixtures.forEach { fixture ->
+            val result = BagLabelReader.read(fixture.lines.mapIndexed { index, text -> LabelLine(text, 10f + index) }, emptyList(), notes, today)
+            assertEquals(fixture.weightGrams, result.weightGrams)
+            assertEquals(fixture.roastedAt, result.roastedAt)
+            assertEquals(fixture.tastingNotes, result.tastingNotes)
+            assertEquals(fixture.candidates, result.candidates)
         }
     }
 
+    private data class Fixture(
+        val lines: List<String>,
+        val weightGrams: Double?,
+        val roastedAt: Long?,
+        val tastingNotes: List<String>,
+        val candidates: List<String>,
+    )
+
     @Test fun largestWeightAndAccentedCapitalsKeepWords() {
         val result = BagLabelReader.read(
-            listOf(LabelLine("SÍTIO BAIXADÃO", 20f), LabelLine("250 g 1 kg 0,5 kg", 10f)),
+            listOf(LabelLine("SÍTIO BAIXADÃO", 20f), LabelLine("Bourbon amarelo", 15f), LabelLine("250 g 1 kg 0,5 kg", 10f)),
             listOf("Sítio Baixadão"), emptyList(), today,
         )
         assertEquals(1000.0, result.weightGrams!!, 0.0)
         assertEquals("Sítio Baixadão", result.roaster)
-        assertEquals("Sítio Baixadão", result.candidates.first())
+        assertEquals("Bourbon Amarelo", result.candidates.first())
     }
 
     @Test fun tallestCandidatesComeFirstAndNoiseIsSkipped() {

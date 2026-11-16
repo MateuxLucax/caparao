@@ -44,10 +44,20 @@ object BagLabelReader {
                     .find(normalizedLine)?.let { it.range.first to note }
             }.sortedBy { it.first }.forEach { notes += it.second }
         }
-        val candidates = lines.asSequence().filter { line ->
+        val roastFieldLines = lines.indices.filter { index ->
+            val nearby = listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text).joinToString(" ")
+            ROAST_DATE.containsMatchIn(normalize(nearby)) && DATE.containsMatchIn(nearby)
+        }.toSet()
+        val invalidDateLines = lines.indices.filter { index ->
+            val nearby = listOfNotNull(lines.getOrNull(index - 1)?.text, lines[index].text, lines.getOrNull(index + 1)?.text).joinToString(" ")
+            INVALID_DATE.containsMatchIn(normalize(nearby)) && DATE.containsMatchIn(nearby)
+        }.toSet()
+        val candidates = lines.withIndex().asSequence().filter { (index, line) ->
             val text = line.text.trim()
-            text.isNotEmpty() && !WEIGHT.matches(text) && !ONLY_NUMBERS.matches(text) && !ADDRESS.containsMatchIn(text) && !BARCODE.matches(text)
-        }.sortedByDescending { it.height }.map { titleCase(it.text.trim()) }.distinctBy(::normalize).take(8).toList()
+            index !in roastFieldLines && index !in invalidDateLines &&
+                !WEIGHT.containsMatchIn(text) && !ONLY_NUMBERS.matches(text) &&
+                !ADDRESS.containsMatchIn(text) && !BARCODE.matches(text) && !isKnownRoaster(text, knownRoasters) && !matchesNote(text, knownNotes)
+        }.map { it.value }.sortedByDescending { it.height }.map { titleCase(it.text.trim()) }.distinctBy(::normalize).take(8).toList()
         return BagLabelReading(weight, roastedAt, notes.take(6), roaster, candidates)
     }
 
@@ -65,6 +75,12 @@ object BagLabelReader {
     }
 
     private fun titleCase(value: String): String = value.lowercase(Locale.ROOT).replace(Regex("(^|[^\\p{L}])(\\p{L})")) { it.groupValues[1] + it.groupValues[2].uppercase(Locale.ROOT) }
+
+    private fun isKnownRoaster(text: String, roasters: List<String>) = roasters.any { it.isNotBlank() && normalize(text).contains(normalize(it)) }
+
+    private fun matchesNote(text: String, knownNotes: List<String>) = knownNotes.any { note ->
+        note.isNotBlank() && Regex("(?<![\\p{L}\\p{N}])${Regex.escape(normalize(note))}(?![\\p{L}\\p{N}])").containsMatchIn(normalize(text))
+    }
 
     private fun normalize(value: String) = Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "")
