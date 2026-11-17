@@ -7,8 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import android.widget.RemoteViews
 import android.util.SizeF
+import android.widget.RemoteViews
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.ui.MainActivity
 import dev.mateux.caparao.ui.widget.BrewWidgetRefresh
@@ -52,16 +52,12 @@ class BrewWidgetProvider : AppWidgetProvider() {
                 read = { (context.applicationContext as CaparaoApplication).container.brews.latest() },
                 publish = { latest ->
                     appWidgetIds.forEach { id ->
-                        manager.updateAppWidget(
-                            id,
-                            RemoteViews(mapOf(
-                                SizeF(40f, 40f) to views(context, id, latest, small = true),
-                                SizeF(120f, 110f) to views(context, id, latest),
-                                SizeF(180f, 40f) to views(context, id, latest, wide = true),
-                                SizeF(250f, 40f) to views(context, id, latest, wide = true),
-                                SizeF(180f, 110f) to views(context, id, latest, wide = true),
-                            )),
-                        )
+                        manager.updateAppWidget(id, RemoteViews(mapOf(
+                            SizeF(40f, 40f) to views(context, id, latest, small = true),
+                            SizeF(180f, 50f) to views(context, id, latest),
+                            SizeF(280f, 50f) to views(context, id, latest, wide = true),
+                            SizeF(380f, 50f) to views(context, id, latest, wide = true),
+                        )))
                     }
                 },
                 finish = finish,
@@ -102,7 +98,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         latest: Brew?,
         wide: Boolean = false,
         small: Boolean = false,
-    ): RemoteViews = brewWidgetViews(context, latest, wide, small) { action ->
+    ): RemoteViews = brewWidgetViews(context, latest, small, wide) { action ->
             PendingIntent.getActivity(
                 context,
                 appWidgetId,

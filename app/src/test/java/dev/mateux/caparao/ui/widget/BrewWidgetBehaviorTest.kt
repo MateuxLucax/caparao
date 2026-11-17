@@ -16,37 +16,32 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class BrewWidgetBehaviorTest {
     @Test
-    fun suggestsEspressoAfterFrenchPressAndNeverSuggestsFrenchPress() {
-        assertEquals(BrewMode.FILTER, suggestedModeAfter(BrewMode.ESPRESSO))
-        assertEquals(BrewMode.ESPRESSO, suggestedModeAfter(BrewMode.FILTER))
-        assertEquals(BrewMode.ESPRESSO, suggestedModeAfter(BrewMode.FRENCH_PRESS))
-        assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.ESPRESSO))
-        assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.FILTER))
-        assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.FRENCH_PRESS))
+    fun shortcutRepeatsTheLastMethod() {
+        assertEquals(LauncherShortcut.ESPRESSO, shortcutForWidget(BrewMode.ESPRESSO))
+        assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.FILTER))
+        assertEquals(LauncherShortcut.FRENCH_PRESS, shortcutForWidget(BrewMode.FRENCH_PRESS))
         assertEquals(LauncherShortcut.WIDGET_HOME, shortcutForWidget(null))
-        assertEquals(LauncherShortcut.FILTER, LauncherShortcut.fromAction(shortcutForWidget(BrewMode.ESPRESSO).action))
+        assertEquals(LauncherShortcut.FILTER, LauncherShortcut.fromAction(shortcutForWidget(BrewMode.FILTER).action))
     }
 
     @Test
-    fun actionIconMatchesSuggestedModeAndIsAbsentForTheMethodChooser() {
-        assertEquals(R.drawable.ic_coffee_maker, actionIconForWidget(BrewMode.ESPRESSO))
-        assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.FILTER))
-        assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.FRENCH_PRESS))
+    fun methodIconMatchesLastBrew() {
+        assertEquals(R.drawable.ic_coffee, actionIconForWidget(BrewMode.ESPRESSO))
+        assertEquals(R.drawable.ic_coffee_maker, actionIconForWidget(BrewMode.FILTER))
+        assertEquals(R.drawable.ic_french_press, actionIconForWidget(BrewMode.FRENCH_PRESS))
         assertNull(actionIconForWidget(null))
     }
 
     @Test
-    fun emptyWidgetUsesATitleAndGenericAction() {
+    fun emptyWidgetUsesLocalizedEmptyAndStartLabels() {
         val base = ApplicationProvider.getApplicationContext<Context>()
         val english = localized(base, Locale.US)
         val portuguese = localized(base, Locale.forLanguageTag("pt-BR"))
 
-        assertEquals("No brews", english.getString(R.string.widget_empty_title))
-        assertEquals("Sem café", portuguese.getString(R.string.widget_empty_title))
+        assertEquals("No brews yet", english.getString(R.string.widget_empty_title_yet))
+        assertEquals("Nenhum preparo ainda", portuguese.getString(R.string.widget_empty_title_yet))
         assertEquals("Start a brew", english.getString(R.string.widget_empty_start))
         assertEquals("Iniciar", portuguese.getString(R.string.widget_empty_start))
-        assertEquals("Start a brew", english.getString(R.string.widget_brew_coffee))
-        assertEquals("Iniciar preparo", portuguese.getString(R.string.widget_brew_coffee))
     }
 
     private fun localized(context: Context, locale: Locale): Context =

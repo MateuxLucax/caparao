@@ -1,33 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_action"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_brew_background"
-    android:gravity="top"
-    android:orientation="vertical"
-    android:padding="8dp">
-
-    <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="9sp" />
-    <LinearLayout android:id="@+id/widget_last_brew" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-    <TextView android:id="@+id/widget_coffee" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:ellipsize="end" android:maxLines="1" android:includeFontPadding="false" android:textColor="@color/widget_primary_text" android:textSize="12sp" android:textStyle="bold" />
-    <TextView android:id="@+id/widget_method" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:maxLines="1" android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="9sp" />
-    <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:includeFontPadding="false" android:textColor="@color/widget_secondary_text" android:textSize="9sp" />
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_empty_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-        <TextView android:id="@+id/widget_empty_title" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textColor="@color/widget_primary_text" android:textSize="14sp" android:textStyle="bold" />
-        <TextView android:id="@+id/widget_empty_start" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/widget_empty_start" android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
-    </LinearLayout>
-
-    <FrameLayout android:id="@+id/widget_action" android:layout_width="match_parent" android:layout_height="30dp"
-        android:layout_marginTop="2dp" android:background="@drawable/widget_action_background" android:gravity="center">
-        <TextView android:id="@+id/widget_action_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
-            android:textColor="@color/widget_action_text" android:textSize="10sp" android:textStyle="bold" />
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
+    <FrameLayout
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/widget_icon_container">
+        <ImageView
+            android:id="@+id/widget_method_icon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:tint="@color/widget_icon_foreground"
+            tools:ignore="UseAppTint" />
     </FrameLayout>
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/widget_coffee"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_preview_coffee"
+            android:textColor="@color/widget_primary_text"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif-medium" />
+        <TextView
+            android:id="@+id/widget_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_preview_brew_details"
+            android:textColor="@color/widget_secondary_text"
+            android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/widget_action_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/widget_action_background"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:contentDescription="@string/widget_brew_again">
+        <ImageView
+            android:id="@+id/widget_action_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_play_arrow"
+            android:tint="@color/widget_action_text"
+            tools:ignore="UseAppTint" />
+        <TextView
+            android:id="@+id/widget_action_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="6dp"
+            android:visibility="gone"
+            android:text="@string/widget_brew_again"
+            android:textColor="@color/widget_action_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

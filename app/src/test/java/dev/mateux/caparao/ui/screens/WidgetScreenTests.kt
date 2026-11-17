@@ -171,12 +171,9 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         // The saved state shows the last brew: title, method label, and the suggested action.
         val saved = rendered
         assertNotNull("the applied widget view was not created", saved)
-        assertWidgetText(saved!!, R.id.widget_title, text(R.string.widget_last_brew_title))
-        assertWidgetVisibility(saved, R.id.widget_last_brew, View.VISIBLE)
-        assertWidgetVisibility(saved, R.id.widget_empty_content, View.GONE)
-        assertWidgetText(saved, R.id.widget_coffee, "Sítio Boa Vista")
-        assertWidgetText(saved, R.id.widget_method, text(R.string.widget_brew_summary, text(R.string.mode_espresso), 18.0, 36.0))
-        assertWidgetText(saved, R.id.widget_action_label, text(R.string.widget_brew_filter))
+        assertWidgetText(saved!!, R.id.widget_coffee, "Sítio Boa Vista")
+        assertWidgetText(saved, R.id.widget_meta, "18 g → 36 g")
+        assertEquals(View.GONE, saved.findViewById<View>(R.id.widget_action_label).visibility)
 
         latest = null
         compose.waitForIdle()
@@ -185,12 +182,8 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         // The empty state shows the empty title and the coffee action.
         val empty = rendered
         assertNotNull("the applied widget view was not created", empty)
-        assertWidgetVisibility(empty!!, R.id.widget_title, View.GONE)
-        assertWidgetVisibility(empty, R.id.widget_last_brew, View.GONE)
-        assertWidgetVisibility(empty, R.id.widget_empty_content, View.VISIBLE)
-        assertWidgetText(empty, R.id.widget_empty_title, text(R.string.widget_empty_title))
-        assertWidgetText(empty, R.id.widget_empty_start, text(R.string.widget_empty_start))
-        assertWidgetText(empty, R.id.widget_action_label, text(R.string.widget_brew_coffee))
+        assertWidgetText(empty!!, R.id.widget_coffee, text(R.string.widget_empty_title_yet))
+        assertEquals(View.GONE, empty.findViewById<View>(R.id.widget_action_label).visibility)
     }
 
     /** The Coffees tab, with an open bag and a finished one (#110). */

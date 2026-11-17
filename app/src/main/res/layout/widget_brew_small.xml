@@ -4,9 +4,9 @@
     android:id="@+id/widget_action"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_action_background"
-    android:contentDescription="@string/widget_brew_coffee"
-    android:padding="8dp">
+    android:background="@drawable/widget_icon_container"
+    android:contentDescription="@string/widget_content_description"
+    android:padding="10dp">
 
     <ImageView
         android:id="@+id/widget_small_icon"
