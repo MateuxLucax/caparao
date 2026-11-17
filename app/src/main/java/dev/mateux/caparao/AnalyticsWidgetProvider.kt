@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
@@ -128,7 +129,12 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         ) else context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
         views.setTextViewText(bedtimeView, bedtimeText)
         views.setViewVisibility(bedtimeView, View.VISIBLE)
-        views.setTextColor(bedtimeView, context.getColor(if (aboveBedtimeTarget) R.color.widget_error_text else R.color.widget_primary_text))
+        val bedtimeColor = if (aboveBedtimeTarget) R.color.widget_error_text else R.color.widget_primary_text
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            views.setColorStateList(bedtimeView, "setTextColor", bedtimeColor)
+        } else {
+            views.setTextColor(bedtimeView, context.getColor(bedtimeColor))
+        }
         views.setContentDescription(
             bedtimeView,
             if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
@@ -137,11 +143,20 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val delta = state.thisWeek.grams.toInt() - state.lastWeek.grams.toInt()
         views.setTextViewText(R.id.analytics_widget_delta, context.getString(R.string.analytics_widget_delta_grams, if (delta < 0) "↓" else if (delta > 0) "↑" else "·", kotlin.math.abs(delta)))
         if (expanded) {
-            views.setImageViewBitmap(R.id.analytics_widget_curve, curveBitmap(context, state, size, bedtime, detailed = true))
+            val mask = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            val nowMinutes = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
+            views.setImageViewBitmap(R.id.analytics_widget_curve, curveBitmap(context, state, size, bedtime, detailed = true, nowMinutes = nowMinutes, maskColors = mask, drawGuides = false))
+            views.setImageViewBitmap(R.id.analytics_widget_curve_overlay, chartOverlayBitmap(context, state, size, bedtime, nowMinutes, mask))
+            if (mask) {
+                setAdaptiveImageColor(views, context, R.id.analytics_widget_curve, R.color.widget_hero_text)
+                setAdaptiveImageColor(views, context, R.id.analytics_widget_curve_overlay, R.color.widget_secondary_text)
+            }
         } else {
             views.setTextViewText(R.id.analytics_widget_bedtime_label, context.getString(R.string.analytics_widget_bedtime_title))
             if (layout == R.layout.widget_analytics_square) views.setViewVisibility(R.id.analytics_widget_delta, View.GONE)
-            views.setImageViewBitmap(R.id.analytics_widget_sparkline, curveBitmap(context, state, size, bedtime, detailed = false))
+            val mask = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            views.setImageViewBitmap(R.id.analytics_widget_sparkline, curveBitmap(context, state, size, bedtime, detailed = false, maskColors = mask))
+            if (mask) setAdaptiveImageColor(views, context, R.id.analytics_widget_sparkline, R.color.widget_hero_text)
         }
         val intent = Intent(context, MainActivity::class.java)
             .setAction(LauncherShortcut.ANALYTICS.action)
@@ -160,7 +175,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    internal fun curveBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, detailed: Boolean, nowMinutes: Int = java.time.LocalTime.now().let { it.hour * 60 + it.minute }): Bitmap {
+    internal fun curveBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, detailed: Boolean, nowMinutes: Int = java.time.LocalTime.now().let { it.hour * 60 + it.minute }, maskColors: Boolean = false, drawGuides: Boolean = detailed): Bitmap {
         val density = context.resources.displayMetrics.density
         val layout = layoutForSize(size)
         val widthDp = when {
@@ -178,16 +193,11 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         bitmap.density = Bitmap.DENSITY_NONE
         val canvas = Canvas(bitmap)
-        val primary = chartLineColor(context)
-        val variant = context.getColor(R.color.widget_secondary_text)
-        val fontSize = 12f * density
-        val labels = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; textSize = fontSize; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
+        val primary = if (maskColors) Color.WHITE else chartLineColor(context)
         val plotBottom = if (detailed) height - CHART_LABEL_ROW_HEIGHT_DP * density else height - 2f * density
         val bounds = RectF(3f * density, 3f * density, width - if (detailed) 30f * density else 3f * density, plotBottom)
         val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
         val (startHour, endHour) = chartWindowHours(state, nowMinutes, bedtimeMinutes)
-        val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
-        val bedtimePosition = if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
         val points = state.caffeine.points.filter { it.hour in startHour..endHour }
         val maxMg = maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)
         fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
@@ -208,48 +218,74 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
             }
             canvas.drawPath(path, stroke)
         }
-        if (detailed) {
-            val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density; style = Paint.Style.STROKE; pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * density, 3f * density), 0f) }
-            val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density }
-            val bedtimeX = x(bedtimePosition)
-            val nowX = x(nowHour)
-            val referenceY = y(50.0)
-            canvas.drawLine(bounds.left, referenceY, bounds.right, referenceY, guide)
-            canvas.drawLine(bedtimeX, bounds.top, bedtimeX, bounds.bottom, guide)
-            canvas.drawLine(nowX, bounds.top, nowX, bounds.bottom, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density })
-            points.minByOrNull { kotlin.math.abs(it.hour - nowHour) }?.let { point ->
-                canvas.drawCircle(nowX, y(point.mg), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
-            }
-            canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
-            canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
-            val baseline = height - CHART_LABEL_BOTTOM_PADDING_DP * density
-            val startMinutes = ((startHour * 60).toInt() % 1440 + 1440) % 1440
-            val startLabel = context.getString(R.string.analytics_widget_clock, startMinutes / 60, startMinutes % 60)
-            val nowLabel = context.getString(R.string.analytics_widget_now_marker)
-            val bedtimeLabel = context.getString(R.string.analytics_widget_clock, bedtimeMinutes / 60, bedtimeMinutes % 60)
-            val gap = MIN_TIME_LABEL_GAP_DP * density
-            val startRight = bounds.left + labels.measureText(startLabel)
-            val nowLeft = nowX - labels.measureText(nowLabel) / 2f
-            val nowRight = nowLeft + labels.measureText(nowLabel)
-            val bedtimeRight = width - 2f * density
-            val bedtimeLeft = bedtimeRight - labels.measureText(bedtimeLabel)
-            if (startRight + gap <= nowLeft && startRight + gap <= bedtimeLeft) {
-                labels.textAlign = Paint.Align.LEFT
-                canvas.drawText(startLabel, bounds.left, baseline, labels)
-            }
-            if (nowRight + gap <= bedtimeLeft) {
-                labels.textAlign = Paint.Align.CENTER
-                canvas.drawText(nowLabel, nowX, baseline, labels)
-            }
-            labels.textAlign = Paint.Align.RIGHT
-            canvas.drawText(bedtimeLabel, bedtimeRight, baseline, labels)
-        } else {
-            val nowX = x(nowHour)
-            points.minByOrNull { kotlin.math.abs(it.hour - nowHour) }?.let { point ->
-                canvas.drawCircle(nowX, y(point.mg), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
-            }
+        val nowX = x(nowHour)
+        points.minByOrNull { kotlin.math.abs(it.hour - nowHour) }?.let { point ->
+            canvas.drawCircle(nowX, y(point.mg), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
         }
+        if (detailed && drawGuides) drawChartOverlay(canvas, context, state, width, height, density, bedtimeMinutes, nowMinutes, maskColors)
         return bitmap
+    }
+
+    private fun chartOverlayBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean): Bitmap {
+        val bitmap = Bitmap.createBitmap((size.width - 32f).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), (size.height - EXPANDED_CHART_FIXED_HEIGHT_DP).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        bitmap.density = Bitmap.DENSITY_NONE
+        val density = context.resources.displayMetrics.density
+        drawChartOverlay(Canvas(bitmap), context, state, bitmap.width, bitmap.height, density, bedtimeMinutes, nowMinutes, maskColors)
+        return bitmap
+    }
+
+    private fun drawChartOverlay(canvas: Canvas, context: Context, state: AnalyticsState, width: Int, height: Int, density: Float, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean) {
+        val color = if (maskColors) Color.WHITE else context.getColor(R.color.widget_secondary_text)
+        val labels = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; textSize = 12f * density; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
+        val bounds = RectF(3f * density, 3f * density, width - 30f * density, height - CHART_LABEL_ROW_HEIGHT_DP * density)
+        val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
+        val (startHour, endHour) = chartWindowHours(state, nowMinutes, bedtimeMinutes)
+        val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
+        val bedtimePosition = if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
+        fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
+        val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density; style = Paint.Style.STROKE; pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * density, 3f * density), 0f) }
+        val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density }
+        val bedtimeX = x(bedtimePosition)
+        val nowX = x(nowHour)
+        val points = state.caffeine.points.filter { it.hour in startHour..endHour }
+        val referenceY = bounds.bottom - (50.0 / maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)).toFloat() * bounds.height()
+        canvas.drawLine(bounds.left, referenceY, bounds.right, referenceY, guide)
+        canvas.drawLine(bedtimeX, bounds.top, bedtimeX, bounds.bottom, guide)
+        canvas.drawLine(nowX, bounds.top, nowX, bounds.bottom, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density })
+        canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
+        canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
+        val baseline = height - CHART_LABEL_BOTTOM_PADDING_DP * density
+        val startMinutes = ((startHour * 60).toInt() % 1440 + 1440) % 1440
+        val startLabel = context.getString(R.string.analytics_widget_clock, startMinutes / 60, startMinutes % 60)
+        val nowLabel = context.getString(R.string.analytics_widget_now_marker)
+        val bedtimeLabel = context.getString(R.string.analytics_widget_clock, bedtimeMinutes / 60, bedtimeMinutes % 60)
+        val gap = MIN_TIME_LABEL_GAP_DP * density
+        val startRight = bounds.left + labels.measureText(startLabel)
+        val nowLeft = nowX - labels.measureText(nowLabel) / 2f
+        val nowRight = nowLeft + labels.measureText(nowLabel)
+        val bedtimeRight = width - 2f * density
+        val bedtimeLeft = bedtimeRight - labels.measureText(bedtimeLabel)
+        if (startRight + gap <= nowLeft && startRight + gap <= bedtimeLeft) {
+            labels.textAlign = Paint.Align.LEFT
+            canvas.drawText(startLabel, bounds.left, baseline, labels)
+        }
+        if (nowRight + gap <= bedtimeLeft) {
+            labels.textAlign = Paint.Align.CENTER
+            canvas.drawText(nowLabel, nowX, baseline, labels)
+        }
+        labels.textAlign = Paint.Align.RIGHT
+        canvas.drawText(bedtimeLabel, bedtimeRight, baseline, labels)
+    }
+
+    private fun setAdaptiveImageColor(views: RemoteViews, context: Context, viewId: Int, color: Int) {
+        views.setColorInt(viewId, "setColorFilter", context.getColorInMode(color, Configuration.UI_MODE_NIGHT_NO), context.getColorInMode(color, Configuration.UI_MODE_NIGHT_YES))
+    }
+
+    private fun Context.getColorInMode(color: Int, nightMode: Int): Int {
+        val configuration = Configuration(resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+        }
+        return createConfigurationContext(configuration).getColor(color)
     }
 
     companion object {

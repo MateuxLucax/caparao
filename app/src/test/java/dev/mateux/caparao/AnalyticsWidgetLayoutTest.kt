@@ -6,6 +6,10 @@ import android.content.res.Configuration
 import android.content.Intent
 import android.app.LocaleManager
 import android.os.LocaleList
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.util.SizeF
 import android.view.View
@@ -99,6 +103,10 @@ class AnalyticsWidgetLayoutTest {
         assertTrue(bitmap.height > 0)
         assertEquals(chartWidthPx(size, contentWidthDp = size.width - 32f), bitmap.width)
         assertEquals(((size.height - 104f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
+        val overlay = root.findViewById<ImageView>(R.id.analytics_widget_curve_overlay)
+        val overlayBitmap = (overlay.drawable as BitmapDrawable).bitmap
+        assertEquals(bitmap.width, overlayBitmap.width)
+        assertEquals(bitmap.height, overlayBitmap.height)
         assertHeaderAbsent(root)
     }
 
@@ -188,6 +196,33 @@ class AnalyticsWidgetLayoutTest {
                 assertEquals(View.VISIBLE, bedtime.visibility)
                 assertTrue(bedtime.text.isNotEmpty())
                 assertTrue(contrast(bedtime.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+            }
+        }
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun remoteViewsApplyNightColorsAfterBeingCreatedInDayMode() {
+        val day = themed(Configuration.UI_MODE_NIGHT_NO)
+        val night = themed(Configuration.UI_MODE_NIGHT_YES)
+        for ((size, bedtimeId, curveId) in listOf(
+            Triple(SizeF(396f, 254f), R.id.analytics_widget_bedtime, R.id.analytics_widget_sparkline),
+            Triple(SizeF(396f, 381f), R.id.analytics_widget_bedtime_chip, R.id.analytics_widget_curve),
+        )) {
+            for (bedtimeMg in listOf(11, 51)) {
+                val valueState = state.copy(caffeine = state.caffeine.copy(bedtimeMg = bedtimeMg))
+                val remoteViews = provider.viewsForSize(day, 1, listOf(brew), valueState, size)
+                val root = remoteViews.apply(night, null)
+                val bedtime = root.findViewById<TextView>(bedtimeId)
+                assertEquals(
+                    night.getColor(if (bedtimeMg > 50) R.color.widget_error_text else R.color.widget_primary_text),
+                    bedtime.currentTextColor,
+                )
+                val curve = root.findViewById<ImageView>(curveId)
+                assertEquals(night.getColor(R.color.widget_hero_text), tintedPixel(curve))
+                if (size.height >= 330f) {
+                    assertEquals(night.getColor(R.color.widget_secondary_text), tintedPixel(root.findViewById(R.id.analytics_widget_curve_overlay)))
+                }
             }
         }
     }
@@ -311,6 +346,19 @@ class AnalyticsWidgetLayoutTest {
     private fun render(size: SizeF): View = provider
         .viewsForSize(context, 1, listOf(brew), state, size)
         .apply(context, null)
+
+    private fun tintedPixel(image: ImageView): Int {
+        val output = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        val white = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply { setPixel(0, 0, Color.WHITE) }
+        Canvas(output).drawBitmap(white, 0f, 0f, Paint().apply { colorFilter = image.colorFilter })
+        return output.getPixel(0, 0)
+    }
+
+    private fun themed(nightMode: Int): Context = context.createConfigurationContext(
+        Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+        },
+    )
 
     private fun chartWidthPx(size: SizeF, contentWidthDp: Float): Int {
         val density = context.resources.displayMetrics.density
