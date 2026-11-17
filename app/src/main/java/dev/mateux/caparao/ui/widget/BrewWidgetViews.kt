@@ -42,12 +42,16 @@ internal fun brewWidgetViews(
     views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))
     views.setOnClickPendingIntent(R.id.widget_action_button, pendingIntent(shortcut.action))
     if (latest == null) {
-        views.setTextViewText(R.id.widget_coffee, context.getString(R.string.widget_empty_title_yet))
+        views.setViewVisibility(R.id.widget_coffee, View.GONE)
+        views.setViewVisibility(R.id.widget_empty_title, View.VISIBLE)
+        views.setTextViewText(R.id.widget_empty_title, context.getString(R.string.widget_empty_title_yet))
         views.setTextViewText(R.id.widget_meta, "")
         views.setContentDescription(R.id.widget_action, context.getString(R.string.widget_empty_start))
         views.setContentDescription(R.id.widget_action_button, context.getString(R.string.widget_empty_start))
         views.setViewVisibility(R.id.widget_action_button, View.VISIBLE)
     } else {
+        views.setViewVisibility(R.id.widget_coffee, View.VISIBLE)
+        views.setViewVisibility(R.id.widget_empty_title, View.GONE)
         views.setTextViewText(R.id.widget_coffee, coffee)
         val summary = context.getString(R.string.widget_brew_short_summary, latest.doseGrams, latest.yieldGrams)
         views.setTextViewText(R.id.widget_meta, if (wide) wideSummary(context, latest, widthDp, summary) else summary)
@@ -73,7 +77,7 @@ private fun wideSummary(context: Context, latest: Brew, widthDp: Float, yield: S
     val full = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams) + " · " + timeAgo(context, latest.startedAt)
     val withoutTime = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
     val withoutMethod = yield
-    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 176f, context.resources.displayMetrics)
+    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 188f, context.resources.displayMetrics)
     val paint = TextPaint().apply {
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, context.resources.displayMetrics)
     }

@@ -27,6 +27,7 @@
         android:id="@+id/widget_text_column"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
         <TextView
@@ -39,6 +40,16 @@
             android:textColor="@color/widget_primary_text"
             android:textSize="16sp"
             android:fontFamily="sans-serif-medium" />
+        <TextView
+            android:id="@+id/widget_empty_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:lineSpacingExtra="-2dp"
+            android:maxLines="2"
+            android:textColor="@color/widget_primary_text"
+            android:textSize="15sp"
+            android:visibility="gone" />
         <TextView
             android:id="@+id/widget_meta"
             android:layout_width="match_parent"

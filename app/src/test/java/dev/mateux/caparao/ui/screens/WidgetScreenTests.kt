@@ -182,7 +182,7 @@ abstract class ScreenWidgetTests(lang: String, theme: String, compactOnly: Boole
         // The empty state shows the empty title and the coffee action.
         val empty = rendered
         assertNotNull("the applied widget view was not created", empty)
-        assertWidgetText(empty!!, R.id.widget_coffee, text(R.string.widget_empty_title_yet))
+        assertWidgetText(empty!!, R.id.widget_empty_title, text(R.string.widget_empty_title_yet))
         assertEquals(View.GONE, empty.findViewById<View>(R.id.widget_action_label).visibility)
     }
 

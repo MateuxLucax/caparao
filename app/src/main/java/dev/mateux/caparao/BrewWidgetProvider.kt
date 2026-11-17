@@ -6,8 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.util.Log
-import android.util.SizeF
 import android.widget.RemoteViews
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.ui.MainActivity
@@ -29,7 +29,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
-        refresh(context, manager, intArrayOf(appWidgetId))
+        refresh(context, manager, intArrayOf(appWidgetId), newOptions)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -45,6 +45,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         context: Context,
         manager: AppWidgetManager,
         appWidgetIds: IntArray,
+        options: Bundle? = null,
     ) {
         if (appWidgetIds.isEmpty()) return
         val pending = goAsync()
@@ -56,12 +57,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
                 read = { (context.applicationContext as CaparaoApplication).container.brews.latest() },
                 publish = { latest ->
                     appWidgetIds.forEach { id ->
-                        manager.updateAppWidget(id, RemoteViews(mapOf(
-                            SizeF(40f, 40f) to views(context, id, latest, small = true),
-                            SizeF(180f, 56f) to views(context, id, latest),
-                            SizeF(280f, 56f) to views(context, id, latest, wide = true, widthDp = 280f),
-                            SizeF(380f, 56f) to views(context, id, latest, wide = true, widthDp = 380f),
-                        )))
+                        manager.updateAppWidget(id, viewsForOptions(context, id, latest, options ?: manager.getAppWidgetOptions(id)))
                     }
                 },
                 finish = finish,
@@ -113,6 +109,14 @@ class BrewWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
+
+    internal fun viewsForOptions(context: Context, appWidgetId: Int, latest: Brew?, options: Bundle): RemoteViews {
+        val widthDp = options.getInt(
+            AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH,
+            options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180),
+        ).toFloat()
+        return views(context, appWidgetId, latest, wide = widthDp >= 250f, small = widthDp < 120f, widthDp = widthDp)
+    }
 
     companion object {
         private const val TAG = "BrewWidget"
