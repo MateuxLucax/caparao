@@ -36,4 +36,3 @@ class MlKitLabelRecognizer(context: Context) : LabelRecognizer {
         }
     }
 }
-
