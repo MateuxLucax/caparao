@@ -57,6 +57,23 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
+    fun wideSparklineIncludesCaffeineRemainingFromYesterday() {
+        val chartNow = Instant.parse("2026-11-17T15:00:00Z")
+        val yesterday = brew.copy(id = "yesterday", startedAt = chartNow.minusSeconds(20 * 3600L).toEpochMilli())
+        val oldBrewState = AnalyticsViewModel.summarize(listOf(yesterday), emptyList(), chartNow, ZoneId.of("UTC"))
+        assertEquals(0, oldBrewState.caffeine.todayBrews)
+        assertTrue(oldBrewState.caffeine.points.any { it.mg > 0.0 })
+
+        val size = SizeF(396f, 254f)
+        val root = provider.viewsForSize(context, 1, listOf(yesterday), oldBrewState, size).apply(context, null)
+        val sparkline = root.findViewById<ImageView>(R.id.analytics_widget_sparkline)
+        assertEquals(View.VISIBLE, sparkline.visibility)
+        assertTrue((sparkline.drawable as BitmapDrawable).bitmap.width > 0)
+        val bitmap = provider.curveBitmap(context, oldBrewState, size, 23 * 60, detailed = false, nowMinutes = 15 * 60)
+        assertTrue(bitmap.pixels().count { it == AnalyticsWidgetProvider.chartLineColor(context) } > 0)
+    }
+
+    @Test
     fun layoutBIsTheExpandedFourByThreeChartWireframe() {
         val size = SizeF(396f, 381f)
         val root = render(size)
@@ -152,6 +169,28 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
+    fun bedtimeValueIsVisibleAndReadableInLayoutsAAndBForDayAndNight() {
+        val valueState = state.copy(caffeine = state.caffeine.copy(bedtimeMg = 11))
+        for (nightMode in listOf(false, true)) {
+            val configuration = Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                    if (nightMode) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            }
+            val themed = context.createConfigurationContext(configuration)
+            for ((size, id) in listOf(
+                SizeF(396f, 254f) to R.id.analytics_widget_bedtime,
+                SizeF(396f, 381f) to R.id.analytics_widget_bedtime_chip,
+            )) {
+                val root = provider.viewsForSize(themed, 1, listOf(brew), valueState, size).apply(themed, null)
+                val bedtime = root.findViewById<TextView>(id)
+                assertEquals(View.VISIBLE, bedtime.visibility)
+                assertTrue(bedtime.text.isNotEmpty())
+                assertTrue(contrast(bedtime.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+            }
+        }
+    }
+
+    @Test
     fun pickerUsesTheFourByTwoSizeAndLocalizedReceiverLabels() {
         val parser = context.resources.getXml(R.xml.analytics_widget_info)
         while (parser.next() != org.xmlpull.v1.XmlPullParser.START_TAG) {}
@@ -232,6 +271,28 @@ class AnalyticsWidgetLayoutTest {
         assertNotEquals(dayColor, nightColor)
         assertTrue(dayBitmap.pixels().isNotEmpty())
         assertTrue(nightBitmap.pixels().isNotEmpty())
+    }
+
+    @Test
+    fun chartPlotsTwoBrewsInsideTheNowToBedtimeWindow() {
+        val chartNow = Instant.parse("2026-11-17T15:00:00Z")
+        val morning = brew.copy(id = "morning", startedAt = chartNow.minusSeconds(6 * 3600L).toEpochMilli())
+        val afternoon = brew.copy(id = "afternoon", startedAt = chartNow.minusSeconds(2 * 3600L).toEpochMilli())
+        val chartState = AnalyticsViewModel.summarize(listOf(morning, afternoon), emptyList(), chartNow, ZoneId.of("UTC"))
+        val nowMinutes = 15 * 60
+        val (startHour, bedtimeHour) = AnalyticsWidgetProvider.chartWindowHours(chartState, nowMinutes, 23 * 60)
+        assertTrue(startHour < nowMinutes / 60.0)
+        assertTrue(nowMinutes / 60.0 < bedtimeHour)
+
+        val bitmap = provider.curveBitmap(context, chartState, SizeF(396f, 381f), 23 * 60, detailed = true, nowMinutes = nowMinutes)
+        val lineColor = AnalyticsWidgetProvider.chartLineColor(context)
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        val density = context.resources.displayMetrics.density
+        val nowX = (3f + (nowMinutes / 60f - startHour.toFloat()) / (bedtimeHour.toFloat() - startHour.toFloat()) * (bitmap.width / density - 33f)) * density
+        assertTrue(pixels.withIndex().count { (index, pixel) ->
+            pixel == lineColor && kotlin.math.abs(index % bitmap.width - nowX) > 4f * density
+        } > 0)
     }
 
     @Test

@@ -65,13 +65,18 @@ class AnalyticsViewModel(repository: BrewRepository, bags: kotlinx.coroutines.fl
                 val elapsed = (at.toEpochMilli() - time.toEpochMilli()) / 3_600_000.0
                 if (elapsed < 0) 0.0 else dose * KA / (KA - KE) * (kotlin.math.exp(-KE * elapsed) - kotlin.math.exp(-KA * elapsed))
             }
-            val start = today.atTime(6, 0).atZone(zone)
-            val end = bedtime
-            val points = if (relevant.none { Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == today }) emptyList() else
-                (0..((kotlin.math.abs(end.toEpochSecond() - start.toEpochSecond()) / 900).toInt().coerceAtLeast(1))).map { step ->
-                    val time = if (end.isAfter(start)) start.plusSeconds(step * 900L).coerceAtMost(end) else end.plusSeconds(step * 900L).coerceAtMost(start)
-                    CaffeinePoint(time.hour + time.minute / 60.0, amount(time.toInstant()))
-                }
+            val chartStart = maxOf(
+                localNow.minusHours(12),
+                relevant.filter { Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == today }
+                    .minOfOrNull { Instant.ofEpochMilli(it.startedAt).atZone(zone) } ?: localNow.minusHours(12),
+            )
+            val chartEnd = if (bedtime.isAfter(localNow)) bedtime else bedtime.plusDays(1)
+            val pointCount = ((chartEnd.toEpochSecond() - chartStart.toEpochSecond()) / 900).toInt().coerceAtLeast(1)
+            val points = (0..pointCount).map { step ->
+                val time = chartStart.plusSeconds(step * 900L).coerceAtMost(chartEnd)
+                val dayOffset = time.toLocalDate().toEpochDay() - today.toEpochDay()
+                CaffeinePoint(dayOffset * 24.0 + time.hour + time.minute / 60.0, amount(time.toInstant()))
+            }
             val bedtimeMg = amount(bedtime.toInstant()).toInt()
             val usual = brews.filter { it.startedAt >= today.minusDays(14).atStartOfDay(zone).toInstant().toEpochMilli() && it.startedAt < today.atStartOfDay(zone).toInstant().toEpochMilli() }
                 .map { it.doseGrams * (it.bagId?.let(bags::get)?.caffeineMgPerGram ?: 10) }.sorted()

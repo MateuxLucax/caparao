@@ -118,33 +118,28 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.analytics_widget_start_brew, context.getString(R.string.analytics_widget_start_brew))
         views.setTextViewText(R.id.analytics_widget_caffeine, context.getString(R.string.analytics_widget_value_mg, state.caffeine.nowMg))
         val aboveBedtimeTarget = state.caffeine.bedtimeMg > 50
+        val expanded = layout == R.layout.widget_analytics_expanded
+        val bedtimeView = if (expanded) R.id.analytics_widget_bedtime_chip else R.id.analytics_widget_bedtime
+        val bedtime = bedtimeMinutes.coerceIn(0, 1439)
+        val bedtimeText = if (expanded) context.getString(
+            R.string.analytics_widget_bedtime_chip,
+            state.caffeine.bedtimeMg,
+            context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60),
+        ) else context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
+        views.setTextViewText(bedtimeView, bedtimeText)
+        views.setViewVisibility(bedtimeView, View.VISIBLE)
+        views.setTextColor(bedtimeView, context.getColor(if (aboveBedtimeTarget) R.color.widget_error_text else R.color.widget_primary_text))
+        views.setContentDescription(
+            bedtimeView,
+            if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
+        )
         views.setTextViewText(R.id.analytics_widget_week, context.getString(R.string.analytics_widget_value_grams, state.thisWeek.grams.toInt()))
         val delta = state.thisWeek.grams.toInt() - state.lastWeek.grams.toInt()
         views.setTextViewText(R.id.analytics_widget_delta, context.getString(R.string.analytics_widget_delta_grams, if (delta < 0) "↓" else if (delta > 0) "↑" else "·", kotlin.math.abs(delta)))
-        val bedtime = bedtimeMinutes.coerceIn(0, 1439)
-        if (layout == R.layout.widget_analytics_expanded) {
-            views.setTextViewText(
-                R.id.analytics_widget_bedtime_chip,
-                context.getString(
-                    R.string.analytics_widget_bedtime_chip,
-                    state.caffeine.bedtimeMg,
-                    context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60),
-                ),
-            )
-            views.setTextColor(R.id.analytics_widget_bedtime_chip, if (aboveBedtimeTarget) context.getColor(R.color.widget_error_text) else context.getColor(R.color.widget_primary_text))
-            views.setContentDescription(
-                R.id.analytics_widget_bedtime_chip,
-                if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
-            )
+        if (expanded) {
             views.setImageViewBitmap(R.id.analytics_widget_curve, curveBitmap(context, state, size, bedtime, detailed = true))
         } else {
             views.setTextViewText(R.id.analytics_widget_bedtime_label, context.getString(R.string.analytics_widget_bedtime_title))
-            views.setTextViewText(R.id.analytics_widget_bedtime, context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg))
-            views.setTextColor(R.id.analytics_widget_bedtime, if (aboveBedtimeTarget) context.getColor(R.color.widget_error_text) else context.getColor(R.color.widget_primary_text))
-            views.setContentDescription(
-                R.id.analytics_widget_bedtime,
-                if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
-            )
             if (layout == R.layout.widget_analytics_square) views.setViewVisibility(R.id.analytics_widget_delta, View.GONE)
             views.setImageViewBitmap(R.id.analytics_widget_sparkline, curveBitmap(context, state, size, bedtime, detailed = false))
         }
@@ -165,7 +160,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    internal fun curveBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, detailed: Boolean): Bitmap {
+    internal fun curveBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, detailed: Boolean, nowMinutes: Int = java.time.LocalTime.now().let { it.hour * 60 + it.minute }): Bitmap {
         val density = context.resources.displayMetrics.density
         val layout = layoutForSize(size)
         val widthDp = when {
@@ -189,12 +184,11 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val labels = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; textSize = fontSize; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
         val plotBottom = if (detailed) height - CHART_LABEL_ROW_HEIGHT_DP * density else height - 2f * density
         val bounds = RectF(3f * density, 3f * density, width - if (detailed) 30f * density else 3f * density, plotBottom)
-        val firstBrew = state.caffeine.brewHours.minOrNull() ?: 6.0
-        val startHour = maxOf(6.0, firstBrew - 1.0)
+        val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
+        val (startHour, endHour) = chartWindowHours(state, nowMinutes, bedtimeMinutes)
         val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
-        val endHour = maxOf(startHour + 1.0, bedtimeHour + 1.0)
-        val now = java.time.LocalTime.now().let { it.hour + it.minute / 60.0 }
-        val points = state.caffeine.points.filter { it.hour >= firstBrew }
+        val bedtimePosition = if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
+        val points = state.caffeine.points.filter { it.hour in startHour..endHour }
         val maxMg = maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)
         fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
         fun y(mg: Double) = bounds.bottom - (mg / maxMg).toFloat() * bounds.height()
@@ -217,28 +211,41 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         if (detailed) {
             val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density; style = Paint.Style.STROKE; pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * density, 3f * density), 0f) }
             val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density }
-            val bedtimeX = x(bedtimeHour)
-            val nowX = x(now)
+            val bedtimeX = x(bedtimePosition)
+            val nowX = x(nowHour)
             val referenceY = y(50.0)
             canvas.drawLine(bounds.left, referenceY, bounds.right, referenceY, guide)
             canvas.drawLine(bedtimeX, bounds.top, bedtimeX, bounds.bottom, guide)
             canvas.drawLine(nowX, bounds.top, nowX, bounds.bottom, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; strokeWidth = density })
-            points.minByOrNull { kotlin.math.abs(it.hour - now) }?.let { point ->
+            points.minByOrNull { kotlin.math.abs(it.hour - nowHour) }?.let { point ->
                 canvas.drawCircle(nowX, y(point.mg), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
             }
             canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
             canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
             val baseline = height - CHART_LABEL_BOTTOM_PADDING_DP * density
-            labels.textAlign = Paint.Align.LEFT
-            canvas.drawText(context.getString(R.string.analytics_widget_clock, (startHour * 60).toInt() / 60, (startHour * 60).toInt() % 60), bounds.left, baseline, labels)
+            val startMinutes = ((startHour * 60).toInt() % 1440 + 1440) % 1440
+            val startLabel = context.getString(R.string.analytics_widget_clock, startMinutes / 60, startMinutes % 60)
             val nowLabel = context.getString(R.string.analytics_widget_now_marker)
-            canvas.drawText(nowLabel, (nowX - labels.measureText(nowLabel) / 2f).coerceIn(bounds.left, bounds.right - labels.measureText(nowLabel)), baseline, labels)
             val bedtimeLabel = context.getString(R.string.analytics_widget_clock, bedtimeMinutes / 60, bedtimeMinutes % 60)
+            val gap = MIN_TIME_LABEL_GAP_DP * density
+            val startRight = bounds.left + labels.measureText(startLabel)
+            val nowLeft = nowX - labels.measureText(nowLabel) / 2f
+            val nowRight = nowLeft + labels.measureText(nowLabel)
+            val bedtimeRight = width - 2f * density
+            val bedtimeLeft = bedtimeRight - labels.measureText(bedtimeLabel)
+            if (startRight + gap <= nowLeft && startRight + gap <= bedtimeLeft) {
+                labels.textAlign = Paint.Align.LEFT
+                canvas.drawText(startLabel, bounds.left, baseline, labels)
+            }
+            if (nowRight + gap <= bedtimeLeft) {
+                labels.textAlign = Paint.Align.CENTER
+                canvas.drawText(nowLabel, nowX, baseline, labels)
+            }
             labels.textAlign = Paint.Align.RIGHT
-            canvas.drawText(bedtimeLabel, width - 2f * density, baseline, labels)
+            canvas.drawText(bedtimeLabel, bedtimeRight, baseline, labels)
         } else {
-            val nowX = x(now)
-            points.minByOrNull { kotlin.math.abs(it.hour - now) }?.let { point ->
+            val nowX = x(nowHour)
+            points.minByOrNull { kotlin.math.abs(it.hour - nowHour) }?.let { point ->
                 canvas.drawCircle(nowX, y(point.mg), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
             }
         }
@@ -253,12 +260,20 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
         private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
         private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
+        private const val MIN_TIME_LABEL_GAP_DP = 8f
         private const val SQUARE_CHART_FIXED_HEIGHT_DP = 156f
         private const val SPARKLINE_MIN_HEIGHT_DP = 24f
         private const val SPARKLINE_HEIGHT_DP = 28f
         internal val CONFIGURATION_ACTIONS = setOf(Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_CONFIGURATION_CHANGED)
 
         internal fun chartLineColor(context: Context) = context.getColor(R.color.widget_hero_text)
+
+        internal fun chartWindowHours(state: AnalyticsState, nowMinutes: Int, bedtimeMinutes: Int): Pair<Double, Double> {
+            val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
+            val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
+            val startHour = maxOf(nowHour - 12.0, state.caffeine.brewHours.minOrNull() ?: nowHour - 12.0)
+            return startHour to if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
+        }
 
         internal fun localizedContext(context: Context): Context {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return context
