@@ -33,8 +33,8 @@ class TranslationsTest {
             "milestone_and_step",
             "settings_app", "settings_about",
             "tasting_chocolate", "tasting_floral",
-            "rating_reminder_delay_value",
-            "analytics_widget_value_mg", "analytics_widget_value_grams", "analytics_widget_delta_grams", "analytics_widget_clock",
+            "rating_reminder_delay_value", "analytics_widget_value_mg", "analytics_widget_value_grams", "analytics_widget_delta_grams", "analytics_widget_clock",
+            "widget_preview_coffee", "widget_preview_brew_details", "widget_brew_summary", "widget_brew_short_summary",
         )
         assertEquals(allowed, same)
     }

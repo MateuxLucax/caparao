@@ -24,13 +24,26 @@
     <string name="mode_french_press_short">Press</string>
 
     <!-- Home-screen widget -->
-    <string name="widget_description">Last brew</string>
+    <string name="widget_description">Brew your last coffee again</string>
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_french_press">Brew French press</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
+    <string name="last_brew_widget_label">Last brew</string>
+    <string name="widget_empty_title_yet">No brews yet</string>
+    <string name="widget_empty_start">Start a brew</string>
+    <string name="widget_brew_summary">%1$s · %2$.0f g → %3$.0f g</string>
+    <string name="widget_brew_short_summary">%1$.0f g → %2$.0f g</string>
+    <string name="widget_just_now">Just now</string>
+    <string name="widget_minutes_ago">%1$d min ago</string>
+    <string name="widget_hours_ago">%1$d hr ago</string>
+    <string name="widget_days_ago">%1$d days ago</string>
+    <string name="widget_preview_coffee">Fazenda Ambiental</string>
+    <string name="widget_preview_brew_details">15 g → 250 g</string>
+    <string name="widget_brew_again">Brew again</string>
+    <string name="widget_content_description">Brew again: %1$s</string>
     <string name="analytics_widget_name">Analytics</string>
     <string name="analytics_widget_description">Caffeine now and this week</string>
     <string name="analytics_widget_empty">No coffee logged yet</string>
@@ -46,7 +59,6 @@
     <string name="analytics_widget_delta_grams">%1$s %2$d g</string>
     <string name="analytics_widget_clock">%1$02d:%2$02d</string>
     <string name="analytics_widget_curve_description">Today\'s estimated caffeine curve</string>
-
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>

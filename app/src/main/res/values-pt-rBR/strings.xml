@@ -20,13 +20,26 @@
     <string name="mode_french_press_short">Prensa</string>
 
     <!-- Widget da tela inicial -->
-    <string name="widget_description">Último preparo</string>
+    <string name="widget_description">Prepare seu último café de novo</string>
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_french_press">Preparar prensa francesa</string>
     <string name="widget_brew_coffee">Preparar um café</string>
+    <string name="last_brew_widget_label">Último preparo</string>
+    <string name="widget_empty_title_yet">Nenhum preparo</string>
+    <string name="widget_empty_start">Iniciar</string>
+    <string name="widget_brew_summary">%1$s · %2$.0f g → %3$.0f g</string>
+    <string name="widget_brew_short_summary">%1$.0f g → %2$.0f g</string>
+    <string name="widget_just_now">Agora mesmo</string>
+    <string name="widget_minutes_ago">há %1$d min</string>
+    <string name="widget_hours_ago">há %1$d h</string>
+    <string name="widget_days_ago">há %1$d dias</string>
+    <string name="widget_preview_coffee">Fazenda Ambiental</string>
+    <string name="widget_preview_brew_details">15 g → 250 g</string>
+    <string name="widget_brew_again">Preparar de novo</string>
+    <string name="widget_content_description">Preparar de novo: %1$s</string>
     <string name="analytics_widget_name">Análises</string>
     <string name="analytics_widget_description">Cafeína agora e nesta semana</string>
     <string name="analytics_widget_empty">Nenhum café registrado ainda</string>
@@ -42,7 +55,6 @@
     <string name="analytics_widget_delta_grams">%1$s %2$d g</string>
     <string name="analytics_widget_clock">%1$02d:%2$02d</string>
     <string name="analytics_widget_curve_description">Curva estimada de cafeína de hoje</string>
-
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>

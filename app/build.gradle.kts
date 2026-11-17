@@ -99,6 +99,7 @@ android {
         getByName("nonMinifiedRelease").kotlin.srcDir("src/debug/java")
         getByName("benchmarkRelease").java.srcDir("src/debug/java")
         getByName("benchmarkRelease").kotlin.srcDir("src/debug/java")
+        // Test-only installs reuse the production application ID but should not register a second home-screen widget.
     }
 
     buildFeatures {

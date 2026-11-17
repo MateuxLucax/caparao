@@ -6,7 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
 import android.util.Log
+import android.util.SizeF
 import android.widget.RemoteViews
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.ui.MainActivity
@@ -27,9 +30,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
         refresh(context, manager, appWidgetIds)
     }
 
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
+        refresh(context, manager, intArrayOf(appWidgetId), newOptions)
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) {
+        if (intent.action == ACTION_REFRESH || intent.action in CONFIGURATION_ACTIONS) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, BrewWidgetProvider::class.java))
             refresh(context, manager, ids)
@@ -40,6 +47,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         context: Context,
         manager: AppWidgetManager,
         appWidgetIds: IntArray,
+        options: Bundle? = null,
     ) {
         if (appWidgetIds.isEmpty()) return
         val pending = goAsync()
@@ -50,7 +58,19 @@ class BrewWidgetProvider : AppWidgetProvider() {
             refreshBounded(
                 read = { (context.applicationContext as CaparaoApplication).container.brews.latest() },
                 publish = { latest ->
-                    appWidgetIds.forEach { id -> manager.updateAppWidget(id, views(context, id, latest)) }
+                    appWidgetIds.forEach { id ->
+                        val sizeViews = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            RemoteViews(mapOf(
+                                SizeF(100f, 119f) to viewsForWidth(context, id, latest, 100f),
+                                SizeF(150f, 119f) to viewsForWidth(context, id, latest, 150f),
+                                SizeF(293f, 119f) to viewsForWidth(context, id, latest, 293f),
+                                SizeF(380f, 119f) to viewsForWidth(context, id, latest, 380f),
+                            ))
+                        } else {
+                            viewsForOptions(context, id, latest, options ?: manager.getAppWidgetOptions(id))
+                        }
+                        manager.updateAppWidget(id, sizeViews)
+                    }
                 },
                 finish = finish,
             )
@@ -84,8 +104,15 @@ class BrewWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    internal fun views(context: Context, appWidgetId: Int, latest: Brew?): RemoteViews =
-        brewWidgetViews(context, latest) { action ->
+    internal fun views(
+        context: Context,
+        appWidgetId: Int,
+        latest: Brew?,
+        wide: Boolean = false,
+        small: Boolean = false,
+        widthDp: Float = 380f,
+        fullMeta: Boolean = wide,
+    ): RemoteViews = brewWidgetViews(context, latest, small, wide, widthDp, fullMeta) { action ->
             PendingIntent.getActivity(
                 context,
                 appWidgetId,
@@ -96,12 +123,25 @@ class BrewWidgetProvider : AppWidgetProvider() {
             )
         }
 
+    internal fun viewsForWidth(context: Context, appWidgetId: Int, latest: Brew?, widthDp: Float): RemoteViews =
+        views(context, appWidgetId, latest, wide = widthDp >= 380f, small = widthDp < 150f, widthDp = widthDp, fullMeta = widthDp >= 250f)
+
+    internal fun viewsForOptions(context: Context, appWidgetId: Int, latest: Brew?, options: Bundle): RemoteViews {
+        val widthDp = options.getInt(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
+            else AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+            180,
+        ).toFloat()
+        return viewsForWidth(context, appWidgetId, latest, widthDp)
+    }
+
     companion object {
         private const val TAG = "BrewWidget"
 
         /** The watchdog fires just after the cooperative timeout, still well inside the ~10 s broadcast window. */
         private const val FINISH_MARGIN_MS = 250L
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.REFRESH"
+        private val CONFIGURATION_ACTIONS = setOf(Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_CONFIGURATION_CHANGED)
         /** Request a best-effort refresh after a committed save or delete. */
         fun requestRefresh(context: Context) {
             val component = ComponentName(context, BrewWidgetProvider::class.java)
