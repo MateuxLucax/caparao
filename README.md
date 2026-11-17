@@ -61,8 +61,8 @@ coffee in each recipe, and moves them one step at a time from what you tasted.
   bag label on your phone, reuse details as you type, or open another bag with the coffee's recipe adjustments. See
   how much coffee is left and how many days it may last. Log coffee used even when you brew outside the app.
 - **Brew history and insights:** the last brew widget shows the method, dose, ratio and time, with a shortcut to brew
-  again. Analytics shows weekly coffee use and estimated caffeine through bedtime, with a home-screen widget for a
-  quick view. Adjust espresso dose, grind and temperature during preparation.
+  again. Analytics shows weekly coffee use and estimated caffeine through bedtime. Two more home-screen widgets give a
+  quick view: Analytics for caffeine now and at bedtime, and Week for brews per day over the last 7 days. Adjust espresso dose, grind and temperature during preparation.
 - **Scale battery:** the Dot's battery percentage sits in the top bar while it is connected, and turns red at 20%.
 - **Offline first:** no account and no server. The rating reminder is a local notification.
 - **Your data, your server:** optionally, each brew goes to any server that follows the
