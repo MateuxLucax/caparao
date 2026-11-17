@@ -73,7 +73,8 @@
         <receiver
             android:name=".BrewWidgetProvider"
             android:exported="false"
-            android:enabled="${widgetProviderEnabled}">
+            android:enabled="${widgetProviderEnabled}"
+            android:label="@string/last_brew_widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="android.intent.action.LOCALE_CHANGED" />

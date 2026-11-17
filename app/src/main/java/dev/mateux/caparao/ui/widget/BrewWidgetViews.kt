@@ -36,7 +36,7 @@ internal fun brewWidgetViews(
     views.setImageViewResource(R.id.widget_method_icon, mode?.icon ?: R.drawable.ic_coffee)
     views.setViewVisibility(R.id.widget_meta, if (latest == null) View.GONE else View.VISIBLE)
     views.setTextViewText(R.id.widget_action_label, context.getString(R.string.widget_brew_again))
-    views.setViewLayoutWidth(R.id.widget_action_button, if (wide) 132f else 40f, android.util.TypedValue.COMPLEX_UNIT_DIP)
+    if (!wide) views.setViewLayoutWidth(R.id.widget_action_button, 40f, TypedValue.COMPLEX_UNIT_DIP)
     views.setContentDescription(R.id.widget_action, accessibility)
     views.setContentDescription(R.id.widget_action_button, accessibility)
     views.setOnClickPendingIntent(R.id.widget_action, pendingIntent(shortcut.action))
@@ -73,11 +73,12 @@ private fun wideSummary(context: Context, latest: Brew, widthDp: Float, yield: S
     val full = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams) + " · " + timeAgo(context, latest.startedAt)
     val withoutTime = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
     val withoutMethod = yield
-    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 196f, context.resources.displayMetrics)
+    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 176f, context.resources.displayMetrics)
     val paint = TextPaint().apply {
-        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, context.resources.displayMetrics)
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, context.resources.displayMetrics)
     }
-    return listOf(full, withoutTime, withoutMethod).firstOrNull { paint.measureText(it) <= availablePx } ?: withoutMethod
+    val candidates = if (widthDp <= 280f) listOf(withoutMethod) else listOf(full, withoutTime, withoutMethod)
+    return candidates.firstOrNull { paint.measureText(it) <= availablePx } ?: withoutMethod
 }
 
 internal fun timeAgo(context: Context, startedAt: Long, now: Long = System.currentTimeMillis()): String {

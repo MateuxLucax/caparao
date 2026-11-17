@@ -3,6 +3,7 @@ package dev.mateux.caparao
 import android.content.Context
 import android.content.pm.PackageManager
 import android.view.LayoutInflater
+import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -22,8 +23,8 @@ import org.robolectric.RobolectricTestRunner
 class BrewWidgetLayoutTest {
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
     private val brew get() = Brew("filter", BrewMode.FILTER, System.currentTimeMillis() - 59 * 60_000L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false, coffee = "Fazenda Ambiental")
-    private fun views(brew: Brew?, small: Boolean = false, wide: Boolean = false) =
-        BrewWidgetProvider().views(context, 1, brew, wide = wide, small = small).apply(context, null)
+    private fun views(brew: Brew?, small: Boolean = false, wide: Boolean = false, widthDp: Float = 380f) =
+        BrewWidgetProvider().views(context, 1, brew, wide = wide, small = small, widthDp = widthDp).apply(context, null)
 
     @Test fun oneByOneIsIconOnlyAndRepeatsLastMethod() {
         val root = views(brew, small = true)
@@ -33,6 +34,7 @@ class BrewWidgetLayoutTest {
         val circle = root.findViewById<View>(R.id.widget_small_icon).parent as View
         assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.width)
         assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.height)
+        assertEquals(Gravity.CENTER, (circle.layoutParams as android.widget.FrameLayout.LayoutParams).gravity)
         assertEquals((28 * context.resources.displayMetrics.density).toInt(), root.findViewById<View>(R.id.widget_small_icon).layoutParams.width)
     }
 
@@ -52,6 +54,20 @@ class BrewWidgetLayoutTest {
         assertEquals(1f, params.weight)
         assertEquals(0, params.marginStart)
         assertEquals(0, params.marginEnd)
+        assertEquals(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, layout.findViewById<View>(R.id.widget_action_button).layoutParams.width)
+        val action = layout.findViewById<View>(R.id.widget_action_button)
+        val actionLabel = layout.findViewById<TextView>(R.id.widget_action_label)
+        val maxPillWidth = (20 + 4) * context.resources.displayMetrics.density + actionLabel.maxWidth + action.paddingLeft + action.paddingRight
+        assertTrue("pill uses ${maxPillWidth / context.resources.displayMetrics.density}dp", maxPillWidth / context.resources.displayMetrics.density <= 112f)
+        assertEquals(16f, layout.findViewById<TextView>(R.id.widget_coffee).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+        assertEquals(13f, layout.findViewById<TextView>(R.id.widget_meta).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+    }
+
+    @Test fun narrowWideSummaryDropsTimeThenMethodButKeepsYield() {
+        val meta = views(brew, wide = true, widthDp = 280f).findViewById<TextView>(R.id.widget_meta).text.toString()
+        assertEquals("15 g → 250 g", meta)
+        assertTrue(meta.contains("250 g"))
+        assertTrue(!meta.contains("Filter") && !meta.contains("ago"))
     }
 
     @Test fun threeAndFourByOneShowMethodTimeAndTextAction() {
@@ -79,19 +95,35 @@ class BrewWidgetLayoutTest {
         try {
             while (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) parser.next()
             val ns = "http://schemas.android.com/apk/res/android"
-            assertEquals("Last brew", context.getString(parser.getAttributeResourceValue(ns, "label", 0)))
-            assertEquals(R.string.last_brew_widget_label, parser.getAttributeResourceValue(ns, "label", 0))
+            assertEquals(-1, parser.getAttributeResourceValue(ns, "label", -1))
             assertEquals(context.getString(R.string.widget_description), context.getString(parser.getAttributeResourceValue(ns, "description", 0)))
             assertEquals(2, parser.getAttributeIntValue(ns, "targetCellWidth", 0))
             assertEquals(1, parser.getAttributeIntValue(ns, "targetCellHeight", 0))
             assertEquals("widget_brew", context.resources.getResourceEntryName(parser.getAttributeResourceValue(ns, "previewLayout", 0)))
             assertEquals(R.layout.widget_brew, parser.getAttributeResourceValue(ns, "initialLayout", 0))
         } finally { parser.close() }
+        assertEquals(R.string.last_brew_widget_label, receiver.labelRes)
+        assertEquals("Last brew", receiver.loadLabel(context.packageManager).toString())
         val preview = LayoutInflater.from(context).inflate(R.layout.widget_brew, null)
         assertEquals("Fazenda Ambiental", preview.findViewById<TextView>(R.id.widget_coffee).text)
         assertNotNull(preview.findViewById<ImageView>(R.id.widget_method_icon).drawable)
         assertNotNull(preview.findViewById<View>(R.id.widget_action_button))
         assertEquals((56 * context.resources.displayMetrics.density).toInt(), context.resources.getDimensionPixelSize(R.dimen.widget_min_height))
+    }
+
+    @Test fun twoByOneUsesTheSameDoseYieldLayoutForEnglishAndPortuguese() {
+        val config = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.forLanguageTag("pt-BR"))
+        }
+        val portuguese = context.createConfigurationContext(config)
+        val englishRoot = views(brew)
+        val portugueseRoot = BrewWidgetProvider().views(portuguese, 2, brew).apply(portuguese, null)
+        for (root in listOf(englishRoot, portugueseRoot)) {
+            assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_meta).visibility)
+            assertEquals("15 g → 250 g", root.findViewById<TextView>(R.id.widget_meta).text)
+            assertEquals(16f, root.findViewById<TextView>(R.id.widget_coffee).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+            assertEquals(13f, root.findViewById<TextView>(R.id.widget_meta).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+        }
     }
 
     @Test fun pickerDescriptionIsTranslatedInBrazilianPortuguese() {
