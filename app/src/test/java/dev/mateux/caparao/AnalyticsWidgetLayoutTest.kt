@@ -27,6 +27,7 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
@@ -371,7 +372,7 @@ class AnalyticsWidgetLayoutTest {
         val bedtimeColumnOutsideLabels = (top.toInt()..(bottom - 5f * density).toInt())
             .filter { kotlin.math.abs(it - referenceY) > 12f * density }
             .any { y -> (bedtimeX - 1..bedtimeX + 1).any { x -> visible(x, y) } }
-        assertEquals(false, bedtimeColumnOutsideLabels)
+        assertFalse(bedtimeColumnOutsideLabels)
         assertTrue((top.toInt() + 10 until bottom.toInt() - 16 * density.toInt()).any { visible(nowX, it) })
         assertTrue((left.toInt() until right.toInt()).any { visible(it, referenceY) })
     }
