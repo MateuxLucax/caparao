@@ -184,7 +184,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         bitmap.density = Bitmap.DENSITY_NONE
         val canvas = Canvas(bitmap)
-        val primary = context.getColor(R.color.widget_icon_foreground)
+        val primary = chartLineColor(context)
         val variant = context.getColor(R.color.widget_secondary_text)
         val fontSize = 12f * density
         val labels = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; textSize = fontSize; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
@@ -206,7 +206,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         if (points.isNotEmpty()) {
             val area = Path(path).apply { lineTo(x(points.last().hour), bounds.bottom); lineTo(x(points.first().hour), bounds.bottom); close() }
             val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = LinearGradient(0f, bounds.top, 0f, bounds.bottom, (primary and 0x00ffffff) or 0x33000000, (primary and 0x00ffffff), Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, bounds.top, 0f, bounds.bottom, (primary and 0x00ffffff) or 0x4d000000, primary and 0x00ffffff, Shader.TileMode.CLAMP)
             }
             canvas.drawPath(area, fill)
             val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -247,7 +247,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val TAG = "AnalyticsWidget"
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.ANALYTICS_REFRESH"
         private const val WIDE_MIN_WIDTH_DP = 250f
-        private const val EXPANDED_MIN_HEIGHT_DP = 180f
+        private const val EXPANDED_MIN_HEIGHT_DP = 250f
         private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
         private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
         private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
@@ -255,6 +255,8 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val SPARKLINE_MIN_HEIGHT_DP = 24f
         private const val SPARKLINE_HEIGHT_DP = 28f
         internal val CONFIGURATION_ACTIONS = setOf(Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_CONFIGURATION_CHANGED)
+
+        internal fun chartLineColor(context: Context) = context.getColor(R.color.widget_hero_text)
 
         fun requestRefresh(context: Context) {
             val component = ComponentName(context, AnalyticsWidgetProvider::class.java)

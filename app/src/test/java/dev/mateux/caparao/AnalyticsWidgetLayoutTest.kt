@@ -53,7 +53,7 @@ class AnalyticsWidgetLayoutTest {
 
     @Test
     fun layoutBIsTheExpandedFourByThreeChartWireframe() {
-        val size = SizeF(340f, 180f)
+        val size = SizeF(340f, 250f)
         val root = render(size)
         assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(size))
         val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
@@ -94,10 +94,12 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
-    fun expandedLayoutStartsAtThreeCellHeightAndWideFourByTwoUsesA() {
-        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(340f, 179f)))
-        assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(SizeF(340f, 180f)))
-        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(340f, 110f)))
+    fun sizeBucketsSelectWideExpandedAndSquareLayouts() {
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 180f)))
+        assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(SizeF(250f, 250f)))
+        assertEquals(R.layout.widget_analytics_square, provider.layoutForSize(SizeF(110f, 110f)))
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 180f)))
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 179f)))
     }
 
     @Test
@@ -131,7 +133,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(4, parser.getAttributeIntValue(namespace, "targetCellWidth", 0))
         assertEquals(2, parser.getAttributeIntValue(namespace, "targetCellHeight", 0))
         assertTrue(parser.getAttributeValue(namespace, "minWidth").contains("180"))
-        assertTrue(180f > context.resources.getDimension(R.dimen.analytics_widget_min_height) / context.resources.displayMetrics.density)
+        assertTrue(250f > context.resources.getDimension(R.dimen.analytics_widget_min_height) / context.resources.displayMetrics.density)
         assertEquals(R.layout.widget_analytics_preview, parser.getAttributeResourceValue(namespace, "previewLayout", 0))
         assertNotNull(parser.getAttributeResourceValue(namespace, "previewImage", 0).takeIf { it != 0 })
         parser.close()
@@ -155,7 +157,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(portuguese.getString(R.string.analytics_widget_now_caption), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).text)
         assertEquals("cafeína agora", portuguese.getString(R.string.analytics_widget_now_caption))
         assertEquals("Esta semana", portuguese.getString(R.string.analytics_widget_week_title))
-        val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(340f, 180f)).apply(portuguese, null)
+        val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(340f, 250f)).apply(portuguese, null)
         assertEquals("Esta semana", expanded.findViewById<TextView>(R.id.analytics_widget_week_label).text)
         assertTrue(expanded.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Ao dormir"))
         assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_LOCALE_CHANGED))
@@ -180,13 +182,30 @@ class AnalyticsWidgetLayoutTest {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
         }
         val night = context.createConfigurationContext(configuration)
-        val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(340f, 180f)).apply(night, null)
+        val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(340f, 250f)).apply(night, null)
         assertEquals(night.getColor(R.color.widget_hero_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_week_label).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_delta).currentTextColor)
         assertEquals(night.getColor(R.color.widget_primary_text), root.findViewById<TextView>(R.id.analytics_widget_week).currentTextColor)
         assertNotEquals(night.getColor(R.color.widget_primary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
+    }
+
+    @Test
+    fun chartLineColorAdaptsToDayAndNightContexts() {
+        val size = SizeF(340f, 250f)
+        val dayBitmap = provider.curveBitmap(context, state, size, 23 * 60, detailed = true)
+        val nightContext = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
+            },
+        )
+        val nightBitmap = provider.curveBitmap(nightContext, state, size, 23 * 60, detailed = true)
+        val dayColor = AnalyticsWidgetProvider.chartLineColor(context)
+        val nightColor = AnalyticsWidgetProvider.chartLineColor(nightContext)
+        assertNotEquals(dayColor, nightColor)
+        assertTrue(dayBitmap.pixels().isNotEmpty())
+        assertTrue(nightBitmap.pixels().isNotEmpty())
     }
 
     private fun render(size: SizeF): View = provider
@@ -205,5 +224,11 @@ class AnalyticsWidgetLayoutTest {
             if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
         }
         visit(root)
+    }
+
+    private fun android.graphics.Bitmap.pixels(): Set<Int> = buildSet {
+        val pixels = IntArray(width * height)
+        getPixels(pixels, 0, width, 0, 0, width, height)
+        addAll(pixels.toList())
     }
 }
