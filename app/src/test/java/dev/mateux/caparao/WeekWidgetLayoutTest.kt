@@ -27,6 +27,7 @@ class WeekWidgetLayoutTest {
         val standard = render(330f, 110f)
         assertNotNull(standard.findViewById<TextView>(R.id.week_count))
         assertNotNull(standard.findViewById<ImageView>(R.id.week_chart))
+        assertEquals(View.VISIBLE, standard.findViewById<TextView>(R.id.week_stats).visibility)
         assertNotNull(standard.findViewById<TextView>(R.id.week_day_6))
         assertTrue(standard.findViewById<View>(R.id.week_root).hasOnClickListeners())
         val narrow = render(220f, 110f)
@@ -50,5 +51,18 @@ class WeekWidgetLayoutTest {
         assertEquals("1 preparo", pt.resources.getQuantityString(R.plurals.week_brews, 1, 1))
         assertEquals("9 preparos", pt.resources.getQuantityString(R.plurals.week_brews, 9, 9))
         assertEquals("Semana", pt.getString(R.string.week_widget_name))
+        assertEquals("preparos", pt.getString(R.string.week_preview_count_unit))
+        assertEquals("143 g de café · 2,1 L", pt.getString(R.string.week_preview_stats))
+    }
+
+    @Test fun weekdayInitialsEndOnTuesdayInEnglishAndBrazilianPortuguese() {
+        val tuesday = java.time.LocalDate.parse("2026-11-17")
+        val pt = context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(java.util.Locale("pt", "BR")) })
+        val en = context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(java.util.Locale.ENGLISH) })
+        fun labels(ctx: Context): List<String> = provider.render(ctx, 43, emptyList(), SizeF(330f, 110f), today = tuesday).apply(ctx, null).let { root -> (0..6).map { root.findViewById<TextView>(R.id.week_day_0 + it).text.toString() } }
+        assertEquals(listOf("Q", "Q", "S", "S", "D", "S", "T"), labels(pt))
+        assertEquals(listOf("W", "T", "F", "S", "S", "M", "T"), labels(en))
+        val styled = provider.render(pt, 44, emptyList(), SizeF(330f, 110f), today = tuesday).apply(pt, null).findViewById<TextView>(R.id.week_day_6).text
+        assertTrue((styled as android.text.Spanned).getSpans(0, styled.length, android.text.style.StyleSpan::class.java).isNotEmpty())
     }
 }

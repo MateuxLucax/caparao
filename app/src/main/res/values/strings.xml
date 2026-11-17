@@ -2,6 +2,9 @@
 <!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
     <string name="week_widget_name">Week</string>
+    <string name="week_preview_count_unit">brews</string>
+    <string name="week_preview_stats" translatable="false">143 g coffee · 2.1 L</string>
+    <string name="week_preview_day_0">W</string><string name="week_preview_day_1">T</string><string name="week_preview_day_2">F</string><string name="week_preview_day_3">S</string><string name="week_preview_day_4">S</string><string name="week_preview_day_5">M</string><string name="week_preview_day_6">T</string>
     <string name="week_brew_label">brew</string>
     <string name="week_brews_label">brews</string>
     <string name="week_widget_description">Your brews over the last 7 days</string>

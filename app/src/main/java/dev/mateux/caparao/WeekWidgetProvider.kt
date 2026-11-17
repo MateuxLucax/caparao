@@ -11,6 +11,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.os.Build
 import android.util.SizeF
 import android.view.View
@@ -61,44 +65,42 @@ class WeekWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    internal fun render(source: Context, id: Int, brews: List<Brew>, size: SizeF, density: Float = source.resources.displayMetrics.density): RemoteViews {
+    internal fun render(source: Context, id: Int, brews: List<Brew>, size: SizeF, density: Float = source.resources.displayMetrics.density, today: LocalDate = LocalDate.now(ZoneId.systemDefault())): RemoteViews {
         val context = localizedContext(source)
         val narrow = size.width < 250
-        val tall = size.height >= 220
-        val views = RemoteViews(context.packageName, if (narrow) R.layout.widget_week_narrow else if (tall) R.layout.widget_week_tall else R.layout.widget_week_info)
+        val views = RemoteViews(context.packageName, if (narrow) R.layout.widget_week_narrow else R.layout.widget_week_tall)
         val zone = ZoneId.systemDefault()
-        val stats = weekStats(brews, LocalDate.now(zone), zone)
+        val stats = weekStats(brews, today, zone)
         val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
-        val labels = if (locale.language == "pt") listOf("S", "T", "Q", "Q", "S", "S", "D") else listOf("M", "T", "W", "T", "F", "S", "S")
+        val labels = stats.days.map { day -> day.dayOfWeek.getDisplayName(TextStyle.NARROW, locale).uppercase(locale).take(1) }
         val empty = stats.brews == 0
         val countView = if (narrow) R.id.week_narrow_count else R.id.week_count
         val statsView = if (narrow) R.id.week_narrow_stats else R.id.week_stats
         val chartView = if (narrow) R.id.week_narrow_chart else R.id.week_chart
-        context.resources.getQuantityString(R.plurals.week_brews, stats.brews, stats.brews) // Keep count/unit plural coverage aligned with the visible inline label.
         views.setTextViewText(countView, stats.brews.toString())
         views.setTextViewText(if (narrow) R.id.week_narrow_brew_label else R.id.week_brew_label, context.getString(if (stats.brews == 1) R.string.week_brew_label else R.string.week_brews_label))
         views.setTextColor(countView, context.getColor(if (empty) R.color.widget_secondary_text else R.color.widget_hero_text))
         views.setViewVisibility(statsView, if (narrow || empty) View.GONE else View.VISIBLE)
-        if (empty && !narrow) {
-            views.setViewVisibility(R.id.week_empty_text, View.VISIBLE)
+        if (!narrow) {
+            views.setViewVisibility(R.id.week_empty_text, if (empty) View.VISIBLE else View.GONE)
+            if (empty) {
             views.setTextViewText(R.id.week_empty_text, context.getString(R.string.week_empty))
+            }
         }
         if (!narrow) {
             views.setTextViewText(statsView, if (empty) context.getString(R.string.week_empty) else context.getString(R.string.week_stats, String.format(locale, "%.0f", stats.grams), String.format(locale, "%.1f", stats.liters)))
         }
         labels.forEachIndexed { index, label ->
             val dayId = (if (narrow) R.id.week_narrow_day_0 else R.id.week_day_0) + index
-            views.setTextViewText(dayId, label)
+            val text = if (index == 6) SpannableString(label).apply { setSpan(StyleSpan(Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) } else label
+            views.setTextViewText(dayId, text)
             views.setTextColor(dayId, context.getColor(R.color.widget_secondary_text))
             if (index == 6) views.setTextViewTextSize(dayId, android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
         }
-        val chartWidth = ((size.width - 32) * density * if (narrow || tall) 1f else 1.4f / 2.4f).toInt().coerceAtLeast(1)
-        val chartHeight = ((size.height - (if (narrow) 64 else if (tall) 82 else 56)) * density).toInt().coerceAtLeast(1)
+        val chartWidth = ((size.width - 32) * density).toInt().coerceAtLeast(1)
+        val chartHeight = ((size.height - if (narrow) 94 else 110) * density).toInt().coerceAtLeast(1)
         views.setImageViewBitmap(chartView, chart(context, stats, chartWidth, chartHeight, density))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val night = Configuration.UI_MODE_NIGHT_YES
-            val day = Configuration.UI_MODE_NIGHT_NO
-            views.setColorInt(chartView, "setColorFilter", context.getColorInMode(R.color.widget_hero_text, day), context.getColorInMode(R.color.widget_hero_text, night))
             listOf(countView, statsView).forEach { view ->
                 val color = if (view == countView) if (empty) R.color.widget_secondary_text else R.color.widget_hero_text else R.color.widget_secondary_text
                 views.setColorStateList(view, "setTextColor", color)
