@@ -47,7 +47,7 @@
     <string name="analytics_widget_now_caption">cafeína agora</string>
     <string name="analytics_widget_now_marker">Agora</string>
     <string name="analytics_widget_bedtime_title">Ao dormir</string>
-    <string name="analytics_widget_bedtime_chip">Ao dormir %1$d mg · %2$s</string>
+    <string name="analytics_widget_bedtime_caption">Ao dormir · %1$s</string>
     <string name="analytics_widget_bedtime_high_description">%1$d mg, acima da meta de 50 mg ao dormir</string>
     <string name="analytics_widget_week_title">Esta semana</string>
     <string name="analytics_widget_value_mg">%1$d mg</string>

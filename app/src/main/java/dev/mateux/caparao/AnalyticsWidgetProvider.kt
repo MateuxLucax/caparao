@@ -120,13 +120,13 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.analytics_widget_caffeine, context.getString(R.string.analytics_widget_value_mg, state.caffeine.nowMg))
         val aboveBedtimeTarget = state.caffeine.bedtimeMg > 50
         val expanded = layout == R.layout.widget_analytics_expanded
-        val bedtimeView = if (expanded) R.id.analytics_widget_bedtime_chip else R.id.analytics_widget_bedtime
+        val bedtimeView = if (expanded) R.id.analytics_widget_bedtime_value else R.id.analytics_widget_bedtime
         val bedtime = bedtimeMinutes.coerceIn(0, 1439)
-        val bedtimeText = if (expanded) context.getString(
-            R.string.analytics_widget_bedtime_chip,
-            state.caffeine.bedtimeMg,
-            context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60),
-        ) else context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
+        if (expanded) views.setTextViewText(
+            R.id.analytics_widget_bedtime_caption,
+            context.getString(R.string.analytics_widget_bedtime_caption, context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60)),
+        )
+        val bedtimeText = context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
         views.setTextViewText(bedtimeView, bedtimeText)
         views.setViewVisibility(bedtimeView, View.VISIBLE)
         val bedtimeColor = if (aboveBedtimeTarget) R.color.widget_error_text else R.color.widget_primary_text
@@ -293,7 +293,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.ANALYTICS_REFRESH"
         private const val WIDE_MIN_WIDTH_DP = 250f
         private const val EXPANDED_MIN_HEIGHT_DP = 330f
-        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
+        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 132f
         private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
         private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
         private const val MIN_TIME_LABEL_GAP_DP = 8f
