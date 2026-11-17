@@ -72,6 +72,7 @@
         <!-- The last-brew home-screen widget is backed by Room and uses the launcher shortcut route for its action. -->
         <receiver
             android:name=".BrewWidgetProvider"
+            android:label="@string/widget_last_brew_title"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -83,6 +84,7 @@
 
         <receiver
             android:name=".AnalyticsWidgetProvider"
+            android:label="@string/analytics_widget_name"
             android:enabled="${widgetProviderEnabled}"
             android:exported="false">
             <intent-filter>

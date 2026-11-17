@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_brew_background"
+    android:contentDescription="@string/analytics_widget_description"
+    android:padding="16dp">
+    <LinearLayout android:id="@+id/analytics_widget_content" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center_vertical" android:orientation="horizontal">
+        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.2" android:gravity="center_vertical" android:orientation="vertical">
+            <TextView android:id="@+id/analytics_widget_caffeine" android:layout_width="match_parent" android:layout_height="wrap_content" android:fontFeatureSettings="tnum" android:fontFamily="sans-serif-medium" android:textColor="@color/widget_icon_foreground" android:textSize="44sp" />
+            <TextView android:id="@+id/analytics_widget_caffeine_caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_now_caption" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+            <ImageView android:id="@+id/analytics_widget_sparkline" android:layout_width="match_parent" android:layout_height="28dp" android:layout_marginTop="2dp" android:contentDescription="@string/analytics_widget_curve_description" android:scaleType="center" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="16dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="vertical">
+            <LinearLayout android:id="@+id/analytics_widget_bedtime_tile" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/analytics_widget_bedtime_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/analytics_widget_bedtime_title" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+                <TextView android:id="@+id/analytics_widget_bedtime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFeatureSettings="tnum" android:fontFamily="sans-serif-medium" android:textColor="@color/widget_primary_text" android:textSize="22sp" />
+            </LinearLayout>
+            <TextView android:importantForAccessibility="no" android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/widget_outline" />
+            <LinearLayout android:id="@+id/analytics_widget_week_tile" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/analytics_widget_week_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_week_title" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+                    <TextView android:id="@+id/analytics_widget_delta" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
+                </LinearLayout>
+                <TextView android:id="@+id/analytics_widget_week" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFeatureSettings="tnum" android:fontFamily="sans-serif-medium" android:textColor="@color/widget_primary_text" android:textSize="22sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/analytics_widget_empty" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="top" android:orientation="vertical" android:visibility="gone">
+        <ImageView android:id="@+id/analytics_widget_empty_icon" android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="@null" android:src="@drawable/ic_coffee" android:tint="@color/widget_icon_foreground" tools:ignore="UseAppTint" />
+        <TextView android:id="@+id/analytics_widget_empty_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="0 mg" android:textColor="@color/widget_secondary_text" android:textSize="44sp" />
+        <TextView android:id="@+id/analytics_widget_empty_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_empty" android:textColor="@color/widget_secondary_text" android:textSize="14sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView android:id="@+id/analytics_widget_start_brew" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_gravity="end" android:layout_marginTop="8dp" android:drawableStart="@drawable/ic_coffee" android:drawablePadding="8dp" android:drawableTint="@color/widget_action_text" android:background="@drawable/widget_action_background" android:gravity="center" android:paddingHorizontal="12dp" android:text="@string/analytics_widget_start_brew" android:textColor="@color/widget_action_text" android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

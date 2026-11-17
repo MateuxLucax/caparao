@@ -1,12 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_brew_background"
     android:gravity="center_vertical"
-    android:orientation="vertical"
+    android:orientation="horizontal"
     android:padding="16dp">
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_name" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_preview_caffeine" android:textColor="@color/widget_primary_text" android:textSize="21sp" android:textStyle="bold" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_preview_week" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.2" android:gravity="center_vertical" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:fontFamily="sans-serif-medium" android:text="83 mg" android:textColor="@color/widget_icon_foreground" android:textSize="44sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_now_caption" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+        <ImageView android:layout_width="match_parent" android:layout_height="28dp" android:src="@drawable/widget_analytics_preview_sparkline" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="16dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/analytics_widget_bedtime_title" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="70 mg" android:textColor="?android:attr/colorError" android:textSize="22sp" />
+        </LinearLayout>
+        <TextView android:importantForAccessibility="no" android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/widget_outline" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_week_title" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="↓ 16 g" android:textColor="@color/widget_secondary_text" android:textSize="12sp" />
+            </LinearLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="33 g" android:textColor="@color/widget_primary_text" android:textSize="22sp" />
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>

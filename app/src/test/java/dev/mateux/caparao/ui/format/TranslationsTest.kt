@@ -34,6 +34,7 @@ class TranslationsTest {
             "settings_app", "settings_about",
             "tasting_chocolate", "tasting_floral",
             "rating_reminder_delay_value",
+            "analytics_widget_value_mg", "analytics_widget_value_grams", "analytics_widget_delta_grams", "analytics_widget_clock",
         )
         assertEquals(allowed, same)
     }
