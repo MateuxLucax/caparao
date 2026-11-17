@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
+    <string name="week_widget_name">Week</string>
+    <string name="week_preview_count_unit">brews</string>
+    <string name="week_preview_stats" translatable="false">143 g coffee · 2.1 L</string>
+    <string name="week_preview_day_0">W</string><string name="week_preview_day_1">T</string><string name="week_preview_day_2">F</string><string name="week_preview_day_3">S</string><string name="week_preview_day_4">S</string><string name="week_preview_day_5">M</string><string name="week_preview_day_6">T</string>
+    <string name="week_brew_label">brew</string>
+    <string name="week_brews_label">brews</string>
+    <string name="week_widget_description">Your brews over the last 7 days</string>
+    <string name="week_empty">No brews this week</string>
+    <string name="week_stats">%1$s g coffee · %2$s L</string>
+    <string name="week_description">Brews per day: %1$s</string>
+    <plurals name="week_brews"><item quantity="one">%d brew</item><item quantity="other">%d brews</item></plurals>
     <string name="app_name" translatable="false">Caparaó</string>
     <!-- The launcher label; debug builds override it (src/debug/res) to tell the two installs apart. -->
     <string name="launcher_name" translatable="false">Caparaó</string>
@@ -8,6 +19,7 @@
     <!-- Navigation -->
     <string name="tab_home">Home</string>
     <string name="tab_brews">Brews</string>
+    <string name="tab_analytics">Analytics</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Home -->
@@ -23,14 +35,41 @@
     <string name="mode_french_press_short">Press</string>
 
     <!-- Home-screen widget -->
-    <string name="widget_description">Last brew</string>
+    <string name="widget_description">Brew your last coffee again</string>
     <string name="widget_last_brew_title">Last brew</string>
     <string name="widget_empty_title">You haven\'t made coffee yet</string>
     <string name="widget_brew_espresso">Brew espresso</string>
     <string name="widget_brew_filter">Brew filter</string>
     <string name="widget_brew_french_press">Brew French press</string>
     <string name="widget_brew_coffee">Brew a coffee</string>
-
+    <string name="last_brew_widget_label">Last brew</string>
+    <string name="widget_empty_title_yet">No brews yet</string>
+    <string name="widget_empty_start">Start a brew</string>
+    <string name="widget_brew_summary">%1$s · %2$.0f g → %3$.0f g</string>
+    <string name="widget_brew_short_summary">%1$.0f g → %2$.0f g</string>
+    <string name="widget_just_now">Just now</string>
+    <string name="widget_minutes_ago">%1$d min ago</string>
+    <string name="widget_hours_ago">%1$d hr ago</string>
+    <string name="widget_days_ago">%1$d days ago</string>
+    <string name="widget_preview_coffee">Fazenda Ambiental</string>
+    <string name="widget_preview_brew_details">15 g → 250 g</string>
+    <string name="widget_brew_again">Brew again</string>
+    <string name="widget_content_description">Brew again: %1$s</string>
+    <string name="analytics_widget_name">Analytics</string>
+    <string name="analytics_widget_description">Caffeine now and this week</string>
+    <string name="analytics_widget_empty">No coffee logged yet</string>
+    <string name="analytics_widget_start_brew">Start a brew</string>
+    <string name="analytics_widget_now_caption">caffeine now</string>
+    <string name="analytics_widget_now_marker">Now</string>
+    <string name="analytics_widget_bedtime_title">Bedtime</string>
+    <string name="analytics_widget_bedtime_caption">Bedtime · %1$s</string>
+    <string name="analytics_widget_bedtime_high_description">%1$d mg, above the 50 mg bedtime target</string>
+    <string name="analytics_widget_week_title">This week</string>
+    <string name="analytics_widget_value_mg">%1$d mg</string>
+    <string name="analytics_widget_value_grams">%1$d g</string>
+    <string name="analytics_widget_delta_grams">%1$s %2$d g</string>
+    <string name="analytics_widget_clock">%1$02d:%2$02d</string>
+    <string name="analytics_widget_curve_description">Today\'s estimated caffeine curve</string>
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
@@ -46,6 +85,7 @@
     <string name="settings_no_browser">No browser available.</string>
     <string name="settings_allow_nearby">Allow Nearby devices</string>
     <string name="settings_brewing">Brewing</string>
+    <string name="settings_analytics">Analytics</string>
     <string name="settings_your_data">Your data</string>
     <string name="settings_app">App</string>
     <string name="settings_only_phone">Only on this phone</string>
@@ -200,6 +240,23 @@
 
     <!-- Recipes -->
     <string name="tab_recipes">Recipes</string>
+    <string name="coffee_caffeine">Caffeine (mg per gram)</string>
+    <string name="coffee_caffeine_hint">Estimate for this coffee. Use 10 mg/g for arabica and about 20 mg/g for robusta.</string>
+    <string name="analytics_this_week">This week</string>
+    <string name="analytics_last_week">Last week</string>
+    <string name="analytics_brews">Brews</string>
+    <string name="analytics_coffee">Coffee</string>
+    <string name="analytics_caffeine">Estimated caffeine</string>
+    <string name="analytics_today">Today</string>
+    <string name="analytics_about_mg">About %1$d mg</string>
+    <string name="analytics_bedtime">Bedtime</string>
+    <string name="analytics_caffeine_left">At bedtime: about %1$d mg</string>
+    <string name="analytics_last_coffee">Last coffee by %1$s</string>
+    <string name="analytics_over_50">Over 50 mg at bedtime</string>
+    <string name="analytics_nothing_today">Nothing today yet</string>
+    <string name="analytics_estimate_note">Caffeine amounts are estimates, not medical advice.</string>
+    <string name="analytics_chart_description">Caffeine through the day. At bedtime: about %1$d mg. %2$s.</string>
+    <string name="analytics_chart_reference">50 mg reference line.</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet.</string>
@@ -392,13 +449,50 @@
     <string name="coffee_tasting_notes_section">Tasting notes</string>
     <string name="coffee_notes_section">Notes</string>
     <string name="coffee_edit">Edit coffee</string>
+    <string name="coffee_read_label">Read label</string>
+    <string name="coffee_label_review">From the label</string>
+    <string name="coffee_read_another_side">Read another side</string>
+    <string name="coffee_label_nothing_new">Nothing new on this side.</string>
+    <string name="coffee_label_could_not_read">Couldn\'t read the label.</string>
+    <string name="coffee_label_model_unavailable">Couldn\'t read the label. Try again in a moment.</string>
     <string name="coffee_name">Coffee</string>
     <string name="coffee_roaster">Roaster</string>
-    <string name="coffee_origin">Origin and process</string>
+    <string name="coffee_origin_section">Origin</string>
+    <string name="coffee_country">Country</string>
+    <string name="coffee_country_brazil">Brazil</string>
+    <string name="coffee_region">Region</string>
+    <string name="coffee_farm">Farm</string>
+    <string name="coffee_variety">Variety</string>
+    <string name="coffee_process">Process</string>
+    <string name="coffee_altitude">Elevation (m)</string>
+    <string name="coffee_altitude_hint">Whole metres, from 0 to 3,000.</string>
+    <string name="coffee_altitude_value">%1$s metres</string>
+    <string name="coffee_variety_topazio" translatable="false">Topázio</string>
+    <string name="coffee_variety_catuai" translatable="false">Catuaí Amarelo</string>
+    <string name="coffee_variety_bourbon" translatable="false">Bourbon Amarelo</string>
+    <string name="coffee_variety_geisha" translatable="false">Geisha</string>
+    <string name="coffee_process_natural" translatable="false">Natural</string>
+    <string name="coffee_process_pulped">Pulped natural</string>
+    <string name="coffee_process_washed">Washed</string>
+    <string name="coffee_process_fermented">Fermented</string>
+    <string name="coffee_process_honey" translatable="false">Honey</string>
     <string name="coffee_weight">Bag weight (g)</string>
     <string name="coffee_roast_date">Roast date</string>
     <string name="coffee_roasted_on">Roasted on %1$s</string>
     <string name="coffee_left">%1$s of %2$s g left</string>
+    <string name="coffee_ends_today">Ends today</string>
+    <plurals name="coffee_days_left">
+        <item quantity="one">Lasts about %1$d more day</item>
+        <item quantity="other">Lasts about %1$d more days</item>
+    </plurals>
+    <string name="coffee_log_used">Log coffee used</string>
+    <string name="coffee_log_used_hint">Up to %1$s g left in this bag.</string>
+    <string name="coffee_log_used_field">Grams used</string>
+    <string name="coffee_used_outside_app">Used outside the app</string>
+    <string name="coffee_remove_use_title">Remove this entry?</string>
+    <string name="coffee_remove_use">Remove</string>
+    <string name="coffee_use_undo">Undo</string>
+    <string name="coffee_use_removed">Coffee use removed</string>
     <string name="coffee_finished">Finished</string>
     <string name="coffee_mark_finished">Mark as finished</string>
     <string name="coffee_mark_open">Mark as open</string>
@@ -409,6 +503,7 @@
     <string name="adjustment_grind">Grind %1$s</string>
     <string name="adjustment_grind_recipe">Grind %1$s (recipe %2$s)</string>
     <string name="adjustment_title">Adjustment</string>
+    <string name="adjustment_edit">Adjust</string>
     <string name="adjustment_recipe_value">recipe %1$s</string>
     <string name="adjustment_water">water %1$s g</string>
     <string name="adjustment_yield">yield %1$s g</string>

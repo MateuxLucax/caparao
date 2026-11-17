@@ -79,6 +79,7 @@ import dev.mateux.caparao.ui.brews.BrewRatingViewModel
 import dev.mateux.caparao.ui.brews.BrewSuggestionScreen
 import dev.mateux.caparao.ui.brews.BrewSuggestionViewModel
 import dev.mateux.caparao.ui.brews.BrewsScreen
+import dev.mateux.caparao.ui.analytics.AnalyticsScreen
 import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentScreen
 import dev.mateux.caparao.ui.coffees.CoffeeAdjustmentViewModel
 import dev.mateux.caparao.ui.coffees.CoffeeBagDetailScreen
@@ -116,10 +117,11 @@ enum class Tab(@param:StringRes val label: Int, @param:DrawableRes val icon: Int
     RECIPES(R.string.tab_recipes, R.drawable.ic_menu_book),
     COFFEES(R.string.tab_coffees, R.drawable.ic_coffee),
     BREWS(R.string.tab_brews, R.drawable.ic_receipt_long),
+    ANALYTICS(R.string.tab_analytics, R.drawable.ic_analytics),
 }
 
 /**
- * Onboarding on first launch, then the four tabs under a top bar with the name and the scale connection.
+ * Onboarding on first launch, then the tabs under a top bar with the name and the scale connection.
  * The activity owns the scale connection so configuration changes can reuse it; resume still retries (#364).
  *
  * [shortcut] is the launcher shortcut still to apply (#116), consumed with [onShortcutConsumed] once [Main] has opened
@@ -217,6 +219,7 @@ private fun Main(
             }
             ShortcutDestination.Home -> shortcutTab = Tab.HOME
             ShortcutDestination.Brews -> shortcutTab = Tab.BREWS
+            ShortcutDestination.Analytics -> shortcutTab = Tab.ANALYTICS
         }
     }
 
@@ -440,7 +443,7 @@ private fun Tabs(
     val scrollConnection = remember(tab, touchExploration) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (tab == Tab.RECIPES || tab == Tab.COFFEES || tab == Tab.BREWS) onScroll.value(available.y)
+                if (tab != Tab.HOME) onScroll.value(available.y)
                 return Offset.Zero
             }
         }
@@ -507,6 +510,7 @@ private fun Tabs(
                 )
                 Tab.COFFEES -> CoffeesScreen(viewModel(factory = viewModelFactory), onOpen = onCoffee, onAdd = onCoffeeAdd, modifier = modifier)
                 Tab.BREWS -> BrewsScreen(viewModel(factory = viewModelFactory), actions, onOpen = { onOpen(it.id) }, onRate = { onRate(it.id) }, onOpenSettings = onSettingsHome, modifier = modifier)
+                Tab.ANALYTICS -> AnalyticsScreen(viewModel(factory = viewModelFactory), modifier)
             }
         }
     }

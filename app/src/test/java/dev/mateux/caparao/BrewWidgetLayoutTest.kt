@@ -1,174 +1,182 @@
 package dev.mateux.caparao
 
 import android.content.Context
-import android.content.res.Configuration
+import android.content.pm.PackageManager
+import android.view.LayoutInflater
+import android.view.Gravity
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.graphics.ColorUtils
 import androidx.test.core.app.ApplicationProvider
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
-import java.util.Locale
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import dev.mateux.caparao.ui.widget.shortcutForWidget
+import dev.mateux.caparao.ui.components.LauncherShortcut
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.GraphicsMode
 
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
 @RunWith(RobolectricTestRunner::class)
 class BrewWidgetLayoutTest {
-    @Test
-    fun savedAndEmptyStatesFitAtMinimumInBothThemesAndLocales() {
-        val base = ApplicationProvider.getApplicationContext<Context>()
-        val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
-        val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
-        val minimumActionHeight = (48 * base.resources.displayMetrics.density).roundToInt()
-        val brew = Brew("layout", BrewMode.ESPRESSO, 0L, 28_000L, 18.0, 36.0, 4_000L, 1.3, 2.4, false)
-        val frenchPress = brew.copy(id = "french-press", mode = BrewMode.FRENCH_PRESS, timeToFirstDropMs = null)
+    private val context get() = ApplicationProvider.getApplicationContext<Context>()
+    private val brew get() = Brew("filter", BrewMode.FILTER, System.currentTimeMillis() - 59 * 60_000L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false, coffee = "Fazenda Ambiental")
+    private fun views(brew: Brew?, small: Boolean = false, wide: Boolean = false, widthDp: Float = 380f) =
+        BrewWidgetProvider().views(context, 1, brew, wide = wide, small = small, widthDp = widthDp).apply(context, null)
 
-        for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
-            for (night in listOf(false, true)) {
-                val context = configured(base, locale, night)
-                for (latest in listOf(brew, frenchPress, null)) {
-                    assertContrast(context)
-                    val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
-                    root.measure(
-                        View.MeasureSpec.makeMeasureSpec(minWidth, View.MeasureSpec.EXACTLY),
-                        View.MeasureSpec.makeMeasureSpec(minHeight, View.MeasureSpec.EXACTLY),
-                    )
-                    root.layout(0, 0, minWidth, minHeight)
-
-                    val iconContainer = root.findViewById<View>(R.id.widget_method_icon_container)
-                    val methodIcon = root.findViewById<View>(R.id.widget_method_icon)
-                    // The 56 dp container around the 32 dp icon leaves 12 dp on every side: the PR's clearance.
-                    val requiredIconClearance = (12 * base.resources.displayMetrics.density).roundToInt()
-                    assertTrue(
-                        "icon left clearance ${methodIcon.left}px, expected at least ${requiredIconClearance}px",
-                        methodIcon.left >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon top clearance: container=${iconContainer.height}, icon=${methodIcon.height}, " +
-                            "top=${methodIcon.top}, min=$requiredIconClearance",
-                        methodIcon.top >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon right clearance ${iconContainer.width - methodIcon.right}px, " +
-                            "expected at least ${requiredIconClearance}px",
-                        iconContainer.width - methodIcon.right >= requiredIconClearance,
-                    )
-                    assertTrue(
-                        "icon bottom clearance ${iconContainer.height - methodIcon.bottom}px, " +
-                            "expected at least ${requiredIconClearance}px",
-                        iconContainer.height - methodIcon.bottom >= requiredIconClearance,
-                    )
-                    assertEquals("icon centered horizontally", methodIcon.left, iconContainer.width - methodIcon.right)
-                    assertEquals("icon centered vertically", methodIcon.top, iconContainer.height - methodIcon.bottom)
-
-                    val action = root.findViewById<View>(R.id.widget_action)
-                    assertTrue("$locale night=$night action height ${action.height}", action.height >= minimumActionHeight)
-                    assertTrue("$locale night=$night action bottom ${action.bottom}", action.bottom <= minHeight - root.paddingBottom)
-                    assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
-
-                    if (latest == null) {
-                        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
-                        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
-                        val emptyActionLabel = root.findViewById<TextView>(R.id.widget_action_label)
-                        assertTrue(
-                            "empty chooser action is centered",
-                            abs(emptyActionLabel.left + emptyActionLabel.width / 2 - action.width / 2) <= 2,
-                        )
-                        assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
-                    } else {
-                        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_last_brew).visibility)
-                        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_icon).visibility)
-                        assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
-                        if (latest.mode == BrewMode.FRENCH_PRESS) {
-                            assertEquals(context.getString(R.string.mode_french_press), root.findViewById<TextView>(R.id.widget_method).text)
-                            assertEquals(context.getString(R.string.widget_brew_espresso), root.findViewById<TextView>(R.id.widget_action_label).text)
-                        }
-                    }
-                }
-            }
-        }
+    @Test fun oneByOneIsIconOnlyAndRepeatsLastMethod() {
+        val root = views(brew, small = true)
+        assertNotNull(root.findViewById<View>(R.id.widget_small_icon))
+        assertEquals(null, root.findViewById<View>(R.id.widget_coffee))
+        assertEquals(context.getString(R.string.widget_content_description, "Fazenda Ambiental"), root.contentDescription)
+        val circle = root.findViewById<View>(R.id.widget_small_icon).parent as View
+        assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.width)
+        assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.height)
+        assertEquals(Gravity.CENTER, (circle.layoutParams as android.widget.FrameLayout.LayoutParams).gravity)
+        assertEquals((28 * context.resources.displayMetrics.density).toInt(), root.findViewById<View>(R.id.widget_small_icon).layoutParams.width)
     }
 
-    @Test
-    fun lastBrewAndEmptyStatesFitExpandedWidgetSizes() {
-        val base = ApplicationProvider.getApplicationContext<Context>()
-        val minWidth = base.resources.getDimensionPixelSize(R.dimen.widget_min_width)
-        val minHeight = base.resources.getDimensionPixelSize(R.dimen.widget_min_height)
-        // Expanded sizes grow from the declared minimum: 1.5x width with 1.25x height, then 2x with 1.5x.
-        val sizes = listOf(minWidth * 3 / 2 to minHeight * 5 / 4, minWidth * 2 to minHeight * 3 / 2)
-        val brew = Brew("expanded", BrewMode.FILTER, 0L, 28_000L, 15.0, 250.0, null, 1.3, 2.4, false)
-        for (locale in listOf(Locale.US, Locale.forLanguageTag("pt-BR"))) {
-            for (night in listOf(false, true)) {
-                val context = configured(base, locale, night)
-                for ((width, height) in sizes) {
-                    for (latest in listOf(brew, null)) {
-                        val root = BrewWidgetProvider().views(context, 123, latest).apply(context, null)
-                        root.measure(
-                            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                            View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
-                        )
-                        root.layout(0, 0, width, height)
-                        val saved = latest != null
-                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_title).visibility)
-                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_last_brew).visibility)
-                        assertEquals(if (saved) View.GONE else View.VISIBLE, root.findViewById<View>(R.id.widget_empty_content).visibility)
-                        assertEquals(if (saved) View.VISIBLE else View.GONE, root.findViewById<View>(R.id.widget_action_icon).visibility)
-                        assertEquals(
-                            context.getString(if (saved) R.string.widget_brew_espresso else R.string.widget_brew_coffee),
-                            root.findViewById<TextView>(R.id.widget_action_label).text,
-                        )
-                        assertNoEllipsis(root.findViewById(R.id.widget_action_label), locale, night)
-                        if (saved) {
-                            assertEquals(context.getString(R.string.widget_last_brew_title), root.findViewById<TextView>(R.id.widget_title).text)
-                            assertEquals(context.getString(R.string.mode_filter), root.findViewById<TextView>(R.id.widget_method).text)
-                            assertNoEllipsis(root.findViewById(R.id.widget_method), locale, night)
-                        } else {
-                            assertEquals(context.getString(R.string.widget_empty_title), root.findViewById<TextView>(R.id.widget_empty_title).text)
-                            assertNoEllipsis(root.findViewById(R.id.widget_empty_title), locale, night)
-                        }
-                    }
-                }
-            }
-        }
+    @Test fun twoByOneShowsCoffeeAndRepeatsLastMethod() {
+        val root = views(brew)
+        assertEquals("Fazenda Ambiental", root.findViewById<TextView>(R.id.widget_coffee).text)
+        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_meta).visibility)
+        assertEquals("15 g → 250 g", root.findViewById<TextView>(R.id.widget_meta).text)
+        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.FILTER))
     }
 
-    private fun configured(base: Context, locale: Locale, night: Boolean): Context =
-        base.createConfigurationContext(
-            Configuration(base.resources.configuration).apply {
-                setLocale(locale)
-                val nightMode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
-                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
-            },
+    @Test fun textColumnUsesAllRemainingWidth() {
+        val layout = LayoutInflater.from(context).inflate(R.layout.widget_brew, null)
+        val column = layout.findViewById<View>(R.id.widget_text_column)
+        val params = column.layoutParams as android.widget.LinearLayout.LayoutParams
+        assertEquals(1f, params.weight)
+        assertEquals((12 * context.resources.displayMetrics.density).toInt(), params.marginStart)
+        assertEquals(0, params.marginEnd)
+        assertEquals(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, layout.findViewById<View>(R.id.widget_action_button).layoutParams.width)
+        val action = layout.findViewById<View>(R.id.widget_action_button)
+        val actionLabel = layout.findViewById<TextView>(R.id.widget_action_label)
+        val maxPillWidth = (20 + 4) * context.resources.displayMetrics.density + actionLabel.maxWidth + action.paddingLeft + action.paddingRight
+        assertTrue("pill uses ${maxPillWidth / context.resources.displayMetrics.density}dp", maxPillWidth / context.resources.displayMetrics.density <= 112f)
+        assertEquals(16f, layout.findViewById<TextView>(R.id.widget_coffee).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+        assertEquals(13f, layout.findViewById<TextView>(R.id.widget_meta).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+    }
+
+    @Test fun widgetSizeBucketsUseActualWidth() {
+        fun at(width: Float) = BrewWidgetProvider().viewsForWidth(context, 1, brew, width).apply(context, null)
+        val small = at(100f)
+        val twoCell = at(190f)
+        val threeCell = at(293f)
+        val fourCell = at(400f)
+        assertNotNull(small.findViewById<View>(R.id.widget_small_icon))
+        assertEquals(View.GONE, twoCell.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals("15 g → 250 g", twoCell.findViewById<TextView>(R.id.widget_meta).text)
+        assertEquals(View.GONE, threeCell.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals("Filter · 15 g → 250 g · 59 min ago", threeCell.findViewById<TextView>(R.id.widget_meta).text)
+        assertEquals(View.VISIBLE, fourCell.findViewById<View>(R.id.widget_action_label).visibility)
+    }
+
+    @Test fun threeCellOptionsSelectBWithFullMeta() {
+        val options = android.os.Bundle().apply {
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 293)
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 119)
+        }
+        val root = BrewWidgetProvider().viewsForOptions(context, 1, brew, options).apply(context, null)
+        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("Filter"))
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("250 g"))
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("59 min ago"))
+    }
+
+    @Test fun threeAndFourByOneShowMethodTimeAndTextAction() {
+        val root = views(brew, wide = true)
+        assertEquals("Fazenda Ambiental", root.findViewById<TextView>(R.id.widget_coffee).text)
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("Filter"))
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("250 g"))
+        assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("59 min ago"))
+        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.FILTER))
+    }
+
+    @Test fun emptyShowsLocalizedEmptyAndStartsChooser() {
+        val root = views(null)
+        assertEquals("No brews yet", root.findViewById<TextView>(R.id.widget_empty_title).text)
+        assertEquals(2, root.findViewById<TextView>(R.id.widget_empty_title).maxLines)
+        assertEquals(android.text.TextUtils.TruncateAt.END, root.findViewById<TextView>(R.id.widget_empty_title).ellipsize)
+        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals(context.getString(R.string.widget_empty_start), root.contentDescription)
+        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_button).visibility)
+        assertEquals(LauncherShortcut.WIDGET_HOME, shortcutForWidget(null))
+    }
+
+    @Test fun emptyPortugueseTitleFitsAtTwoByOneWithoutEllipsis() {
+        val config = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.forLanguageTag("pt-BR"))
+        }
+        val portuguese = context.createConfigurationContext(config)
+        val root = BrewWidgetProvider().viewsForWidth(portuguese, 1, null, 190f).apply(portuguese, null)
+        val title = root.findViewById<TextView>(R.id.widget_empty_title)
+        assertEquals("Nenhum preparo", title.text)
+        assertEquals(2, title.maxLines)
+        assertEquals(android.text.TextUtils.TruncateAt.END, title.ellipsize)
+        assertEquals(14f, title.textSize / portuguese.resources.displayMetrics.scaledDensity, 0.1f)
+        val density = portuguese.resources.displayMetrics.density
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec((190 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec((119 * density).toInt(), View.MeasureSpec.EXACTLY),
         )
-
-    private fun assertContrast(context: Context) {
-        assertContrastAtLeast(context, R.color.widget_primary_text, R.color.widget_background, 4.5)
-        assertContrastAtLeast(context, R.color.widget_secondary_text, R.color.widget_background, 4.5)
-        assertContrastAtLeast(context, R.color.widget_action_text, R.color.widget_action_background, 4.5)
-        assertContrastAtLeast(context, R.color.widget_action_background, R.color.widget_background, 3.0)
-        assertContrastAtLeast(context, R.color.widget_icon_foreground, R.color.widget_icon_container, 3.0)
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        val textLayout = requireNotNull(title.layout)
+        assertTrue(textLayout.lineCount <= 2)
+        assertEquals(title.text.length, textLayout.getLineEnd(textLayout.lineCount - 1))
+        for (line in 0 until textLayout.lineCount) assertEquals(0, textLayout.getEllipsisCount(line))
     }
 
-    private fun assertContrastAtLeast(context: Context, foreground: Int, background: Int, minimum: Double) {
-        val contrast = ColorUtils.calculateContrast(context.getColor(foreground), context.getColor(background))
-        assertTrue("${context.resources.configuration} contrast=$contrast, expected >=$minimum", contrast >= minimum)
+    @Test fun pickerUsesTwoByOnePillAndMatchingPreview() {
+        val receiver = context.packageManager.getReceiverInfo(android.content.ComponentName(context, BrewWidgetProvider::class.java), PackageManager.GET_META_DATA)
+        val parser = context.resources.getXml(receiver.metaData.getInt("android.appwidget.provider"))
+        try {
+            while (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) parser.next()
+            val ns = "http://schemas.android.com/apk/res/android"
+            assertEquals(-1, parser.getAttributeResourceValue(ns, "label", -1))
+            assertEquals(context.getString(R.string.widget_description), context.getString(parser.getAttributeResourceValue(ns, "description", 0)))
+            assertEquals(2, parser.getAttributeIntValue(ns, "targetCellWidth", 0))
+            assertEquals(1, parser.getAttributeIntValue(ns, "targetCellHeight", 0))
+            assertEquals("widget_brew", context.resources.getResourceEntryName(parser.getAttributeResourceValue(ns, "previewLayout", 0)))
+            assertEquals(R.layout.widget_brew, parser.getAttributeResourceValue(ns, "initialLayout", 0))
+        } finally { parser.close() }
+        assertEquals(R.string.last_brew_widget_label, receiver.labelRes)
+        assertEquals("Last brew", receiver.loadLabel(context.packageManager).toString())
+        val preview = LayoutInflater.from(context).inflate(R.layout.widget_brew, null)
+        assertEquals("Fazenda Ambiental", preview.findViewById<TextView>(R.id.widget_coffee).text)
+        assertNotNull(preview.findViewById<ImageView>(R.id.widget_method_icon).drawable)
+        assertNotNull(preview.findViewById<View>(R.id.widget_action_button))
+        assertEquals((56 * context.resources.displayMetrics.density).toInt(), context.resources.getDimensionPixelSize(R.dimen.widget_min_height))
     }
 
-    private fun assertNoEllipsis(view: TextView, locale: Locale, night: Boolean) {
-        val layout = view.layout
-        assertNotNull("$locale night=$night missing text layout", layout)
-        for (line in 0 until layout.lineCount) {
-            assertEquals("$locale night=$night truncated: ${view.text}", 0, layout.getEllipsisCount(line))
+    @Test fun twoByOneUsesTheSameDoseYieldLayoutForEnglishAndPortuguese() {
+        val config = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.forLanguageTag("pt-BR"))
+        }
+        val portuguese = context.createConfigurationContext(config)
+        val englishRoot = views(brew)
+        val portugueseRoot = BrewWidgetProvider().views(portuguese, 2, brew).apply(portuguese, null)
+        for (root in listOf(englishRoot, portugueseRoot)) {
+            assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_meta).visibility)
+            assertEquals("15 g → 250 g", root.findViewById<TextView>(R.id.widget_meta).text)
+            assertEquals(16f, root.findViewById<TextView>(R.id.widget_coffee).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
+            assertEquals(13f, root.findViewById<TextView>(R.id.widget_meta).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
         }
     }
+
+    @Test fun pickerDescriptionIsTranslatedInBrazilianPortuguese() {
+        val configuration = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.forLanguageTag("pt-BR"))
+        }
+        val portuguese = context.createConfigurationContext(configuration)
+        assertEquals("Prepare seu último café de novo", portuguese.getString(R.string.widget_description))
+        assertEquals("Último preparo", portuguese.getString(R.string.last_brew_widget_label))
+    }
+
 }

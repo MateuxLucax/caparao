@@ -41,15 +41,15 @@ class CoffeeBagTastingNotesMigrationTest {
         }
 
         val migrated = Room.databaseBuilder(context, BrewDatabase::class.java, BrewDatabase.NAME)
-            .addMigrations(BrewDatabase.MIGRATION_9_10, BrewDatabase.MIGRATION_10_11, BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13)
+            .addMigrations(BrewDatabase.MIGRATION_9_10, BrewDatabase.MIGRATION_10_11, BrewDatabase.MIGRATION_11_12, BrewDatabase.MIGRATION_12_13, BrewDatabase.MIGRATION_13_14, BrewDatabase.MIGRATION_14_15, BrewDatabase.MIGRATION_15_16)
             .allowMainThreadQueries()
             .build()
         try {
             val bag = migrated.coffeeBags().get("bag")!!.bag
             assertEquals("Caparaó", bag.name)
-            assertEquals("Catuaí, natural", bag.origin)
+            assertEquals("Catuaí, natural", bag.region)
             assertEquals(emptyList<String>(), bag.tastingNotes)
-            assertEquals(13, migrated.openHelper.readableDatabase.version)
+            assertEquals(16, migrated.openHelper.readableDatabase.version)
         } finally {
             migrated.close()
         }

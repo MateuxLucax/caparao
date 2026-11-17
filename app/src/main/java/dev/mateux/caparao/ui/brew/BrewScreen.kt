@@ -306,7 +306,9 @@ fun BrewScreen(
                     BrewStep.WEIGH -> WeighStep(state, viewModel::tare, viewModel::setDose, vibrate = viewModel.phoneVibrates)
                     BrewStep.PREPARE_PORTAFILTER -> when (state.mode) {
                         BrewMode.FILTER, BrewMode.FRENCH_PRESS -> PrepareStep(state, viewModel::setPreparationCheck, viewModel::ready)
-                        BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready)
+                        BrewMode.ESPRESSO -> PortafilterStep(state, viewModel::ready, onEditAdjustment = {
+                            state.bagId?.let { bagId -> state.recipe?.let { recipe -> onEditAdjustment(bagId, recipe.id) } }
+                        })
                     }
                     BrewStep.LIVE -> LiveStep(state, viewModel, guided) { confirmStop = true }
                     BrewStep.SUMMARY -> SummaryStep(

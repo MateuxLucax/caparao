@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="widget_min_height">176dp</dimen>
+    <dimen name="widget_min_height">56dp</dimen>
     <dimen name="widget_min_width">180dp</dimen>
+    <dimen name="analytics_widget_min_height">110dp</dimen>
+    <dimen name="analytics_widget_min_width">320dp</dimen>
 </resources>

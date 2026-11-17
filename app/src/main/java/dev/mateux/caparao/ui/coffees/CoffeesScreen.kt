@@ -1,5 +1,8 @@
 package dev.mateux.caparao.ui.coffees
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.InputChip
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.OutlinedButton
@@ -41,8 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -54,10 +58,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import dev.mateux.caparao.R
 import dev.mateux.caparao.ui.components.wholeGrams
 import dev.mateux.caparao.ui.components.SystemBack
 import dev.mateux.caparao.model.CoffeeBag
+import java.io.File
 import dev.mateux.caparao.ui.components.EmptyState
 import dev.mateux.caparao.ui.format.Format
 import dev.mateux.caparao.ui.theme.RowTitle
@@ -65,7 +71,6 @@ import dev.mateux.caparao.ui.theme.SectionHeading
 import dev.mateux.caparao.ui.theme.RowDetail
 import java.text.DateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -126,9 +131,10 @@ private fun BagRow(bag: CoffeeBag, now: Long, onClick: () -> Unit) {
                     stringResource(R.string.coffee_left, wholeGrams(bag.leftGrams, locale), wholeGrams(bag.weightGrams, locale)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                LinearProgressIndicator(progress = { (bag.leftGrams / bag.weightGrams).toFloat() }, modifier = Modifier.fillMaxWidth())
+                CoffeeBagLevelBar(bag.leftGrams, bag.weightGrams)
             }
             val details = buildList {
+                listOfNotNull(bag.region, bag.variety, bag.process).joinToString(" · ").takeIf(String::isNotEmpty)?.let(::add)
                 bag.daysSinceRoast(now)?.let { add(pluralStringResource(R.plurals.coffee_roasted_days, it.toInt(), it.toInt())) }
                 // No "0 brews": pt-BR counts 0 as one, and a new bag says nothing by having none.
                 if (bag.brewCount > 0) add(pluralStringResource(R.plurals.coffee_brew_count, bag.brewCount, bag.brewCount))
@@ -151,6 +157,30 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
     var picking by remember { mutableStateOf(false) }
     var tastingNote by rememberSaveable(form.id) { mutableStateOf("") }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val labelDraft by viewModel.labelDraft.collectAsStateWithLifecycle()
+    var assigning by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var photoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val photo = remember(photoPath) { photoPath?.let(::File) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val captured = photo
+        if (success && captured != null) scope.launch {
+            try {
+                val defaults = listOf(R.string.tasting_caramel, R.string.tasting_chocolate, R.string.tasting_citrus,
+                    R.string.tasting_red_fruit, R.string.tasting_floral, R.string.tasting_nuts).map(context::getString)
+                viewModel.readLabel(captured, bags.orEmpty().mapNotNull(CoffeeBag::roaster), defaults)
+            } finally {
+                captured.delete()
+                photoPath = null
+            }
+        } else { captured?.delete(); photoPath = null }
+    }
+    fun takeLabelPhoto() {
+        val file = File(context.cacheDir, "label-photos/${System.nanoTime()}.jpg").apply { parentFile?.mkdirs() }
+        photoPath = file.absolutePath
+        camera.launch(FileProvider.getUriForFile(context, "${context.packageName}.label-photo", file))
+    }
     val close = { if (viewModel.dirty) confirmDiscard = true else onClose() }
     SystemBack(close)
     Box(Modifier.fillMaxSize().testTag("coffee-bag-editor")) {
@@ -161,6 +191,31 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             title = { Text(stringResource(R.string.discard_changes_title)) },
             confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; onClose() }) { Text(stringResource(R.string.discard)) } },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    assigning?.let { candidate ->
+        val destinations = listOfNotNull(
+            (R.string.coffee_name to LabelDestination.COFFEE).takeIf { form.name.isBlank() },
+            (R.string.coffee_roaster to LabelDestination.ROASTER).takeIf { form.roaster.isBlank() },
+            (R.string.coffee_country to LabelDestination.COUNTRY).takeIf { form.country.isBlank() },
+            (R.string.coffee_region to LabelDestination.REGION).takeIf { form.region.isBlank() },
+            (R.string.coffee_farm to LabelDestination.FARM).takeIf { form.farm.isBlank() },
+            (R.string.coffee_variety to LabelDestination.VARIETY).takeIf { form.variety.isBlank() },
+            (R.string.coffee_process to LabelDestination.PROCESS).takeIf { form.process.isBlank() },
+            (R.string.coffee_tasting_notes to LabelDestination.TASTING_NOTE).takeIf {
+                form.tastingNotes.size < 6 && form.tastingNotes.none { it.equals(candidate, ignoreCase = true) }
+            },
+        )
+        AlertDialog(
+            onDismissRequest = { assigning = null },
+            title = { Text(candidate) },
+            text = { Column { destinations.forEach { (label, destination) ->
+                TextButton(
+                    onClick = { viewModel.assignLabelCandidate(candidate, destination); assigning = null },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(label), Modifier.fillMaxWidth()) }
+            } } },
+            confirmButton = { TextButton(onClick = { assigning = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     Scaffold(
@@ -186,22 +241,70 @@ fun CoffeeEditorScreen(viewModel: CoffeeEditorViewModel, bagsViewModel: CoffeeBa
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            OutlinedButton(onClick = { takeLabelPhoto() }, modifier = Modifier.fillMaxWidth().testTag("coffee-label-camera"), shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(if (labelDraft.hasRead) R.string.coffee_read_another_side else R.string.coffee_read_label))
+            }
+            labelDraft.message?.let {
+                val message = when (it) {
+                    LabelMessage.NOTHING_NEW -> R.string.coffee_label_nothing_new
+                    LabelMessage.MODEL_UNAVAILABLE -> R.string.coffee_label_model_unavailable
+                    LabelMessage.COULD_NOT_READ -> R.string.coffee_label_could_not_read
+                }
+                Text(stringResource(message))
+            }
+            if (labelDraft.candidates.isNotEmpty()) {
+                Text(stringResource(R.string.coffee_label_review), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { labelDraft.candidates.forEach { candidate ->
+                    FilterChip(selected = false, onClick = { assigning = candidate }, label = { Text(candidate) }, modifier = Modifier.testTag("coffee-label-$candidate"))
+                } }
+            }
             Text(stringResource(R.string.coffee_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             Field(form.name, R.string.coffee_name) { viewModel.change(form.copy(name = it.take(80))) }
+            Text(stringResource(R.string.coffee_origin_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
+            Field(form.country, R.string.coffee_country,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.country, form.id, CoffeeBag::country) +
+                    listOf(stringResource(R.string.coffee_country_brazil)).filterNot { form.country.equals(it, true) },
+                onSuggestion = { viewModel.change(form.copy(country = it)) },
+            ) { viewModel.change(form.copy(country = it.take(80))) }
+            Field(form.region, R.string.coffee_region,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.region, form.id, CoffeeBag::region),
+                onSuggestion = { viewModel.change(form.copy(region = it)) },
+            ) { viewModel.change(form.copy(region = it.take(120))) }
+            Field(form.farm, R.string.coffee_farm,
+                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.farm, form.id, CoffeeBag::farm),
+                onSuggestion = { viewModel.change(form.copy(farm = it)) },
+            ) { viewModel.change(form.copy(farm = it.take(120))) }
+            Field(form.variety, R.string.coffee_variety,
+                suggestions = (coffeeFieldSuggestions(bags.orEmpty(), form.variety, form.id, CoffeeBag::variety) +
+                    listOf(R.string.coffee_variety_topazio, R.string.coffee_variety_catuai, R.string.coffee_variety_bourbon, R.string.coffee_variety_geisha).map { stringResource(it) }
+                        .filterNot { it.equals(form.variety, true) }).distinct().take(6),
+                onSuggestion = { viewModel.change(form.copy(variety = it)) },
+            ) { viewModel.change(form.copy(variety = it.take(80))) }
+            Field(form.process, R.string.coffee_process,
+                suggestions = (coffeeFieldSuggestions(bags.orEmpty(), form.process, form.id, CoffeeBag::process) +
+                    listOf(R.string.coffee_process_natural, R.string.coffee_process_pulped, R.string.coffee_process_washed, R.string.coffee_process_fermented, R.string.coffee_process_honey).map { stringResource(it) }
+                        .filterNot { it.equals(form.process, true) }).distinct().take(6),
+                onSuggestion = { viewModel.change(form.copy(process = it)) },
+            ) { viewModel.change(form.copy(process = it.take(80))) }
+            Field(form.altitudeMeters, R.string.coffee_altitude, KeyboardType.Number) {
+                val digits = it.filter(Char::isDigit).take(4)
+                viewModel.change(form.copy(altitudeMeters = digits.takeIf { value -> value.toIntOrNull() in 0..3000 }.orEmpty()))
+            }
+            Text(stringResource(R.string.coffee_altitude_hint), style = MaterialTheme.typography.bodySmall)
             Field(
                 form.roaster, R.string.coffee_roaster,
                 suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.roaster, form.id, CoffeeBag::roaster),
                 onSuggestion = { viewModel.change(form.copy(roaster = it)) },
             ) { viewModel.change(form.copy(roaster = it.take(80))) }
-            Field(form.origin, R.string.coffee_origin,
-                suggestions = coffeeFieldSuggestions(bags.orEmpty(), form.origin, form.id, CoffeeBag::origin),
-                onSuggestion = { viewModel.change(form.copy(origin = it)) },
-            ) { viewModel.change(form.copy(origin = it.take(120))) }
             Text(stringResource(R.string.coffee_package_section), style = MaterialTheme.typography.titleMedium.merge(SectionHeading))
             OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
                 Text(form.roastedAt?.let { stringResource(R.string.coffee_roasted_on, roastDay(it)) } ?: stringResource(R.string.coffee_roast_date))
             }
             Field(form.weight, R.string.coffee_weight, KeyboardType.Decimal) { viewModel.change(form.copy(weight = it.take(6))) }
+            Field(form.caffeineMgPerGram, R.string.coffee_caffeine, KeyboardType.Number) {
+                viewModel.change(form.copy(caffeineMgPerGram = it.filter(Char::isDigit).take(2)))
+            }
+            Text(stringResource(R.string.coffee_caffeine_hint), style = MaterialTheme.typography.bodySmall)
             if (form.sourceBagId != null) {
                 if (form.copiedAdjustmentCount > 0) Text(pluralStringResource(R.plurals.coffee_adjustments_copied, form.copiedAdjustmentCount, form.copiedAdjustmentCount))
                 Row(verticalAlignment = Alignment.CenterVertically) {

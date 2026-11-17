@@ -41,7 +41,7 @@ class LayerDependencyTest {
 
     /** The feature packages inside `ui` (#391). Each may use [uiSharedPackages], [uiServerPackage] and the layers below. */
     private val uiFeaturePackages = setOf(
-        "home", "brew", "brews", "recipes", "coffees", "settings", "onboarding", "widget", "server",
+        "home", "brew", "brews", "recipes", "coffees", "analytics", "settings", "onboarding", "widget", "server",
     )
 
     /** Packages shared by features: they use no feature, `sync` or `data` (#391). */

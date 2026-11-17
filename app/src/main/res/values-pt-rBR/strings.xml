@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Português (Brasil). Every key here must also exist in values/strings.xml (checked by TranslationsTest). -->
 <resources>
+    <string name="week_widget_name">Semana</string>
+    <string name="week_preview_count_unit">preparos</string>
+    <string name="week_preview_stats" translatable="false">143 g de café · 2,1 L</string>
+    <string name="week_preview_day_0">Q</string><string name="week_preview_day_1">Q</string><string name="week_preview_day_2">S</string><string name="week_preview_day_3">S</string><string name="week_preview_day_4">D</string><string name="week_preview_day_5">S</string><string name="week_preview_day_6">T</string>
+    <string name="week_brew_label">preparo</string>
+    <string name="week_brews_label">preparos</string>
+    <string name="week_widget_description">Seus preparos nos últimos 7 dias</string>
+    <string name="week_empty">Nenhum preparo nesta semana</string>
+    <string name="week_stats">%1$s g de café · %2$s L</string>
+    <string name="week_description">Preparos por dia: %1$s</string>
+    <plurals name="week_brews"><item quantity="one">%d preparo</item><item quantity="other">%d preparos</item></plurals>
     <!-- Navegação -->
     <string name="tab_home">Início</string>
     <string name="tab_brews">Preparos</string>
+    <string name="tab_analytics">Análises</string>
     <string name="tab_settings">Configurações</string>
 
     <!-- Início -->
@@ -19,14 +31,41 @@
     <string name="mode_french_press_short">Prensa</string>
 
     <!-- Widget da tela inicial -->
-    <string name="widget_description">Último preparo</string>
+    <string name="widget_description">Prepare seu último café de novo</string>
     <string name="widget_last_brew_title">Último preparo</string>
     <string name="widget_empty_title">Você ainda não fez café</string>
     <string name="widget_brew_espresso">Preparar espresso</string>
     <string name="widget_brew_filter">Preparar filtrado</string>
     <string name="widget_brew_french_press">Preparar prensa francesa</string>
     <string name="widget_brew_coffee">Preparar um café</string>
-
+    <string name="last_brew_widget_label">Último preparo</string>
+    <string name="widget_empty_title_yet">Nenhum preparo</string>
+    <string name="widget_empty_start">Iniciar</string>
+    <string name="widget_brew_summary">%1$s · %2$.0f g → %3$.0f g</string>
+    <string name="widget_brew_short_summary">%1$.0f g → %2$.0f g</string>
+    <string name="widget_just_now">Agora mesmo</string>
+    <string name="widget_minutes_ago">há %1$d min</string>
+    <string name="widget_hours_ago">há %1$d h</string>
+    <string name="widget_days_ago">há %1$d dias</string>
+    <string name="widget_preview_coffee">Fazenda Ambiental</string>
+    <string name="widget_preview_brew_details">15 g → 250 g</string>
+    <string name="widget_brew_again">Preparar de novo</string>
+    <string name="widget_content_description">Preparar de novo: %1$s</string>
+    <string name="analytics_widget_name">Análises</string>
+    <string name="analytics_widget_description">Cafeína agora e nesta semana</string>
+    <string name="analytics_widget_empty">Nenhum café registrado ainda</string>
+    <string name="analytics_widget_start_brew">Começar um preparo</string>
+    <string name="analytics_widget_now_caption">cafeína agora</string>
+    <string name="analytics_widget_now_marker">Agora</string>
+    <string name="analytics_widget_bedtime_title">Ao dormir</string>
+    <string name="analytics_widget_bedtime_caption">Ao dormir · %1$s</string>
+    <string name="analytics_widget_bedtime_high_description">%1$d mg, acima da meta de 50 mg ao dormir</string>
+    <string name="analytics_widget_week_title">Esta semana</string>
+    <string name="analytics_widget_value_mg">%1$d mg</string>
+    <string name="analytics_widget_value_grams">%1$d g</string>
+    <string name="analytics_widget_delta_grams">%1$s %2$d g</string>
+    <string name="analytics_widget_clock">%1$02d:%2$02d</string>
+    <string name="analytics_widget_curve_description">Curva estimada de cafeína de hoje</string>
     <!-- Preparos -->
     <string name="last_sync">Última sincronização %1$s</string>
     <string name="server_not_configured">Sem servidor. Os preparos ficam só neste celular.</string>
@@ -42,6 +81,7 @@
     <string name="settings_no_browser">Nenhum navegador disponível.</string>
     <string name="settings_allow_nearby">Permitir dispositivos próximos</string>
     <string name="settings_brewing">No preparo</string>
+    <string name="settings_analytics">Análises</string>
     <string name="settings_your_data">Seus dados</string>
     <string name="settings_app">App</string>
     <string name="settings_only_phone">Só neste celular</string>
@@ -196,6 +236,23 @@
 
     <!-- Recipes -->
     <string name="tab_recipes">Receitas</string>
+    <string name="coffee_caffeine">Cafeína (mg por grama)</string>
+    <string name="coffee_caffeine_hint">Estimativa para este café. Use 10 mg/g para arábica e cerca de 20 mg/g para robusta.</string>
+    <string name="analytics_this_week">Esta semana</string>
+    <string name="analytics_last_week">Semana passada</string>
+    <string name="analytics_brews">Preparos</string>
+    <string name="analytics_coffee">Café</string>
+    <string name="analytics_caffeine">Cafeína estimada</string>
+    <string name="analytics_today">Hoje</string>
+    <string name="analytics_about_mg">Cerca de %1$d mg</string>
+    <string name="analytics_bedtime">Hora de dormir</string>
+    <string name="analytics_caffeine_left">Na hora de dormir: cerca de %1$d mg</string>
+    <string name="analytics_last_coffee">Último café até %1$s</string>
+    <string name="analytics_over_50">Mais de 50 mg na hora de dormir</string>
+    <string name="analytics_nothing_today">Nenhum preparo hoje ainda</string>
+    <string name="analytics_estimate_note">A quantidade de cafeína é uma estimativa, não uma orientação médica.</string>
+    <string name="analytics_chart_description">Cafeína ao longo do dia. Na hora de dormir: cerca de %1$d mg. %2$s.</string>
+    <string name="analytics_chart_reference">Linha de referência de 50 mg.</string>
     <string name="new_recipe">Nova receita</string>
     <string name="edit_recipe">Editar receita</string>
     <string name="no_recipes_title">Nenhuma receita ainda.</string>
@@ -386,13 +443,50 @@
     <string name="coffee_tasting_notes_section">Notas sensoriais</string>
     <string name="coffee_notes_section">Anotações</string>
     <string name="coffee_edit">Editar café</string>
+    <string name="coffee_read_label">Ler rótulo</string>
+    <string name="coffee_label_review">Do rótulo</string>
+    <string name="coffee_read_another_side">Ler outro lado</string>
+    <string name="coffee_label_nothing_new">Nada novo neste lado.</string>
+    <string name="coffee_label_could_not_read">Não foi possível ler o rótulo.</string>
+    <string name="coffee_label_model_unavailable">Não foi possível ler o rótulo. Tente novamente em instantes.</string>
     <string name="coffee_name">Café</string>
     <string name="coffee_roaster">Torrefação</string>
-    <string name="coffee_origin">Origem e processo</string>
+    <string name="coffee_origin_section">Origem</string>
+    <string name="coffee_country">País</string>
+    <string name="coffee_country_brazil">Brasil</string>
+    <string name="coffee_region">Região</string>
+    <string name="coffee_farm">Fazenda</string>
+    <string name="coffee_variety">Variedade</string>
+    <string name="coffee_process">Processo</string>
+    <string name="coffee_altitude">Altitude (m)</string>
+    <string name="coffee_altitude_hint">Metros inteiros, de 0 a 3.000.</string>
+    <string name="coffee_altitude_value">%1$s m</string>
+    <string name="coffee_variety_topazio" translatable="false">Topázio</string>
+    <string name="coffee_variety_catuai" translatable="false">Catuaí Amarelo</string>
+    <string name="coffee_variety_bourbon" translatable="false">Bourbon Amarelo</string>
+    <string name="coffee_variety_geisha" translatable="false">Geisha</string>
+    <string name="coffee_process_natural" translatable="false">Natural</string>
+    <string name="coffee_process_pulped">Cereja descascado</string>
+    <string name="coffee_process_washed">Lavado</string>
+    <string name="coffee_process_fermented">Fermentado</string>
+    <string name="coffee_process_honey" translatable="false">Honey</string>
     <string name="coffee_weight">Peso do pacote (g)</string>
     <string name="coffee_roast_date">Data de torra</string>
     <string name="coffee_roasted_on">Torrado em %1$s</string>
     <string name="coffee_left">Restam %1$s de %2$s g</string>
+    <string name="coffee_ends_today">Acaba hoje</string>
+    <plurals name="coffee_days_left">
+        <item quantity="one">Dura mais uns %1$d dias</item>
+        <item quantity="other">Dura mais uns %1$d dias</item>
+    </plurals>
+    <string name="coffee_log_used">Registrar café usado</string>
+    <string name="coffee_log_used_hint">Restam até %1$s g neste pacote.</string>
+    <string name="coffee_log_used_field">Gramas usados</string>
+    <string name="coffee_used_outside_app">Usado fora do app</string>
+    <string name="coffee_remove_use_title">Remover este registro?</string>
+    <string name="coffee_remove_use">Remover</string>
+    <string name="coffee_use_undo">Desfazer</string>
+    <string name="coffee_use_removed">Uso de café removido</string>
     <string name="coffee_finished">Acabou</string>
     <string name="coffee_mark_finished">Marcar como acabado</string>
     <string name="coffee_mark_open">Marcar como aberto</string>
@@ -403,6 +497,7 @@
     <string name="adjustment_grind">Moagem %1$s</string>
     <string name="adjustment_grind_recipe">Moagem %1$s (receita %2$s)</string>
     <string name="adjustment_title">Ajuste</string>
+    <string name="adjustment_edit">Ajustar</string>
     <string name="adjustment_recipe_value">receita %1$s</string>
     <string name="adjustment_water">água %1$s g</string>
     <string name="adjustment_yield">bebida %1$s g</string>

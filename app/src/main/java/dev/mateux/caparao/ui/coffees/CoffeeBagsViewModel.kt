@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dev.mateux.caparao.data.local.CoffeeBagRepository
 import dev.mateux.caparao.data.local.BagRecipeAdjustmentRepository
 import dev.mateux.caparao.model.CoffeeBag
+import dev.mateux.caparao.model.BagLabelReader
+import dev.mateux.caparao.model.LabelLine
 import dev.mateux.caparao.ui.components.RecipeForm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +30,12 @@ data class BagForm(
     val id: String? = null,
     val name: String = "",
     val roaster: String = "",
-    val origin: String = "",
+    val country: String = "",
+    val region: String = "",
+    val farm: String = "",
+    val variety: String = "",
+    val process: String = "",
+    val altitudeMeters: String = "",
     val roastedAt: Long? = null,
     val weight: String = "",
     val notes: String = "",
@@ -38,8 +45,9 @@ data class BagForm(
     val sourceBagId: String? = null,
     val finishSource: Boolean = true,
     val copiedAdjustmentCount: Int = 0,
+    val caffeineMgPerGram: String = "10",
 ) {
-    val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null
+    val valid: Boolean get() = name.isNotBlank() && RecipeForm.number(weight) != null && caffeineMgPerGram.toIntOrNull() in 1..40
 
     /**
      * Adds [value] as a tasting note when there is room: trimmed, case-insensitive duplicates ignored,
@@ -55,33 +63,115 @@ data class BagForm(
         id = id ?: newId(),
         name = name.trim(),
         roaster = roaster.trim().ifEmpty { null },
-        origin = origin.trim().ifEmpty { null },
+        country = country.trim().ifEmpty { null }, region = region.trim().ifEmpty { null },
+        farm = farm.trim().ifEmpty { null }, variety = variety.trim().ifEmpty { null }, process = process.trim().ifEmpty { null },
+        altitudeMeters = altitudeMeters.toIntOrNull()?.takeIf { it in 0..3000 },
         roastedAt = roastedAt,
         weightGrams = requireNotNull(RecipeForm.number(weight)),
         notes = notes.trim().ifEmpty { null },
         finished = finished,
         createdAt = createdAt ?: now,
         tastingNotes = tastingNotes.take(6).map(String::trim).filter(String::isNotEmpty),
+        caffeineMgPerGram = caffeineMgPerGram.toIntOrNull()?.takeUnless { it == 10 },
     )
 
     companion object {
         fun of(bag: CoffeeBag) = BagForm(
-            bag.id, bag.name, bag.roaster.orEmpty(), bag.origin.orEmpty(), bag.roastedAt,
+            id = bag.id, name = bag.name, roaster = bag.roaster.orEmpty(), country = bag.country.orEmpty(),
+            region = bag.region.orEmpty(), farm = bag.farm.orEmpty(), variety = bag.variety.orEmpty(), process = bag.process.orEmpty(),
+            altitudeMeters = bag.altitudeMeters?.toString().orEmpty(), roastedAt = bag.roastedAt,
             RecipeForm.plain(bag.weightGrams, java.util.Locale.ROOT), bag.notes.orEmpty(), bag.finished, bag.createdAt, bag.tastingNotes,
+            caffeineMgPerGram = bag.caffeineMgPerGram?.toString() ?: "10",
         )
     }
 }
 
 /** The full-screen editor draft is saved with its navigation entry across process death. */
-class CoffeeEditorViewModel(private val savedState: SavedStateHandle, target: BagForm = BagForm()) : ViewModel() {
+data class LabelDraft(val candidates: List<String> = emptyList(), val message: LabelMessage? = null, val hasRead: Boolean = false, val assigned: List<String> = emptyList())
+enum class LabelMessage { NOTHING_NEW, COULD_NOT_READ, MODEL_UNAVAILABLE }
+
+class CoffeeEditorViewModel(
+    private val savedState: SavedStateHandle,
+    target: BagForm = BagForm(),
+    private val labelRecognizer: LabelRecognizer = LabelRecognizer { emptyList() },
+) : ViewModel() {
     private val _form = MutableStateFlow(savedState.get<String>("form")?.let { Json.decodeFromString<BagForm>(it) } ?: target)
     val form: StateFlow<BagForm> = _form.asStateFlow()
+    private val _labelDraft = MutableStateFlow(savedState.get<String>("labelCandidates")?.let { Json.decodeFromString<List<String>>(it) }.orEmpty().let {
+        LabelDraft(it, hasRead = savedState.get<Boolean>("labelHasRead") ?: false,
+            assigned = savedState.get<String>("labelAssigned")?.let { value -> Json.decodeFromString<List<String>>(value) }.orEmpty())
+    })
+    val labelDraft: StateFlow<LabelDraft> = _labelDraft.asStateFlow()
     private var opened = _form.value
     val dirty: Boolean get() = _form.value != opened
     fun change(form: BagForm) { _form.value = form; savedState["form"] = Json.encodeToString(form) }
     fun reset(form: BagForm) { opened = form; change(form) }
+
+    suspend fun readLabel(photo: java.io.File, knownRoasters: List<String>, knownNotes: List<String>, now: java.time.LocalDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC)) {
+        val lines = runCatching { labelRecognizer.recognize(photo) }.getOrElse {
+            updateLabelDraft(_labelDraft.value.copy(
+                message = if (it is LabelModelUnavailableException) LabelMessage.MODEL_UNAVAILABLE else LabelMessage.COULD_NOT_READ,
+                hasRead = true,
+            ))
+            return
+        }
+        if (lines.isEmpty()) {
+            updateLabelDraft(_labelDraft.value.copy(message = LabelMessage.COULD_NOT_READ, hasRead = true))
+            return
+        }
+        val reading = BagLabelReader.read(lines, knownRoasters, knownNotes, now)
+        val current = _form.value
+        val next = current.copy(
+            weight = current.weight.ifBlank { reading.weightGrams?.let { RecipeForm.plain(it, Locale.ROOT) }.orEmpty() },
+            roastedAt = current.roastedAt ?: reading.roastedAt,
+            roaster = current.roaster.ifBlank { reading.roaster.orEmpty() },
+            tastingNotes = reading.tastingNotes.fold(current) { form, note -> form.withNote(note) }.tastingNotes,
+        )
+        val oldCandidates = _labelDraft.value.candidates
+        val candidates = (oldCandidates + reading.candidates).distinctBy(String::labelKey)
+            .filterNot { candidate -> _labelDraft.value.assigned.any { it.labelKey() == candidate.labelKey() } }
+        if (next != current) change(next)
+        val newCandidates = candidates - oldCandidates.toSet()
+        val message = if (next == current && newCandidates.isEmpty()) LabelMessage.NOTHING_NEW else null
+        updateLabelDraft(LabelDraft(candidates, message, hasRead = true, assigned = _labelDraft.value.assigned))
+    }
+
+    fun assignLabelCandidate(candidate: String, destination: LabelDestination) {
+        if (candidate !in _labelDraft.value.candidates) return
+        val current = _form.value
+        val updated = when (destination) {
+            LabelDestination.COFFEE -> current.copy(name = current.name.ifBlank { candidate })
+            LabelDestination.ROASTER -> current.copy(roaster = current.roaster.ifBlank { candidate })
+            LabelDestination.COUNTRY -> current.copy(country = current.country.ifBlank { candidate })
+            LabelDestination.REGION -> current.copy(region = current.region.ifBlank { candidate })
+            LabelDestination.FARM -> current.copy(farm = current.farm.ifBlank { candidate })
+            LabelDestination.VARIETY -> current.copy(variety = current.variety.ifBlank { candidate })
+            LabelDestination.PROCESS -> current.copy(process = current.process.ifBlank { candidate })
+            LabelDestination.TASTING_NOTE -> current.withNote(candidate)
+        }
+        if (updated == current) return
+        change(updated)
+        updateLabelDraft(_labelDraft.value.copy(
+            candidates = _labelDraft.value.candidates - candidate,
+            assigned = (_labelDraft.value.assigned + candidate).distinctBy(String::labelKey),
+            message = null,
+        ))
+    }
+
+    fun clearLabelMessage() = updateLabelDraft(_labelDraft.value.copy(message = null))
+    private fun updateLabelDraft(value: LabelDraft) {
+        _labelDraft.value = value
+        savedState["labelCandidates"] = Json.encodeToString(value.candidates)
+        savedState["labelHasRead"] = value.hasRead
+        savedState["labelAssigned"] = Json.encodeToString(value.assigned)
+    }
     companion object { val TARGET = object : CreationExtras.Key<BagForm> {} }
 }
+
+enum class LabelDestination { COFFEE, ROASTER, COUNTRY, REGION, FARM, VARIETY, PROCESS, TASTING_NOTE }
+
+private fun String.labelKey() = Normalizer.normalize(trim(), Normalizer.Form.NFD)
+    .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)
 
 /** The coffee bags list and persistence operations. */
 class CoffeeBagsViewModel(

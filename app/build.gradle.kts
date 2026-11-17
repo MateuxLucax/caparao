@@ -35,6 +35,7 @@ android {
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["applicationClass"] = ".CaparaoApplication"
+        manifestPlaceholders["widgetProviderEnabled"] = "true"
         // Read only by the root package (AppContainer), which hands it to the data-layer implementation (#333).
         buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
     }
@@ -74,6 +75,7 @@ android {
             isShrinkResources = false
             isProfileable = true
             manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
+            manifestPlaceholders["widgetProviderEnabled"] = "false"
             signingConfig = signingConfigs.getByName("debug")
         }
         create("benchmarkRelease") {
@@ -84,6 +86,7 @@ android {
             isDebuggable = false
             isProfileable = true
             manifestPlaceholders["applicationClass"] = ".DebugCaparaoApplication"
+            manifestPlaceholders["widgetProviderEnabled"] = "false"
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -96,6 +99,7 @@ android {
         getByName("nonMinifiedRelease").kotlin.srcDir("src/debug/java")
         getByName("benchmarkRelease").java.srcDir("src/debug/java")
         getByName("benchmarkRelease").kotlin.srcDir("src/debug/java")
+        // Test-only installs reuse the production application ID but should not register a second home-screen widget.
     }
 
     buildFeatures {
@@ -180,6 +184,7 @@ dependencies {
     // The watch companion (#107): Data Layer messages and opening the watch app.
     implementation(project(":wearlink"))
     implementation(libs.play.services.wearable)
+    implementation(libs.mlkit.text.recognition)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.wear.remote.interactions)
     // play-services-wearable pulls Fragment 1.0, whose activity results lint rejects for MainActivity.

@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
+import android.app.TimePickerDialog
 import java.text.DateFormat
 import java.util.Date
 import androidx.compose.ui.unit.dp
@@ -110,6 +111,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val noBrowser = stringResource(R.string.settings_no_browser)
     var ratingReminderDelay by rememberSaveable { mutableIntStateOf(targets.ratingReminderDelayMinutes) }
+    var bedtimeMinutes by rememberSaveable { mutableIntStateOf(targets.bedtimeMinutes) }
     var editRatingReminderDelay by rememberSaveable { mutableStateOf(false) }
     var permissionGranted by remember { mutableStateOf(actions.bluetoothPermissionGranted()) }
     LifecycleResumeEffect(Unit) {
@@ -169,6 +171,17 @@ fun SettingsScreen(
                 },
             )
         }
+        SettingsSection(R.string.settings_analytics)
+        SettingsRow(
+            stringResource(R.string.analytics_bedtime), "%02d:%02d".format(bedtimeMinutes / 60, bedtimeMinutes % 60),
+            onClick = {
+                TimePickerDialog(context, { _, hour, minute ->
+                    bedtimeMinutes = hour * 60 + minute
+                    targets.bedtimeMinutes = bedtimeMinutes
+                }, bedtimeMinutes / 60, bedtimeMinutes % 60, true).show()
+            },
+            testTag = "bedtime",
+        )
         SettingsSection(R.string.settings_your_data)
         SettingsRow(stringResource(R.string.section_server), when {
             !sync.serverConfigured -> stringResource(R.string.settings_only_phone)

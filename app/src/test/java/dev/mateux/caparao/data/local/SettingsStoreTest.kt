@@ -40,4 +40,13 @@ class SettingsStoreTest {
         settings.ratingNotificationsPermissionAsked = true
         assertTrue(SettingsStore(preferences).ratingNotificationsPermissionAsked)
     }
+
+    @Test
+    fun bedtimeDefaultsToElevenAndPersistsValidMinutes() {
+        val preferences = FakePreferences()
+        val settings = SettingsStore(preferences)
+        assertEquals(23 * 60, settings.bedtimeMinutes)
+        settings.bedtimeMinutes = 21 * 60 + 30
+        assertEquals(21 * 60 + 30, SettingsStore(preferences).bedtimeMinutes)
+    }
 }

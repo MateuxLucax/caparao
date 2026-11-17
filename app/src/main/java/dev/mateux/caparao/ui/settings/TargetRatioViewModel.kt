@@ -30,4 +30,8 @@ class TargetRatioViewModel(private val settings: SettingsStore) : ViewModel() {
     var ratingReminderDelayMinutes: Int
         get() = settings.ratingReminderDelayMinutes
         set(value) { settings.ratingReminderDelayMinutes = value }
+
+    var bedtimeMinutes: Int
+        get() = settings.bedtimeMinutes
+        set(value) { settings.bedtimeMinutes = value }
 }

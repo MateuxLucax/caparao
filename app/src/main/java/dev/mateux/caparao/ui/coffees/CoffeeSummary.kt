@@ -2,9 +2,27 @@ package dev.mateux.caparao.ui.coffees
 
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewTaste
+import kotlin.math.roundToInt
 
 /** How often one of the bag's tasting notes was found, out of [CoffeeSummary.tasted] brews. */
 data class NoteFound(val note: String, val found: Int)
+
+/** Whole days left at the bag's average daily dose over its recent brews, or null without enough recent use. */
+fun estimatedDaysLeft(leftGrams: Double, brews: List<Brew>, now: Long, loggedUse: List<Pair<Int, Long>> = emptyList()): Int? {
+    if (leftGrams <= 0.0) return null
+    val recentBrews = brews.filter { now - it.startedAt in 0..(14 * DAY_MS) }
+    val recentLoggedUse = loggedUse.filter { (_, at) -> now - at in 0..(14 * DAY_MS) }
+    if (recentBrews.size + recentLoggedUse.size < 3) return null
+    val uses = recentBrews.map { it.startedAt to it.doseGrams } + recentLoggedUse.map { (grams, at) -> at to grams.toDouble() }
+    val firstUse = uses.minOf { it.first }
+    val days = ((now - firstUse) / DAY_MS).coerceIn(1, 14)
+    val gramsPerDay = uses.sumOf { it.second } / days
+    if (gramsPerDay <= 0.0) return null
+    val remaining = leftGrams / gramsPerDay
+    return if (remaining < 1.0) 0 else remaining.roundToInt().coerceAtLeast(1)
+}
+
+private const val DAY_MS = 86_400_000L
 
 /** How a coffee has been turning out, from the brews linked to its bag (#469). */
 data class CoffeeSummary(

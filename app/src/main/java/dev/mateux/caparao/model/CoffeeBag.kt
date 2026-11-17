@@ -8,8 +8,12 @@ data class CoffeeBag(
     val id: String,
     val name: String,
     val roaster: String? = null,
-    /** Free text: origin, variety, process. */
-    val origin: String? = null,
+    val country: String? = null,
+    val region: String? = null,
+    val farm: String? = null,
+    val variety: String? = null,
+    val process: String? = null,
+    val altitudeMeters: Int? = null,
     /** Epoch millis of the roast day; null when unknown. */
     val roastedAt: Long? = null,
     val weightGrams: Double,
@@ -25,6 +29,8 @@ data class CoffeeBag(
     val averageRating: Double? = null,
     /** Ordered tasting profile; at most six short notes, stored on this phone only. */
     val tastingNotes: List<String> = emptyList(),
+    /** Estimated caffeine in milligrams per gram; null uses the 10 mg/g default. */
+    val caffeineMgPerGram: Int? = null,
 ) {
     val leftGrams: Double get() = (weightGrams - usedGrams).coerceAtLeast(0.0)
 

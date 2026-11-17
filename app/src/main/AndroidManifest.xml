@@ -35,6 +35,10 @@
         android:theme="@style/Theme.App"
         android:usesCleartextTraffic="true">
 
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
         <!-- #333: Sentry starts only from AppContainer while the Settings opt-in is on and a DSN exists. -->
         <meta-data
             android:name="io.sentry.auto-init"
@@ -57,16 +61,52 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.label-photo"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/label_photo_paths" />
+        </provider>
+
         <!-- The last-brew home-screen widget is backed by Room and uses the launcher shortcut route for its action. -->
         <receiver
             android:name=".BrewWidgetProvider"
+            android:enabled="${widgetProviderEnabled}"
+            android:label="@string/last_brew_widget_label"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/brew_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".AnalyticsWidgetProvider"
+            android:label="@string/analytics_widget_name"
+            android:enabled="${widgetProviderEnabled}"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/analytics_widget_info" />
+        </receiver>
+
+        <receiver android:name=".WeekWidgetProvider" android:label="@string/week_widget_name" android:enabled="${widgetProviderEnabled}" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/week_widget_info" />
         </receiver>
 
         <receiver
