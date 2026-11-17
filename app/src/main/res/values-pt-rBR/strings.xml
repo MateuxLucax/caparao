@@ -58,7 +58,7 @@
     <string name="analytics_widget_now_caption">cafeína agora</string>
     <string name="analytics_widget_now_marker">Agora</string>
     <string name="analytics_widget_bedtime_title">Ao dormir</string>
-    <string name="analytics_widget_bedtime_chip">Ao dormir %1$d mg · %2$s</string>
+    <string name="analytics_widget_bedtime_caption">Ao dormir · %1$s</string>
     <string name="analytics_widget_bedtime_high_description">%1$d mg, acima da meta de 50 mg ao dormir</string>
     <string name="analytics_widget_week_title">Esta semana</string>
     <string name="analytics_widget_value_mg">%1$d mg</string>
@@ -252,7 +252,7 @@
     <string name="analytics_nothing_today">Nenhum preparo hoje ainda</string>
     <string name="analytics_estimate_note">A quantidade de cafeína é uma estimativa, não uma orientação médica.</string>
     <string name="analytics_chart_description">Cafeína ao longo do dia. Na hora de dormir: cerca de %1$d mg. %2$s.</string>
-    <string name="analytics_chart_reference">Linha tracejada: hora de dormir. Linha contínua: 50 mg.</string>
+    <string name="analytics_chart_reference">Linha de referência de 50 mg.</string>
     <string name="new_recipe">Nova receita</string>
     <string name="edit_recipe">Editar receita</string>
     <string name="no_recipes_title">Nenhuma receita ainda.</string>

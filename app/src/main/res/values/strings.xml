@@ -62,7 +62,7 @@
     <string name="analytics_widget_now_caption">caffeine now</string>
     <string name="analytics_widget_now_marker">Now</string>
     <string name="analytics_widget_bedtime_title">Bedtime</string>
-    <string name="analytics_widget_bedtime_chip">Bedtime %1$d mg · %2$s</string>
+    <string name="analytics_widget_bedtime_caption">Bedtime · %1$s</string>
     <string name="analytics_widget_bedtime_high_description">%1$d mg, above the 50 mg bedtime target</string>
     <string name="analytics_widget_week_title">This week</string>
     <string name="analytics_widget_value_mg">%1$d mg</string>
@@ -256,7 +256,7 @@
     <string name="analytics_nothing_today">Nothing today yet</string>
     <string name="analytics_estimate_note">Caffeine amounts are estimates, not medical advice.</string>
     <string name="analytics_chart_description">Caffeine through the day. At bedtime: about %1$d mg. %2$s.</string>
-    <string name="analytics_chart_reference">Dashed line: bedtime. Solid line: 50 mg.</string>
+    <string name="analytics_chart_reference">50 mg reference line.</string>
     <string name="new_recipe">New recipe</string>
     <string name="edit_recipe">Edit recipe</string>
     <string name="no_recipes_title">No recipes yet.</string>

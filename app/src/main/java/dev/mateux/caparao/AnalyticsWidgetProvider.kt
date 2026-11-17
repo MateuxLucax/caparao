@@ -120,13 +120,13 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.analytics_widget_caffeine, context.getString(R.string.analytics_widget_value_mg, state.caffeine.nowMg))
         val aboveBedtimeTarget = state.caffeine.bedtimeMg > 50
         val expanded = layout == R.layout.widget_analytics_expanded
-        val bedtimeView = if (expanded) R.id.analytics_widget_bedtime_chip else R.id.analytics_widget_bedtime
+        val bedtimeView = if (expanded) R.id.analytics_widget_bedtime_value else R.id.analytics_widget_bedtime
         val bedtime = bedtimeMinutes.coerceIn(0, 1439)
-        val bedtimeText = if (expanded) context.getString(
-            R.string.analytics_widget_bedtime_chip,
-            state.caffeine.bedtimeMg,
-            context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60),
-        ) else context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
+        if (expanded) views.setTextViewText(
+            R.id.analytics_widget_bedtime_caption,
+            context.getString(R.string.analytics_widget_bedtime_caption, context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60)),
+        )
+        val bedtimeText = context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg)
         views.setTextViewText(bedtimeView, bedtimeText)
         views.setViewVisibility(bedtimeView, View.VISIBLE)
         val bedtimeColor = if (aboveBedtimeTarget) R.color.widget_error_text else R.color.widget_primary_text
@@ -226,7 +226,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         return bitmap
     }
 
-    private fun chartOverlayBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean): Bitmap {
+    internal fun chartOverlayBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean): Bitmap {
         val bitmap = Bitmap.createBitmap((size.width - 32f).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), (size.height - EXPANDED_CHART_FIXED_HEIGHT_DP).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         bitmap.density = Bitmap.DENSITY_NONE
         val density = context.resources.displayMetrics.density
@@ -240,17 +240,13 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val bounds = RectF(3f * density, 3f * density, width - 30f * density, height - CHART_LABEL_ROW_HEIGHT_DP * density)
         val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
         val (startHour, endHour) = chartWindowHours(state, nowMinutes, bedtimeMinutes)
-        val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
-        val bedtimePosition = if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
-        fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
         val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density; style = Paint.Style.STROKE; pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * density, 3f * density), 0f) }
         val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density }
-        val bedtimeX = x(bedtimePosition)
+        fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
         val nowX = x(nowHour)
         val points = state.caffeine.points.filter { it.hour in startHour..endHour }
         val referenceY = bounds.bottom - (50.0 / maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)).toFloat() * bounds.height()
         canvas.drawLine(bounds.left, referenceY, bounds.right, referenceY, guide)
-        canvas.drawLine(bedtimeX, bounds.top, bedtimeX, bounds.bottom, guide)
         canvas.drawLine(nowX, bounds.top, nowX, bounds.bottom, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density })
         canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
         canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
@@ -293,7 +289,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.ANALYTICS_REFRESH"
         private const val WIDE_MIN_WIDTH_DP = 250f
         private const val EXPANDED_MIN_HEIGHT_DP = 330f
-        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
+        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 132f
         private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
         private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
         private const val MIN_TIME_LABEL_GAP_DP = 8f

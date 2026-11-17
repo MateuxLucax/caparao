@@ -27,6 +27,7 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
@@ -84,9 +85,13 @@ class AnalyticsWidgetLayoutTest {
         val size = SizeF(396f, 381f)
         val root = render(size)
         assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(size))
-        val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
-        assertNotNull(chip)
-        assertEquals(1, chip.maxLines)
+        val bedtimeCaption = root.findViewById<TextView>(R.id.analytics_widget_bedtime_caption)
+        val bedtimeValue = root.findViewById<TextView>(R.id.analytics_widget_bedtime_value)
+        assertNotNull(bedtimeCaption)
+        assertNotNull(bedtimeValue)
+        assertEquals(1, bedtimeCaption.maxLines)
+        assertEquals(1, bedtimeValue.maxLines)
+        assertEquals(context.getColor(R.color.widget_secondary_text), bedtimeCaption.currentTextColor)
         assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).maxLines)
         assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_week_label).maxLines)
         assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_delta).maxLines)
@@ -94,20 +99,55 @@ class AnalyticsWidgetLayoutTest {
         val heightPx = (size.height * context.resources.displayMetrics.density).toInt()
         root.measure(MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY))
         root.layout(0, 0, widthPx, heightPx)
-        val heroGroup = root.findViewById<View>(R.id.analytics_widget_hero_group)
-        assertTrue(heroGroup.right + 8f * context.resources.displayMetrics.density <= chip.left)
+        val hero = root.findViewById<TextView>(R.id.analytics_widget_caffeine)
+        val heroCaption = root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption)
+        val density = context.resources.displayMetrics.density
+        assertTrue(hero.bottom <= heroCaption.top + density)
+        assertTrue(bedtimeCaption.bottom <= bedtimeValue.top + density)
+        assertEquals(bedtimeCaption.right, bedtimeValue.right)
+        assertTrue(bedtimeCaption.right <= root.width - 16 * density)
         val chart = root.findViewById<ImageView>(R.id.analytics_widget_curve)
         assertNotNull(chart)
         val bitmap = (chart.drawable as BitmapDrawable).bitmap
         assertTrue(bitmap.width > 0)
         assertTrue(bitmap.height > 0)
         assertEquals(chartWidthPx(size, contentWidthDp = size.width - 32f), bitmap.width)
-        assertEquals(((size.height - 104f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
+        assertEquals(((size.height - 132f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
         val overlay = root.findViewById<ImageView>(R.id.analytics_widget_curve_overlay)
         val overlayBitmap = (overlay.drawable as BitmapDrawable).bitmap
         assertEquals(bitmap.width, overlayBitmap.width)
         assertEquals(bitmap.height, overlayBitmap.height)
         assertHeaderAbsent(root)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "xxhdpi")
+    fun expandedPortugueseTopRowFits888MgAtThreeByThreeDensity() {
+        val portuguese = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag("pt-BR")) },
+        )
+        val size = SizeF(396f, 381f)
+        val sample = state.copy(caffeine = state.caffeine.copy(nowMg = 888, bedtimeMg = 12))
+        val root = provider.viewsForSize(portuguese, 1, listOf(brew), sample, size).apply(portuguese, null)
+        val density = portuguese.resources.displayMetrics.density
+        assertEquals(3f, density)
+        val widthPx = (size.width * density).toInt()
+        val heightPx = (size.height * density).toInt()
+        root.measure(MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY))
+        root.layout(0, 0, widthPx, heightPx)
+
+        val hero = root.findViewById<TextView>(R.id.analytics_widget_caffeine)
+        val bedtimeCaption = root.findViewById<TextView>(R.id.analytics_widget_bedtime_caption)
+        val bedtimeValue = root.findViewById<TextView>(R.id.analytics_widget_bedtime_value)
+        assertEquals("888 mg", hero.text)
+        assertEquals("Ao dormir · 23:00", bedtimeCaption.text)
+        assertEquals("12 mg", bedtimeValue.text)
+        listOf(hero, root.findViewById(R.id.analytics_widget_caffeine_caption), bedtimeCaption, bedtimeValue).forEach { text ->
+            assertEquals(1, text.maxLines)
+            assertEquals(1, text.layout.lineCount)
+            assertTrue(text.layout.getLineWidth(0) <= text.width)
+        }
+        assertTrue(root.findViewById<View>(R.id.analytics_widget_hero_group).right <= root.findViewById<View>(R.id.analytics_widget_bedtime_group).left)
     }
 
     @Test
@@ -158,7 +198,7 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
-    fun expandedBedtimeChipHasReadableDayAndNightTextColors() {
+    fun expandedBedtimeValueHasReadableDayAndNightTextColors() {
         for (nightMode in listOf(false, true)) {
             val configuration = Configuration(context.resources.configuration).apply {
                 uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
@@ -166,15 +206,15 @@ class AnalyticsWidgetLayoutTest {
             }
             val themed = context.createConfigurationContext(configuration)
             val root = provider.viewsForSize(themed, 1, listOf(brew), state, SizeF(396f, 381f)).apply(themed, null)
-            val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
-            assertEquals(themed.getColor(R.color.widget_primary_text), chip.currentTextColor)
-            assertTrue(contrast(chip.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+            val value = root.findViewById<TextView>(R.id.analytics_widget_bedtime_value)
+            assertEquals(themed.getColor(R.color.widget_primary_text), value.currentTextColor)
+            assertTrue(contrast(value.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
 
             val high = state.copy(caffeine = state.caffeine.copy(bedtimeMg = 51))
             val highRoot = provider.viewsForSize(themed, 2, listOf(brew), high, SizeF(396f, 381f)).apply(themed, null)
-            val highChip = highRoot.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
-            assertEquals(themed.getColor(R.color.widget_error_text), highChip.currentTextColor)
-            assertTrue(contrast(highChip.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+            val highValue = highRoot.findViewById<TextView>(R.id.analytics_widget_bedtime_value)
+            assertEquals(themed.getColor(R.color.widget_error_text), highValue.currentTextColor)
+            assertTrue(contrast(highValue.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
         }
     }
 
@@ -189,7 +229,7 @@ class AnalyticsWidgetLayoutTest {
             val themed = context.createConfigurationContext(configuration)
             for ((size, id) in listOf(
                 SizeF(396f, 254f) to R.id.analytics_widget_bedtime,
-                SizeF(396f, 381f) to R.id.analytics_widget_bedtime_chip,
+                SizeF(396f, 381f) to R.id.analytics_widget_bedtime_value,
             )) {
                 val root = provider.viewsForSize(themed, 1, listOf(brew), valueState, size).apply(themed, null)
                 val bedtime = root.findViewById<TextView>(id)
@@ -207,7 +247,7 @@ class AnalyticsWidgetLayoutTest {
         val night = themed(Configuration.UI_MODE_NIGHT_YES)
         for ((size, bedtimeId, curveId) in listOf(
             Triple(SizeF(396f, 254f), R.id.analytics_widget_bedtime, R.id.analytics_widget_sparkline),
-            Triple(SizeF(396f, 381f), R.id.analytics_widget_bedtime_chip, R.id.analytics_widget_curve),
+            Triple(SizeF(396f, 381f), R.id.analytics_widget_bedtime_value, R.id.analytics_widget_curve),
         )) {
             for (bedtimeMg in listOf(11, 51)) {
                 val valueState = state.copy(caffeine = state.caffeine.copy(bedtimeMg = bedtimeMg))
@@ -261,7 +301,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals("Esta semana", portuguese.getString(R.string.analytics_widget_week_title))
         val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(396f, 381f)).apply(portuguese, null)
         assertEquals("Esta semana", expanded.findViewById<TextView>(R.id.analytics_widget_week_label).text)
-        assertTrue(expanded.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Ao dormir"))
+        assertTrue(expanded.findViewById<TextView>(R.id.analytics_widget_bedtime_caption).text.toString().startsWith("Ao dormir ·"))
         assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_LOCALE_CHANGED))
         assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_CONFIGURATION_CHANGED))
     }
@@ -311,6 +351,33 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
+    fun chartOverlayKeepsReferenceAndNowLinesWithoutBedtimeGuide() {
+        val size = SizeF(396f, 381f)
+        val bedtimeMinutes = 23 * 60
+        val nowMinutes = 15 * 60
+        val bitmap = provider.chartOverlayBitmap(context, state, size, bedtimeMinutes, nowMinutes, maskColors = false)
+        val density = context.resources.displayMetrics.density
+        val left = 3f * density
+        val right = bitmap.width - 30f * density
+        val top = 3f * density
+        val bottom = bitmap.height - 16f * density
+        val (startHour, endHour) = AnalyticsWidgetProvider.chartWindowHours(state, nowMinutes, bedtimeMinutes)
+        val bedtimeX = right.toInt()
+        val nowHour = nowMinutes / 60.0
+        val nowX = (left + ((nowHour - startHour) / (endHour - startHour)).toFloat() * (right - left)).toInt()
+        val points = state.caffeine.points.filter { it.hour in startHour..endHour }
+        val referenceY = (bottom - (50.0 / maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)).toFloat() * (bottom - top)).toInt()
+        fun visible(x: Int, y: Int) = Color.alpha(bitmap.getPixel(x, y)) > 0
+
+        val bedtimeColumnOutsideLabels = (top.toInt()..(bottom - 5f * density).toInt())
+            .filter { kotlin.math.abs(it - referenceY) > 12f * density }
+            .any { y -> (bedtimeX - 1..bedtimeX + 1).any { x -> visible(x, y) } }
+        assertFalse(bedtimeColumnOutsideLabels)
+        assertTrue((top.toInt() + 10 until bottom.toInt() - 16 * density.toInt()).any { visible(nowX, it) })
+        assertTrue((left.toInt() until right.toInt()).any { visible(it, referenceY) })
+    }
+
+    @Test
     fun chartPlotsTwoBrewsInsideTheNowToBedtimeWindow() {
         val chartNow = Instant.parse("2026-11-17T15:00:00Z")
         val morning = brew.copy(id = "morning", startedAt = chartNow.minusSeconds(6 * 3600L).toEpochMilli())
@@ -320,6 +387,7 @@ class AnalyticsWidgetLayoutTest {
         val (startHour, bedtimeHour) = AnalyticsWidgetProvider.chartWindowHours(chartState, nowMinutes, 23 * 60)
         assertTrue(startHour < nowMinutes / 60.0)
         assertTrue(nowMinutes / 60.0 < bedtimeHour)
+        assertEquals(23.0, bedtimeHour, 0.0)
 
         val bitmap = provider.curveBitmap(context, chartState, SizeF(396f, 381f), 23 * 60, detailed = false, nowMinutes = nowMinutes)
         assertTrue(opaquePixels(bitmap) > 20)
@@ -336,7 +404,7 @@ class AnalyticsWidgetLayoutTest {
             val root = provider.viewsForSize(widgetContext, 1, listOf(brew), state, SizeF(396f, 381f)).apply(widgetContext, null)
             assertEquals("caffeine now", root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).text)
             assertEquals("This week", root.findViewById<TextView>(R.id.analytics_widget_week_label).text)
-            assertTrue(root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Bedtime"))
+            assertTrue(root.findViewById<TextView>(R.id.analytics_widget_bedtime_caption).text.toString().startsWith("Bedtime ·"))
             assertTrue(root.findViewById<TextView>(R.id.analytics_widget_delta).text.toString().matches(Regex("[↓↑·] \\d+ g")))
         } finally {
             localeManager.applicationLocales = previous
