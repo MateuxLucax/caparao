@@ -20,6 +20,7 @@ class LauncherShortcutTest {
         assertEquals(ShortcutDestination.Brew(BrewMode.FRENCH_PRESS), LauncherShortcut.FRENCH_PRESS.destination)
         assertEquals(ShortcutDestination.Brews, LauncherShortcut.BREWS.destination)
         assertEquals(ShortcutDestination.Home, LauncherShortcut.WIDGET_HOME.destination)
+        assertEquals(ShortcutDestination.Analytics, LauncherShortcut.ANALYTICS.destination)
         assertEquals(LauncherShortcut.ESPRESSO, LauncherShortcut.forMode(BrewMode.ESPRESSO))
         assertEquals(LauncherShortcut.FILTER, LauncherShortcut.forMode(BrewMode.FILTER))
         assertEquals(LauncherShortcut.FRENCH_PRESS, LauncherShortcut.forMode(BrewMode.FRENCH_PRESS))
@@ -31,6 +32,7 @@ class LauncherShortcutTest {
             assertEquals(shortcut, LauncherShortcut.fromAction(shortcut.action))
             assertEquals(shortcut, LauncherShortcut.fromId(shortcut.id))
         }
+        assertEquals(LauncherShortcut.ANALYTICS, LauncherShortcut.fromAction(LauncherShortcut.ANALYTICS.action))
     }
 
     @Test

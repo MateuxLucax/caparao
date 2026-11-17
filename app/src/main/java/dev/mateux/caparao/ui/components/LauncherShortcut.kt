@@ -12,6 +12,9 @@ sealed interface ShortcutDestination {
 
     /** The saved-brews tab. */
     data object Brews : ShortcutDestination
+
+    /** The Analytics tab, opened by its home-screen widget. */
+    data object Analytics : ShortcutDestination
 }
 
 /** The intent action prefix of every shortcut; the uppercase id follows it. */
@@ -28,6 +31,7 @@ enum class LauncherShortcut(val id: String, val action: String, val destination:
     FRENCH_PRESS("french-press", "$ACTION_PREFIX.FRENCH_PRESS", ShortcutDestination.Brew(BrewMode.FRENCH_PRESS)),
     BREWS("brews", "$ACTION_PREFIX.BREWS", ShortcutDestination.Brews),
     WIDGET_HOME("widget-home", "$ACTION_PREFIX.WIDGET_HOME", ShortcutDestination.Home),
+    ANALYTICS("analytics", "$ACTION_PREFIX.ANALYTICS", ShortcutDestination.Analytics),
     ;
 
     companion object {

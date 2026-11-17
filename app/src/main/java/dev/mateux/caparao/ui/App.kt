@@ -219,6 +219,7 @@ private fun Main(
             }
             ShortcutDestination.Home -> shortcutTab = Tab.HOME
             ShortcutDestination.Brews -> shortcutTab = Tab.BREWS
+            ShortcutDestination.Analytics -> shortcutTab = Tab.ANALYTICS
         }
     }
 

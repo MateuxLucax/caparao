@@ -88,6 +88,7 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
             emptyList(), today, zone, 23 * 60,
         ).caffeine
         assertEquals(1, state.todayBrews)
+        assertTrue(state.nowMg > 0)
         assertTrue(state.bedtimeMg > 0)
         assertTrue(state.points.maxOf { it.mg } > state.points.first().mg)
         assertTrue(state.lastCoffeeByMinutes != null)

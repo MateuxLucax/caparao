@@ -25,6 +25,12 @@
 
     <!-- Home-screen widget -->
     <string name="widget_description">Brew your last coffee again</string>
+    <string name="widget_last_brew_title">Last brew</string>
+    <string name="widget_empty_title">You haven\'t made coffee yet</string>
+    <string name="widget_brew_espresso">Brew espresso</string>
+    <string name="widget_brew_filter">Brew filter</string>
+    <string name="widget_brew_french_press">Brew French press</string>
+    <string name="widget_brew_coffee">Brew a coffee</string>
     <string name="last_brew_widget_label">Last brew</string>
     <string name="widget_empty_title_yet">No brews yet</string>
     <string name="widget_empty_start">Start a brew</string>
@@ -38,7 +44,21 @@
     <string name="widget_preview_brew_details">15 g → 250 g</string>
     <string name="widget_brew_again">Brew again</string>
     <string name="widget_content_description">Brew again: %1$s</string>
-
+    <string name="analytics_widget_name">Analytics</string>
+    <string name="analytics_widget_description">Caffeine now and this week</string>
+    <string name="analytics_widget_empty">No coffee logged yet</string>
+    <string name="analytics_widget_start_brew">Start a brew</string>
+    <string name="analytics_widget_now_caption">caffeine now</string>
+    <string name="analytics_widget_now_marker">Now</string>
+    <string name="analytics_widget_bedtime_title">Bedtime</string>
+    <string name="analytics_widget_bedtime_chip">Bedtime %1$d mg · %2$s</string>
+    <string name="analytics_widget_bedtime_high_description">%1$d mg, above the 50 mg bedtime target</string>
+    <string name="analytics_widget_week_title">This week</string>
+    <string name="analytics_widget_value_mg">%1$d mg</string>
+    <string name="analytics_widget_value_grams">%1$d g</string>
+    <string name="analytics_widget_delta_grams">%1$s %2$d g</string>
+    <string name="analytics_widget_clock">%1$02d:%2$02d</string>
+    <string name="analytics_widget_curve_description">Today\'s estimated caffeine curve</string>
     <!-- Brews -->
     <string name="last_sync">Last sync %1$s</string>
     <string name="server_not_configured">No server set. Brews stay on this phone.</string>
