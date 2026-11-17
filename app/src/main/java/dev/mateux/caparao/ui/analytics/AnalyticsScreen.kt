@@ -87,8 +87,6 @@ private fun CaffeineChart(estimate: CaffeineEstimate, modifier: Modifier = Modif
         }
         if (estimate.points.size > 1) drawPath(path, color, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
         estimate.brewHours.forEach { hour -> drawLine(color, androidx.compose.ui.geometry.Offset(x(hour), size.height - 7.dp.toPx()), androidx.compose.ui.geometry.Offset(x(hour), size.height), 2.dp.toPx()) }
-        val bedtimeX = x(maxHour)
-        drawLine(reference, androidx.compose.ui.geometry.Offset(bedtimeX, 0f), androidx.compose.ui.geometry.Offset(bedtimeX, size.height), 1.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())))
     }
 }
 

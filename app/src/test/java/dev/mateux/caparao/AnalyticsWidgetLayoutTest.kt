@@ -350,6 +350,33 @@ class AnalyticsWidgetLayoutTest {
     }
 
     @Test
+    fun chartOverlayKeepsReferenceAndNowLinesWithoutBedtimeGuide() {
+        val size = SizeF(396f, 381f)
+        val bedtimeMinutes = 23 * 60
+        val nowMinutes = 15 * 60
+        val bitmap = provider.chartOverlayBitmap(context, state, size, bedtimeMinutes, nowMinutes, maskColors = false)
+        val density = context.resources.displayMetrics.density
+        val left = 3f * density
+        val right = bitmap.width - 30f * density
+        val top = 3f * density
+        val bottom = bitmap.height - 16f * density
+        val (startHour, endHour) = AnalyticsWidgetProvider.chartWindowHours(state, nowMinutes, bedtimeMinutes)
+        val bedtimeX = right.toInt()
+        val nowHour = nowMinutes / 60.0
+        val nowX = (left + ((nowHour - startHour) / (endHour - startHour)).toFloat() * (right - left)).toInt()
+        val points = state.caffeine.points.filter { it.hour in startHour..endHour }
+        val referenceY = (bottom - (50.0 / maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)).toFloat() * (bottom - top)).toInt()
+        fun visible(x: Int, y: Int) = Color.alpha(bitmap.getPixel(x, y)) > 0
+
+        val bedtimeColumnOutsideLabels = (top.toInt()..(bottom - 5f * density).toInt())
+            .filter { kotlin.math.abs(it - referenceY) > 12f * density }
+            .any { y -> (bedtimeX - 1..bedtimeX + 1).any { x -> visible(x, y) } }
+        assertEquals(false, bedtimeColumnOutsideLabels)
+        assertTrue((top.toInt() + 10 until bottom.toInt() - 16 * density.toInt()).any { visible(nowX, it) })
+        assertTrue((left.toInt() until right.toInt()).any { visible(it, referenceY) })
+    }
+
+    @Test
     fun chartPlotsTwoBrewsInsideTheNowToBedtimeWindow() {
         val chartNow = Instant.parse("2026-11-17T15:00:00Z")
         val morning = brew.copy(id = "morning", startedAt = chartNow.minusSeconds(6 * 3600L).toEpochMilli())
@@ -359,6 +386,7 @@ class AnalyticsWidgetLayoutTest {
         val (startHour, bedtimeHour) = AnalyticsWidgetProvider.chartWindowHours(chartState, nowMinutes, 23 * 60)
         assertTrue(startHour < nowMinutes / 60.0)
         assertTrue(nowMinutes / 60.0 < bedtimeHour)
+        assertEquals(23.0, bedtimeHour, 0.0)
 
         val bitmap = provider.curveBitmap(context, chartState, SizeF(396f, 381f), 23 * 60, detailed = false, nowMinutes = nowMinutes)
         assertTrue(opaquePixels(bitmap) > 20)

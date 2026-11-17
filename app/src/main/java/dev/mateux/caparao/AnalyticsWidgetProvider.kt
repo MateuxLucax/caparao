@@ -226,7 +226,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         return bitmap
     }
 
-    private fun chartOverlayBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean): Bitmap {
+    internal fun chartOverlayBitmap(context: Context, state: AnalyticsState, size: SizeF, bedtimeMinutes: Int, nowMinutes: Int, maskColors: Boolean): Bitmap {
         val bitmap = Bitmap.createBitmap((size.width - 32f).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), (size.height - EXPANDED_CHART_FIXED_HEIGHT_DP).times(context.resources.displayMetrics.density).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         bitmap.density = Bitmap.DENSITY_NONE
         val density = context.resources.displayMetrics.density
@@ -240,17 +240,13 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val bounds = RectF(3f * density, 3f * density, width - 30f * density, height - CHART_LABEL_ROW_HEIGHT_DP * density)
         val nowHour = nowMinutes / 60.0 + nowMinutes % 60 / 60.0
         val (startHour, endHour) = chartWindowHours(state, nowMinutes, bedtimeMinutes)
-        val bedtimeHour = bedtimeMinutes / 60.0 + bedtimeMinutes % 60 / 60.0
-        val bedtimePosition = if (bedtimeHour <= nowHour) bedtimeHour + 24.0 else bedtimeHour
-        fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
         val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density; style = Paint.Style.STROKE; pathEffect = android.graphics.DashPathEffect(floatArrayOf(4f * density, 3f * density), 0f) }
         val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density }
-        val bedtimeX = x(bedtimePosition)
+        fun x(hour: Double) = bounds.left + ((hour - startHour) / (endHour - startHour)).coerceIn(0.0, 1.0).toFloat() * bounds.width()
         val nowX = x(nowHour)
         val points = state.caffeine.points.filter { it.hour in startHour..endHour }
         val referenceY = bounds.bottom - (50.0 / maxOf(100.0, points.maxOfOrNull { it.mg } ?: 0.0)).toFloat() * bounds.height()
         canvas.drawLine(bounds.left, referenceY, bounds.right, referenceY, guide)
-        canvas.drawLine(bedtimeX, bounds.top, bedtimeX, bounds.bottom, guide)
         canvas.drawLine(nowX, bounds.top, nowX, bounds.bottom, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; strokeWidth = density })
         canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
         canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
