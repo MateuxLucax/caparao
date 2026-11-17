@@ -112,6 +112,7 @@ class AppContainer(context: Context) {
 
     val brews = BrewRepository(database.brews()) {
         BrewWidgetProvider.requestRefresh(appContext)
+        WeekWidgetProvider.requestRefresh(appContext)
         AnalyticsWidgetProvider.requestRefresh(appContext)
     }
 
