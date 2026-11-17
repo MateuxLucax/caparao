@@ -3,6 +3,7 @@ package dev.mateux.caparao
 import android.content.Context
 import android.content.res.Configuration
 import android.util.SizeF
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -53,6 +54,22 @@ class WeekWidgetLayoutTest {
         assertEquals("Semana", pt.getString(R.string.week_widget_name))
         assertEquals("preparos", pt.getString(R.string.week_preview_count_unit))
         assertEquals("143 g de café · 2,1 L", pt.getString(R.string.week_preview_stats))
+    }
+
+    @Test fun pickerPreviewHasOneCountAndOneDayLabelRow() {
+        val preview = LayoutInflater.from(context).inflate(R.layout.widget_week_preview, null)
+        fun descendants(view: View): List<View> = buildList {
+            add(view)
+            if (view is android.view.ViewGroup) for (i in 0 until view.childCount) addAll(descendants(view.getChildAt(i)))
+        }
+        val all = descendants(preview)
+        assertEquals(1, all.filterIsInstance<TextView>().count { it.text == "12" })
+        assertEquals(1, all.filterIsInstance<android.widget.LinearLayout>().count { row ->
+            row.childCount == 7 && (0 until row.childCount).all { row.getChildAt(it) is TextView }
+        })
+        assertEquals("143 g de café · 2,1 L", context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { setLocale(java.util.Locale("pt", "BR")) }
+        ).getString(R.string.week_preview_stats))
     }
 
     @Test fun weekdayInitialsEndOnTuesdayInEnglishAndBrazilianPortuguese() {
