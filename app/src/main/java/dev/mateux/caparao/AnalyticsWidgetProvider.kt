@@ -293,7 +293,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.ANALYTICS_REFRESH"
         private const val WIDE_MIN_WIDTH_DP = 250f
         private const val EXPANDED_MIN_HEIGHT_DP = 330f
-        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
+        private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 128f
         private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
         private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
         private const val MIN_TIME_LABEL_GAP_DP = 8f

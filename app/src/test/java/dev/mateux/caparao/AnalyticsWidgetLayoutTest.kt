@@ -12,6 +12,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.util.SizeF
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -102,12 +103,45 @@ class AnalyticsWidgetLayoutTest {
         assertTrue(bitmap.width > 0)
         assertTrue(bitmap.height > 0)
         assertEquals(chartWidthPx(size, contentWidthDp = size.width - 32f), bitmap.width)
-        assertEquals(((size.height - 104f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
+        assertEquals(((size.height - 128f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
         val overlay = root.findViewById<ImageView>(R.id.analytics_widget_curve_overlay)
         val overlayBitmap = (overlay.drawable as BitmapDrawable).bitmap
         assertEquals(bitmap.width, overlayBitmap.width)
         assertEquals(bitmap.height, overlayBitmap.height)
         assertHeaderAbsent(root)
+    }
+
+    @Test
+    fun expandedPortugueseHeaderStacksCaffeineAndRightAlignsBedtimeColumn() {
+        val portuguese = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag("pt-BR")) },
+        )
+        val largeValue = state.copy(caffeine = state.caffeine.copy(nowMg = 217, bedtimeMg = 12))
+        val size = SizeF(396f, 381f)
+        val root = provider.viewsForSize(portuguese, 1, listOf(brew), largeValue, size).apply(portuguese, null)
+        val widthPx = (size.width * context.resources.displayMetrics.density).toInt()
+        val heightPx = (size.height * context.resources.displayMetrics.density).toInt()
+        root.measure(MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY))
+        root.layout(0, 0, widthPx, heightPx)
+
+        val header = root.findViewById<View>(R.id.analytics_widget_header_row)
+        val heroGroup = root.findViewById<View>(R.id.analytics_widget_hero_group)
+        val caffeine = root.findViewById<TextView>(R.id.analytics_widget_caffeine)
+        val caption = root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption)
+        val bedtime = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
+
+        assertEquals("217 mg", caffeine.text)
+        assertEquals("cafeína agora", caption.text)
+        assertTrue(caption.top >= caffeine.bottom)
+        assertTrue(heroGroup.right <= bedtime.left)
+        assertEquals(header.width, bedtime.right)
+        assertEquals(
+            Gravity.RIGHT,
+            Gravity.getAbsoluteGravity(bedtime.gravity, View.LAYOUT_DIRECTION_LTR) and Gravity.HORIZONTAL_GRAVITY_MASK,
+        )
+        assertEquals(0, caption.layout.getEllipsisCount(0))
+        assertEquals(0, bedtime.layout.getEllipsisCount(0))
+        assertTrue(bedtime.text.toString().startsWith("Ao dormir 12 mg"))
     }
 
     @Test
