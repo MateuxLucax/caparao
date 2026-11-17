@@ -68,7 +68,7 @@ internal fun brewWidgetViews(
         }
     }
     if (latest == null) {
-        views.setImageViewResource(R.id.widget_action_icon, R.drawable.ic_coffee)
+        views.setImageViewResource(R.id.widget_action_icon, R.drawable.ic_add)
         views.setViewVisibility(R.id.widget_action_label, View.GONE)
     }
     return views
