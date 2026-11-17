@@ -4,17 +4,21 @@
     android:id="@+id/widget_action"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_icon_container"
+    android:background="@drawable/widget_brew_background"
     android:contentDescription="@string/widget_content_description"
-    android:padding="10dp">
+    android:gravity="center">
 
-    <ImageView
-        android:id="@+id/widget_small_icon"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center"
-        android:contentDescription="@null"
-        android:scaleType="fitCenter"
-        android:tint="@color/widget_action_text"
-        tools:ignore="UseAppTint" />
+    <FrameLayout
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/widget_icon_container">
+        <ImageView
+            android:id="@+id/widget_small_icon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:tint="@color/widget_icon_foreground"
+            tools:ignore="UseAppTint" />
+    </FrameLayout>
 </FrameLayout>

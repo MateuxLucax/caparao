@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import dev.mateux.caparao.model.Brew
@@ -29,14 +30,28 @@ class BrewWidgetLayoutTest {
         assertNotNull(root.findViewById<View>(R.id.widget_small_icon))
         assertEquals(null, root.findViewById<View>(R.id.widget_coffee))
         assertEquals(context.getString(R.string.widget_content_description, "Fazenda Ambiental"), root.contentDescription)
+        val circle = root.findViewById<View>(R.id.widget_small_icon).parent as View
+        assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.width)
+        assertEquals((48 * context.resources.displayMetrics.density).toInt(), circle.layoutParams.height)
+        assertEquals((28 * context.resources.displayMetrics.density).toInt(), root.findViewById<View>(R.id.widget_small_icon).layoutParams.width)
     }
 
     @Test fun twoByOneShowsCoffeeAndRepeatsLastMethod() {
         val root = views(brew)
         assertEquals("Fazenda Ambiental", root.findViewById<TextView>(R.id.widget_coffee).text)
-        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_meta).visibility)
+        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_meta).visibility)
+        assertEquals("15 g → 250 g", root.findViewById<TextView>(R.id.widget_meta).text)
         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
         assertEquals(LauncherShortcut.FILTER, shortcutForWidget(BrewMode.FILTER))
+    }
+
+    @Test fun textColumnUsesAllRemainingWidth() {
+        val layout = LayoutInflater.from(context).inflate(R.layout.widget_brew, null)
+        val column = layout.findViewById<View>(R.id.widget_text_column)
+        val params = column.layoutParams as android.widget.LinearLayout.LayoutParams
+        assertEquals(1f, params.weight)
+        assertEquals(0, params.marginStart)
+        assertEquals(0, params.marginEnd)
     }
 
     @Test fun threeAndFourByOneShowMethodTimeAndTextAction() {
@@ -65,6 +80,7 @@ class BrewWidgetLayoutTest {
             while (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) parser.next()
             val ns = "http://schemas.android.com/apk/res/android"
             assertEquals("Last brew", context.getString(parser.getAttributeResourceValue(ns, "label", 0)))
+            assertEquals(R.string.last_brew_widget_label, parser.getAttributeResourceValue(ns, "label", 0))
             assertEquals(context.getString(R.string.widget_description), context.getString(parser.getAttributeResourceValue(ns, "description", 0)))
             assertEquals(2, parser.getAttributeIntValue(ns, "targetCellWidth", 0))
             assertEquals(1, parser.getAttributeIntValue(ns, "targetCellHeight", 0))
@@ -73,8 +89,18 @@ class BrewWidgetLayoutTest {
         } finally { parser.close() }
         val preview = LayoutInflater.from(context).inflate(R.layout.widget_brew, null)
         assertEquals("Fazenda Ambiental", preview.findViewById<TextView>(R.id.widget_coffee).text)
+        assertNotNull(preview.findViewById<ImageView>(R.id.widget_method_icon).drawable)
         assertNotNull(preview.findViewById<View>(R.id.widget_action_button))
-        assertTrue(context.resources.getDimensionPixelSize(R.dimen.widget_min_height) <= 50 * context.resources.displayMetrics.density)
+        assertEquals((56 * context.resources.displayMetrics.density).toInt(), context.resources.getDimensionPixelSize(R.dimen.widget_min_height))
+    }
+
+    @Test fun pickerDescriptionIsTranslatedInBrazilianPortuguese() {
+        val configuration = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(java.util.Locale.forLanguageTag("pt-BR"))
+        }
+        val portuguese = context.createConfigurationContext(configuration)
+        assertEquals("Prepare seu último café de novo", portuguese.getString(R.string.widget_description))
+        assertEquals("Último preparo", portuguese.getString(R.string.last_brew_widget_label))
     }
 
 }

@@ -21,7 +21,7 @@
 
     <!-- Widget da tela inicial -->
     <string name="widget_description">Prepare seu último café de novo</string>
-    <string name="widget_last_brew_title">Último preparo</string>
+    <string name="last_brew_widget_label">Último preparo</string>
     <string name="widget_empty_title_yet">Nenhum preparo ainda</string>
     <string name="widget_empty_start">Iniciar</string>
     <string name="widget_brew_summary">%1$s · %2$.0f g → %3$.0f g</string>

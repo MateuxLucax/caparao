@@ -19,14 +19,14 @@
             android:layout_height="28dp"
             android:layout_gravity="center"
             android:contentDescription="@null"
+            android:src="@drawable/ic_coffee_maker"
             android:tint="@color/widget_icon_foreground"
             tools:ignore="UseAppTint" />
     </FrameLayout>
     <LinearLayout
+        android:id="@+id/widget_text_column"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
         <TextView

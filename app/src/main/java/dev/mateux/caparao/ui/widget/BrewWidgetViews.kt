@@ -2,7 +2,8 @@ package dev.mateux.caparao.ui.widget
 
 import android.app.PendingIntent
 import android.content.Context
-import android.util.SizeF
+import android.text.TextPaint
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import dev.mateux.caparao.R
@@ -17,6 +18,7 @@ internal fun brewWidgetViews(
     latest: Brew?,
     small: Boolean = false,
     wide: Boolean = false,
+    widthDp: Float = 380f,
     pendingIntent: (String) -> PendingIntent,
 ): RemoteViews {
     val mode = latest?.mode
@@ -32,7 +34,7 @@ internal fun brewWidgetViews(
 
     val views = RemoteViews(context.packageName, R.layout.widget_brew)
     views.setImageViewResource(R.id.widget_method_icon, mode?.icon ?: R.drawable.ic_coffee)
-    views.setViewVisibility(R.id.widget_meta, if (wide) View.VISIBLE else View.GONE)
+    views.setViewVisibility(R.id.widget_meta, if (latest == null) View.GONE else View.VISIBLE)
     views.setTextViewText(R.id.widget_action_label, context.getString(R.string.widget_brew_again))
     views.setViewLayoutWidth(R.id.widget_action_button, if (wide) 132f else 40f, android.util.TypedValue.COMPLEX_UNIT_DIP)
     views.setContentDescription(R.id.widget_action, accessibility)
@@ -47,9 +49,8 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_action_button, View.VISIBLE)
     } else {
         views.setTextViewText(R.id.widget_coffee, coffee)
-        val details = context.getString(R.string.widget_brew_summary, context.getString(latest.mode.label), latest.doseGrams, latest.yieldGrams)
         val summary = context.getString(R.string.widget_brew_short_summary, latest.doseGrams, latest.yieldGrams)
-        views.setTextViewText(R.id.widget_meta, if (wide) "$details · ${timeAgo(context, latest.startedAt)}" else summary)
+        views.setTextViewText(R.id.widget_meta, if (wide) wideSummary(context, latest, widthDp, summary) else summary)
         views.setViewVisibility(R.id.widget_action_button, View.VISIBLE)
         if (wide) {
             views.setViewVisibility(R.id.widget_action_icon, View.VISIBLE)
@@ -65,6 +66,18 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_action_label, View.GONE)
     }
     return views
+}
+
+private fun wideSummary(context: Context, latest: Brew, widthDp: Float, yield: String): String {
+    val method = context.getString(latest.mode.label)
+    val full = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams) + " · " + timeAgo(context, latest.startedAt)
+    val withoutTime = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
+    val withoutMethod = yield
+    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 196f, context.resources.displayMetrics)
+    val paint = TextPaint().apply {
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, context.resources.displayMetrics)
+    }
+    return listOf(full, withoutTime, withoutMethod).firstOrNull { paint.measureText(it) <= availablePx } ?: withoutMethod
 }
 
 internal fun timeAgo(context: Context, startedAt: Long, now: Long = System.currentTimeMillis()): String {

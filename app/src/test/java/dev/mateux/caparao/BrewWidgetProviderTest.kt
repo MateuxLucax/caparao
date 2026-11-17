@@ -44,7 +44,8 @@ class BrewWidgetProviderTest {
             )
             val populated = requireNotNull(root)
             assertEquals("Fazenda Ambiental", populated.findViewById<TextView>(R.id.widget_coffee).text)
-            assertEquals(View.GONE, populated.findViewById<View>(R.id.widget_meta).visibility)
+            assertEquals(View.VISIBLE, populated.findViewById<View>(R.id.widget_meta).visibility)
+            assertEquals("15 g → 250 g", (populated.findViewById<View>(R.id.widget_meta) as android.widget.TextView).text)
         } finally {
             db.close()
         }
