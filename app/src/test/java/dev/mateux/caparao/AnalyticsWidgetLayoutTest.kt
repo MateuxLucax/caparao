@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.ComponentName
 import android.content.res.Configuration
 import android.content.Intent
+import android.app.LocaleManager
+import android.os.LocaleList
 import android.graphics.drawable.BitmapDrawable
 import android.util.SizeF
 import android.view.View
@@ -19,6 +21,7 @@ import dev.mateux.caparao.ui.analytics.AnalyticsViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
+import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -26,6 +29,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class AnalyticsWidgetLayoutTest {
@@ -46,6 +50,7 @@ class AnalyticsWidgetLayoutTest {
         assertNotNull(root.findViewById<TextView>(R.id.analytics_widget_week))
         assertTrue(root.findViewById<View>(android.R.id.background).hasOnClickListeners())
         val sparkline = (root.findViewById<ImageView>(R.id.analytics_widget_sparkline).drawable as BitmapDrawable).bitmap
+        assertTrue(sparkline.width > 0)
         assertEquals(((size.width - 48f) * 1.2f / 2.2f * context.resources.displayMetrics.density).toInt(), sparkline.width)
         assertEquals((28f * context.resources.displayMetrics.density).toInt(), sparkline.height)
         assertHeaderAbsent(root)
@@ -53,7 +58,7 @@ class AnalyticsWidgetLayoutTest {
 
     @Test
     fun layoutBIsTheExpandedFourByThreeChartWireframe() {
-        val size = SizeF(340f, 250f)
+        val size = SizeF(396f, 381f)
         val root = render(size)
         assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(size))
         val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
@@ -71,6 +76,8 @@ class AnalyticsWidgetLayoutTest {
         val chart = root.findViewById<ImageView>(R.id.analytics_widget_curve)
         assertNotNull(chart)
         val bitmap = (chart.drawable as BitmapDrawable).bitmap
+        assertTrue(bitmap.width > 0)
+        assertTrue(bitmap.height > 0)
         assertEquals(chartWidthPx(size, contentWidthDp = size.width - 32f), bitmap.width)
         assertEquals(((size.height - 104f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
         assertHeaderAbsent(root)
@@ -95,11 +102,9 @@ class AnalyticsWidgetLayoutTest {
 
     @Test
     fun sizeBucketsSelectWideExpandedAndSquareLayouts() {
-        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 180f)))
-        assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(SizeF(250f, 250f)))
-        assertEquals(R.layout.widget_analytics_square, provider.layoutForSize(SizeF(110f, 110f)))
-        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 180f)))
-        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(260f, 179f)))
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(396f, 254f)))
+        assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(SizeF(396f, 381f)))
+        assertEquals(R.layout.widget_analytics_square, provider.layoutForSize(SizeF(200f, 254f)))
     }
 
     @Test
@@ -123,6 +128,27 @@ class AnalyticsWidgetLayoutTest {
         val bedtime = root.findViewById<TextView>(R.id.analytics_widget_bedtime)
         assertTrue(bedtime.currentTextColor != context.getColor(R.color.widget_primary_text))
         assertEquals(context.getString(R.string.analytics_widget_bedtime_high_description, 51), bedtime.contentDescription)
+    }
+
+    @Test
+    fun expandedBedtimeChipHasReadableDayAndNightTextColors() {
+        for (nightMode in listOf(false, true)) {
+            val configuration = Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                    if (nightMode) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            }
+            val themed = context.createConfigurationContext(configuration)
+            val root = provider.viewsForSize(themed, 1, listOf(brew), state, SizeF(396f, 381f)).apply(themed, null)
+            val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
+            assertEquals(themed.getColor(R.color.widget_primary_text), chip.currentTextColor)
+            assertTrue(contrast(chip.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+
+            val high = state.copy(caffeine = state.caffeine.copy(bedtimeMg = 51))
+            val highRoot = provider.viewsForSize(themed, 2, listOf(brew), high, SizeF(396f, 381f)).apply(themed, null)
+            val highChip = highRoot.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
+            assertEquals(themed.getColor(R.color.widget_error_text), highChip.currentTextColor)
+            assertTrue(contrast(highChip.currentTextColor, themed.getColor(R.color.widget_background)) >= 4.5)
+        }
     }
 
     @Test
@@ -157,7 +183,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(portuguese.getString(R.string.analytics_widget_now_caption), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).text)
         assertEquals("cafeína agora", portuguese.getString(R.string.analytics_widget_now_caption))
         assertEquals("Esta semana", portuguese.getString(R.string.analytics_widget_week_title))
-        val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(340f, 250f)).apply(portuguese, null)
+        val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(396f, 381f)).apply(portuguese, null)
         assertEquals("Esta semana", expanded.findViewById<TextView>(R.id.analytics_widget_week_label).text)
         assertTrue(expanded.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Ao dormir"))
         assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_LOCALE_CHANGED))
@@ -182,7 +208,7 @@ class AnalyticsWidgetLayoutTest {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
         }
         val night = context.createConfigurationContext(configuration)
-        val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(340f, 250f)).apply(night, null)
+        val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(396f, 381f)).apply(night, null)
         assertEquals(night.getColor(R.color.widget_hero_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_week_label).currentTextColor)
@@ -193,7 +219,7 @@ class AnalyticsWidgetLayoutTest {
 
     @Test
     fun chartLineColorAdaptsToDayAndNightContexts() {
-        val size = SizeF(340f, 250f)
+        val size = SizeF(396f, 381f)
         val dayBitmap = provider.curveBitmap(context, state, size, 23 * 60, detailed = true)
         val nightContext = context.createConfigurationContext(
             Configuration(context.resources.configuration).apply {
@@ -206,6 +232,24 @@ class AnalyticsWidgetLayoutTest {
         assertNotEquals(dayColor, nightColor)
         assertTrue(dayBitmap.pixels().isNotEmpty())
         assertTrue(nightBitmap.pixels().isNotEmpty())
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun appEnglishLocaleLocalizesAllExpandedWidgetStrings() {
+        val localeManager = context.getSystemService(LocaleManager::class.java)
+        val previous = localeManager.applicationLocales
+        try {
+            localeManager.applicationLocales = LocaleList.forLanguageTags("en-US")
+            val widgetContext = AnalyticsWidgetProvider.localizedContext(context)
+            val root = provider.viewsForSize(widgetContext, 1, listOf(brew), state, SizeF(396f, 381f)).apply(widgetContext, null)
+            assertEquals("caffeine now", root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).text)
+            assertEquals("This week", root.findViewById<TextView>(R.id.analytics_widget_week_label).text)
+            assertTrue(root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Bedtime"))
+            assertTrue(root.findViewById<TextView>(R.id.analytics_widget_delta).text.toString().matches(Regex("[↓↑·] \\d+ g")))
+        } finally {
+            localeManager.applicationLocales = previous
+        }
     }
 
     private fun render(size: SizeF): View = provider
@@ -224,6 +268,21 @@ class AnalyticsWidgetLayoutTest {
             if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
         }
         visit(root)
+    }
+
+    private fun contrast(foreground: Int, background: Int): Double {
+        fun luminance(color: Int): Double {
+            fun channel(value: Int): Double {
+                val normalized = value / 255.0
+                return if (normalized <= 0.04045) normalized / 12.92 else ((normalized + 0.055) / 1.055).pow(2.4)
+            }
+            return 0.2126 * channel(android.graphics.Color.red(color)) +
+                0.7152 * channel(android.graphics.Color.green(color)) +
+                0.0722 * channel(android.graphics.Color.blue(color))
+        }
+        val first = luminance(foreground)
+        val second = luminance(background)
+        return (maxOf(first, second) + 0.05) / (minOf(first, second) + 0.05)
     }
 
     private fun android.graphics.Bitmap.pixels(): Set<Int> = buildSet {
