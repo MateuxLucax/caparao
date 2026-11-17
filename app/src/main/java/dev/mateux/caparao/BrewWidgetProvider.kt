@@ -28,9 +28,13 @@ class BrewWidgetProvider : AppWidgetProvider() {
         refresh(context, manager, appWidgetIds)
     }
 
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
+        refresh(context, manager, intArrayOf(appWidgetId))
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) {
+        if (intent.action == ACTION_REFRESH || intent.action in CONFIGURATION_ACTIONS) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, BrewWidgetProvider::class.java))
             refresh(context, manager, ids)
@@ -115,6 +119,7 @@ class BrewWidgetProvider : AppWidgetProvider() {
         /** The watchdog fires just after the cooperative timeout, still well inside the ~10 s broadcast window. */
         private const val FINISH_MARGIN_MS = 250L
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.REFRESH"
+        private val CONFIGURATION_ACTIONS = setOf(Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_CONFIGURATION_CHANGED)
         /** Request a best-effort refresh after a committed save or delete. */
         fun requestRefresh(context: Context) {
             val component = ComponentName(context, BrewWidgetProvider::class.java)
