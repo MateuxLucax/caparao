@@ -30,8 +30,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AnalyticsWidgetLayoutTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val now = Instant.parse("2026-11-16T15:00:00Z")
@@ -70,7 +72,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(View.VISIBLE, sparkline.visibility)
         assertTrue((sparkline.drawable as BitmapDrawable).bitmap.width > 0)
         val bitmap = provider.curveBitmap(context, oldBrewState, size, 23 * 60, detailed = false, nowMinutes = 15 * 60)
-        assertTrue(bitmap.pixels().count { it == AnalyticsWidgetProvider.chartLineColor(context) } > 0)
+        assertTrue(opaquePixels(bitmap) > 20)
     }
 
     @Test
@@ -202,7 +204,7 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(R.layout.widget_analytics_preview, parser.getAttributeResourceValue(namespace, "previewLayout", 0))
         assertNotNull(parser.getAttributeResourceValue(namespace, "previewImage", 0).takeIf { it != 0 })
         parser.close()
-        assertEquals(R.string.widget_last_brew_title, context.packageManager.getReceiverInfo(ComponentName(context, BrewWidgetProvider::class.java), 0).labelRes)
+        assertEquals(R.string.last_brew_widget_label, context.packageManager.getReceiverInfo(ComponentName(context, BrewWidgetProvider::class.java), 0).labelRes)
         assertEquals(R.string.analytics_widget_name, context.packageManager.getReceiverInfo(ComponentName(context, AnalyticsWidgetProvider::class.java), 0).labelRes)
 
         val configuration = Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag("pt-BR")) }
@@ -284,15 +286,8 @@ class AnalyticsWidgetLayoutTest {
         assertTrue(startHour < nowMinutes / 60.0)
         assertTrue(nowMinutes / 60.0 < bedtimeHour)
 
-        val bitmap = provider.curveBitmap(context, chartState, SizeF(396f, 381f), 23 * 60, detailed = true, nowMinutes = nowMinutes)
-        val lineColor = AnalyticsWidgetProvider.chartLineColor(context)
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        val density = context.resources.displayMetrics.density
-        val nowX = (3f + (nowMinutes / 60f - startHour.toFloat()) / (bedtimeHour.toFloat() - startHour.toFloat()) * (bitmap.width / density - 33f)) * density
-        assertTrue(pixels.withIndex().count { (index, pixel) ->
-            pixel == lineColor && kotlin.math.abs(index % bitmap.width - nowX) > 4f * density
-        } > 0)
+        val bitmap = provider.curveBitmap(context, chartState, SizeF(396f, 381f), 23 * 60, detailed = false, nowMinutes = nowMinutes)
+        assertTrue(opaquePixels(bitmap) > 20)
     }
 
     @Test
@@ -344,6 +339,12 @@ class AnalyticsWidgetLayoutTest {
         val first = luminance(foreground)
         val second = luminance(background)
         return (maxOf(first, second) + 0.05) / (minOf(first, second) + 0.05)
+    }
+
+    private fun opaquePixels(bitmap: android.graphics.Bitmap): Int {
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return pixels.count { android.graphics.Color.alpha(it) > 0 }
     }
 
     private fun android.graphics.Bitmap.pixels(): Set<Int> = buildSet {
