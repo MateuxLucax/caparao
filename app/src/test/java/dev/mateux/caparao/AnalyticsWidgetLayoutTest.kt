@@ -181,7 +181,7 @@ class AnalyticsWidgetLayoutTest {
         }
         val night = context.createConfigurationContext(configuration)
         val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(340f, 180f)).apply(night, null)
-        assertEquals(night.getColor(R.color.widget_icon_foreground), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
+        assertEquals(night.getColor(R.color.widget_hero_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_week_label).currentTextColor)
         assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_delta).currentTextColor)

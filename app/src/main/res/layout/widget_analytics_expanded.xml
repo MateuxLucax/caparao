@@ -9,7 +9,7 @@
     <LinearLayout android:id="@+id/analytics_widget_content" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
         <LinearLayout android:id="@+id/analytics_widget_header_row" android:layout_width="match_parent" android:layout_height="44dp" android:gravity="center_vertical" android:orientation="horizontal">
             <LinearLayout android:id="@+id/analytics_widget_hero_group" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginEnd="8dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:id="@+id/analytics_widget_caffeine" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFeatureSettings="tnum" android:fontFamily="sans-serif-medium" android:maxLines="1" android:textColor="@color/widget_icon_foreground" android:textSize="36sp" />
+                <TextView android:id="@+id/analytics_widget_caffeine" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFeatureSettings="tnum" android:fontFamily="sans-serif-medium" android:maxLines="1" android:textColor="@color/widget_hero_text" android:textSize="36sp" />
                 <TextView android:id="@+id/analytics_widget_caffeine_caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:text="@string/analytics_widget_now_caption" android:textColor="@color/widget_secondary_text" android:textSize="13sp" />
             </LinearLayout>
             <TextView android:id="@+id/analytics_widget_bedtime_chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:ellipsize="end" android:fontFamily="sans-serif-medium" android:maxLines="1" android:textColor="@color/widget_primary_text" android:textSize="13sp" />
@@ -22,7 +22,7 @@
         </LinearLayout>
     </LinearLayout>
     <LinearLayout android:id="@+id/analytics_widget_empty" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="top" android:orientation="vertical" android:visibility="gone">
-        <ImageView android:id="@+id/analytics_widget_empty_icon" android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="@null" android:src="@drawable/ic_coffee" android:tint="@color/widget_icon_foreground" tools:ignore="UseAppTint" />
+        <ImageView android:id="@+id/analytics_widget_empty_icon" android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="@null" android:src="@drawable/ic_coffee" android:tint="@color/widget_hero_text" tools:ignore="UseAppTint" />
         <TextView android:id="@+id/analytics_widget_empty_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="0 mg" android:textColor="@color/widget_secondary_text" android:textSize="44sp" />
         <TextView android:id="@+id/analytics_widget_empty_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/analytics_widget_empty" android:textColor="@color/widget_secondary_text" android:textSize="14sp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
