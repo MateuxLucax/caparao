@@ -45,7 +45,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) {
+        if (intent.action == ACTION_REFRESH || intent.action in CONFIGURATION_ACTIONS) {
             val manager = AppWidgetManager.getInstance(context)
             refresh(context, manager, manager.getAppWidgetIds(ComponentName(context, AnalyticsWidgetProvider::class.java)))
         }
@@ -113,25 +113,35 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(R.id.analytics_widget_sparkline, if (hasCurve) View.VISIBLE else View.GONE)
         }
         views.setTextViewText(R.id.analytics_widget_caffeine, context.getString(R.string.analytics_widget_value_mg, state.caffeine.nowMg))
-        views.setTextViewText(R.id.analytics_widget_bedtime, context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg))
         val aboveBedtimeTarget = state.caffeine.bedtimeMg > 50
-        views.setTextColor(R.id.analytics_widget_bedtime, if (aboveBedtimeTarget) errorColor(context) else context.getColor(R.color.widget_primary_text))
-        views.setContentDescription(
-            R.id.analytics_widget_bedtime,
-            if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
-        )
         views.setTextViewText(R.id.analytics_widget_week, context.getString(R.string.analytics_widget_value_grams, state.thisWeek.grams.toInt()))
         val delta = state.thisWeek.grams.toInt() - state.lastWeek.grams.toInt()
         views.setTextViewText(R.id.analytics_widget_delta, context.getString(R.string.analytics_widget_delta_grams, if (delta < 0) "↓" else if (delta > 0) "↑" else "·", kotlin.math.abs(delta)))
         val bedtime = bedtimeMinutes.coerceIn(0, 1439)
         if (layout == R.layout.widget_analytics_expanded) {
-            views.setTextViewText(R.id.analytics_widget_bedtime_time, context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60))
+            views.setTextViewText(
+                R.id.analytics_widget_bedtime_chip,
+                context.getString(
+                    R.string.analytics_widget_bedtime_chip,
+                    state.caffeine.bedtimeMg,
+                    context.getString(R.string.analytics_widget_clock, bedtime / 60, bedtime % 60),
+                ),
+            )
+            views.setTextColor(R.id.analytics_widget_bedtime_chip, if (aboveBedtimeTarget) errorColor(context) else context.getColor(R.color.widget_primary_text))
+            views.setContentDescription(
+                R.id.analytics_widget_bedtime_chip,
+                if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
+            )
             views.setImageViewBitmap(R.id.analytics_widget_curve, curveBitmap(context, state, size, bedtime, detailed = true))
-        } else if (layout == R.layout.widget_analytics_square) {
-            views.setViewVisibility(R.id.analytics_widget_delta, View.GONE)
+        } else {
+            views.setTextViewText(R.id.analytics_widget_bedtime, context.getString(R.string.analytics_widget_value_mg, state.caffeine.bedtimeMg))
+            views.setTextColor(R.id.analytics_widget_bedtime, if (aboveBedtimeTarget) errorColor(context) else context.getColor(R.color.widget_primary_text))
+            views.setContentDescription(
+                R.id.analytics_widget_bedtime,
+                if (aboveBedtimeTarget) context.getString(R.string.analytics_widget_bedtime_high_description, state.caffeine.bedtimeMg) else null,
+            )
+            if (layout == R.layout.widget_analytics_square) views.setViewVisibility(R.id.analytics_widget_delta, View.GONE)
             if (hasCurve) views.setImageViewBitmap(R.id.analytics_widget_sparkline, curveBitmap(context, state, size, bedtime, detailed = false))
-        } else if (hasCurve) {
-            views.setImageViewBitmap(R.id.analytics_widget_sparkline, curveBitmap(context, state, size, bedtime, detailed = false))
         }
         val intent = Intent(context, MainActivity::class.java)
             .setAction(LauncherShortcut.ANALYTICS.action)
@@ -178,7 +188,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         val variant = context.getColor(R.color.widget_secondary_text)
         val fontSize = 12f * density
         val labels = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = variant; textSize = fontSize; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
-        val plotBottom = if (detailed) height - 17f * density else height - 2f * density
+        val plotBottom = if (detailed) height - CHART_LABEL_ROW_HEIGHT_DP * density else height - 2f * density
         val bounds = RectF(3f * density, 3f * density, width - if (detailed) 30f * density else 3f * density, plotBottom)
         val firstBrew = state.caffeine.brewHours.minOrNull() ?: 6.0
         val startHour = maxOf(6.0, firstBrew - 1.0)
@@ -216,7 +226,7 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
                 canvas.drawCircle(nowX, y(points.minByOrNull { kotlin.math.abs(it.hour - now) }?.mg ?: 0.0), 2.5f * density, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = primary })
                 canvas.drawText("50 mg", width - 2f * density, referenceY - 2f * density, labels)
                 canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, axis)
-                val baseline = height - 2f * density
+                val baseline = height - CHART_LABEL_BOTTOM_PADDING_DP * density
                 labels.textAlign = Paint.Align.LEFT
                 canvas.drawText(context.getString(R.string.analytics_widget_clock, (startHour * 60).toInt() / 60, (startHour * 60).toInt() % 60), bounds.left, baseline, labels)
                 val nowLabel = context.getString(R.string.analytics_widget_now_marker)
@@ -237,11 +247,14 @@ class AnalyticsWidgetProvider : AppWidgetProvider() {
         private const val TAG = "AnalyticsWidget"
         private const val ACTION_REFRESH = "dev.mateux.caparao.widget.ANALYTICS_REFRESH"
         private const val WIDE_MIN_WIDTH_DP = 250f
-        private const val EXPANDED_MIN_HEIGHT_DP = 150f
+        private const val EXPANDED_MIN_HEIGHT_DP = 180f
         private const val EXPANDED_CHART_FIXED_HEIGHT_DP = 104f
+        private const val CHART_LABEL_ROW_HEIGHT_DP = 16f
+        private const val CHART_LABEL_BOTTOM_PADDING_DP = 4f
         private const val SQUARE_CHART_FIXED_HEIGHT_DP = 156f
         private const val SPARKLINE_MIN_HEIGHT_DP = 24f
         private const val SPARKLINE_HEIGHT_DP = 28f
+        internal val CONFIGURATION_ACTIONS = setOf(Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_CONFIGURATION_CHANGED)
 
         fun requestRefresh(context: Context) {
             val component = ComponentName(context, AnalyticsWidgetProvider::class.java)

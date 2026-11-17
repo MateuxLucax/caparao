@@ -3,15 +3,18 @@ package dev.mateux.caparao
 import android.content.Context
 import android.content.ComponentName
 import android.content.res.Configuration
+import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
 import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.view.View.MeasureSpec
 import androidx.test.core.app.ApplicationProvider
 import dev.mateux.caparao.model.Brew
 import dev.mateux.caparao.model.BrewMode
+import dev.mateux.caparao.ui.analytics.CoffeeSummary
 import dev.mateux.caparao.ui.analytics.AnalyticsViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -19,6 +22,7 @@ import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -49,10 +53,21 @@ class AnalyticsWidgetLayoutTest {
 
     @Test
     fun layoutBIsTheExpandedFourByThreeChartWireframe() {
-        val size = SizeF(340f, 165f)
+        val size = SizeF(340f, 180f)
         val root = render(size)
         assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(size))
-        assertNotNull(root.findViewById<TextView>(R.id.analytics_widget_bedtime_time))
+        val chip = root.findViewById<TextView>(R.id.analytics_widget_bedtime_chip)
+        assertNotNull(chip)
+        assertEquals(1, chip.maxLines)
+        assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).maxLines)
+        assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_week_label).maxLines)
+        assertEquals(1, root.findViewById<TextView>(R.id.analytics_widget_delta).maxLines)
+        val widthPx = (size.width * context.resources.displayMetrics.density).toInt()
+        val heightPx = (size.height * context.resources.displayMetrics.density).toInt()
+        root.measure(MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY))
+        root.layout(0, 0, widthPx, heightPx)
+        val heroGroup = root.findViewById<View>(R.id.analytics_widget_hero_group)
+        assertTrue(heroGroup.right + 8f * context.resources.displayMetrics.density <= chip.left)
         val chart = root.findViewById<ImageView>(R.id.analytics_widget_curve)
         assertNotNull(chart)
         val bitmap = (chart.drawable as BitmapDrawable).bitmap
@@ -76,6 +91,13 @@ class AnalyticsWidgetLayoutTest {
         assertEquals(((size.height - 156f) * context.resources.displayMetrics.density).toInt(), bitmap.height)
         assertEquals(R.layout.widget_analytics_square, provider.layoutForSize(SizeF(230f, 110f)))
         assertHeaderAbsent(root)
+    }
+
+    @Test
+    fun expandedLayoutStartsAtThreeCellHeightAndWideFourByTwoUsesA() {
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(340f, 179f)))
+        assertEquals(R.layout.widget_analytics_expanded, provider.layoutForSize(SizeF(340f, 180f)))
+        assertEquals(R.layout.widget_analytics_wide, provider.layoutForSize(SizeF(340f, 110f)))
     }
 
     @Test
@@ -132,6 +154,39 @@ class AnalyticsWidgetLayoutTest {
         val root = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(340f, 110f)).apply(portuguese, null)
         assertEquals(portuguese.getString(R.string.analytics_widget_now_caption), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).text)
         assertEquals("cafeína agora", portuguese.getString(R.string.analytics_widget_now_caption))
+        assertEquals("Esta semana", portuguese.getString(R.string.analytics_widget_week_title))
+        val expanded = provider.viewsForSize(portuguese, 1, listOf(brew), state, SizeF(340f, 180f)).apply(portuguese, null)
+        assertEquals("Esta semana", expanded.findViewById<TextView>(R.id.analytics_widget_week_label).text)
+        assertTrue(expanded.findViewById<TextView>(R.id.analytics_widget_bedtime_chip).text.toString().startsWith("Ao dormir"))
+        assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_LOCALE_CHANGED))
+        assertTrue(AnalyticsWidgetProvider.CONFIGURATION_ACTIONS.contains(Intent.ACTION_CONFIGURATION_CHANGED))
+    }
+
+    @Test
+    fun deltaUsesThisWeekMinusLastWeekAndArrowMatchesItsSign() {
+        val sample = state.copy(thisWeek = CoffeeSummary(grams = 38.0), lastWeek = CoffeeSummary(grams = 266.0))
+        val root = provider.viewsForSize(context, 1, listOf(brew), sample, SizeF(340f, 110f)).apply(context, null)
+        assertEquals("38 g", root.findViewById<TextView>(R.id.analytics_widget_week).text)
+        assertEquals("↓ 228 g", root.findViewById<TextView>(R.id.analytics_widget_delta).text)
+
+        val previous = sample.copy(thisWeek = CoffeeSummary(grams = 266.0), lastWeek = CoffeeSummary(grams = 38.0))
+        val reversed = provider.viewsForSize(context, 1, listOf(brew), previous, SizeF(340f, 110f)).apply(context, null)
+        assertEquals("↑ 228 g", reversed.findViewById<TextView>(R.id.analytics_widget_delta).text)
+    }
+
+    @Test
+    fun nightModeUsesReadableThemeColorsForWidgetText() {
+        val configuration = Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
+        }
+        val night = context.createConfigurationContext(configuration)
+        val root = provider.viewsForSize(night, 1, listOf(brew), state, SizeF(340f, 180f)).apply(night, null)
+        assertEquals(night.getColor(R.color.widget_icon_foreground), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
+        assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine_caption).currentTextColor)
+        assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_week_label).currentTextColor)
+        assertEquals(night.getColor(R.color.widget_secondary_text), root.findViewById<TextView>(R.id.analytics_widget_delta).currentTextColor)
+        assertEquals(night.getColor(R.color.widget_primary_text), root.findViewById<TextView>(R.id.analytics_widget_week).currentTextColor)
+        assertNotEquals(night.getColor(R.color.widget_primary_text), root.findViewById<TextView>(R.id.analytics_widget_caffeine).currentTextColor)
     }
 
     private fun render(size: SizeF): View = provider
