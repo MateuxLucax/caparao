@@ -19,6 +19,7 @@ internal fun brewWidgetViews(
     small: Boolean = false,
     wide: Boolean = false,
     widthDp: Float = 380f,
+    fullMeta: Boolean = wide,
     pendingIntent: (String) -> PendingIntent,
 ): RemoteViews {
     val mode = latest?.mode
@@ -54,7 +55,8 @@ internal fun brewWidgetViews(
         views.setViewVisibility(R.id.widget_empty_title, View.GONE)
         views.setTextViewText(R.id.widget_coffee, coffee)
         val summary = context.getString(R.string.widget_brew_short_summary, latest.doseGrams, latest.yieldGrams)
-        views.setTextViewText(R.id.widget_meta, if (wide) wideSummary(context, latest, widthDp, summary) else summary)
+        val details = if (fullMeta) wideSummary(context, latest, widthDp, coffee ?: context.getString(latest.mode.label), summary) else summary
+        views.setTextViewText(R.id.widget_meta, details)
         views.setViewVisibility(R.id.widget_action_button, View.VISIBLE)
         if (wide) {
             views.setViewVisibility(R.id.widget_action_icon, View.VISIBLE)
@@ -72,16 +74,17 @@ internal fun brewWidgetViews(
     return views
 }
 
-private fun wideSummary(context: Context, latest: Brew, widthDp: Float, yield: String): String {
+private fun wideSummary(context: Context, latest: Brew, widthDp: Float, title: String, yield: String): String {
     val method = context.getString(latest.mode.label)
-    val full = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams) + " · " + timeAgo(context, latest.startedAt)
-    val withoutTime = context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
+    val methodIsTitle = title == method
+    val full = (if (methodIsTitle) yield else context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)) + " · " + timeAgo(context, latest.startedAt)
+    val withoutTime = if (methodIsTitle) yield else context.getString(R.string.widget_brew_summary, method, latest.doseGrams, latest.yieldGrams)
     val withoutMethod = yield
-    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - 188f, context.resources.displayMetrics)
+    val availablePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthDp - if (widthDp >= 380f) 180f else 116f, context.resources.displayMetrics)
     val paint = TextPaint().apply {
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, context.resources.displayMetrics)
     }
-    val candidates = if (widthDp <= 280f) listOf(withoutMethod) else listOf(full, withoutTime, withoutMethod)
+    val candidates = listOf(full, withoutTime, withoutMethod)
     return candidates.firstOrNull { paint.measureText(it) <= availablePx } ?: withoutMethod
 }
 

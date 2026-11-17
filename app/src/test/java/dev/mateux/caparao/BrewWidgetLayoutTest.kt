@@ -63,20 +63,27 @@ class BrewWidgetLayoutTest {
         assertEquals(13f, layout.findViewById<TextView>(R.id.widget_meta).textSize / context.resources.displayMetrics.scaledDensity, 0.1f)
     }
 
-    @Test fun narrowWideSummaryDropsTimeThenMethodButKeepsYield() {
-        val meta = views(brew, wide = true, widthDp = 280f).findViewById<TextView>(R.id.widget_meta).text.toString()
-        assertEquals("15 g → 250 g", meta)
-        assertTrue(meta.contains("250 g"))
-        assertTrue(!meta.contains("Filter") && !meta.contains("ago"))
+    @Test fun widgetSizeBucketsUseActualWidth() {
+        fun at(width: Float) = BrewWidgetProvider().viewsForWidth(context, 1, brew, width).apply(context, null)
+        val small = at(100f)
+        val twoCell = at(190f)
+        val threeCell = at(293f)
+        val fourCell = at(400f)
+        assertNotNull(small.findViewById<View>(R.id.widget_small_icon))
+        assertEquals(View.GONE, twoCell.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals("15 g → 250 g", twoCell.findViewById<TextView>(R.id.widget_meta).text)
+        assertEquals(View.GONE, threeCell.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals("Filter · 15 g → 250 g · 59 min ago", threeCell.findViewById<TextView>(R.id.widget_meta).text)
+        assertEquals(View.VISIBLE, fourCell.findViewById<View>(R.id.widget_action_label).visibility)
     }
 
-    @Test fun threeCellOptionsSelectLayoutC() {
+    @Test fun threeCellOptionsSelectBWithFullMeta() {
         val options = android.os.Bundle().apply {
             putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 293)
             putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 119)
         }
         val root = BrewWidgetProvider().viewsForOptions(context, 1, brew, options).apply(context, null)
-        assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_label).visibility)
+        assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
         assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("Filter"))
         assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("250 g"))
         assertTrue(root.findViewById<TextView>(R.id.widget_meta).text.contains("59 min ago"))
@@ -96,33 +103,34 @@ class BrewWidgetLayoutTest {
         val root = views(null)
         assertEquals("No brews yet", root.findViewById<TextView>(R.id.widget_empty_title).text)
         assertEquals(2, root.findViewById<TextView>(R.id.widget_empty_title).maxLines)
-        assertEquals(null, root.findViewById<TextView>(R.id.widget_empty_title).ellipsize)
+        assertEquals(android.text.TextUtils.TruncateAt.END, root.findViewById<TextView>(R.id.widget_empty_title).ellipsize)
         assertEquals(View.GONE, root.findViewById<View>(R.id.widget_action_label).visibility)
         assertEquals(context.getString(R.string.widget_empty_start), root.contentDescription)
         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_action_button).visibility)
         assertEquals(LauncherShortcut.WIDGET_HOME, shortcutForWidget(null))
     }
 
-    @Test fun emptyPortugueseTitleWrapsWithoutEllipsis() {
+    @Test fun emptyPortugueseTitleFitsAtTwoByOneWithoutEllipsis() {
         val config = android.content.res.Configuration(context.resources.configuration).apply {
             setLocale(java.util.Locale.forLanguageTag("pt-BR"))
         }
         val portuguese = context.createConfigurationContext(config)
-        val root = BrewWidgetProvider().views(portuguese, 1, null).apply(portuguese, null)
+        val root = BrewWidgetProvider().viewsForWidth(portuguese, 1, null, 190f).apply(portuguese, null)
         val title = root.findViewById<TextView>(R.id.widget_empty_title)
         assertEquals("Nenhum preparo ainda", title.text)
         assertEquals(2, title.maxLines)
-        assertEquals(null, title.ellipsize)
-        assertEquals(15f, title.textSize / portuguese.resources.displayMetrics.scaledDensity, 0.1f)
+        assertEquals(android.text.TextUtils.TruncateAt.END, title.ellipsize)
+        assertEquals(14f, title.textSize / portuguese.resources.displayMetrics.scaledDensity, 0.1f)
         val density = portuguese.resources.displayMetrics.density
         root.measure(
-            View.MeasureSpec.makeMeasureSpec((180 * density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec((190 * density).toInt(), View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec((119 * density).toInt(), View.MeasureSpec.EXACTLY),
         )
         root.layout(0, 0, root.measuredWidth, root.measuredHeight)
         val textLayout = requireNotNull(title.layout)
         assertTrue(textLayout.lineCount <= 2)
         assertEquals(title.text.length, textLayout.getLineEnd(textLayout.lineCount - 1))
+        for (line in 0 until textLayout.lineCount) assertEquals(0, textLayout.getEllipsisCount(line))
     }
 
     @Test fun pickerUsesTwoByOnePillAndMatchingPreview() {

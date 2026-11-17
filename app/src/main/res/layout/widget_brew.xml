@@ -48,7 +48,8 @@
             android:lineSpacingExtra="-2dp"
             android:maxLines="2"
             android:textColor="@color/widget_primary_text"
-            android:textSize="15sp"
+            android:textSize="14sp"
+            android:ellipsize="end"
             android:visibility="gone" />
         <TextView
             android:id="@+id/widget_meta"
