@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Português (Brasil). Every key here must also exist in values/strings.xml (checked by TranslationsTest). -->
 <resources>
+    <string name="week_widget_name">Semana</string>
+    <string name="week_brew_label">preparo</string>
+    <string name="week_brews_label">preparos</string>
+    <string name="week_widget_description">Seus preparos nos últimos 7 dias</string>
+    <string name="week_empty">Nenhum preparo nesta semana</string>
+    <string name="week_stats">%1$s g de café · %2$s L</string>
+    <string name="week_description">Preparos por dia: %1$s</string>
+    <plurals name="week_brews"><item quantity="one">%d preparo</item><item quantity="other">%d preparos</item></plurals>
     <!-- Navegação -->
     <string name="tab_home">Início</string>
     <string name="tab_brews">Preparos</string>

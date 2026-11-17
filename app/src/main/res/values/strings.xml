@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
+    <string name="week_widget_name">Week</string>
+    <string name="week_brew_label">brew</string>
+    <string name="week_brews_label">brews</string>
+    <string name="week_widget_description">Your brews over the last 7 days</string>
+    <string name="week_empty">No brews this week</string>
+    <string name="week_stats">%1$s g coffee · %2$s L</string>
+    <string name="week_description">Brews per day: %1$s</string>
+    <plurals name="week_brews"><item quantity="one">%d brew</item><item quantity="other">%d brews</item></plurals>
     <string name="app_name" translatable="false">Caparaó</string>
     <!-- The launcher label; debug builds override it (src/debug/res) to tell the two installs apart. -->
     <string name="launcher_name" translatable="false">Caparaó</string>
