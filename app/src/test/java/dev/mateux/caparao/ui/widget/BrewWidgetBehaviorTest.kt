@@ -39,7 +39,7 @@ class BrewWidgetBehaviorTest {
         val portuguese = localized(base, Locale.forLanguageTag("pt-BR"))
 
         assertEquals("No brews yet", english.getString(R.string.widget_empty_title_yet))
-        assertEquals("Nenhum preparo ainda", portuguese.getString(R.string.widget_empty_title_yet))
+        assertEquals("Nenhum preparo", portuguese.getString(R.string.widget_empty_title_yet))
         assertEquals("Start a brew", english.getString(R.string.widget_empty_start))
         assertEquals("Iniciar", portuguese.getString(R.string.widget_empty_start))
     }

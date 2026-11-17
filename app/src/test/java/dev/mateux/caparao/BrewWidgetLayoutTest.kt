@@ -117,7 +117,7 @@ class BrewWidgetLayoutTest {
         val portuguese = context.createConfigurationContext(config)
         val root = BrewWidgetProvider().viewsForWidth(portuguese, 1, null, 190f).apply(portuguese, null)
         val title = root.findViewById<TextView>(R.id.widget_empty_title)
-        assertEquals("Nenhum preparo ainda", title.text)
+        assertEquals("Nenhum preparo", title.text)
         assertEquals(2, title.maxLines)
         assertEquals(android.text.TextUtils.TruncateAt.END, title.ellipsize)
         assertEquals(14f, title.textSize / portuguese.resources.displayMetrics.scaledDensity, 0.1f)
