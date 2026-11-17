@@ -57,18 +57,20 @@ coffee in each recipe, and moves them one step at a time from what you tasted.
 
 - **On your wrist:** the Wear OS app mirrors the scale and the current pour, with the step, the pace, tare and timer
   buttons, a vibration on each step and a finish alert.
-- **Coffee shelf:** bags with roaster, origin, roast date, what is left and a tasting profile. Roasters, origins and
-  notes you used before are suggested as you type, and opening another bag of the same coffee brings its adjustments
-  along.
+- **Coffee shelf:** track bags by country, region, farm, variety, process, roast date, weight and tasting notes. Read a
+  bag label on your phone, reuse details as you type, or open another bag with the coffee's recipe adjustments. See
+  how much coffee is left and how many days it may last. Log coffee used even when you brew outside the app.
+- **Brew history and insights:** the last brew widget shows the method, dose, ratio and time, with a shortcut to brew
+  again. Analytics shows weekly coffee use and estimated caffeine through bedtime, with a home-screen widget for a
+  quick view. Adjust espresso dose, grind and temperature during preparation.
 - **Scale battery:** the Dot's battery percentage sits in the top bar while it is connected, and turns red at 20%.
-- **Home-screen widget:** the last brew, with a shortcut to start the next one.
 - **Offline first:** no account and no server. The rating reminder is a local notification.
 - **Your data, your server:** optionally, each brew goes to any server that follows the
   [exporter's upload contract](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter/blob/main/testdata/contract/README.md),
   such as [timemore-dot-prometheus-exporter](https://github.com/MateuxLucax/timemore-dot-prometheus-exporter), and from
   there to Prometheus and Grafana. Coffees, adjustments, taste and tasting notes never leave the phone.
 - **Material 3 Expressive:** Roboto Flex and Material You colors, in light and dark.
-- **Label reading:** Coffee bag photos and text are processed on-device and deleted after reading; neither is sent to Google. The text model is delivered through Google Play services. ML Kit may contact Google for fixes, model updates and accelerator compatibility, and sends API performance and utilization metrics; see [ML Kit privacy terms](https://developers.google.com/ml-kit/terms).
+- **Label reading:** Coffee bag photos and text are processed on-device and deleted after reading; neither is sent to Google. The text model is delivered through Google Play services, which may send diagnostics about performance and use; see [ML Kit privacy terms](https://developers.google.com/ml-kit/terms).
 
 The screens above are emulator captures with a scripted scale standing in for the Dot.
 
