@@ -123,7 +123,8 @@ class AnalyticsScreenTests : ScreenTestSupport("en", "light") {
         compose.waitUntilAtLeastOneExists(hasText(text(R.string.coffee_caffeine)), 5_000)
         compose.onNode(hasSetTextAction() and hasText(text(R.string.coffee_caffeine))).performTextReplacement("20")
         click(R.string.save)
-        compose.waitForIdle()
+        // Saving writes to Room off the UI thread; waitForIdle alone does not cover it.
+        compose.waitUntil(5_000) { runBlocking { CoffeeBagRepository(db.coffeeBags()).get("robusta")?.caffeineMgPerGram } == 20 }
         assertEquals(20, runBlocking { CoffeeBagRepository(db.coffeeBags()).get("robusta")!!.caffeineMgPerGram })
     }
 }
