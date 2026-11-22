@@ -55,12 +55,12 @@ class BagLabelReaderTest {
         assertEquals(listOf("Torra Alta", "Caparaó Natural", "Jasmim"), result.candidates)
     }
 
-    @Test fun largestWeightAndAccentedCapitalsKeepWords() {
+    @Test fun sizeListIsNotTheWeightAndAccentedCapitalsKeepWords() {
         val result = BagLabelReader.read(
             listOf(LabelLine("SÍTIO BAIXADÃO", 20f), LabelLine("Bourbon amarelo", 15f), LabelLine("250 g 1 kg 0,5 kg", 10f)),
             listOf("Sítio Baixadão"), emptyList(), today,
         )
-        assertEquals(1000.0, result.weightGrams!!, 0.0)
+        assertEquals(null, result.weightGrams)
         assertEquals("Sítio Baixadão", result.roaster)
         assertEquals("Bourbon Amarelo", result.candidates.first())
     }
