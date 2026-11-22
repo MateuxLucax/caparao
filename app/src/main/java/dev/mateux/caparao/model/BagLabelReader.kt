@@ -29,8 +29,7 @@ object BagLabelReader {
         now: LocalDate = LocalDate.now(ZoneOffset.UTC),
     ): BagLabelReading {
         val roastedAt = lines.indices.firstNotNullOfOrNull { roastDate(lines, it, now) }?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
-        // A line listing several sizes ("○ 250g ○ 1kg") is a choice printed on every bag, not this bag's weight.
-        val weight = lines.mapNotNull { line -> weights(line.text).distinct().singleOrNull() }.maxOrNull()
+        val weight = lines.mapNotNull { line -> lineWeight(line.text) }.maxOrNull()
         val (roaster, roasterLines) = roaster(lines, knownRoasters)
         val notePatterns = knownNotes.filter { it.isNotBlank() }.map { it to notePattern(it) }
         val notes = linkedSetOf<String>()
@@ -40,7 +39,7 @@ object BagLabelReader {
                 .sortedBy { it.first }.forEach { notes += it.second }
         }
         val candidates = lines.withIndex().asSequence().mapNotNull { (index, line) ->
-            if (index in roasterLines) return@mapNotNull null
+            if (index in roasterLines || roaster != null && compact(line.text).contains(compact(roaster))) return@mapNotNull null
             val text = candidateText(line.text) ?: return@mapNotNull null
             if (notePatterns.any { (_, pattern) -> pattern.containsMatchIn(normalize(text)) }) null else line.copy(text = text)
         }.sortedByDescending { it.height }.map { titleCase(it.text) }.distinctBy(::normalize).take(8).toList()
@@ -59,6 +58,17 @@ object BagLabelReader {
         if (ROAST_DATE.containsMatchIn(own)) return date
         val above = lines.getOrNull(index - 1)?.text ?: return null
         return date.takeIf { isDateLabel(above, ROAST_DATE_LABEL) }
+    }
+
+    /**
+     * The weight a line states, or null. Size choices printed on every bag ("○ 250g ○ 1kg", which ML Kit reads as
+     * "o 250g o lkg", sometimes one size per line) and company IDs or phone numbers ending in a misread "g" are skipped.
+     */
+    private fun lineWeight(raw: String): Double? {
+        val text = OCR_ONE_KILO.replace(raw.trim(), "1")
+        val normalized = normalize(text)
+        if (SIZE_OPTION.containsMatchIn(text) || CONTACT.containsMatchIn(normalized) || ADDRESS.containsMatchIn(normalized)) return null
+        return weights(text).distinct().singleOrNull()
     }
 
     private fun weights(text: String): List<Double> = WEIGHT.findAll(text).mapNotNull { match ->
@@ -85,10 +95,45 @@ object BagLabelReader {
         val normalized = normalize(text)
         if (text.isEmpty() || DATE.containsMatchIn(text) || ONLY_NUMBERS.matches(text) || DIGIT_RUN.containsMatchIn(text)) return null
         if (ADDRESS.containsMatchIn(normalized) || CONTACT.containsMatchIn(normalized) || LOT.containsMatchIn(normalized)) return null
-        if (isDateLabel(text, ROAST_DATE_LABEL) || isDateLabel(text, INVALID_DATE_LABEL) || FIELD_LABEL.matches(normalized.trimEnd(':', ' ', '.'))) return null
+        if (isDateLabel(text, ROAST_DATE_LABEL) || isDateLabel(text, INVALID_DATE_LABEL) || isFieldLabel(text)) return null
+        if (isProse(text) || !text.first().isLetterOrDigit() || CODE.containsMatchIn(text)) return null
         if (!WEIGHT.containsMatchIn(text)) return text
         // "CAFE FAZENDA JATOBA 250G": keep the name in front of a trailing weight.
         return TRAILING_WEIGHT.matchEntire(text)?.groupValues?.get(1)?.trim()?.takeIf { it.split(Regex("\\s+")).size >= 2 && !FIELD_LABEL.matches(normalize(it)) }
+    }
+
+    /**
+     * A field name printed on every bag, also as ML Kit misreads it ("Variedad", "Perhlsensorial", "Proceso"). Short
+     * names must match exactly, so a variety such as "Arara" next to "Aroma" stays a candidate.
+     */
+    private fun isFieldLabel(text: String): Boolean {
+        val normalized = normalize(text).trimEnd(':', ' ', '.')
+        if (FIELD_LABEL.matches(normalized)) return true
+        val letters = normalized.replace(Regex("[^\\p{L}]"), "")
+        val allowed = when { letters.length >= 12 -> 2; letters.length >= 6 -> 1; else -> return false }
+        return FIELD_LABELS.any { label ->
+            // A label cut short by the photo ("perfl sens") is compared with the same length of the label.
+            (listOf(label.length) + (letters.length - 1..letters.length + 1)).filter { it in 1..label.length }
+                .any { editDistance(letters, label.take(it)) <= allowed }
+        }
+    }
+
+    /** Body copy, not a name: long lines, sentence ends, broken company names and lines cut at a joining word. */
+    private fun isProse(text: String): Boolean {
+        val words = normalize(text).split(Regex("[\\s]+")).filter { it.isNotEmpty() }
+        return words.size > 4 || text.last() in ".,;:" || words.first() in JOINING_WORDS || words.last() in JOINING_WORDS ||
+            "ltda" in words
+    }
+
+    private fun editDistance(a: String, b: String): Int {
+        var previous = IntArray(b.length + 1) { it }
+        a.forEachIndexed { i, ca ->
+            val current = IntArray(b.length + 1)
+            current[0] = i + 1
+            b.forEachIndexed { j, cb -> current[j + 1] = minOf(previous[j + 1] + 1, current[j] + 1, previous[j] + if (ca == cb) 0 else 1) }
+            previous = current
+        }
+        return previous[b.length]
     }
 
     /** Matches a note and its plural or gender forms: "Cítrico" finds "notas cítricas", "Caramelo" finds "caramelo". */
@@ -138,6 +183,8 @@ object BagLabelReader {
     private val THOUSANDS = Regex("\\d{1,3}\\.\\d{3}")
     private val ONLY_NUMBERS = Regex("[\\d\\s.,/-]+")
     private val DIGIT_RUN = Regex("\\d{8,}")
+    /** A barcode or batch code with letters in it: "89R682Z1". */
+    private val CODE = Regex("(?<!\\S)(?=[^\\s]*\\p{L})(?=(?:[^\\s\\d]*\\d){4})[^\\s]+")
     private val ADDRESS = Regex("\\b(rua|avenida|av\\.?|street|road|cep|zip)\\b|^r\\.\\s")
     private val CONTACT = Regex("@|\\bwww\\.|https?:|\\.com\\b|\\b(cnpj|sac|tel|telefone|whatsapp)\\b")
     private val LOT = Regex("^(lote|lt)\\b.*\\d|^l\\s*[:.]")
@@ -146,4 +193,10 @@ object BagLabelReader {
             "colheita|fragrancia|aroma|acidez|corpo|notas|notas sensoriais|tasting notes|torra|torrado por|" +
             "produzido e embalado por|siga|lote|peso liquido|peso liq|peso",
     )
+    private val FIELD_LABELS = FIELD_LABEL.pattern.split('|').map { it.replace(" ", "") }.filter { it.length >= 6 }
+    private val JOINING_WORDS = setOf("a", "o", "e", "de", "do", "da", "dos", "das", "com", "para", "no", "na", "em", "um", "uma", "ao", "of", "the", "and")
+    /** A tick box in front of a size: "○ 250g", "o 250g", "• 1kg". */
+    private val SIZE_OPTION = Regex("(?i)(^|\\s)[o○●•◯◦□☐]\\s*\\d+(?:[.,]\\d+)?\\s*(?:$UNIT)(?![\\p{L}\\p{N}])")
+    /** ML Kit reads the "1" of "1kg" as "l" or "I". */
+    private val OCR_ONE_KILO = Regex("(?<![\\p{L}\\p{N}])[lI](?=\\s*kg(?![\\p{L}]))")
 }
